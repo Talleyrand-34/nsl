@@ -13,7 +13,7 @@ import (
 
 var (
 	cfgFile   string
-	srcdbpath string
+	Srcdbpath string
 	outpath   string
 	outFile   string
 	outImage  string
@@ -49,7 +49,7 @@ func init() {
 	RootCmd.PersistentFlags().
 		StringVarP(&cfgFile, "config-file", "c", "", "Specify the config file")
 	RootCmd.PersistentFlags().
-		StringVarP(&srcdbpath, "source", "s", "", "database file")
+		StringVarP(&Srcdbpath, "source", "s", "", "database file")
 	viper.BindPFlag("source", RootCmd.PersistentFlags().Lookup("source"))
 	RootCmd.PersistentFlags().
 		StringVar(&outpath, "outPath", "out/", "output path for files")
@@ -66,6 +66,10 @@ func init() {
 	RootCmd.PersistentFlags().
 		BoolVarP(&Debug, "debug", "d", false, "Display debugging output in the console. (default: false)")
 	viper.BindPFlag("debug", RootCmd.PersistentFlags().Lookup("debug"))
+}
+
+func GetSrcDB() string {
+	return Srcdbpath
 }
 
 func initConfig() {

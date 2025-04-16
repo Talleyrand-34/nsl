@@ -3,8 +3,8 @@ package sqlite
 import (
 	"database/sql"
 	"log"
-	"nsl-graph/internal/repository/gen/model"
-	"nsl-graph/internal/repository/gen/table"
+	"nsl-graph/internal/repository/infra/jet_sqlite/gen/model"
+	"nsl-graph/internal/repository/infra/jet_sqlite/gen/table"
 
 	s "github.com/go-jet/jet/v2/sqlite"
 	_ "github.com/mattn/go-sqlite3"

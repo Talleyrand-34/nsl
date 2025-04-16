@@ -5,10 +5,11 @@
 // and will be lost if the code is regenerated
 //
 
-package table
+package view
 
-// UseSchema sets a new schema name for all generated table SQL builder types. It is recommended to invoke
+// UseSchema sets a new schema name for all generated view SQL builder types. It is recommended to invoke
 // this method only once at the beginning of the program.
 func UseSchema(schema string) {
-	Brand = Brand.FromSchema(schema)
+	DevicePortValidation = DevicePortValidation.FromSchema(schema)
+	ZoneDeviceView = ZoneDeviceView.FromSchema(schema)
 }

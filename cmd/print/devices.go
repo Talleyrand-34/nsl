@@ -1,12 +1,9 @@
 package cmd_print
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	cmd "nsl-graph/cmd/root"
-	db "nsl-graph/internal/repository"
 )
 
 // devicesCmd represents the devices command
@@ -15,8 +12,8 @@ var devicesCmd = &cobra.Command{
 	Short: "Print the devices",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		p, _ := db.DeviceRepository.FetchDevices()
-		fmt.Println(p)
+		// p, _ := db.DeviceRepository.FetchDevices()
+		// fmt.Println(p)
 	},
 }
 

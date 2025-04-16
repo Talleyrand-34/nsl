@@ -4,9 +4,10 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"nsl-graph/internal/repository/gen/model"
 
 	"github.com/Masterminds/squirrel"
+
+	"nsl-graph/internal/repository/infra/bare_sqlite/model"
 )
 
 type SQLiteRepository struct {
@@ -22,23 +23,10 @@ func NewSQLiteRepository(filePath string) (SQLiteRepository, error) {
 	if err != nil {
 		return SQLiteRepository{}, err
 	}
-	// // to-do eliminate hardcoded creation
-	// _, err = db.Exec(`
-	// 	CREATE TABLE IF NOT EXISTS Brand (
-	// 		id INTEGER PRIMARY KEY AUTOINCREMENT,
-	// 		brand TEXT NOT NULL
-	// 	);
-	// `)
-	// if err != nil {
-	// 	db.Close() // Close the connection if table creation fails
-	// 	return SQLiteRepository{}, err
-	// }
-	// to-do Check db structure
-	// Check if the Brand table exists
 	var tableName string
 	err = db.QueryRow(`
-		SELECT name 
-		FROM sqlite_master 
+		SELECT name
+		FROM sqlite_master
 		WHERE type='table' AND name='Brand';
 	`).Scan(&tableName)
 

@@ -1,36 +1,35 @@
 package cmd_utils
 
 import (
-	libsql "database/sql"
+	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 
-	"nslgraph/src/customsql" // Import lib instead of internal
+	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/sirupsen/logrus"
+	c "nsl-graph/cmd"
+	q "nsl-graph/internal/repository/application"
+	infra "nsl-graph/internal/repository/infra/bare_sqlite"
 )
 
-func prepare() (*logrus.Logger, *libsql.DB) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.DebugLevel) // Set logging level to DEBUG
-
-	db, err := customsql.OpenDatabaseConnection(srcdbpath)
+// openDatabaseConnection establishes and returns a database connection.
+func OpenDatabaseConnection() (*sql.DB, error) {
+	db, err := sql.Open("sqlite3", c.Srcdbpath)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Error connecting to the database: %v", err))
-		return logger, db
+		return nil, fmt.Errorf("failed to open SQLite database: %w", err)
 	}
-	return logger, db
+	return db, nil
 }
 
-func closeDB(db *libsql.DB) {
-	defer db.Close()
-}
-
-// Abstracted function to process commands
-func ProcessCmd(fn func(logger *logrus.Logger, db *libsql.DB)) {
-	logger, db := prepare()
-	fn(logger, db) // Call the passed function
-	closeDB(db)
+// Return repositoryDB connection
+func RepositoryConnection() (q.NetServiceInt, error) {
+	db, err := OpenDatabaseConnection()
+	if err != nil {
+		log.Fatalf("Error connecting to the database: %v", err)
+	}
+	repository, err := infra.NewSQLiteRepositoryFromDB(db)
+	return repository, err
 }
 
 // PrintPrettyJSON prints the JSON data in a human-readable format.
