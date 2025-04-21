@@ -1,6 +1,8 @@
 package cmd_print
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	cmd "nsl-graph/cmd/root"
@@ -8,19 +10,20 @@ import (
 )
 
 // devicesCmd represents the devices command
-var brandPrintCmd = &cobra.Command{
-	Use:   "brand",
-	Short: "Print the brands",
+var zonePrintCmd = &cobra.Command{
+	Use:   "zone",
+	Short: "Print the zones",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		service, err := util.ServiceConnection()
 		if err != nil {
 			return
 		}
-		util.PrintStringArrayPrettyJson(service.GetBrands())
+		zones := service.GetZones()
+		fmt.Println(string(zones))
 	},
 }
 
 func init() {
-	cmd.PrintCmd.AddCommand(brandPrintCmd)
+	cmd.PrintCmd.AddCommand(zonePrintCmd)
 }
