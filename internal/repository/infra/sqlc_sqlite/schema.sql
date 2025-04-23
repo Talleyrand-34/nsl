@@ -1,87 +1,30 @@
--- Database Schema for NetworkSchema
 PRAGMA foreign_keys = ON;
 
--- Table: DeviceClasses
+-- 1. Device Classes
 CREATE TABLE DeviceClass (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name VARCHAR NOT NULL UNIQUE
 );
 
--- Table: Brand
+-- 2. Brand
 CREATE TABLE Brand (
-    id INTEGER PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     brand VARCHAR NOT NULL UNIQUE
 );
 
--- Table: ModelDevices
-CREATE TABLE ModelDevice (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    model VARCHAR NOT NULL,
-    brand INTEGER NOT NULL,
-    class_id INTEGER NOT NULL,
-    FOREIGN KEY (brand) REFERENCES Brand (id),
-    FOREIGN KEY (class_id) REFERENCES DeviceClasses (id)
-);
-
--- Table: ModelPorts
-CREATE TABLE ModelPort (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name VARCHAR NOT NULL,
-    positionx INTEGER NOT NULL,
-    positiony INTEGER NOT NULL,
-    model_id INTEGER NOT NULL,
-    FOREIGN KEY (model_id) REFERENCES ModelDevices (id)
-);
-
--- Table: Devices
-CREATE TABLE Device (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    label VARCHAR NOT NULL,
-    model_id INTEGER NOT NULL,
-    zone_id INTEGER DEFAULT NULL,
-    proprietary INTEGER DEFAULT NULL,
-    FOREIGN KEY (model_id) REFERENCES ModelDevices (id),
-    FOREIGN KEY (zone_id) REFERENCES Zone (id),
-    FOREIGN KEY (proprietary) REFERENCES Proprietary (id)
-);
-
--- Table: Proprietary
-CREATE TABLE Proprietary(
+-- 3. Proprietary
+CREATE TABLE Proprietary (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     proprietary VARCHAR NOT NULL UNIQUE
 );
 
--- Table: DevicePorts
-CREATE TABLE DevicePort (
-    model_port_id INTEGER NOT NULL,
-    device_id INTEGER NOT NULL,
-    PRIMARY KEY (model_port_id, device_id), -- Composite primary key
-    FOREIGN KEY (model_port_id) REFERENCES ModelPort (id),
-    FOREIGN KEY (device_id) REFERENCES Devices (id)
-);
-
--- Table: Connections
-CREATE TABLE Connection (
+-- 4. ZoneType
+CREATE TABLE ZoneType (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    from_device_port_model_port_id INTEGER NOT NULL,
-    from_device_port_device_id INTEGER NOT NULL,
-    from_ip_segment VARCHAR,
-    to_device_port_model_port_id INTEGER NOT NULL,
-    to_device_port_device_id INTEGER NOT NULL,
-    to_ip_segment VARCHAR,
-    connection_type INTEGER NOT NULL,
-    FOREIGN KEY (from_device_port_model_port_id, from_device_port_device_id) REFERENCES DevicePort (model_port_id, device_id),
-    FOREIGN KEY (to_device_port_model_port_id, to_device_port_device_id) REFERENCES DevicePort (model_port_id, device_id),
-    FOREIGN KEY (connection_type) REFERENCES ConnectionType (id)
+    location_type VARCHAR NOT NULL UNIQUE
 );
 
--- Table: ConnectionType
-CREATE TABLE ConnectionType (
-    id INTEGER PRIMARY KEY,
-    connection_type VARCHAR NOT NULL UNIQUE
-);
-
--- Table: Zone
+-- 5. Zone
 CREATE TABLE Zone (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name VARCHAR NOT NULL,
@@ -94,22 +37,83 @@ CREATE TABLE Zone (
     FOREIGN KEY (location_type) REFERENCES ZoneType (id)
 );
 
--- Table: ZoneType
-CREATE TABLE ZoneType (
-    id INTEGER PRIMARY KEY,
-    location_type VARCHAR NOT NULL UNIQUE
+-- 6. ModelDevice
+CREATE TABLE ModelDevice (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    model VARCHAR NOT NULL,
+    brand INTEGER NOT NULL,
+    class_id INTEGER NOT NULL,
+    FOREIGN KEY (brand) REFERENCES Brand (id),
+    FOREIGN KEY (class_id) REFERENCES DeviceClass (id)
 );
 
--- Table: Policies
+-- 7. ModelPort
+CREATE TABLE ModelPort (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name VARCHAR NOT NULL,
+    positionx INTEGER NOT NULL,
+    positiony INTEGER NOT NULL,
+    model_id INTEGER NOT NULL,
+    FOREIGN KEY (model_id) REFERENCES ModelDevice (id),
+    UNIQUE (positionx, positiony, model_id),
+    UNIQUE (name, model_id)
+);
+
+-- 8. Device
+CREATE TABLE Device (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    label VARCHAR NOT NULL,
+    model_id INTEGER NOT NULL,
+    zone_id INTEGER DEFAULT NULL,
+    proprietary INTEGER DEFAULT NULL,
+    FOREIGN KEY (model_id) REFERENCES ModelDevice (id),
+    FOREIGN KEY (zone_id) REFERENCES Zone (id),
+    FOREIGN KEY (proprietary) REFERENCES Proprietary (id)
+);
+
+-- 9. DevicePort
+CREATE TABLE DevicePort (
+    model_port_id INTEGER NOT NULL,
+    device_id INTEGER NOT NULL,
+    PRIMARY KEY (model_port_id, device_id),
+    FOREIGN KEY (model_port_id) REFERENCES ModelPort (id),
+    FOREIGN KEY (device_id) REFERENCES Device (id)
+);
+
+-- 10. ConnectionType
+CREATE TABLE ConnectionType (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    connection_type VARCHAR NOT NULL UNIQUE
+);
+
+-- 11. Connection
+CREATE TABLE Connection (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    from_device_port_model_port_id INTEGER NOT NULL,
+    from_device_port_device_id INTEGER NOT NULL,
+    from_ip_segment VARCHAR,
+    to_device_port_model_port_id INTEGER NOT NULL,
+    to_device_port_device_id INTEGER NOT NULL,
+    to_ip_segment VARCHAR,
+    connection_type INTEGER,
+    FOREIGN KEY (from_device_port_model_port_id, from_device_port_device_id) 
+        REFERENCES DevicePort (model_port_id, device_id),
+    FOREIGN KEY (to_device_port_model_port_id, to_device_port_device_id) 
+        REFERENCES DevicePort (model_port_id, device_id),
+    FOREIGN KEY (connection_type) REFERENCES ConnectionType (id)
+);
+
+-- 12. Policy
 CREATE TABLE Policy (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name VARCHAR NOT NULL,
     description VARCHAR NOT NULL, 
     associated_connection INTEGER DEFAULT NULL,
     TODO VARCHAR DEFAULT NULL,
-    FOREIGN KEY (associated_connection) REFERENCES Connections (id)
+    FOREIGN KEY (associated_connection) REFERENCES Connection (id)
 );
--- View: Check Port Validity
+
+-- 13. View: DevicePortValidation
 CREATE VIEW DevicePortValidation AS
 SELECT 
    dp.model_port_id AS ModelPortId, 

@@ -1,6 +1,8 @@
 package cmd_print
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	cmd "nsl-graph/cmd/root"
@@ -17,7 +19,7 @@ var brandPrintCmd = &cobra.Command{
 		if err != nil {
 			return
 		}
-		util.PrintStringArrayPrettyJson(service.GetBrands())
+		fmt.Println(string(service.GetBrands()))
 	},
 }
 

@@ -1,6 +1,8 @@
 package cmd_print
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	cmd "nsl-graph/cmd/root"
@@ -17,7 +19,7 @@ var zonetypePrintCmd = &cobra.Command{
 		if err != nil {
 			return
 		}
-		util.PrintStringArrayPrettyJson(service.GetZonetypes())
+		fmt.Println(string(service.GetZonetypes()))
 	},
 }
 

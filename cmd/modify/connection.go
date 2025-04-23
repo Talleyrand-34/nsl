@@ -1,47 +1,51 @@
 package cmd_modify
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/spf13/cobra"
 
 	cmd "nsl-graph/cmd/root"
+	util "nsl-graph/cmd/utils"
 )
 
-// connectionCmd represents the connection command
-var connectionCmd = &cobra.Command{
+// zoneModCmd represents the port command
+var connectionModCmd = &cobra.Command{
 	Use:   "connection",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "connection modifications subcommand",
+	Long:  `.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		flagNames := []string{"from-device", "from-model-port-id", "to-device", "to-model-port-id"}
+		vals := util.Flagproc(
+			cmd,
+			flagNames,
+		)
+		fromDevice := vals[0]
+		fromModelPortId := vals[1]
+		toDevice := vals[2]
+		toModelPortId := vals[3]
+		service, err := util.ServiceConnection()
+		if err != nil {
+			return
+		}
+		err = service.AddConnection(fromDevice, fromModelPortId, toDevice, toModelPortId)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error writing zone: %v\n", err)
+			os.Exit(1)
+		}
 	},
 }
 
 func init() {
-	cmd.ModifyCmd.AddCommand(connectionCmd)
+	cmd.ModifyCmd.AddCommand(connectionModCmd)
 
-	connectionCmd.Flags().
-		String("source-modelid", "", "Print the device with all the ports, not only those used")
-	connectionCmd.Flags().String("dest-modelid", "", "Print the device with the ports used")
-	connectionCmd.Flags().
-		String("source-devid", "", "Print the device with all the ports, not only those used")
-	connectionCmd.Flags().String("dest-devid", "", "Print the device with the ports used")
-	connectionCmd.Flags().
-		String("source-portname", "", "Print the device with all the ports, not only those used")
-	connectionCmd.Flags().String("dest-portname", "", "Print the device with the ports used")
-	// Mark flags as required
-	// devicesCmd.MarkFlagRequired("source")
-	// devicesCmd.MarkFlagRequired("dest")
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// connectionCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// connectionCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	connectionModCmd.Flags().
+		String("from-device", "", "Sets the fatherzone by name if there is")
+	connectionModCmd.Flags().
+		String("to-device", "", "Sets the fatherzone by id if there is")
+	connectionModCmd.Flags().
+		String("from-model-port-id", "", "Sets the name of the zone")
+	connectionModCmd.Flags().
+		String("to-model-port-id", "", "Sets the proprietary of the zone")
 }

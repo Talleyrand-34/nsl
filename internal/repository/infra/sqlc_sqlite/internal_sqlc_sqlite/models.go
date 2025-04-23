@@ -21,7 +21,7 @@ type Connection struct {
 	ToDevicePortModelPortID   int64
 	ToDevicePortDeviceID      int64
 	ToIpSegment               sql.NullString
-	ConnectionType            int64
+	ConnectionType            sql.NullInt64
 }
 
 type Connectiontype struct {

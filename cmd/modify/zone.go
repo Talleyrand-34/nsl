@@ -16,7 +16,7 @@ var zoneModCmd = &cobra.Command{
 	Short: "zone modifications subcommand",
 	Long:  `.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		flagNames := []string{"name", "father", "proprietary", "zonetype"}
+		flagNames := []string{"name", "father", "proprietary", "zonetype", "fatherid"}
 		vals := util.Flagproc(
 			cmd,
 			flagNames,
@@ -25,11 +25,12 @@ var zoneModCmd = &cobra.Command{
 		father := vals[1]
 		proprietary := vals[2]
 		zonetype := vals[3]
+		fatherid := vals[4]
 		service, err := util.ServiceConnection()
 		if err != nil {
 			return
 		}
-		err = service.AddZone(name, father, proprietary, zonetype)
+		err = service.AddZone(name, fatherid, father, proprietary, zonetype)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error writing zone: %v\n", err)
 			os.Exit(1)
@@ -43,9 +44,11 @@ func init() {
 	zoneModCmd.Flags().
 		String("name", "", "Sets the name of the zone")
 	zoneModCmd.Flags().
-		String("father", "", "Sets the name of the zone")
+		String("father", "", "Sets the fatherzone by name if there is")
 	zoneModCmd.Flags().
-		String("proprietary", "", "Sets the name of the zone")
+		String("fatherid", "", "Sets the fatherzone by id if there is")
 	zoneModCmd.Flags().
-		String("zonetype", "", "Sets the name of the zone")
+		String("proprietary", "", "Sets the proprietary of the zone")
+	zoneModCmd.Flags().
+		String("zonetype", "", "Sets the zonetype of the zone")
 }

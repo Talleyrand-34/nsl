@@ -1,0 +1,129 @@
+package sqlc_sqlite
+
+import (
+	"strconv"
+	"testing"
+
+	_ "github.com/mattn/go-sqlite3"
+)
+
+func TestZone_AddAndGetZones(t *testing.T) {
+	repo, err := setupTestRepository(t)
+	if err != nil {
+		t.Fatalf("failed to setup repository: %v", err)
+	}
+	defer repo.Close()
+
+	// Prepare referenced data
+	if err := repo.AddProprietary("IT Department"); err != nil {
+		t.Fatalf("failed to add proprietary: %v", err)
+	}
+	if err := repo.AddZoneType("Physical"); err != nil {
+		t.Fatalf("failed to add zone type: %v", err)
+	}
+
+	// Add root zone (no father)
+	if err := repo.AddZone(
+		"Main Building", // name
+		"",              // fatherid
+		"",              // father
+		"IT Department", // proprietary
+		"Physical",      // zonename
+	); err != nil {
+		t.Fatalf("failed to add root zone: %v", err)
+	}
+
+	// Add child zone by father name
+	if err := repo.AddZone(
+		"Server Room",
+		"",              // fatherid
+		"Main Building", // father
+		"IT Department",
+		"Physical",
+	); err != nil {
+		t.Fatalf("failed to add child zone: %v", err)
+	}
+
+	// Add another proprietary and zone type for a different zone
+	if err := repo.AddProprietary("Facility Management"); err != nil {
+		t.Fatalf("failed to add proprietary: %v", err)
+	}
+	if err := repo.AddZoneType("VPN"); err != nil {
+		t.Fatalf("failed to add zone type: %v", err)
+	}
+	// Add zone with new proprietary and zone type, by fatherid
+	zones := repo.GetZones()
+	var mainBuildingId string
+	for _, z := range zones {
+		if z.Name == "Main Building" {
+			mainBuildingId = strconv.Itoa(z.Id)
+			break
+		}
+	}
+	if mainBuildingId == "" {
+		t.Fatalf("could not find Main Building zone id")
+	}
+	if err := repo.AddZone(
+		"Remote Office",
+		mainBuildingId, // fatherid
+		"",             // father
+		"Facility Management",
+		"VPN",
+	); err != nil {
+		t.Fatalf("failed to add zone with fatherid: %v", err)
+	}
+
+	// Check all zones
+	got := repo.GetZones()
+	names := []string{"Main Building", "Server Room", "Remote Office"}
+	for _, want := range names {
+		found := false
+		for _, z := range got {
+			if z.Name == want {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected zone %q in list, got %+v", want, got)
+		}
+	}
+}
+
+// func TestZone_AddZone_InvalidReferences(t *testing.T) {
+// 	repo, err := setupTestRepository(t)
+// 	if err != nil {
+// 		t.Fatalf("failed to setup repository: %v", err)
+// 	}
+// 	defer repo.Close()
+//
+// 	// Try to add zone with non-existent proprietary
+// 	err = repo.AddZone("Invalid Owner Zone", "", "", "NonExistentOwner", "Physical")
+// 	if err == nil {
+// 		t.Errorf("expected error when adding zone with invalid proprietary, got nil")
+// 	}
+//
+// 	// Try to add zone with non-existent zone type
+// 	if err := repo.AddProprietary("IT Department"); err != nil {
+// 		t.Fatalf("failed to add proprietary: %v", err)
+// 	}
+// 	err = repo.AddZone("Invalid Zone Type", "", "", "IT Department", "NonExistentZoneType")
+// 	if err == nil {
+// 		t.Errorf("expected error when adding zone with invalid zone type, got nil")
+// 	}
+//
+// 	// Try to add zone with invalid father name
+// 	if err := repo.AddZoneType("Physical"); err != nil {
+// 		t.Fatalf("failed to add zone type: %v", err)
+// 	}
+// 	err = repo.AddZone("Invalid Father", "", "NonExistentFather", "IT Department", "Physical")
+// 	if err == nil {
+// 		t.Errorf("expected error when adding zone with invalid father, got nil")
+// 	}
+//
+// 	// Try to add zone with invalid fatherid
+// 	err = repo.AddZone("Invalid FatherID", "9999", "", "IT Department", "Physical")
+// 	if err == nil {
+// 		t.Errorf("expected error when adding zone with invalid fatherid, got nil")
+// 	}
+// }

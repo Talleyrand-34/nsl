@@ -23,6 +23,65 @@ func (q *Queries) AddBrand(ctx context.Context, brand string) error {
 	return err
 }
 
+const addConnection = `-- name: AddConnection :exec
+INSERT INTO Connection (
+	from_device_port_device_id,
+	from_device_port_model_port_id,
+	to_device_port_device_id,
+	to_device_port_model_port_id,
+	connection_type
+) VALUES (
+	?,?,?,?,?
+)
+`
+
+type AddConnectionParams struct {
+	FromDevicePortDeviceID    int64
+	FromDevicePortModelPortID int64
+	ToDevicePortDeviceID      int64
+	ToDevicePortModelPortID   int64
+	ConnectionType            sql.NullInt64
+}
+
+func (q *Queries) AddConnection(ctx context.Context, arg AddConnectionParams) error {
+	_, err := q.db.ExecContext(ctx, addConnection,
+		arg.FromDevicePortDeviceID,
+		arg.FromDevicePortModelPortID,
+		arg.ToDevicePortDeviceID,
+		arg.ToDevicePortModelPortID,
+		arg.ConnectionType,
+	)
+	return err
+}
+
+const addDevice = `-- name: AddDevice :exec
+INSERT INTO Device(
+    label,
+    model_id, 
+    zone_id,
+    proprietary
+) VALUES (
+    ?,?,?,?
+)
+`
+
+type AddDeviceParams struct {
+	Label       string
+	ModelID     int64
+	ZoneID      sql.NullInt64
+	Proprietary sql.NullInt64
+}
+
+func (q *Queries) AddDevice(ctx context.Context, arg AddDeviceParams) error {
+	_, err := q.db.ExecContext(ctx, addDevice,
+		arg.Label,
+		arg.ModelID,
+		arg.ZoneID,
+		arg.Proprietary,
+	)
+	return err
+}
+
 const addDeviceClass = `-- name: AddDeviceClass :exec
 INSERT INTO DeviceClass(
 	name
@@ -33,6 +92,75 @@ INSERT INTO DeviceClass(
 
 func (q *Queries) AddDeviceClass(ctx context.Context, name string) error {
 	_, err := q.db.ExecContext(ctx, addDeviceClass, name)
+	return err
+}
+
+const addDevicePort = `-- name: AddDevicePort :exec
+;
+
+INSERT INTO DevicePort (
+	device_id,model_port_id
+) VALUES (
+	?,?
+)
+`
+
+type AddDevicePortParams struct {
+	DeviceID    int64
+	ModelPortID int64
+}
+
+func (q *Queries) AddDevicePort(ctx context.Context, arg AddDevicePortParams) error {
+	_, err := q.db.ExecContext(ctx, addDevicePort, arg.DeviceID, arg.ModelPortID)
+	return err
+}
+
+const addModel = `-- name: AddModel :exec
+INSERT INTO ModelDevice(
+    model,
+    brand,
+    class_id
+) VALUES (
+    ?,?,?
+)
+`
+
+type AddModelParams struct {
+	Model   string
+	Brand   int64
+	ClassID int64
+}
+
+func (q *Queries) AddModel(ctx context.Context, arg AddModelParams) error {
+	_, err := q.db.ExecContext(ctx, addModel, arg.Model, arg.Brand, arg.ClassID)
+	return err
+}
+
+const addModelPort = `-- name: AddModelPort :exec
+INSERT INTO ModelPort(
+    name,
+    positionx,
+    positiony,
+    model_id
+) VALUES (
+    ?,?,?,?
+)
+`
+
+type AddModelPortParams struct {
+	Name      string
+	Positionx int64
+	Positiony int64
+	ModelID   int64
+}
+
+func (q *Queries) AddModelPort(ctx context.Context, arg AddModelPortParams) error {
+	_, err := q.db.ExecContext(ctx, addModelPort,
+		arg.Name,
+		arg.Positionx,
+		arg.Positiony,
+		arg.ModelID,
+	)
 	return err
 }
 
@@ -87,6 +215,75 @@ func (q *Queries) AddZoneType(ctx context.Context, locationType string) error {
 	return err
 }
 
+const countDevices = `-- name: CountDevices :one
+SELECT count(*)
+FROM Device
+WHERE label = ?
+`
+
+func (q *Queries) CountDevices(ctx context.Context, label string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countDevices, label)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countModelPorts = `-- name: CountModelPorts :one
+SELECT count(*)
+FROM ModelPort mp
+LEFT JOIN ModelDevice m on mp.model_id=m.id
+WHERE mp.name=? and m.model=? LIMIT 1
+`
+
+type CountModelPortsParams struct {
+	Name  string
+	Model string
+}
+
+func (q *Queries) CountModelPorts(ctx context.Context, arg CountModelPortsParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countModelPorts, arg.Name, arg.Model)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countModels = `-- name: CountModels :one
+SELECT count(*)
+FROM ModelDevice
+WHERE model = ?
+`
+
+func (q *Queries) CountModels(ctx context.Context, model string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countModels, model)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countZones = `-- name: CountZones :one
+SELECT count(*)
+FROM Zone
+WHERE name=?
+`
+
+func (q *Queries) CountZones(ctx context.Context, name string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countZones, name)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const getBrandId = `-- name: GetBrandId :one
+SELECT id FROM Brand WHERE brand = ? LIMIT 1
+`
+
+func (q *Queries) GetBrandId(ctx context.Context, brand string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getBrandId, brand)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
 const getBrands = `-- name: GetBrands :many
 SELECT brand
 FROM brand
@@ -115,6 +312,74 @@ func (q *Queries) GetBrands(ctx context.Context) ([]string, error) {
 	return items, nil
 }
 
+const getClassId = `-- name: GetClassId :one
+SELECT id FROM DeviceClass WHERE name = ? LIMIT 1
+`
+
+func (q *Queries) GetClassId(ctx context.Context, name string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getClassId, name)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
+const getConnections = `-- name: GetConnections :many
+SELECT
+    c.id,
+    d.label as fromdevname,
+    mp.name as frommodelportname,
+    d2.label as todevname,
+    mp2.name as tomodelportname,
+    ct.connection_type
+FROM Connection c
+LEFT JOIN DevicePort dp on c.from_device_port_device_id=dp.device_id and c.from_device_port_model_port_id=dp.model_port_id
+LEFT JOIN DevicePort dp2 on c.to_device_port_device_id=dp2.device_id and c.to_device_port_model_port_id=dp2.model_port_id
+LEFT JOIN ModelPort mp on dp.model_port_id=mp.id 
+LEFT JOIN Device d on dp.device_id=d.id 
+LEFT JOIN ModelPort mp2 on dp2.model_port_id=mp2.id 
+LEFT JOIN Device d2 on dp2.device_id=d2.id 
+LEFT JOIN ConnectionType ct on c.connection_type=ct.id
+`
+
+type GetConnectionsRow struct {
+	ID                int64
+	Fromdevname       sql.NullString
+	Frommodelportname sql.NullString
+	Todevname         sql.NullString
+	Tomodelportname   sql.NullString
+	ConnectionType    sql.NullString
+}
+
+func (q *Queries) GetConnections(ctx context.Context) ([]GetConnectionsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getConnections)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetConnectionsRow
+	for rows.Next() {
+		var i GetConnectionsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Fromdevname,
+			&i.Frommodelportname,
+			&i.Todevname,
+			&i.Tomodelportname,
+			&i.ConnectionType,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getDeviceClasses = `-- name: GetDeviceClasses :many
 SELECT name
 FROM DeviceClass
@@ -133,6 +398,252 @@ func (q *Queries) GetDeviceClasses(ctx context.Context) ([]string, error) {
 			return nil, err
 		}
 		items = append(items, name)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getDeviceId = `-- name: GetDeviceId :one
+SELECT id
+FROM Device
+WHERE label = ? LIMIT 1
+`
+
+func (q *Queries) GetDeviceId(ctx context.Context, label string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getDeviceId, label)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
+const getDevicePorts = `-- name: GetDevicePorts :many
+SELECT dp.device_id,dp.model_port_id,mp.name,d.label
+FROM DevicePort dp
+LEFT JOIN ModelPort mp on dp.model_port_id=mp.id 
+LEFT JOIN Device d on dp.device_id=d.id
+`
+
+type GetDevicePortsRow struct {
+	DeviceID    int64
+	ModelPortID int64
+	Name        sql.NullString
+	Label       sql.NullString
+}
+
+func (q *Queries) GetDevicePorts(ctx context.Context) ([]GetDevicePortsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getDevicePorts)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetDevicePortsRow
+	for rows.Next() {
+		var i GetDevicePortsRow
+		if err := rows.Scan(
+			&i.DeviceID,
+			&i.ModelPortID,
+			&i.Name,
+			&i.Label,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getDevices = `-- name: GetDevices :many
+SELECT 
+    d.id,
+    d.label,
+    md.model,
+    b.brand,
+    z.name as zonename,
+    z.id as zoneid,
+    z2.name as zonefathername,
+    p.proprietary
+FROM Device d 
+LEFT JOIN ModelDevice md on d.model_id=md.id
+LEFT JOIN Proprietary p on d.proprietary=p.id
+LEFT JOIN Zone z on d.zone_id=z.id
+LEFT JOIN Brand b on md.brand=b.brand
+LEFT JOIN Zone z2 on z.father=z2.id
+`
+
+type GetDevicesRow struct {
+	ID             int64
+	Label          string
+	Model          sql.NullString
+	Brand          sql.NullString
+	Zonename       sql.NullString
+	Zoneid         sql.NullInt64
+	Zonefathername sql.NullString
+	Proprietary    sql.NullString
+}
+
+func (q *Queries) GetDevices(ctx context.Context) ([]GetDevicesRow, error) {
+	rows, err := q.db.QueryContext(ctx, getDevices)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetDevicesRow
+	for rows.Next() {
+		var i GetDevicesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Label,
+			&i.Model,
+			&i.Brand,
+			&i.Zonename,
+			&i.Zoneid,
+			&i.Zonefathername,
+			&i.Proprietary,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getModelId = `-- name: GetModelId :one
+SELECT id
+FROM ModelDevice
+WHERE model = ? LIMIT 1
+`
+
+func (q *Queries) GetModelId(ctx context.Context, model string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getModelId, model)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
+const getModelPortId = `-- name: GetModelPortId :one
+SELECT mp.id
+FROM ModelPort mp
+LEFT JOIN ModelDevice m on mp.model_id=m.id
+WHERE mp.name=? and m.model=? LIMIT 1
+`
+
+type GetModelPortIdParams struct {
+	Name  string
+	Model string
+}
+
+func (q *Queries) GetModelPortId(ctx context.Context, arg GetModelPortIdParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getModelPortId, arg.Name, arg.Model)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
+const getModelPorts = `-- name: GetModelPorts :many
+SELECT 
+    mp.id,
+    mp.name,
+    mp.positionx,
+    mp.positiony,
+    m.model,
+    b.brand
+FROM ModelPort mp
+LEFT JOIN ModelDevice m on mp.model_id=m.id
+LEFT JOIN brand b on m.brand=b.id
+`
+
+type GetModelPortsRow struct {
+	ID        int64
+	Name      string
+	Positionx int64
+	Positiony int64
+	Model     sql.NullString
+	Brand     sql.NullString
+}
+
+func (q *Queries) GetModelPorts(ctx context.Context) ([]GetModelPortsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getModelPorts)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetModelPortsRow
+	for rows.Next() {
+		var i GetModelPortsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Positionx,
+			&i.Positiony,
+			&i.Model,
+			&i.Brand,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getModels = `-- name: GetModels :many
+SELECT 
+    m.id,
+    m.model,
+    b.brand,
+    c.name AS class_name
+FROM ModelDevice m
+JOIN Brand b ON m.brand = b.id
+JOIN DeviceClass c ON m.class_id = c.id
+`
+
+type GetModelsRow struct {
+	ID        int64
+	Model     string
+	Brand     string
+	ClassName string
+}
+
+func (q *Queries) GetModels(ctx context.Context) ([]GetModelsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getModels)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetModelsRow
+	for rows.Next() {
+		var i GetModelsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Model,
+			&i.Brand,
+			&i.ClassName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -239,13 +750,15 @@ func (q *Queries) GetZoneTypes(ctx context.Context) ([]string, error) {
 }
 
 const getZones = `-- name: GetZones :many
-SELECT z1.name,z2.name as father,Zonetype.location_type,proprietary.proprietary
-FROM Zone z1 JOIN proprietary JOIN ZoneType JOIN Zone z2 on z1.father=z2.id
+SELECT z1.id as id,z1.name as name,z2.id as fatherid,z2.name as father,Zonetype.location_type,proprietary.proprietary
+FROM Zone z1 JOIN proprietary JOIN ZoneType LEFT JOIN Zone z2 on z1.father=z2.id
 `
 
 type GetZonesRow struct {
+	ID           int64
 	Name         string
-	Father       string
+	Fatherid     sql.NullInt64
+	Father       sql.NullString
 	LocationType string
 	Proprietary  string
 }
@@ -260,7 +773,9 @@ func (q *Queries) GetZones(ctx context.Context) ([]GetZonesRow, error) {
 	for rows.Next() {
 		var i GetZonesRow
 		if err := rows.Scan(
+			&i.ID,
 			&i.Name,
+			&i.Fatherid,
 			&i.Father,
 			&i.LocationType,
 			&i.Proprietary,

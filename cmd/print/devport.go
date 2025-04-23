@@ -9,20 +9,21 @@ import (
 	util "nsl-graph/cmd/utils"
 )
 
-// devicesCmd represents the devices command
-var proprietaryPrintCmd = &cobra.Command{
-	Use:   "proprietary",
-	Short: "Print the proprietarys",
+// devicePortsCmd represents the devices command
+var devicePortPrintCmd = &cobra.Command{
+	Use:   "devicePort",
+	Short: "Print the devicePorts",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		service, err := util.ServiceConnection()
 		if err != nil {
 			return
 		}
-		fmt.Println(string(service.GetProperties()))
+		devicePorts := service.GetDevicePorts()
+		fmt.Println(string(devicePorts))
 	},
 }
 
 func init() {
-	cmd.PrintCmd.AddCommand(proprietaryPrintCmd)
+	cmd.PrintCmd.AddCommand(devicePortPrintCmd)
 }

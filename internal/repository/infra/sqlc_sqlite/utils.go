@@ -36,3 +36,10 @@ func NewSQLiteRepository(filePath string) (SQLiteRepository, error) {
 func (r SQLiteRepository) Close() error {
 	return nil
 }
+
+func nullStringToString(ns sql.NullString) string {
+	if ns.Valid {
+		return ns.String
+	}
+	return ""
+}

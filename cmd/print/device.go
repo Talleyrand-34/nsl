@@ -10,19 +10,20 @@ import (
 )
 
 // devicesCmd represents the devices command
-var proprietaryPrintCmd = &cobra.Command{
-	Use:   "proprietary",
-	Short: "Print the proprietarys",
+var devicePrintCmd = &cobra.Command{
+	Use:   "device",
+	Short: "Print the devices",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		service, err := util.ServiceConnection()
 		if err != nil {
 			return
 		}
-		fmt.Println(string(service.GetProperties()))
+		devices := service.GetDevices()
+		fmt.Println(string(devices))
 	},
 }
 
 func init() {
-	cmd.PrintCmd.AddCommand(proprietaryPrintCmd)
+	cmd.PrintCmd.AddCommand(devicePrintCmd)
 }
