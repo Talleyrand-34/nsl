@@ -1,4 +1,4 @@
-package sqlc_sqlite
+package basicops
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	_ "modernc.org/sqlite" // This imports is the sqlite driver needed to access the db
 
 	e "nsl-graph/internal/repository/entities"
-	d "nsl-graph/internal/repository/infra/sqlc_sqlite/internal_sqlc_sqlite"
+	d "nsl-graph/internal/repository/infra/sqlc_sqlite/basicops/internal_sqlc_sqlite"
 )
 
 func (r SQLiteRepository) AddDevice(

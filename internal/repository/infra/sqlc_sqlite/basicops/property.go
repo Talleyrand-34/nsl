@@ -1,4 +1,4 @@
-package sqlc_sqlite
+package basicops
 
 import (
 	"context"
@@ -7,9 +7,9 @@ import (
 )
 
 // deviceclass
-func (r SQLiteRepository) AddZoneType(zoneName string) error {
+func (r SQLiteRepository) AddProprietary(proprietary string) error {
 	ctx := context.Background()
-	execErr := r.query.AddZoneType(ctx, zoneName)
+	execErr := r.query.AddProprietary(ctx, proprietary)
 	if execErr != nil {
 		return execErr
 	}
@@ -17,11 +17,11 @@ func (r SQLiteRepository) AddZoneType(zoneName string) error {
 }
 
 // deviceclass
-func (r SQLiteRepository) GetZonetypes() []string {
+func (r SQLiteRepository) GetProperties() []string {
 	ctx := context.Background()
-	zonetypes, execErr := r.query.GetZoneTypes(ctx)
+	proprietaries, execErr := r.query.GetProprietaries(ctx)
 	if execErr != nil {
 		return []string{}
 	}
-	return zonetypes
+	return proprietaries
 }

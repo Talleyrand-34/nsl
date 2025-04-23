@@ -12,7 +12,7 @@ import (
 
 	c "nsl-graph/cmd"
 	q "nsl-graph/internal/repository/application"
-	infra "nsl-graph/internal/repository/infra/sqlc_sqlite"
+	infra "nsl-graph/internal/repository/infra/sqlc_sqlite/basicops"
 )
 
 // openDatabaseConnection establishes and returns a database connection.

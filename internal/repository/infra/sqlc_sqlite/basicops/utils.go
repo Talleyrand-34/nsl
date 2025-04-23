@@ -1,11 +1,11 @@
-package sqlc_sqlite
+package basicops
 
 import (
 	"context"
 	"database/sql"
 	_ "embed"
 
-	iinfra "nsl-graph/internal/repository/infra/sqlc_sqlite/internal_sqlc_sqlite"
+	iinfra "nsl-graph/internal/repository/infra/sqlc_sqlite/basicops/internal_sqlc_sqlite"
 )
 
 //go:embed schema.sql

@@ -1,4 +1,4 @@
-package sqlc_sqlite
+package basicops
 
 import (
 	"strconv"
