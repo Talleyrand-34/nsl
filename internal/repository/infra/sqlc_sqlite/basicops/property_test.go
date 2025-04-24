@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
+
+	e "nsl-graph/internal/repository/entities"
 )
 
 // --- Zonetypes test --- //
@@ -24,7 +26,7 @@ func TestProprietary_AddAndGetTypicalOwners(t *testing.T) {
 
 	got := repo.GetProperties()
 	for _, want := range owners {
-		if !contains(got, want) {
+		if !proprietarySliceContains(got, want) {
 			t.Errorf("expected proprietary/owner %q in list, got %v", want, got)
 		}
 	}
@@ -83,7 +85,17 @@ func TestProprietary_CaseSensitivity(t *testing.T) {
 		t.Errorf("failed to add proprietary/owner with different case: %v", err)
 	}
 	got := repo.GetProperties()
-	if !contains(got, p1) || !contains(got, p2) {
+	if !proprietarySliceContains(got, p1) || !proprietarySliceContains(got, p2) {
 		t.Errorf("expected both %q and %q in list, got %v", p1, p2, got)
 	}
+}
+
+// Helper function to check if a brand name exists in a slice of e.Brand
+func proprietarySliceContains(proprietaries []e.Proprietary, name string) bool {
+	for _, b := range proprietaries {
+		if b.Name == name {
+			return true
+		}
+	}
+	return false
 }

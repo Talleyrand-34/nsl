@@ -4,6 +4,8 @@ import (
 	"context"
 
 	_ "modernc.org/sqlite" // This imports is the sqlite driver needed to access the db
+
+	e "nsl-graph/internal/repository/entities"
 )
 
 // deviceclass
@@ -17,11 +19,18 @@ func (r SQLiteRepository) AddProprietary(proprietary string) error {
 }
 
 // deviceclass
-func (r SQLiteRepository) GetProperties() []string {
+func (r SQLiteRepository) GetProperties() []e.Proprietary {
 	ctx := context.Background()
 	proprietaries, execErr := r.query.GetProprietaries(ctx)
 	if execErr != nil {
-		return []string{}
+		return []e.Proprietary{}
 	}
-	return proprietaries
+	result := make([]e.Proprietary, 0, len(proprietaries))
+	for _, row := range proprietaries {
+		brand := e.Proprietary{
+			Name: row,
+		}
+		result = append(result, brand)
+	}
+	return result
 }

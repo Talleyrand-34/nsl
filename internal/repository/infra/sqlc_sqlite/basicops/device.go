@@ -54,12 +54,12 @@ func (r SQLiteRepository) GetDevices() []e.Device {
 	for _, row := range devices {
 
 		zone := e.Device{
-			Id:          int(row.ID), // sql.NullInt64 to int
-			Label:       row.Label,
+			ID:          int(row.ID), // sql.NullInt64 to int
+			Name:        row.Label,
 			Model:       nullStringToString(row.Model),
 			Brand:       nullStringToString(row.Brand),
 			ZoneName:    nullStringToString(row.Zonename),
-			ZoneId:      int(row.Zoneid.Int64), // sql.NullInt64 to int
+			ZoneID:      int(row.Zoneid.Int64), // sql.NullInt64 to int
 			ZoneFather:  nullStringToString(row.Zonefathername),
 			Proprietary: nullStringToString(row.Proprietary),
 		}

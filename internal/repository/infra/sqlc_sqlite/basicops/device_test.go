@@ -39,7 +39,7 @@ func TestDevice_AddAndGetDevices(t *testing.T) {
 	var zoneId string
 	for _, z := range zones {
 		if z.Name == "HQ" {
-			zoneId = strconv.Itoa(z.Id)
+			zoneId = strconv.Itoa(z.ID)
 			break
 		}
 	}
@@ -72,7 +72,7 @@ func TestDevice_AddAndGetDevices(t *testing.T) {
 	for _, want := range expectedDevices {
 		found := false
 		for _, d := range devices {
-			if d.Label == want.Label {
+			if d.Name == want.Label {
 				found = true
 				break
 			}

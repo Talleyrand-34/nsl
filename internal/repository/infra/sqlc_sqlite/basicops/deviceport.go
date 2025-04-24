@@ -42,10 +42,12 @@ func (r SQLiteRepository) GetDevicePorts() []e.DevicePort {
 	result := make([]e.DevicePort, 0, len(devports))
 	for _, row := range devports {
 		model := e.DevicePort{
-			DeviceId: int(row.DeviceID),
-			ModelId:  int(row.ModelPortID),
-			DevLabel: row.Label.String,
-			PortName: row.Name.String,
+			DeviceID:  int(row.DeviceID),
+			ModelID:   int(row.ModelPortID),
+			DevLabel:  row.Label.String,
+			PortName:  row.Name.String,
+			Positionx: int(row.Positionx.Int64),
+			Positiony: int(row.Positiony.Int64),
 		}
 		result = append(result, model)
 	}

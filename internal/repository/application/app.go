@@ -1,3 +1,4 @@
+// package application set ups an interface for access to database and transforms outputs to json
 package application
 
 import (

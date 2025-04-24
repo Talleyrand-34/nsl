@@ -4,6 +4,8 @@ import (
 	"context"
 
 	_ "modernc.org/sqlite" // This imports is the sqlite driver needed to access the db
+
+	e "nsl-graph/internal/repository/entities"
 )
 
 // AddBrand adds a new brand to the database
@@ -17,11 +19,19 @@ func (r SQLiteRepository) AddBrand(brand string) error {
 }
 
 // GetBrands gets all the brands available
-func (r SQLiteRepository) GetBrands() []string {
+func (r SQLiteRepository) GetBrands() []e.Brand {
 	ctx := context.Background()
 	brands, execErr := r.query.GetBrands(ctx)
 	if execErr != nil {
-		return []string{}
+		return []e.Brand{}
 	}
-	return brands
+
+	result := make([]e.Brand, 0, len(brands))
+	for _, row := range brands {
+		brand := e.Brand{
+			Name: row,
+		}
+		result = append(result, brand)
+	}
+	return result
 }

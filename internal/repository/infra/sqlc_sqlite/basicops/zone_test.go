@@ -56,7 +56,7 @@ func TestZone_AddAndGetZones(t *testing.T) {
 	var mainBuildingId string
 	for _, z := range zones {
 		if z.Name == "Main Building" {
-			mainBuildingId = strconv.Itoa(z.Id)
+			mainBuildingId = strconv.Itoa(z.ID)
 			break
 		}
 	}

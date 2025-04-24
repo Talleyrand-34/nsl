@@ -60,10 +60,10 @@ func (r SQLiteRepository) GetZones() []e.Zone {
 		}
 
 		zone := e.Zone{
-			Id:           int(row.ID),
+			ID:           int(row.ID),
 			Name:         row.Name,
 			Father:       father,
-			FatherId:     int(row.Fatherid.Int64),
+			FatherID:     int(row.Fatherid.Int64),
 			LocationType: row.LocationType,
 			Proprietary:  row.Proprietary,
 		}

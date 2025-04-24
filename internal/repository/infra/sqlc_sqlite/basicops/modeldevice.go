@@ -22,7 +22,7 @@ func (r SQLiteRepository) GetModels() []e.ModelDevice {
 	result := make([]e.ModelDevice, 0, len(models))
 	for _, row := range models {
 		model := e.ModelDevice{
-			Id:    strconv.FormatInt(row.ID, 10),
+			ID:    strconv.FormatInt(row.ID, 10),
 			Model: row.Model,
 			Brand: row.Brand,
 			Class: row.ClassName,

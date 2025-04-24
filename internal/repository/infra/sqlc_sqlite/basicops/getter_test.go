@@ -49,7 +49,7 @@ func Test_getFatherID_ByName(t *testing.T) {
 	var hqID int64
 	for _, z := range zones {
 		if z.Name == "HQ" {
-			hqID = int64(z.Id)
+			hqID = int64(z.ID)
 			break
 		}
 	}
@@ -149,7 +149,7 @@ func Test_getZoneID_ByIDAndByName(t *testing.T) {
 	var hqID int64
 	for _, z := range zones {
 		if z.Name == "HQ" {
-			hqID = int64(z.Id)
+			hqID = int64(z.ID)
 			break
 		}
 	}

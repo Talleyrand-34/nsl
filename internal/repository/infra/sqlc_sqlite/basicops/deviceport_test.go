@@ -46,8 +46,8 @@ func TestDevicePort_AddAndGetDevicePorts(t *testing.T) {
 	if len(devices) == 0 || len(modelPorts) == 0 {
 		t.Fatalf("expected at least one device and one model port")
 	}
-	deviceID := strconv.Itoa(devices[0].Id)
-	modelPortID := strconv.Itoa(modelPorts[0].Id)
+	deviceID := strconv.Itoa(devices[0].ID)
+	modelPortID := strconv.Itoa(modelPorts[0].ID)
 
 	// Add device port
 	if err := repo.AddDevicePort(deviceID, modelPortID); err != nil {
@@ -58,7 +58,7 @@ func TestDevicePort_AddAndGetDevicePorts(t *testing.T) {
 	devPorts := repo.GetDevicePorts()
 	found := false
 	for _, dp := range devPorts {
-		if dp.DeviceId == devices[0].Id && dp.ModelId == modelPorts[0].Id {
+		if dp.DeviceID == devices[0].ID && dp.ModelID == modelPorts[0].ID {
 			found = true
 			break
 		}
@@ -66,8 +66,8 @@ func TestDevicePort_AddAndGetDevicePorts(t *testing.T) {
 	if !found {
 		t.Errorf(
 			"expected device port with device ID %d and model port ID %d in list, got %+v",
-			devices[0].Id,
-			modelPorts[0].Id,
+			devices[0].ID,
+			modelPorts[0].ID,
 			devPorts,
 		)
 	}

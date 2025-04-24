@@ -1,5 +1,5 @@
-// Comment
-package repository
+// Package domain set ups the interface for implementations for operations with the repository
+package domain
 
 import e "nsl-graph/internal/repository/entities"
 
@@ -8,19 +8,19 @@ type NetRepository interface {
 	// Brand
 	AddBrand(brand string) error
 	// Brand
-	GetBrands() []string
+	GetBrands() []e.Brand
 	// deviceclass
 	AddDeviceClass(devclass string) error
 	// deviceclass
-	GetDeviceClasses() []string
+	GetDeviceClasses() []e.DevClass
 	// deviceclass
 	AddZoneType(name string) error
 	// deviceclass
-	GetZonetypes() []string
+	GetZonetypes() []e.ZoneType
 	// deviceclass
 	AddProprietary(name string) error
 	// deviceclass
-	GetProperties() []string
+	GetProperties() []e.Proprietary
 	// deviceclass
 	AddZone(
 		name string,

@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
+
+	e "nsl-graph/internal/repository/entities"
 )
 
 // --- DeviceClass Tests ---
@@ -24,7 +26,7 @@ func TestDeviceClass_AddAndGetTypicalClasses(t *testing.T) {
 
 	got := repo.GetDeviceClasses()
 	for _, want := range deviceClasses {
-		if !contains(got, want) {
+		if !devClassSliceContains(got, want) {
 			t.Errorf("expected device class %q in list, got %v", want, got)
 		}
 	}
@@ -46,27 +48,6 @@ func TestDeviceClass_AddDuplicateClass(t *testing.T) {
 	}
 }
 
-// func TestDeviceClass_AddEmptyAndSpecialChars(t *testing.T) {
-// 	repo, err := setupTestRepository(t)
-// 	if err != nil {
-// 		t.Fatalf("failed to setup repository: %v", err)
-// 	}
-// 	defer repo.Close()
-//
-// 	if err := repo.AddDeviceClass(""); err == nil {
-// 		t.Errorf("expected error when adding empty device class, got nil")
-// 	}
-//
-// 	special := "Switch#1"
-// 	if err := repo.AddDeviceClass(special); err != nil {
-// 		t.Errorf("failed to add device class with special chars: %v", err)
-// 	}
-// 	got := repo.GetDeviceClasses()
-// 	if !contains(got, special) {
-// 		t.Errorf("expected device class %q in list, got %v", special, got)
-// 	}
-// }
-
 func TestDeviceClass_CaseSensitivity(t *testing.T) {
 	repo, err := setupTestRepository(t)
 	if err != nil {
@@ -83,7 +64,17 @@ func TestDeviceClass_CaseSensitivity(t *testing.T) {
 		t.Errorf("failed to add device class with different case: %v", err)
 	}
 	got := repo.GetDeviceClasses()
-	if !contains(got, c1) || !contains(got, c2) {
+	if !devClassSliceContains(got, c1) || !devClassSliceContains(got, c2) {
 		t.Errorf("expected both %q and %q in list, got %v", c1, c2, got)
 	}
+}
+
+// Helper function to check if a brand name exists in a slice of e.Brand
+func devClassSliceContains(brands []e.DevClass, name string) bool {
+	for _, b := range brands {
+		if b.Name == name {
+			return true
+		}
+	}
+	return false
 }

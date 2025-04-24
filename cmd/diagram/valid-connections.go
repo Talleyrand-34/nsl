@@ -18,4 +18,6 @@ var validCmd = &cobra.Command{
 
 func init() {
 	cmd.DiagramCmd.AddCommand(validCmd)
+	cmd.DiagramCmd.Flags().
+		BoolP("all-model-ports", "a", false, "Print the device with all the ports, not only those used")
 }

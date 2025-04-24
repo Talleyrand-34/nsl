@@ -22,10 +22,12 @@ func (r SQLiteRepository) GetModelPorts() []e.ModelPort {
 	result := make([]e.ModelPort, 0, len(models))
 	for _, row := range models {
 		model := e.ModelPort{
-			Id:        int(row.ID),
+			ID:        int(row.ID),
+			Name:      row.Name,
 			Positionx: int(row.Positionx),
 			Positiony: int(row.Positiony),
 			Model:     row.Model.String,
+			Brand:     row.Brand.String,
 		}
 		result = append(result, model)
 	}

@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
+
+	e "nsl-graph/internal/repository/entities"
 )
 
 // --- Brand Tests --- //
@@ -24,7 +26,7 @@ func TestBrand_AddAndGetIndustrialBrands(t *testing.T) {
 
 	got := repo.GetBrands()
 	for _, want := range brands {
-		if !contains(got, want) {
+		if !brandSliceContains(got, want) {
 			t.Errorf("expected brand %q in list, got %v", want, got)
 		}
 	}
@@ -46,27 +48,6 @@ func TestBrand_AddDuplicateIndustrialBrand(t *testing.T) {
 	}
 }
 
-// func TestBrand_AddEmptyAndSpecialChars(t *testing.T) {
-// 	repo, err := setupTestRepository(t)
-// 	if err != nil {
-// 		t.Fatalf("failed to setup repository: %v", err)
-// 	}
-// 	defer repo.Close()
-//
-// 	if err := repo.AddBrand(""); err == nil {
-// 		t.Errorf("expected error when adding empty brand, got nil")
-// 	}
-//
-// 	special := "Cisco&Co!"
-// 	if err := repo.AddBrand(special); err != nil {
-// 		t.Errorf("failed to add brand with special chars: %v", err)
-// 	}
-// 	got := repo.GetBrands()
-// 	if !contains(got, special) {
-// 		t.Errorf("expected brand %q in list, got %v", special, got)
-// 	}
-// }
-
 func TestBrand_CaseSensitivity(t *testing.T) {
 	repo, err := setupTestRepository(t)
 	if err != nil {
@@ -83,7 +64,17 @@ func TestBrand_CaseSensitivity(t *testing.T) {
 		t.Errorf("failed to add brand with different case: %v", err)
 	}
 	got := repo.GetBrands()
-	if !contains(got, b1) || !contains(got, b2) {
+	if !brandSliceContains(got, b1) || !brandSliceContains(got, b2) {
 		t.Errorf("expected both %q and %q in list, got %v", b1, b2, got)
 	}
+}
+
+// Helper function to check if a brand name exists in a slice of e.Brand
+func brandSliceContains(brands []e.Brand, name string) bool {
+	for _, b := range brands {
+		if b.Name == name {
+			return true
+		}
+	}
+	return false
 }

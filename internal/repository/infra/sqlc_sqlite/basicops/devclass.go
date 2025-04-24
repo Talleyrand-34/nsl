@@ -4,6 +4,8 @@ import (
 	"context"
 
 	_ "modernc.org/sqlite" // This imports is the sqlite driver needed to access the db
+
+	e "nsl-graph/internal/repository/entities"
 )
 
 // AddDeviceClass adds a new brand to the database
@@ -17,11 +19,18 @@ func (r SQLiteRepository) AddDeviceClass(devClassName string) error {
 }
 
 // GetDeviceClasses gets all the brands available
-func (r SQLiteRepository) GetDeviceClasses() []string {
+func (r SQLiteRepository) GetDeviceClasses() []e.DevClass {
 	ctx := context.Background()
-	brands, execErr := r.query.GetDeviceClasses(ctx)
+	devclasses, execErr := r.query.GetDeviceClasses(ctx)
 	if execErr != nil {
-		return []string{}
+		return []e.DevClass{}
 	}
-	return brands
+	result := make([]e.DevClass, 0, len(devclasses))
+	for _, row := range devclasses {
+		singleDevClass := e.DevClass{
+			Name: row,
+		}
+		result = append(result, singleDevClass)
+	}
+	return result
 }

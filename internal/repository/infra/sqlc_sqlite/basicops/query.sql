@@ -118,7 +118,7 @@ FROM Device d
 LEFT JOIN ModelDevice md on d.model_id=md.id
 LEFT JOIN Proprietary p on d.proprietary=p.id
 LEFT JOIN Zone z on d.zone_id=z.id
-LEFT JOIN Brand b on md.brand=b.brand
+LEFT JOIN Brand b on md.brand=b.id
 LEFT JOIN Zone z2 on z.father=z2.id;
 -- name: GetDeviceId :one
 SELECT id
@@ -170,7 +170,7 @@ INSERT INTO ModelPort(
     ?,?,?,?
 );
 -- name: GetDevicePorts :many
-SELECT dp.device_id,dp.model_port_id,mp.name,d.label
+SELECT dp.device_id,dp.model_port_id,mp.name,d.label,mp.positionx,mp.positiony
 FROM DevicePort dp
 LEFT JOIN ModelPort mp on dp.model_port_id=mp.id 
 LEFT JOIN Device d on dp.device_id=d.id 
@@ -190,7 +190,11 @@ SELECT
     mp.name as frommodelportname,
     d2.label as todevname,
     mp2.name as tomodelportname,
-    ct.connection_type
+    ct.connection_type,
+    z.id as fromzoneid,
+    z.name as fromzonename,
+    z2.id as tozoneid,
+    z2.name as tozonename
 FROM Connection c
 LEFT JOIN DevicePort dp on c.from_device_port_device_id=dp.device_id and c.from_device_port_model_port_id=dp.model_port_id
 LEFT JOIN DevicePort dp2 on c.to_device_port_device_id=dp2.device_id and c.to_device_port_model_port_id=dp2.model_port_id
@@ -198,7 +202,11 @@ LEFT JOIN ModelPort mp on dp.model_port_id=mp.id
 LEFT JOIN Device d on dp.device_id=d.id 
 LEFT JOIN ModelPort mp2 on dp2.model_port_id=mp2.id 
 LEFT JOIN Device d2 on dp2.device_id=d2.id 
-LEFT JOIN ConnectionType ct on c.connection_type=ct.id;
+LEFT JOIN ConnectionType ct on c.connection_type=ct.id
+LEFT JOIN Zone z on d.zone_id=z.id
+LEFT JOIN Zone z2 on d2.zone_id=z2.id
+
+;
 
 
 -- name: AddConnection :exec

@@ -22,11 +22,15 @@ func (r SQLiteRepository) GetConnections() []e.Connection {
 	result := make([]e.Connection, 0, len(models))
 	for _, row := range models {
 		model := e.Connection{
-			Id:         int(row.ID),
-			FromDevice: row.Fromdevname.String,
-			FromModel:  row.Frommodelportname.String,
-			ToDevice:   row.Todevname.String,
-			ToModel:    row.Tomodelportname.String,
+			ID:            int(row.ID),
+			FromDevice:    row.Fromdevname.String,
+			FromModelPort: row.Frommodelportname.String,
+			ToDevice:      row.Todevname.String,
+			ToModelPort:   row.Tomodelportname.String,
+			FromZoneID:    int(row.Fromzoneid.Int64),
+			FromZoneName:  row.Fromzonename.String,
+			ToZoneID:      int(row.Fromzoneid.Int64),
+			ToZoneName:    row.Tozonename.String,
 		}
 		result = append(result, model)
 	}

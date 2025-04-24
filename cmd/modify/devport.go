@@ -12,8 +12,8 @@ import (
 
 // zoneModCmd represents the port command
 var devicePortModCmd = &cobra.Command{
-	Use:   "devicePort",
-	Short: "devicePort modifications subcommand",
+	Use:   "deviceport",
+	Short: "deviceport modifications subcommand",
 	Long:  `.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		flagNames := []string{"deviceid", "modelportid"}
@@ -29,7 +29,7 @@ var devicePortModCmd = &cobra.Command{
 		}
 		err = service.AddDevicePort(deviceid, modelportid)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error writing zone: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error writing deviceport: %v\n", err)
 			os.Exit(1)
 		}
 	},
