@@ -9,7 +9,7 @@ import (
 )
 
 // AddBrand adds a new brand to the database
-func (r SQLiteRepository) AddBrand(brand string) error {
+func (r BasicOpsSQLiteRepository) AddBrand(brand string) error {
 	ctx := context.Background()
 	execErr := r.query.AddBrand(ctx, brand)
 	if execErr != nil {
@@ -19,7 +19,7 @@ func (r SQLiteRepository) AddBrand(brand string) error {
 }
 
 // GetBrands gets all the brands available
-func (r SQLiteRepository) GetBrands() []e.Brand {
+func (r BasicOpsSQLiteRepository) GetBrands() []e.Brand {
 	ctx := context.Background()
 	brands, execErr := r.query.GetBrands(ctx)
 	if execErr != nil {

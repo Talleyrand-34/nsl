@@ -26,7 +26,6 @@ func (q *Queries) AddBrand(ctx context.Context, brand string) error {
 const addConnection = `-- name: AddConnection :exec
 ;
 
-
 INSERT INTO Connection (
 	from_device_port_device_id,
 	from_device_port_model_port_id,
@@ -288,10 +287,14 @@ func (q *Queries) GetBrandId(ctx context.Context, brand string) (int64, error) {
 }
 
 const getBrands = `-- name: GetBrands :many
+
+
 SELECT brand
 FROM brand
 `
 
+// -- Getters and setters for each table
+// - Brand
 func (q *Queries) GetBrands(ctx context.Context) ([]string, error) {
 	rows, err := q.db.QueryContext(ctx, getBrands)
 	if err != nil {
@@ -327,6 +330,7 @@ func (q *Queries) GetClassId(ctx context.Context, name string) (int64, error) {
 }
 
 const getConnections = `-- name: GetConnections :many
+
 SELECT
     c.id,
     d.label as fromdevname,
@@ -363,6 +367,7 @@ type GetConnectionsRow struct {
 	Tozonename        sql.NullString
 }
 
+// - Connection
 func (q *Queries) GetConnections(ctx context.Context) ([]GetConnectionsRow, error) {
 	rows, err := q.db.QueryContext(ctx, getConnections)
 	if err != nil {
@@ -398,10 +403,12 @@ func (q *Queries) GetConnections(ctx context.Context) ([]GetConnectionsRow, erro
 }
 
 const getDeviceClasses = `-- name: GetDeviceClasses :many
+
 SELECT name
 FROM DeviceClass
 `
 
+// - DeviceClass
 func (q *Queries) GetDeviceClasses(ctx context.Context) ([]string, error) {
 	rows, err := q.db.QueryContext(ctx, getDeviceClasses)
 	if err != nil {
@@ -439,6 +446,7 @@ func (q *Queries) GetDeviceId(ctx context.Context, label string) (int64, error) 
 }
 
 const getDevicePorts = `-- name: GetDevicePorts :many
+
 SELECT dp.device_id,dp.model_port_id,mp.name,d.label,mp.positionx,mp.positiony
 FROM DevicePort dp
 LEFT JOIN ModelPort mp on dp.model_port_id=mp.id 
@@ -454,6 +462,7 @@ type GetDevicePortsRow struct {
 	Positiony   sql.NullInt64
 }
 
+// - DevicePort
 func (q *Queries) GetDevicePorts(ctx context.Context) ([]GetDevicePortsRow, error) {
 	rows, err := q.db.QueryContext(ctx, getDevicePorts)
 	if err != nil {
@@ -485,6 +494,7 @@ func (q *Queries) GetDevicePorts(ctx context.Context) ([]GetDevicePortsRow, erro
 }
 
 const getDevices = `-- name: GetDevices :many
+
 SELECT 
     d.id,
     d.label,
@@ -513,6 +523,7 @@ type GetDevicesRow struct {
 	Proprietary    sql.NullString
 }
 
+// - Device
 func (q *Queries) GetDevices(ctx context.Context) ([]GetDevicesRow, error) {
 	rows, err := q.db.QueryContext(ctx, getDevices)
 	if err != nil {
@@ -578,6 +589,7 @@ func (q *Queries) GetModelPortId(ctx context.Context, arg GetModelPortIdParams) 
 }
 
 const getModelPorts = `-- name: GetModelPorts :many
+
 SELECT 
     mp.id,
     mp.name,
@@ -599,6 +611,7 @@ type GetModelPortsRow struct {
 	Brand     sql.NullString
 }
 
+// - ModelPort
 func (q *Queries) GetModelPorts(ctx context.Context) ([]GetModelPortsRow, error) {
 	rows, err := q.db.QueryContext(ctx, getModelPorts)
 	if err != nil {
@@ -630,6 +643,7 @@ func (q *Queries) GetModelPorts(ctx context.Context) ([]GetModelPortsRow, error)
 }
 
 const getModels = `-- name: GetModels :many
+
 SELECT 
     m.id,
     m.model,
@@ -647,6 +661,7 @@ type GetModelsRow struct {
 	ClassName string
 }
 
+// - Model
 func (q *Queries) GetModels(ctx context.Context) ([]GetModelsRow, error) {
 	rows, err := q.db.QueryContext(ctx, getModels)
 	if err != nil {
@@ -675,11 +690,85 @@ func (q *Queries) GetModels(ctx context.Context) ([]GetModelsRow, error) {
 	return items, nil
 }
 
+const getPossiblePortsAll = `-- name: GetPossiblePortsAll :many
+
+
+SELECT Device.id, ModelPort.id
+FROM Device
+CROSS JOIN ModelPort
+`
+
+type GetPossiblePortsAllRow struct {
+	ID   int64
+	ID_2 int64
+}
+
+// -- Special
+func (q *Queries) GetPossiblePortsAll(ctx context.Context) ([]GetPossiblePortsAllRow, error) {
+	rows, err := q.db.QueryContext(ctx, getPossiblePortsAll)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetPossiblePortsAllRow
+	for rows.Next() {
+		var i GetPossiblePortsAllRow
+		if err := rows.Scan(&i.ID, &i.ID_2); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getPossiblePortsDevice = `-- name: GetPossiblePortsDevice :many
+SELECT Device.id, ModelPort.id
+FROM Device
+CROSS JOIN ModelPort
+WHERE Device.id = ?
+`
+
+type GetPossiblePortsDeviceRow struct {
+	ID   int64
+	ID_2 int64
+}
+
+func (q *Queries) GetPossiblePortsDevice(ctx context.Context, id int64) ([]GetPossiblePortsDeviceRow, error) {
+	rows, err := q.db.QueryContext(ctx, getPossiblePortsDevice, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetPossiblePortsDeviceRow
+	for rows.Next() {
+		var i GetPossiblePortsDeviceRow
+		if err := rows.Scan(&i.ID, &i.ID_2); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getProprietaries = `-- name: GetProprietaries :many
+
 SELECT proprietary 
 FROM Proprietary
 `
 
+// - Proprietary
 func (q *Queries) GetProprietaries(ctx context.Context) ([]string, error) {
 	rows, err := q.db.QueryContext(ctx, getProprietaries)
 	if err != nil {
@@ -743,10 +832,12 @@ func (q *Queries) GetZoneType(ctx context.Context, locationType string) (int64, 
 }
 
 const getZoneTypes = `-- name: GetZoneTypes :many
+
 SELECT location_type
 FROM Zonetype
 `
 
+// - ZoneTypes
 func (q *Queries) GetZoneTypes(ctx context.Context) ([]string, error) {
 	rows, err := q.db.QueryContext(ctx, getZoneTypes)
 	if err != nil {
@@ -771,6 +862,7 @@ func (q *Queries) GetZoneTypes(ctx context.Context) ([]string, error) {
 }
 
 const getZones = `-- name: GetZones :many
+
 SELECT z1.id as id,z1.name as name,z2.id as fatherid,z2.name as father,Zonetype.location_type,proprietary.proprietary
 FROM Zone z1 JOIN proprietary JOIN ZoneType LEFT JOIN Zone z2 on z1.father=z2.id
 `
@@ -784,6 +876,7 @@ type GetZonesRow struct {
 	Proprietary  string
 }
 
+// - Zone
 func (q *Queries) GetZones(ctx context.Context) ([]GetZonesRow, error) {
 	rows, err := q.db.QueryContext(ctx, getZones)
 	if err != nil {

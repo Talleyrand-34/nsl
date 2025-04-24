@@ -9,7 +9,7 @@ import (
 )
 
 // AddDeviceClass adds a new brand to the database
-func (r SQLiteRepository) AddDeviceClass(devClassName string) error {
+func (r BasicOpsSQLiteRepository) AddDeviceClass(devClassName string) error {
 	ctx := context.Background()
 	execErr := r.query.AddDeviceClass(ctx, devClassName)
 	if execErr != nil {
@@ -19,7 +19,7 @@ func (r SQLiteRepository) AddDeviceClass(devClassName string) error {
 }
 
 // GetDeviceClasses gets all the brands available
-func (r SQLiteRepository) GetDeviceClasses() []e.DevClass {
+func (r BasicOpsSQLiteRepository) GetDeviceClasses() []e.DevClass {
 	ctx := context.Background()
 	devclasses, execErr := r.query.GetDeviceClasses(ctx)
 	if execErr != nil {

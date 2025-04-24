@@ -7,11 +7,11 @@ import (
 	_ "modernc.org/sqlite" // This imports is the sqlite driver needed to access the db
 
 	e "nsl-graph/internal/repository/entities"
-	d "nsl-graph/internal/repository/infra/sqlc_sqlite/basicops/internal_sqlc_sqlite"
+	d "nsl-graph/internal/repository/infra/sqlc_sqlite/internal_sqlc_sqlite"
 )
 
 // AddBrand adds a new brand to the database
-func (r SQLiteRepository) AddDevicePort(deviceid string, modelportid string) error {
+func (r BasicOpsSQLiteRepository) AddDevicePort(deviceid string, modelportid string) error {
 	ctx := context.Background()
 	sdeviceid, err := strconv.Atoi(deviceid)
 	if err != nil {
@@ -33,7 +33,7 @@ func (r SQLiteRepository) AddDevicePort(deviceid string, modelportid string) err
 }
 
 // GetBrands gets all the brands available
-func (r SQLiteRepository) GetDevicePorts() []e.DevicePort {
+func (r BasicOpsSQLiteRepository) GetDevicePorts() []e.DevicePort {
 	ctx := context.Background()
 	devports, execErr := r.query.GetDevicePorts(ctx)
 	if execErr != nil {

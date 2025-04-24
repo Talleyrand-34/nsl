@@ -9,7 +9,7 @@ import (
 )
 
 // deviceclass
-func (r SQLiteRepository) AddZoneType(zoneName string) error {
+func (r BasicOpsSQLiteRepository) AddZoneType(zoneName string) error {
 	ctx := context.Background()
 	execErr := r.query.AddZoneType(ctx, zoneName)
 	if execErr != nil {
@@ -19,7 +19,7 @@ func (r SQLiteRepository) AddZoneType(zoneName string) error {
 }
 
 // deviceclass
-func (r SQLiteRepository) GetZonetypes() []e.ZoneType {
+func (r BasicOpsSQLiteRepository) GetZonetypes() []e.ZoneType {
 	ctx := context.Background()
 	zonetypes, execErr := r.query.GetZoneTypes(ctx)
 	if execErr != nil {

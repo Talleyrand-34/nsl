@@ -8,11 +8,11 @@ import (
 	_ "modernc.org/sqlite" // This imports is the sqlite driver needed to access the db
 
 	e "nsl-graph/internal/repository/entities"
-	d "nsl-graph/internal/repository/infra/sqlc_sqlite/basicops/internal_sqlc_sqlite"
+	d "nsl-graph/internal/repository/infra/sqlc_sqlite/internal_sqlc_sqlite"
 )
 
 // GetModels returns all models with resolved brand/class names
-func (r SQLiteRepository) GetModelPorts() []e.ModelPort {
+func (r BasicOpsSQLiteRepository) GetModelPorts() []e.ModelPort {
 	ctx := context.Background()
 	models, execErr := r.query.GetModelPorts(ctx)
 	if execErr != nil {
@@ -35,7 +35,7 @@ func (r SQLiteRepository) GetModelPorts() []e.ModelPort {
 }
 
 // AddModel creates new model entry resolving brand/class names to IDs
-func (r SQLiteRepository) AddModelPort(
+func (r BasicOpsSQLiteRepository) AddModelPort(
 	name string,
 	posx string,
 	posy string,

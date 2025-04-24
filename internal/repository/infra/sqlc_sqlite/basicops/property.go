@@ -9,7 +9,7 @@ import (
 )
 
 // deviceclass
-func (r SQLiteRepository) AddProprietary(proprietary string) error {
+func (r BasicOpsSQLiteRepository) AddProprietary(proprietary string) error {
 	ctx := context.Background()
 	execErr := r.query.AddProprietary(ctx, proprietary)
 	if execErr != nil {
@@ -19,7 +19,7 @@ func (r SQLiteRepository) AddProprietary(proprietary string) error {
 }
 
 // deviceclass
-func (r SQLiteRepository) GetProperties() []e.Proprietary {
+func (r BasicOpsSQLiteRepository) GetProperties() []e.Proprietary {
 	ctx := context.Background()
 	proprietaries, execErr := r.query.GetProprietaries(ctx)
 	if execErr != nil {

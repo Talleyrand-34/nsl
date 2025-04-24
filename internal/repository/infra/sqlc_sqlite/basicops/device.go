@@ -7,10 +7,10 @@ import (
 	_ "modernc.org/sqlite" // This imports is the sqlite driver needed to access the db
 
 	e "nsl-graph/internal/repository/entities"
-	d "nsl-graph/internal/repository/infra/sqlc_sqlite/basicops/internal_sqlc_sqlite"
+	d "nsl-graph/internal/repository/infra/sqlc_sqlite/internal_sqlc_sqlite"
 )
 
-func (r SQLiteRepository) AddDevice(
+func (r BasicOpsSQLiteRepository) AddDevice(
 	label string,
 	model string,
 	zoneId string,
@@ -43,7 +43,7 @@ func (r SQLiteRepository) AddDevice(
 
 // deviceclass
 
-func (r SQLiteRepository) GetDevices() []e.Device {
+func (r BasicOpsSQLiteRepository) GetDevices() []e.Device {
 	ctx := context.Background()
 	devices, execErr := r.query.GetDevices(ctx)
 	if execErr != nil {

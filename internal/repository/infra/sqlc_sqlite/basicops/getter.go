@@ -10,7 +10,7 @@ import (
 )
 
 // Subfunction to get father ID as sql.NullInt64
-func (r SQLiteRepository) getFatherID(
+func (r BasicOpsSQLiteRepository) getFatherID(
 	ctx context.Context,
 	fatherid string,
 	father string,
@@ -38,7 +38,7 @@ func (r SQLiteRepository) getFatherID(
 }
 
 // Subfunction to get proprietary ID as sql.NullInt64
-func (r SQLiteRepository) getProprietaryID(
+func (r BasicOpsSQLiteRepository) getProprietaryID(
 	ctx context.Context,
 	proprietary string,
 ) sql.NullInt64 {
@@ -50,7 +50,7 @@ func (r SQLiteRepository) getProprietaryID(
 }
 
 // Subfunction to get zone type ID as sql.NullInt64
-func (r SQLiteRepository) getZoneTypeID(
+func (r BasicOpsSQLiteRepository) getZoneTypeID(
 	ctx context.Context,
 	zonename string,
 ) sql.NullInt64 {
@@ -62,7 +62,7 @@ func (r SQLiteRepository) getZoneTypeID(
 }
 
 // Subfunction to get zone type ID as sql.NullInt64
-func (r SQLiteRepository) getZoneID(
+func (r BasicOpsSQLiteRepository) getZoneID(
 	ctx context.Context,
 	zoneid string,
 	zonename string,
@@ -83,7 +83,7 @@ func (r SQLiteRepository) getZoneID(
 }
 
 // Subfunction to get zone type ID as sql.NullInt64
-func (r SQLiteRepository) getModelID(
+func (r BasicOpsSQLiteRepository) getModelID(
 	ctx context.Context,
 	modelname string,
 ) (int64, error) {
@@ -92,4 +92,11 @@ func (r SQLiteRepository) getModelID(
 		return 0, fmt.Errorf("error getting modelid from model name: %v", err)
 	}
 	return szoneid, nil
+}
+
+func nullStringToString(ns sql.NullString) string {
+	if ns.Valid {
+		return ns.String
+	}
+	return ""
 }

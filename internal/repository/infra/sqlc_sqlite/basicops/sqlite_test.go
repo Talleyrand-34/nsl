@@ -17,7 +17,7 @@ func contains(slice []string, str string) bool {
 	return false
 }
 
-func setupTestRepository(t *testing.T) (SQLiteRepository, error) {
+func setupTestRepository(t *testing.T) (BasicOpsSQLiteRepository, error) {
 	// Use in-memory DB for tests, or a temp file
 	db, err := sql.Open("sqlite3", ":memory:")
 	// db, err := sql.Open("sqlite3", "/tmp/test.db")
@@ -28,7 +28,7 @@ func setupTestRepository(t *testing.T) (SQLiteRepository, error) {
 	repo, err := NewSQLiteRepositoryFromDB(db)
 	// repo, err := NewSQLiteRepository("/tmp/test.db")
 	if err != nil {
-		return SQLiteRepository{}, err
+		return BasicOpsSQLiteRepository{}, err
 	}
 
 	return repo, nil

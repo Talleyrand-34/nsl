@@ -1,3 +1,7 @@
+---- Getters and setters for each table
+
+--- Brand
+
 -- name: GetBrands :many
 SELECT brand
 FROM brand;
@@ -12,6 +16,8 @@ INSERT INTO brand (
 -- name: GetBrandId :one
 SELECT id FROM Brand WHERE brand = ? LIMIT 1;
 	
+--- DeviceClass
+
 -- name: GetDeviceClasses :many
 SELECT name
 FROM DeviceClass;
@@ -25,6 +31,8 @@ INSERT INTO DeviceClass(
 
 -- name: GetClassId :one
 SELECT id FROM DeviceClass WHERE name = ? LIMIT 1;
+
+--- ZoneTypes
 
 -- name: GetZoneTypes :many
 SELECT location_type
@@ -42,6 +50,8 @@ INSERT INTO Zonetype(
   ?	
 );
 
+--- Proprietary
+
 -- name: GetProprietaries :many
 SELECT proprietary 
 FROM Proprietary;
@@ -56,6 +66,8 @@ INSERT INTO Proprietary(
 ) VALUES (
   ?	
 );
+
+--- Zone
 
 -- name: GetZones :many
 SELECT z1.id as id,z1.name as name,z2.id as fatherid,z2.name as father,Zonetype.location_type,proprietary.proprietary
@@ -78,6 +90,8 @@ name,father,location_type,proprietary
 ?,?,?,?	
 );
 
+--- Model
+
 -- name: GetModels :many
 SELECT 
     m.id,
@@ -87,10 +101,12 @@ SELECT
 FROM ModelDevice m
 JOIN Brand b ON m.brand = b.id
 JOIN DeviceClass c ON m.class_id = c.id;
+
 -- name: GetModelId :one
 SELECT id
 FROM ModelDevice
 WHERE model = ? LIMIT 1;
+
 -- name: CountModels :one
 SELECT count(*)
 FROM ModelDevice
@@ -104,6 +120,9 @@ INSERT INTO ModelDevice(
 ) VALUES (
     ?,?,?
 );
+
+--- Device
+
 -- name: GetDevices :many
 SELECT 
     d.id,
@@ -120,10 +139,12 @@ LEFT JOIN Proprietary p on d.proprietary=p.id
 LEFT JOIN Zone z on d.zone_id=z.id
 LEFT JOIN Brand b on md.brand=b.id
 LEFT JOIN Zone z2 on z.father=z2.id;
+
 -- name: GetDeviceId :one
 SELECT id
 FROM Device
 WHERE label = ? LIMIT 1;
+
 -- name: CountDevices :one
 SELECT count(*)
 FROM Device
@@ -138,6 +159,9 @@ INSERT INTO Device(
 ) VALUES (
     ?,?,?,?
 );
+
+--- ModelPort
+
 -- name: GetModelPorts :many
 SELECT 
     mp.id,
@@ -149,11 +173,13 @@ SELECT
 FROM ModelPort mp
 LEFT JOIN ModelDevice m on mp.model_id=m.id
 LEFT JOIN brand b on m.brand=b.id;
+
 -- name: GetModelPortId :one
 SELECT mp.id
 FROM ModelPort mp
 LEFT JOIN ModelDevice m on mp.model_id=m.id
 WHERE mp.name=? and m.model=? LIMIT 1;
+
 -- name: CountModelPorts :one
 SELECT count(*)
 FROM ModelPort mp
@@ -169,6 +195,9 @@ INSERT INTO ModelPort(
 ) VALUES (
     ?,?,?,?
 );
+
+--- DevicePort
+
 -- name: GetDevicePorts :many
 SELECT dp.device_id,dp.model_port_id,mp.name,d.label,mp.positionx,mp.positiony
 FROM DevicePort dp
@@ -182,6 +211,8 @@ INSERT INTO DevicePort (
 ) VALUES (
 	?,?
 );
+
+--- Connection
 
 -- name: GetConnections :many
 SELECT
@@ -208,7 +239,6 @@ LEFT JOIN Zone z2 on d2.zone_id=z2.id
 
 ;
 
-
 -- name: AddConnection :exec
 INSERT INTO Connection (
 	from_device_port_device_id,
@@ -219,3 +249,45 @@ INSERT INTO Connection (
 ) VALUES (
 	?,?,?,?,?
 );
+
+
+---- Special 
+
+
+-- name: GetPossiblePortsAll :many
+SELECT Device.id, ModelPort.id
+FROM Device
+CROSS JOIN ModelPort;
+
+
+-- name: GetPossiblePortsDevice :many
+SELECT Device.id, ModelPort.id
+FROM Device
+CROSS JOIN ModelPort
+WHERE Device.id = ?;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
