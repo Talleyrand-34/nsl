@@ -6,11 +6,13 @@ import (
 
 	s "nsl-graph/internal/repository/infra/sqlc_sqlite"
 	"nsl-graph/internal/repository/infra/sqlc_sqlite/basicops"
+	specops "nsl-graph/internal/repository/infra/sqlc_sqlite/specops"
 )
 
+// SQLiteRepository is the struct to access all the secialiced bd operations
 type SQLiteRepository struct {
 	basicops basicops.BasicOpsSQLiteRepository
-	// specops
+	specops  specops.SpecOpsSQLiteRepository
 }
 
 // NewSQLiteRepositoryFromDB creates a db connection from a db
@@ -23,8 +25,12 @@ func NewSQLiteRepositoryFromDB(db *sql.DB) (SQLiteRepository, error) {
 	if err != nil {
 		return SQLiteRepository{}, err
 	}
+	specops, err := specops.NewSQLiteRepositoryFromDB(db)
+	if err != nil {
+		return SQLiteRepository{}, err
+	}
 
-	return SQLiteRepository{basicops: basicops}, nil
+	return SQLiteRepository{basicops: basicops, specops: specops}, nil
 }
 
 // NewSQLiteRepository creates a db connection from a file

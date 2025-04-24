@@ -255,13 +255,13 @@ INSERT INTO Connection (
 
 
 -- name: GetPossiblePortsAll :many
-SELECT Device.id, ModelPort.id
+SELECT Device.id as deviceid, ModelPort.id as modelid
 FROM Device
 CROSS JOIN ModelPort;
 
 
 -- name: GetPossiblePortsDevice :many
-SELECT Device.id, ModelPort.id
+SELECT Device.id as deviceid, ModelPort.id as modelid
 FROM Device
 CROSS JOIN ModelPort
 WHERE Device.id = ?;

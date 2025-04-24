@@ -72,21 +72,14 @@ type NetServiceInt interface {
 		toDevice string,
 		toModelPort string,
 	) error
+	GetAllPortsDevice(deviceid string) []byte
+	GetAllPortsAll() []byte
 }
 
 func NewNetService(netRepository d.NetRepository) NetServiceInt {
 	return &NetService{netRepo: netRepository}
 }
 
-//	func (ns *NetService) GetBrands() []byte {
-//	    brands := ns.netRepo.GetBrands()
-//	    jsonData, err := json.Marshal(brands)
-//	    if err != nil {
-//	        log.Printf("Error marshaling brands to JSON: %v", err)
-//	        return []byte("[]") // Return empty JSON array on error
-//	    }
-//	    return jsonData
-//	}
 func (ns *NetService) AddBrand(brand string) error {
 	return ns.netRepo.AddBrand(brand)
 }
@@ -254,4 +247,24 @@ func (ns *NetService) AddConnection(
 	toModelPort string,
 ) error {
 	return ns.netRepo.AddConnection(fromDevice, fromModelPort, toDevice, toModelPort)
+}
+
+func (ns *NetService) GetAllPortsAll() []byte {
+	zones := ns.netRepo.GetAllPortsAll()
+	jsonData, err := json.Marshal(zones)
+	if err != nil {
+		log.Printf("Error marshaling to JSON: %v", err)
+		return []byte("[]") // Return empty JSON array on error
+	}
+	return jsonData
+}
+
+func (ns *NetService) GetAllPortsDevice(deviceid string) []byte {
+	zones := ns.netRepo.GetAllPortsDevice(deviceid)
+	jsonData, err := json.Marshal(zones)
+	if err != nil {
+		log.Printf("Error marshaling to JSON: %v", err)
+		return []byte("[]") // Return empty JSON array on error
+	}
+	return jsonData
 }

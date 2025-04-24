@@ -5,7 +5,6 @@ package main
 
 import (
 	"nsl-graph/cmd"
-	_ "nsl-graph/cmd/diagram"
 	_ "nsl-graph/cmd/modify"
 	_ "nsl-graph/cmd/print"
 	_ "nsl-graph/cmd/root"

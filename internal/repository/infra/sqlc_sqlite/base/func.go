@@ -107,3 +107,11 @@ func (r SQLiteRepository) AddConnection(
 ) error {
 	return r.basicops.AddConnection(fromDevice, fromModelPort, toDevice, toModelPort)
 }
+
+func (r SQLiteRepository) GetAllPortsAll() []e.DevicePort {
+	return r.specops.GetAllPortsAll()
+}
+
+func (r SQLiteRepository) GetAllPortsDevice(deviceid string) []e.DevicePort {
+	return r.specops.GetAllPortsDevice(deviceid)
+}

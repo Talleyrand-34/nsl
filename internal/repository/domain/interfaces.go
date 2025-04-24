@@ -64,4 +64,6 @@ type NetRepository interface {
 		toDevice string,
 		toModelPort string,
 	) error
+	GetAllPortsDevice(deviceid string) []e.DevicePort
+	GetAllPortsAll() []e.DevicePort
 }

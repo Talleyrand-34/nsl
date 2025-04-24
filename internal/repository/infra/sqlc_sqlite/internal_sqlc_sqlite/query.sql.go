@@ -693,14 +693,14 @@ func (q *Queries) GetModels(ctx context.Context) ([]GetModelsRow, error) {
 const getPossiblePortsAll = `-- name: GetPossiblePortsAll :many
 
 
-SELECT Device.id, ModelPort.id
+SELECT Device.id as deviceid, ModelPort.id as modelid
 FROM Device
 CROSS JOIN ModelPort
 `
 
 type GetPossiblePortsAllRow struct {
-	ID   int64
-	ID_2 int64
+	Deviceid int64
+	Modelid  int64
 }
 
 // -- Special
@@ -713,7 +713,7 @@ func (q *Queries) GetPossiblePortsAll(ctx context.Context) ([]GetPossiblePortsAl
 	var items []GetPossiblePortsAllRow
 	for rows.Next() {
 		var i GetPossiblePortsAllRow
-		if err := rows.Scan(&i.ID, &i.ID_2); err != nil {
+		if err := rows.Scan(&i.Deviceid, &i.Modelid); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -728,15 +728,15 @@ func (q *Queries) GetPossiblePortsAll(ctx context.Context) ([]GetPossiblePortsAl
 }
 
 const getPossiblePortsDevice = `-- name: GetPossiblePortsDevice :many
-SELECT Device.id, ModelPort.id
+SELECT Device.id as deviceid, ModelPort.id as modelid
 FROM Device
 CROSS JOIN ModelPort
 WHERE Device.id = ?
 `
 
 type GetPossiblePortsDeviceRow struct {
-	ID   int64
-	ID_2 int64
+	Deviceid int64
+	Modelid  int64
 }
 
 func (q *Queries) GetPossiblePortsDevice(ctx context.Context, id int64) ([]GetPossiblePortsDeviceRow, error) {
@@ -748,7 +748,7 @@ func (q *Queries) GetPossiblePortsDevice(ctx context.Context, id int64) ([]GetPo
 	var items []GetPossiblePortsDeviceRow
 	for rows.Next() {
 		var i GetPossiblePortsDeviceRow
-		if err := rows.Scan(&i.ID, &i.ID_2); err != nil {
+		if err := rows.Scan(&i.Deviceid, &i.Modelid); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
