@@ -14,7 +14,7 @@ import (
 // ModifyCmd represents the modify command
 var ModifyCmd = &cobra.Command{
 	Use:   "modify",
-	Short: "Subcommand to make modificatons into the network structure",
+	Short: "Make modificatons into the network structure",
 	Long:  `.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("modify called")

@@ -13,7 +13,7 @@ import (
 // devicesCmd represents the devices command
 var possiblePortPrintCmd = &cobra.Command{
 	Use:   "possibleports",
-	Short: "Print the possiblePorts",
+	Short: "Especial: Print the possible ports which is the tuple deviceid+modelportid",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		deviceid, err := cmd.Flags().GetString("deviceid")

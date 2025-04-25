@@ -42,7 +42,7 @@ func init() {
 	modelDeviceModCmd.Flags().
 		String("name", "", "Sets the name of the modelDevice")
 	modelDeviceModCmd.Flags().
-		String("brand", "", "Sets the name of the modelDevice")
+		String("brand", "", "Sets the brand associated of the modelDevice")
 	modelDeviceModCmd.Flags().
-		String("class", "", "Sets the name of the modelDevice")
+		String("class", "", "Sets the deviceclass of the modelDevice")
 }

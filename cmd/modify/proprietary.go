@@ -14,7 +14,9 @@ import (
 var proprietaryModCmd = &cobra.Command{
 	Use:   "proprietary",
 	Short: "proprietary modifications subcommand",
-	Long:  `.`,
+	Long: `Specify a proprietary which consists on a name
+
+	A proprietary is the owner of a Device or a Zone(more commonly known as faclity)`,
 	Run: func(cmd *cobra.Command, args []string) {
 		flag := "name"
 		name, err := cmd.Flags().GetString("name")

@@ -14,7 +14,9 @@ import (
 var zonetypeModCmd = &cobra.Command{
 	Use:   "zonetype",
 	Short: "zonetype modifications subcommand",
-	Long:  `.`,
+	Long: `Specify a zonetype which consists on a name
+
+	A zonetype is the kind of zone a zone is, mainly this would be physical or logical`,
 	Run: func(cmd *cobra.Command, args []string) {
 		flag := "name"
 		name, err := cmd.Flags().GetString("name")

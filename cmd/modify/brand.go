@@ -14,7 +14,10 @@ import (
 var brandModCmd = &cobra.Command{
 	Use:   "brand",
 	Short: "brand modifications subcommand",
-	Long:  `.`,
+	Long: `Specify a brand which consists on a name.
+
+		A brand is the commercial name of a hardware provider
+		`,
 	Run: func(cmd *cobra.Command, args []string) {
 		flag := "name"
 		name, err := cmd.Flags().GetString("name")

@@ -15,7 +15,7 @@ import (
 // configCmd represents the config command
 var ConfigCmd = &cobra.Command{
 	Use:   "config",
-	Short: "A brief description of your command",
+	Short: "Not implemented",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("config called")

@@ -16,12 +16,13 @@ type DeviceD2 struct {
 	ZoneHierarchy []string
 	Label         string
 	Shape         string
-	Ports         map[string]DevicePort
+	Ports         map[string]DevicePort // portName -> DevicePort
+	PortOrder     []string              // to preserve order of insertion
+	PortNumMap    map[string]string     // portName -> numbered port (e.g., "1-1")
 }
 
 func GenerateD2FromJSON(devicesJSON, connectionsJSON []byte) string {
 	// Parse JSON
-
 	var devices []e.Device
 	var connections []e.Connection
 	json.Unmarshal(devicesJSON, &devices)
@@ -36,36 +37,57 @@ func GenerateD2FromJSON(devicesJSON, connectionsJSON []byte) string {
 			Label:         d.Name,
 			Shape:         "rectangle",
 			Ports:         make(map[string]DevicePort),
+			PortOrder:     []string{},
+			PortNumMap:    make(map[string]string),
 		}
 	}
 
-	// Collect ports
+	// Collect ports and preserve insertion order
 	for _, c := range connections {
 		fromKey := c.FromZoneName + "." + c.FromDevice
 		toKey := c.ToZoneName + "." + c.ToDevice
 		if dev, ok := deviceMap[fromKey]; ok {
-			dev.Ports[c.FromModelPort] = DevicePort{Name: c.FromModelPort}
+			if _, exists := dev.Ports[c.FromModelPort]; !exists {
+				dev.Ports[c.FromModelPort] = DevicePort{Name: c.FromModelPort}
+				dev.PortOrder = append(dev.PortOrder, c.FromModelPort)
+			}
 		}
 		if dev, ok := deviceMap[toKey]; ok {
-			dev.Ports[c.ToModelPort] = DevicePort{Name: c.ToModelPort}
+			if _, exists := dev.Ports[c.ToModelPort]; !exists {
+				dev.Ports[c.ToModelPort] = DevicePort{Name: c.ToModelPort}
+				dev.PortOrder = append(dev.PortOrder, c.ToModelPort)
+			}
 		}
 	}
 
-	// Generate D2
+	// Assign numbered ports per device (e.g., 1-1, 2-1, ...)
+	for _, dev := range deviceMap {
+		for i, portName := range dev.PortOrder {
+			num := fmt.Sprintf("%d-1", i+1)
+			dev.PortNumMap[portName] = num
+		}
+	}
+
+	// Generate D2 connections using numbered ports
 	var d2Connections, d2Devices strings.Builder
 	for _, c := range connections {
-		from := fmt.Sprintf("%s.%s.%s", c.FromZoneName, c.FromDevice, c.FromModelPort)
-		to := fmt.Sprintf("%s.%s.%s", c.ToZoneName, c.ToDevice, c.ToModelPort)
+		fromKey := c.FromZoneName + "." + c.FromDevice
+		toKey := c.ToZoneName + "." + c.ToDevice
+		fromPortNum := deviceMap[fromKey].PortNumMap[c.FromModelPort]
+		toPortNum := deviceMap[toKey].PortNumMap[c.ToModelPort]
+		from := fmt.Sprintf("%s.%s", fromKey, fromPortNum)
+		to := fmt.Sprintf("%s.%s", toKey, toPortNum)
 		d2Connections.WriteString(fmt.Sprintf("%s -- %s\n", from, to))
 	}
+
+	// Generate D2 device blocks
 	for key, dev := range deviceMap {
 		d2Devices.WriteString(fmt.Sprintf("%s: {\n", key))
 		d2Devices.WriteString(fmt.Sprintf("  shape: %s\n", dev.Shape))
 		d2Devices.WriteString(fmt.Sprintf("  label: \"%s\"\n", dev.Label))
-		i := 1
-		for portName := range dev.Ports {
-			d2Devices.WriteString(fmt.Sprintf("  %d-1: \"%s\"\n", i, portName))
-			i++
+		for _, portName := range dev.PortOrder {
+			num := dev.PortNumMap[portName]
+			d2Devices.WriteString(fmt.Sprintf("  %s: \"%s\"\n", num, portName))
 		}
 		d2Devices.WriteString("}\n")
 	}

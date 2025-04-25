@@ -14,7 +14,9 @@ import (
 var deviceclassModCmd = &cobra.Command{
 	Use:   "deviceclass",
 	Short: "deviceclass modifications subcommand",
-	Long:  `.`,
+	Long: `Specify the class of a device which consists on a name.
+
+		A deviceclass is the type of device for example router, switch...`,
 	Run: func(cmd *cobra.Command, args []string) {
 		flag := "name"
 		name, err := cmd.Flags().GetString("name")

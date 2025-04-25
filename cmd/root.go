@@ -49,7 +49,7 @@ func init() {
 	RootCmd.PersistentFlags().
 		StringVarP(&cfgFile, "config-file", "c", "", "Specify the config file")
 	RootCmd.PersistentFlags().
-		StringVarP(&Srcdbpath, "source", "s", "", "database file")
+		StringVarP(&Srcdbpath, "source", "s", "test.db", "database file")
 	viper.BindPFlag("source", RootCmd.PersistentFlags().Lookup("source"))
 	RootCmd.PersistentFlags().
 		StringVar(&outpath, "outPath", "out/", "output path for files")
