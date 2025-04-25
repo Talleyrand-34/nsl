@@ -329,6 +329,73 @@ func (q *Queries) GetClassId(ctx context.Context, name string) (int64, error) {
 	return id, err
 }
 
+const getConnectionId = `-- name: GetConnectionId :many
+SELECT 
+    id,
+    from_device_port_device_id,
+    from_device_port_model_port_id,
+    to_device_port_device_id,
+    to_device_port_model_port_id,
+    connection_type
+FROM Connection
+WHERE 
+    from_device_port_device_id = ? AND
+    from_device_port_model_port_id = ? AND
+    to_device_port_device_id = ? AND
+    to_device_port_model_port_id = ?
+`
+
+type GetConnectionIdParams struct {
+	FromDevicePortDeviceID    int64
+	FromDevicePortModelPortID int64
+	ToDevicePortDeviceID      int64
+	ToDevicePortModelPortID   int64
+}
+
+type GetConnectionIdRow struct {
+	ID                        int64
+	FromDevicePortDeviceID    int64
+	FromDevicePortModelPortID int64
+	ToDevicePortDeviceID      int64
+	ToDevicePortModelPortID   int64
+	ConnectionType            sql.NullInt64
+}
+
+func (q *Queries) GetConnectionId(ctx context.Context, arg GetConnectionIdParams) ([]GetConnectionIdRow, error) {
+	rows, err := q.db.QueryContext(ctx, getConnectionId,
+		arg.FromDevicePortDeviceID,
+		arg.FromDevicePortModelPortID,
+		arg.ToDevicePortDeviceID,
+		arg.ToDevicePortModelPortID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetConnectionIdRow
+	for rows.Next() {
+		var i GetConnectionIdRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.FromDevicePortDeviceID,
+			&i.FromDevicePortModelPortID,
+			&i.ToDevicePortDeviceID,
+			&i.ToDevicePortModelPortID,
+			&i.ConnectionType,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getConnections = `-- name: GetConnections :many
 
 SELECT
@@ -691,6 +758,8 @@ func (q *Queries) GetModels(ctx context.Context) ([]GetModelsRow, error) {
 }
 
 const getPossiblePortsAll = `-- name: GetPossiblePortsAll :many
+;
+
 
 
 SELECT Device.id as deviceid, ModelPort.id as modelid

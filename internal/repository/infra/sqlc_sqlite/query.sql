@@ -250,6 +250,21 @@ INSERT INTO Connection (
 	?,?,?,?,?
 );
 
+-- name: GetConnectionId :many
+SELECT 
+    id,
+    from_device_port_device_id,
+    from_device_port_model_port_id,
+    to_device_port_device_id,
+    to_device_port_model_port_id,
+    connection_type
+FROM Connection
+WHERE 
+    from_device_port_device_id = ? AND
+    from_device_port_model_port_id = ? AND
+    to_device_port_device_id = ? AND
+    to_device_port_model_port_id = ?
+;
 
 ---- Special 
 
