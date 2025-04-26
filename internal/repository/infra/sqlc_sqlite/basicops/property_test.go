@@ -24,7 +24,7 @@ func TestProprietary_AddAndGetTypicalOwners(t *testing.T) {
 		}
 	}
 
-	got := repo.GetProperties()
+	got, _ := repo.GetProperties()
 	for _, want := range owners {
 		if !proprietarySliceContains(got, want) {
 			t.Errorf("expected proprietary/owner %q in list, got %v", want, got)
@@ -84,7 +84,7 @@ func TestProprietary_CaseSensitivity(t *testing.T) {
 	if err := repo.AddProprietary(p2); err != nil {
 		t.Errorf("failed to add proprietary/owner with different case: %v", err)
 	}
-	got := repo.GetProperties()
+	got, _ := repo.GetProperties()
 	if !proprietarySliceContains(got, p1) || !proprietarySliceContains(got, p2) {
 		t.Errorf("expected both %q and %q in list, got %v", p1, p2, got)
 	}

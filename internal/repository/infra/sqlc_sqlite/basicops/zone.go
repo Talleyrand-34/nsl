@@ -43,11 +43,11 @@ func (r BasicOpsSQLiteRepository) AddZone(
 
 // deviceclass
 
-func (r BasicOpsSQLiteRepository) GetZones() []e.Zone {
+func (r BasicOpsSQLiteRepository) GetZones() ([]e.Zone, error) {
 	ctx := context.Background()
 	zones, execErr := r.query.GetZones(ctx)
 	if execErr != nil {
-		return []e.Zone{}
+		return []e.Zone{}, nil
 	}
 
 	result := make([]e.Zone, 0, len(zones))
@@ -69,5 +69,5 @@ func (r BasicOpsSQLiteRepository) GetZones() []e.Zone {
 		}
 		result = append(result, zone)
 	}
-	return result
+	return result, nil
 }

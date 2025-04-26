@@ -33,11 +33,11 @@ func (r BasicOpsSQLiteRepository) AddDevicePort(deviceid string, modelportid str
 }
 
 // GetBrands gets all the brands available
-func (r BasicOpsSQLiteRepository) GetDevicePorts() []e.DevicePort {
+func (r BasicOpsSQLiteRepository) GetDevicePorts() ([]e.DevicePort, error) {
 	ctx := context.Background()
 	devports, execErr := r.query.GetDevicePorts(ctx)
 	if execErr != nil {
-		return []e.DevicePort{}
+		return []e.DevicePort{}, execErr
 	}
 	result := make([]e.DevicePort, 0, len(devports))
 	for _, row := range devports {
@@ -51,5 +51,5 @@ func (r BasicOpsSQLiteRepository) GetDevicePorts() []e.DevicePort {
 		}
 		result = append(result, model)
 	}
-	return result
+	return result, nil
 }

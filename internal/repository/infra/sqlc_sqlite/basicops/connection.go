@@ -12,11 +12,11 @@ import (
 )
 
 // GetModels returns all models with resolved brand/class names
-func (r BasicOpsSQLiteRepository) GetConnections() []e.Connection {
+func (r BasicOpsSQLiteRepository) GetConnections() ([]e.Connection, error) {
 	ctx := context.Background()
 	models, execErr := r.query.GetConnections(ctx)
 	if execErr != nil {
-		return []e.Connection{}
+		return []e.Connection{}, execErr
 	}
 
 	result := make([]e.Connection, 0, len(models))
@@ -34,7 +34,7 @@ func (r BasicOpsSQLiteRepository) GetConnections() []e.Connection {
 		}
 		result = append(result, model)
 	}
-	return result
+	return result, nil
 }
 
 // AddModel creates new model entry resolving brand/class names to IDs

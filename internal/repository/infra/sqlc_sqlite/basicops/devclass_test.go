@@ -24,7 +24,7 @@ func TestDeviceClass_AddAndGetTypicalClasses(t *testing.T) {
 		}
 	}
 
-	got := repo.GetDeviceClasses()
+	got, _ := repo.GetDeviceClasses()
 	for _, want := range deviceClasses {
 		if !devClassSliceContains(got, want) {
 			t.Errorf("expected device class %q in list, got %v", want, got)
@@ -63,7 +63,7 @@ func TestDeviceClass_CaseSensitivity(t *testing.T) {
 	if err := repo.AddDeviceClass(c2); err != nil {
 		t.Errorf("failed to add device class with different case: %v", err)
 	}
-	got := repo.GetDeviceClasses()
+	got, _ := repo.GetDeviceClasses()
 	if !devClassSliceContains(got, c1) || !devClassSliceContains(got, c2) {
 		t.Errorf("expected both %q and %q in list, got %v", c1, c2, got)
 	}

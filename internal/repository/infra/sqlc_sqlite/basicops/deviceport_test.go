@@ -42,7 +42,7 @@ func TestDevicePort_AddAndGetDevicePorts(t *testing.T) {
 
 	// Get device and modelport IDs
 	devices := repo.GetDevices()
-	modelPorts := repo.GetModelPorts()
+	modelPorts, _ := repo.GetModelPorts()
 	if len(devices) == 0 || len(modelPorts) == 0 {
 		t.Fatalf("expected at least one device and one model port")
 	}
@@ -55,7 +55,7 @@ func TestDevicePort_AddAndGetDevicePorts(t *testing.T) {
 	}
 
 	// Retrieve and verify
-	devPorts := repo.GetDevicePorts()
+	devPorts, _ := repo.GetDevicePorts()
 	found := false
 	for _, dp := range devPorts {
 		if dp.DeviceID == devices[0].ID && dp.ModelID == modelPorts[0].ID {

@@ -47,8 +47,8 @@ func TestConnection_AddAndGetConnections(t *testing.T) {
 	}
 
 	// Get device and modelport IDs
-	devices := repo.GetDevices()
-	modelPorts := repo.GetModelPorts()
+	devices, _ := repo.GetDevices()
+	modelPorts, _ := repo.GetModelPorts()
 	if len(devices) < 2 || len(modelPorts) < 2 {
 		t.Fatalf("expected at least two devices and two model ports")
 	}
@@ -71,7 +71,7 @@ func TestConnection_AddAndGetConnections(t *testing.T) {
 	}
 
 	// Retrieve and verify
-	connections := repo.GetConnections()
+	connections, _ := repo.GetConnections()
 	found := false
 	for _, c := range connections {
 		if c.FromDevice == devices[0].Name && c.FromModelPort == modelPorts[0].Name &&

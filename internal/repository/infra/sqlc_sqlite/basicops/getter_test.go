@@ -45,7 +45,7 @@ func Test_getFatherID_ByName(t *testing.T) {
 	if err := repo.AddZone("HQ", "", "", "IT Department", "Physical"); err != nil {
 		t.Fatalf("failed to add zone: %v", err)
 	}
-	zones := repo.GetZones()
+	zones, _ := repo.GetZones()
 	var hqID int64
 	for _, z := range zones {
 		if z.Name == "HQ" {
@@ -145,7 +145,7 @@ func Test_getZoneID_ByIDAndByName(t *testing.T) {
 	if err := repo.AddZone("HQ", "", "", "IT Department", "Physical"); err != nil {
 		t.Fatalf("failed to add zone: %v", err)
 	}
-	zones := repo.GetZones()
+	zones, _ := repo.GetZones()
 	var hqID int64
 	for _, z := range zones {
 		if z.Name == "HQ" {

@@ -24,7 +24,7 @@ func TestBrand_AddAndGetIndustrialBrands(t *testing.T) {
 		}
 	}
 
-	got := repo.GetBrands()
+	got, _ := repo.GetBrands()
 	for _, want := range brands {
 		if !brandSliceContains(got, want) {
 			t.Errorf("expected brand %q in list, got %v", want, got)
@@ -63,7 +63,7 @@ func TestBrand_CaseSensitivity(t *testing.T) {
 	if err := repo.AddBrand(b2); err != nil {
 		t.Errorf("failed to add brand with different case: %v", err)
 	}
-	got := repo.GetBrands()
+	got, _ := repo.GetBrands()
 	if !brandSliceContains(got, b1) || !brandSliceContains(got, b2) {
 		t.Errorf("expected both %q and %q in list, got %v", b1, b2, got)
 	}

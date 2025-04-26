@@ -52,7 +52,7 @@ func TestZone_AddAndGetZones(t *testing.T) {
 		t.Fatalf("failed to add zone type: %v", err)
 	}
 	// Add zone with new proprietary and zone type, by fatherid
-	zones := repo.GetZones()
+	zones, _ := repo.GetZones()
 	var mainBuildingId string
 	for _, z := range zones {
 		if z.Name == "Main Building" {
@@ -74,7 +74,7 @@ func TestZone_AddAndGetZones(t *testing.T) {
 	}
 
 	// Check all zones
-	got := repo.GetZones()
+	got, _ := repo.GetZones()
 	names := []string{"Main Building", "Server Room", "Remote Office"}
 	for _, want := range names {
 		found := false

@@ -44,7 +44,7 @@ func TestModelDevice_AddAndGetModels(t *testing.T) {
 	}
 
 	// Retrieve and verify
-	got := repo.GetModels()
+	got, _ := repo.GetModels()
 	for _, want := range models {
 		found := false
 		for _, m := range got {

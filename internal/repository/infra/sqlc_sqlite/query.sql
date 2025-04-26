@@ -283,6 +283,57 @@ WHERE Device.id = ?;
 
 
 
+--- Basic getter
+
+
+-- name: BasicGetDeviceClasses :many
+SELECT id, name
+FROM DeviceClass;
+
+-- name: BasicGetBrands :many
+SELECT id, brand
+FROM Brand;
+
+-- name: BasicGetProprietaries :many
+SELECT id, proprietary
+FROM Proprietary;
+
+-- name: BasicGetZoneTypes :many
+SELECT id, location_type
+FROM ZoneType;
+
+-- name: BasicGetZones :many
+SELECT id, name, father, granularity, proprietary, location_type
+FROM Zone;
+
+-- name: BasicGetModelDevices :many
+SELECT id, model, brand, class_id
+FROM ModelDevice;
+
+-- name: BasicGetModelPorts :many
+SELECT id, name, positionx, positiony, model_id
+FROM ModelPort;
+
+-- name: BasicGetDevices :many
+SELECT id, label, model_id, zone_id, proprietary
+FROM Device;
+
+-- name: BasicGetDevicePorts :many
+SELECT model_port_id, device_id
+FROM DevicePort;
+
+-- name: BasicGetConnectionTypes :many
+SELECT id, connection_type
+FROM ConnectionType;
+
+-- name: BasicGetConnections :many
+SELECT id, from_device_port_model_port_id, from_device_port_device_id, from_ip_segment, to_device_port_model_port_id, to_device_port_device_id, to_ip_segment, connection_type
+FROM Connection;
+
+-- name: BasicGetPolicies :many
+SELECT id, name, description, associated_connection, TODO
+FROM Policy;
+
 
 
 

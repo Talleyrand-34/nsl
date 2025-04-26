@@ -42,7 +42,7 @@ func TestModelPort_AddAndGetModelPorts(t *testing.T) {
 	}
 
 	// Retrieve and verify
-	got := repo.GetModelPorts()
+	got, _ := repo.GetModelPorts()
 	for _, want := range ports {
 		found := false
 		wantX, _ := strconv.Atoi(want.posx)

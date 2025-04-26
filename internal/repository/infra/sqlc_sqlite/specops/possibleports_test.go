@@ -81,8 +81,8 @@ func TestSpecOps_GetAllPortsAllAndDevice(t *testing.T) {
 	}
 
 	// Retrieve devices and model ports for ID reference
-	devices := repo2.GetDevices()
-	modelPorts := repo2.GetModelPorts()
+	devices, _ := repo2.GetDevices()
+	modelPorts, _ := repo2.GetModelPorts()
 	if len(devices) < 2 || len(modelPorts) < 2 {
 		t.Fatalf("expected at least two devices and two model ports")
 	}
@@ -92,7 +92,7 @@ func TestSpecOps_GetAllPortsAllAndDevice(t *testing.T) {
 	modelPortID2 := modelPorts[1].ID
 
 	// --- Test GetAllPortsAll ---
-	allPorts := repo.GetAllPortsAll()
+	allPorts, _ := repo.GetAllPortsAll()
 	expectedAll := map[string]bool{
 		// All combinations: 2 devices x 2 ports
 		key(deviceID1, modelPortID1): true,
@@ -119,7 +119,7 @@ func TestSpecOps_GetAllPortsAllAndDevice(t *testing.T) {
 	}
 
 	// --- Test GetAllPortsDevice for deviceID1 ---
-	allPortsDev1 := repo.GetAllPortsDevice(strconv.Itoa(deviceID1))
+	allPortsDev1, _ := repo.GetAllPortsDevice(strconv.Itoa(deviceID1))
 	expectedDev1 := map[string]bool{
 		key(deviceID1, modelPortID1): true,
 		key(deviceID1, modelPortID2): true,
@@ -147,7 +147,7 @@ func TestSpecOps_GetAllPortsAllAndDevice(t *testing.T) {
 	}
 
 	// --- Test GetAllPortsDevice with invalid ID ---
-	allPortsInvalid := repo.GetAllPortsDevice("notanumber")
+	allPortsInvalid, _ := repo.GetAllPortsDevice("notanumber")
 	if len(allPortsInvalid) != 0 {
 		t.Errorf("expected 0 results for invalid device id, got %+v", allPortsInvalid)
 	}

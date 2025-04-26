@@ -217,6 +217,384 @@ func (q *Queries) AddZoneType(ctx context.Context, locationType string) error {
 	return err
 }
 
+const basicGetBrands = `-- name: BasicGetBrands :many
+SELECT id, brand
+FROM Brand
+`
+
+func (q *Queries) BasicGetBrands(ctx context.Context) ([]Brand, error) {
+	rows, err := q.db.QueryContext(ctx, basicGetBrands)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Brand
+	for rows.Next() {
+		var i Brand
+		if err := rows.Scan(&i.ID, &i.Brand); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const basicGetConnectionTypes = `-- name: BasicGetConnectionTypes :many
+SELECT id, connection_type
+FROM ConnectionType
+`
+
+func (q *Queries) BasicGetConnectionTypes(ctx context.Context) ([]Connectiontype, error) {
+	rows, err := q.db.QueryContext(ctx, basicGetConnectionTypes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Connectiontype
+	for rows.Next() {
+		var i Connectiontype
+		if err := rows.Scan(&i.ID, &i.ConnectionType); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const basicGetConnections = `-- name: BasicGetConnections :many
+SELECT id, from_device_port_model_port_id, from_device_port_device_id, from_ip_segment, to_device_port_model_port_id, to_device_port_device_id, to_ip_segment, connection_type
+FROM Connection
+`
+
+func (q *Queries) BasicGetConnections(ctx context.Context) ([]Connection, error) {
+	rows, err := q.db.QueryContext(ctx, basicGetConnections)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Connection
+	for rows.Next() {
+		var i Connection
+		if err := rows.Scan(
+			&i.ID,
+			&i.FromDevicePortModelPortID,
+			&i.FromDevicePortDeviceID,
+			&i.FromIpSegment,
+			&i.ToDevicePortModelPortID,
+			&i.ToDevicePortDeviceID,
+			&i.ToIpSegment,
+			&i.ConnectionType,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const basicGetDeviceClasses = `-- name: BasicGetDeviceClasses :many
+
+
+SELECT id, name
+FROM DeviceClass
+`
+
+// - Basic getter
+func (q *Queries) BasicGetDeviceClasses(ctx context.Context) ([]Deviceclass, error) {
+	rows, err := q.db.QueryContext(ctx, basicGetDeviceClasses)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Deviceclass
+	for rows.Next() {
+		var i Deviceclass
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const basicGetDevicePorts = `-- name: BasicGetDevicePorts :many
+SELECT model_port_id, device_id
+FROM DevicePort
+`
+
+func (q *Queries) BasicGetDevicePorts(ctx context.Context) ([]Deviceport, error) {
+	rows, err := q.db.QueryContext(ctx, basicGetDevicePorts)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Deviceport
+	for rows.Next() {
+		var i Deviceport
+		if err := rows.Scan(&i.ModelPortID, &i.DeviceID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const basicGetDevices = `-- name: BasicGetDevices :many
+SELECT id, label, model_id, zone_id, proprietary
+FROM Device
+`
+
+func (q *Queries) BasicGetDevices(ctx context.Context) ([]Device, error) {
+	rows, err := q.db.QueryContext(ctx, basicGetDevices)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Device
+	for rows.Next() {
+		var i Device
+		if err := rows.Scan(
+			&i.ID,
+			&i.Label,
+			&i.ModelID,
+			&i.ZoneID,
+			&i.Proprietary,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const basicGetModelDevices = `-- name: BasicGetModelDevices :many
+SELECT id, model, brand, class_id
+FROM ModelDevice
+`
+
+func (q *Queries) BasicGetModelDevices(ctx context.Context) ([]Modeldevice, error) {
+	rows, err := q.db.QueryContext(ctx, basicGetModelDevices)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Modeldevice
+	for rows.Next() {
+		var i Modeldevice
+		if err := rows.Scan(
+			&i.ID,
+			&i.Model,
+			&i.Brand,
+			&i.ClassID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const basicGetModelPorts = `-- name: BasicGetModelPorts :many
+SELECT id, name, positionx, positiony, model_id
+FROM ModelPort
+`
+
+func (q *Queries) BasicGetModelPorts(ctx context.Context) ([]Modelport, error) {
+	rows, err := q.db.QueryContext(ctx, basicGetModelPorts)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Modelport
+	for rows.Next() {
+		var i Modelport
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Positionx,
+			&i.Positiony,
+			&i.ModelID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const basicGetPolicies = `-- name: BasicGetPolicies :many
+SELECT id, name, description, associated_connection, TODO
+FROM Policy
+`
+
+func (q *Queries) BasicGetPolicies(ctx context.Context) ([]Policy, error) {
+	rows, err := q.db.QueryContext(ctx, basicGetPolicies)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Policy
+	for rows.Next() {
+		var i Policy
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Description,
+			&i.AssociatedConnection,
+			&i.Todo,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const basicGetProprietaries = `-- name: BasicGetProprietaries :many
+SELECT id, proprietary
+FROM Proprietary
+`
+
+func (q *Queries) BasicGetProprietaries(ctx context.Context) ([]Proprietary, error) {
+	rows, err := q.db.QueryContext(ctx, basicGetProprietaries)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Proprietary
+	for rows.Next() {
+		var i Proprietary
+		if err := rows.Scan(&i.ID, &i.Proprietary); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const basicGetZoneTypes = `-- name: BasicGetZoneTypes :many
+SELECT id, location_type
+FROM ZoneType
+`
+
+func (q *Queries) BasicGetZoneTypes(ctx context.Context) ([]Zonetype, error) {
+	rows, err := q.db.QueryContext(ctx, basicGetZoneTypes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Zonetype
+	for rows.Next() {
+		var i Zonetype
+		if err := rows.Scan(&i.ID, &i.LocationType); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const basicGetZones = `-- name: BasicGetZones :many
+SELECT id, name, father, granularity, proprietary, location_type
+FROM Zone
+`
+
+func (q *Queries) BasicGetZones(ctx context.Context) ([]Zone, error) {
+	rows, err := q.db.QueryContext(ctx, basicGetZones)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Zone
+	for rows.Next() {
+		var i Zone
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Father,
+			&i.Granularity,
+			&i.Proprietary,
+			&i.LocationType,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const countDevices = `-- name: CountDevices :one
 SELECT count(*)
 FROM Device

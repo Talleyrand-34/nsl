@@ -4,23 +4,23 @@ package domain
 import e "nsl-graph/internal/repository/entities"
 
 // Comment
-type NetRepository interface {
+type Repository interface {
 	// Brand
 	AddBrand(brand string) error
 	// Brand
-	GetBrands() []e.Brand
+	GetBrands() ([]e.Brand, error)
 	// deviceclass
 	AddDeviceClass(devclass string) error
 	// deviceclass
-	GetDeviceClasses() []e.DevClass
+	GetDeviceClasses() ([]e.DevClass, error)
 	// deviceclass
 	AddZoneType(name string) error
 	// deviceclass
-	GetZonetypes() []e.ZoneType
+	GetZonetypes() ([]e.ZoneType, error)
 	// deviceclass
 	AddProprietary(name string) error
 	// deviceclass
-	GetProperties() []e.Proprietary
+	GetProperties() ([]e.Proprietary, error)
 	// deviceclass
 	AddZone(
 		name string,
@@ -30,7 +30,7 @@ type NetRepository interface {
 		zonename string,
 	) error
 	// deviceclass
-	GetZones() []e.Zone
+	GetZones() ([]e.Zone, error)
 	// GetZone(name string) int
 	AddModel(
 		modelName string,
@@ -38,8 +38,8 @@ type NetRepository interface {
 		className string,
 	) error
 
-	GetModels() []e.ModelDevice
-	GetDevices() []e.Device
+	GetModels() ([]e.ModelDevice, error)
+	GetDevices() ([]e.Device, error)
 	AddDevice(
 		label string,
 		model string,
@@ -47,7 +47,7 @@ type NetRepository interface {
 		zoneName string,
 		proprietary string,
 	) error
-	GetModelPorts() []e.ModelPort
+	GetModelPorts() ([]e.ModelPort, error)
 
 	AddModelPort(
 		name string,
@@ -55,15 +55,18 @@ type NetRepository interface {
 		posy string,
 		modelName string,
 	) error
-	GetDevicePorts() []e.DevicePort
+	GetDevicePorts() ([]e.DevicePort, error)
 	AddDevicePort(deviceid string, modelportid string) error
-	GetConnections() []e.Connection
+	GetConnections() ([]e.Connection, error)
 	AddConnection(
 		fromDevice string,
 		fromModelPort string,
 		toDevice string,
 		toModelPort string,
 	) error
-	GetAllPortsDevice(deviceid string) []e.DevicePort
-	GetAllPortsAll() []e.DevicePort
+	GetAllPortsDevice(deviceid string) ([]e.DevicePort, error)
+	GetAllPortsAll() ([]e.DevicePort, error)
+	ExportAllStructs() (e.All, error)
 }
+
+type NetRepository Repository

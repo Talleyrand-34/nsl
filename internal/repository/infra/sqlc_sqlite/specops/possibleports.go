@@ -9,11 +9,11 @@ import (
 	e "nsl-graph/internal/repository/entities"
 )
 
-func (r SpecOpsSQLiteRepository) GetAllPortsAll() []e.DevicePort {
+func (r SpecOpsSQLiteRepository) GetAllPortsAll() ([]e.DevicePort, error) {
 	ctx := context.Background()
 	devports, execErr := r.query.GetPossiblePortsAll(ctx)
 	if execErr != nil {
-		return []e.DevicePort{}
+		return []e.DevicePort{}, execErr
 	}
 	result := make([]e.DevicePort, 0, len(devports))
 	for _, row := range devports {
@@ -23,18 +23,18 @@ func (r SpecOpsSQLiteRepository) GetAllPortsAll() []e.DevicePort {
 		}
 		result = append(result, model)
 	}
-	return result
+	return result, nil
 }
 
-func (r SpecOpsSQLiteRepository) GetAllPortsDevice(deviceid string) []e.DevicePort {
+func (r SpecOpsSQLiteRepository) GetAllPortsDevice(deviceid string) ([]e.DevicePort, error) {
 	id, err := strconv.ParseInt(deviceid, 10, 64)
 	if err != nil {
-		return []e.DevicePort{}
+		return []e.DevicePort{}, err
 	}
 	ctx := context.Background()
 	devports, execErr := r.query.GetPossiblePortsDevice(ctx, id)
 	if execErr != nil {
-		return []e.DevicePort{}
+		return []e.DevicePort{}, execErr
 	}
 	result := make([]e.DevicePort, 0, len(devports))
 	for _, row := range devports {
@@ -44,5 +44,5 @@ func (r SpecOpsSQLiteRepository) GetAllPortsDevice(deviceid string) []e.DevicePo
 		}
 		result = append(result, model)
 	}
-	return result
+	return result, nil
 }

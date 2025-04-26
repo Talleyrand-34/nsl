@@ -1,12 +1,14 @@
 package sqlcbase
 
-import e "nsl-graph/internal/repository/entities"
+import (
+	e "nsl-graph/internal/repository/entities"
+)
 
 func (r SQLiteRepository) AddBrand(brand string) error {
 	return r.basicops.AddBrand(brand)
 }
 
-func (r SQLiteRepository) GetBrands() []e.Brand {
+func (r SQLiteRepository) GetBrands() ([]e.Brand, error) {
 	return r.basicops.GetBrands()
 }
 
@@ -14,7 +16,7 @@ func (r SQLiteRepository) AddDeviceClass(devclass string) error {
 	return r.basicops.AddDeviceClass(devclass)
 }
 
-func (r SQLiteRepository) GetDeviceClasses() []e.DevClass {
+func (r SQLiteRepository) GetDeviceClasses() ([]e.DevClass, error) {
 	return r.basicops.GetDeviceClasses()
 }
 
@@ -22,7 +24,7 @@ func (r SQLiteRepository) AddZoneType(name string) error {
 	return r.basicops.AddZoneType(name)
 }
 
-func (r SQLiteRepository) GetZonetypes() []e.ZoneType {
+func (r SQLiteRepository) GetZonetypes() ([]e.ZoneType, error) {
 	return r.basicops.GetZonetypes()
 }
 
@@ -30,7 +32,7 @@ func (r SQLiteRepository) AddProprietary(name string) error {
 	return r.basicops.AddProprietary(name)
 }
 
-func (r SQLiteRepository) GetProperties() []e.Proprietary {
+func (r SQLiteRepository) GetProperties() ([]e.Proprietary, error) {
 	return r.basicops.GetProperties()
 }
 
@@ -44,7 +46,7 @@ func (r SQLiteRepository) AddZone(
 	return r.basicops.AddZone(name, fatherid, father, proprietary, zonename)
 }
 
-func (r SQLiteRepository) GetZones() []e.Zone {
+func (r SQLiteRepository) GetZones() ([]e.Zone, error) {
 	return r.basicops.GetZones()
 }
 
@@ -56,11 +58,11 @@ func (r SQLiteRepository) AddModel(
 	return r.basicops.AddModel(modelName, brandName, className)
 }
 
-func (r SQLiteRepository) GetModels() []e.ModelDevice {
+func (r SQLiteRepository) GetModels() ([]e.ModelDevice, error) {
 	return r.basicops.GetModels()
 }
 
-func (r SQLiteRepository) GetDevices() []e.Device {
+func (r SQLiteRepository) GetDevices() ([]e.Device, error) {
 	return r.basicops.GetDevices()
 }
 
@@ -74,7 +76,7 @@ func (r SQLiteRepository) AddDevice(
 	return r.basicops.AddDevice(label, model, zoneId, zoneName, proprietary)
 }
 
-func (r SQLiteRepository) GetModelPorts() []e.ModelPort {
+func (r SQLiteRepository) GetModelPorts() ([]e.ModelPort, error) {
 	return r.basicops.GetModelPorts()
 }
 
@@ -87,7 +89,7 @@ func (r SQLiteRepository) AddModelPort(
 	return r.basicops.AddModelPort(name, posx, posy, modelName)
 }
 
-func (r SQLiteRepository) GetDevicePorts() []e.DevicePort {
+func (r SQLiteRepository) GetDevicePorts() ([]e.DevicePort, error) {
 	return r.basicops.GetDevicePorts()
 }
 
@@ -95,7 +97,7 @@ func (r SQLiteRepository) AddDevicePort(deviceid string, modelportid string) err
 	return r.basicops.AddDevicePort(deviceid, modelportid)
 }
 
-func (r SQLiteRepository) GetConnections() []e.Connection {
+func (r SQLiteRepository) GetConnections() ([]e.Connection, error) {
 	return r.basicops.GetConnections()
 }
 
@@ -108,10 +110,14 @@ func (r SQLiteRepository) AddConnection(
 	return r.basicops.AddConnection(fromDevice, fromModelPort, toDevice, toModelPort)
 }
 
-func (r SQLiteRepository) GetAllPortsAll() []e.DevicePort {
+func (r SQLiteRepository) GetAllPortsAll() ([]e.DevicePort, error) {
 	return r.specops.GetAllPortsAll()
 }
 
-func (r SQLiteRepository) GetAllPortsDevice(deviceid string) []e.DevicePort {
+func (r SQLiteRepository) GetAllPortsDevice(deviceid string) ([]e.DevicePort, error) {
 	return r.specops.GetAllPortsDevice(deviceid)
+}
+
+func (r SQLiteRepository) ExportAllStructs() (e.All, error) {
+	return r.specops.ExportAllStructs()
 }

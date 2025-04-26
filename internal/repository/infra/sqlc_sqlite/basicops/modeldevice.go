@@ -12,11 +12,11 @@ import (
 )
 
 // GetModels returns all models with resolved brand/class names
-func (r BasicOpsSQLiteRepository) GetModels() []e.ModelDevice {
+func (r BasicOpsSQLiteRepository) GetModels() ([]e.ModelDevice, error) {
 	ctx := context.Background()
 	models, execErr := r.query.GetModels(ctx)
 	if execErr != nil {
-		return []e.ModelDevice{}
+		return []e.ModelDevice{}, execErr
 	}
 
 	result := make([]e.ModelDevice, 0, len(models))
@@ -29,7 +29,7 @@ func (r BasicOpsSQLiteRepository) GetModels() []e.ModelDevice {
 		}
 		result = append(result, model)
 	}
-	return result
+	return result, nil
 }
 
 // AddModel creates new model entry resolving brand/class names to IDs

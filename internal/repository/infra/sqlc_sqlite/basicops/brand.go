@@ -19,11 +19,11 @@ func (r BasicOpsSQLiteRepository) AddBrand(brand string) error {
 }
 
 // GetBrands gets all the brands available
-func (r BasicOpsSQLiteRepository) GetBrands() []e.Brand {
+func (r BasicOpsSQLiteRepository) GetBrands() ([]e.Brand, error) {
 	ctx := context.Background()
 	brands, execErr := r.query.GetBrands(ctx)
 	if execErr != nil {
-		return []e.Brand{}
+		return []e.Brand{}, execErr
 	}
 
 	result := make([]e.Brand, 0, len(brands))
@@ -33,5 +33,5 @@ func (r BasicOpsSQLiteRepository) GetBrands() []e.Brand {
 		}
 		result = append(result, brand)
 	}
-	return result
+	return result, nil
 }

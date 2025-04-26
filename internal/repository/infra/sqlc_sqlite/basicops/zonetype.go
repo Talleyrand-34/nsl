@@ -19,11 +19,11 @@ func (r BasicOpsSQLiteRepository) AddZoneType(zoneName string) error {
 }
 
 // deviceclass
-func (r BasicOpsSQLiteRepository) GetZonetypes() []e.ZoneType {
+func (r BasicOpsSQLiteRepository) GetZonetypes() ([]e.ZoneType, error) {
 	ctx := context.Background()
 	zonetypes, execErr := r.query.GetZoneTypes(ctx)
 	if execErr != nil {
-		return []e.ZoneType{}
+		return []e.ZoneType{}, execErr
 	}
 	result := make([]e.ZoneType, 0, len(zonetypes))
 	for _, row := range zonetypes {
@@ -32,5 +32,5 @@ func (r BasicOpsSQLiteRepository) GetZonetypes() []e.ZoneType {
 		}
 		result = append(result, zonetype)
 	}
-	return result
+	return result, nil
 }

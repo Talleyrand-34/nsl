@@ -35,7 +35,7 @@ func TestDevice_AddAndGetDevices(t *testing.T) {
 	}
 
 	// Get IDs/names for device creation
-	zones := repo.GetZones()
+	zones, _ := repo.GetZones()
 	var zoneId string
 	for _, z := range zones {
 		if z.Name == "HQ" {

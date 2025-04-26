@@ -12,11 +12,11 @@ import (
 )
 
 // GetModels returns all models with resolved brand/class names
-func (r BasicOpsSQLiteRepository) GetModelPorts() []e.ModelPort {
+func (r BasicOpsSQLiteRepository) GetModelPorts() ([]e.ModelPort, error) {
 	ctx := context.Background()
 	models, execErr := r.query.GetModelPorts(ctx)
 	if execErr != nil {
-		return []e.ModelPort{}
+		return []e.ModelPort{}, execErr
 	}
 
 	result := make([]e.ModelPort, 0, len(models))
@@ -31,7 +31,7 @@ func (r BasicOpsSQLiteRepository) GetModelPorts() []e.ModelPort {
 		}
 		result = append(result, model)
 	}
-	return result
+	return result, nil
 }
 
 // AddModel creates new model entry resolving brand/class names to IDs

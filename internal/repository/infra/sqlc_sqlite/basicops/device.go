@@ -43,11 +43,11 @@ func (r BasicOpsSQLiteRepository) AddDevice(
 
 // deviceclass
 
-func (r BasicOpsSQLiteRepository) GetDevices() []e.Device {
+func (r BasicOpsSQLiteRepository) GetDevices() ([]e.Device, error) {
 	ctx := context.Background()
 	devices, execErr := r.query.GetDevices(ctx)
 	if execErr != nil {
-		return []e.Device{}
+		return []e.Device{}, execErr
 	}
 
 	result := make([]e.Device, 0, len(devices))
@@ -66,5 +66,5 @@ func (r BasicOpsSQLiteRepository) GetDevices() []e.Device {
 
 		result = append(result, zone)
 	}
-	return result
+	return result, nil
 }

@@ -23,7 +23,7 @@ func TestZoneType_AddAndGetTypicalZoneTypes(t *testing.T) {
 		}
 	}
 
-	got := repo.GetZonetypes()
+	got, _ := repo.GetZonetypes()
 	for _, want := range zoneTypes {
 		if !zoneTypeSliceContains(got, want) {
 			t.Errorf("expected zone type %q in list, got %v", want, got)
@@ -83,7 +83,7 @@ func TestZoneType_CaseSensitivity(t *testing.T) {
 	if err := repo.AddZoneType(z2); err != nil {
 		t.Errorf("failed to add zone type with different case: %v", err)
 	}
-	got := repo.GetZonetypes()
+	got, _ := repo.GetZonetypes()
 	if !zoneTypeSliceContains(got, z1) || !zoneTypeSliceContains(got, z2) {
 		t.Errorf("expected both %q and %q in list, got %v", z1, z2, got)
 	}
