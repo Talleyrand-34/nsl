@@ -41,7 +41,7 @@ func TestDevicePort_AddAndGetDevicePorts(t *testing.T) {
 	}
 
 	// Get device and modelport IDs
-	devices := repo.GetDevices()
+	devices, _ := repo.GetDevices()
 	modelPorts, _ := repo.GetModelPorts()
 	if len(devices) == 0 || len(modelPorts) == 0 {
 		t.Fatalf("expected at least one device and one model port")

@@ -2,13 +2,13 @@ package application_test
 
 import (
 	"database/sql"
+	"nsl-graph/internal/repository/application"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
 
-	"nsl-graph/internal/repository/application"
-	sqlite "nsl-graph/internal/repository/infra/bare_sqlite"
+	sqlite "nsl-graph/internal/repository/infra/sqlc_sqlite/base"
 )
 
 func setupTestDB(t *testing.T) *sql.DB {
@@ -42,5 +42,5 @@ func TestNetService_AddAndGetBrand(t *testing.T) {
 
 	// Test GetBrands
 	brands := service.GetBrands()
-	assert.Contains(t, brands, "TestBrand")
+	assert.Contains(t, string(brands), "TestBrand")
 }

@@ -98,25 +98,25 @@ func TestConnection_AddConnection_InvalidIDs(t *testing.T) {
 
 	// Invalid device ID
 	err = repo.AddConnection("notanumber", "1", "2", "3")
-	if err != nil {
-		t.Errorf("expected silent fail (nil) for invalid fromDevice ID, got error: %v", err)
+	if err == nil {
+		t.Errorf("Expected error invalid number")
 	}
 
 	// Invalid model port ID
 	err = repo.AddConnection("1", "notanumber", "2", "3")
-	if err != nil {
-		t.Errorf("expected silent fail (nil) for invalid fromModelPort ID, got error: %v", err)
+	if err == nil {
+		t.Errorf("Expected error invalid number")
 	}
 
 	// Invalid toDevice ID
 	err = repo.AddConnection("1", "2", "notanumber", "3")
-	if err != nil {
-		t.Errorf("expected silent fail (nil) for invalid toDevice ID, got error: %v", err)
+	if err == nil {
+		t.Errorf("Expected error invalid number")
 	}
 
 	// Invalid toModelPort ID
 	err = repo.AddConnection("1", "2", "3", "notanumber")
-	if err != nil {
-		t.Errorf("expected silent fail (nil) for invalid toModelPort ID, got error: %v", err)
+	if err == nil {
+		t.Errorf("Expected error invalid number")
 	}
 }

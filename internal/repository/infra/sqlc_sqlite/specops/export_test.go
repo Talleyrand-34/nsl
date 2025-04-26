@@ -1,7 +1,6 @@
 package specops
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -30,8 +29,7 @@ func TestSpecOps_ExportAllStructs(t *testing.T) {
 	require.NoError(t, repo2.AddDevice("BackupRouter", "F200", "", "HQ", "IT Department"))
 
 	// Export all structs
-	ctx := context.Background()
-	all, err := repo.ExportAllStructs(ctx)
+	all, err := repo.ExportAllStructs()
 	require.NoError(t, err)
 
 	// --- Assertions ---

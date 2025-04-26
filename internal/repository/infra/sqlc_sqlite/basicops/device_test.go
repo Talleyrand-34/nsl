@@ -58,7 +58,7 @@ func TestDevice_AddAndGetDevices(t *testing.T) {
 	}
 
 	// Retrieve and verify
-	devices := repo.GetDevices()
+	devices, _ := repo.GetDevices()
 	expectedDevices := []struct {
 		Label       string
 		Model       string
