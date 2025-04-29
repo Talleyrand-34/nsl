@@ -1,25 +1,25 @@
-
 /*
-  Copyright © 2025 Tecdesoft (rodrigo-gonzalez@tecdesoft.es, t34@t34.dev)
- 
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU Affero General Public License as published
-  by the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
- 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-  GNU Affero General Public License for more details.
- 
-  You should have received a copy of the GNU Affero General Public License
-  along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+Copyright © 2025 Tecdesoft (rodrigo-gonzalez@tecdesoft.es, t34@t34.dev)
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+*/
 package specops
 
 import (
 	"context"
 	"database/sql"
+	"strconv"
 
 	_ "modernc.org/sqlite" // This imports is the sqlite driver needed to access the db
 
@@ -66,8 +66,8 @@ func (r *SpecOpsSQLiteRepository) ImportAllStructs(ctx context.Context, all e.Al
 	// 6. Zones
 	for _, z := range all.Zones {
 		// Assume you have helpers: getProprietaryID, getZoneTypeID
-		propID, _ := r.getProprietaryID(ctx, string(z.Proprietary))
-		zoneTypeID, _ := r.getZoneTypeID(ctx, string(z.LocationType))
+		propID, _ := r.getProprietaryID(ctx, strconv.FormatInt(z.Proprietary, 10))
+		zoneTypeID, _ := r.getZoneTypeID(ctx, strconv.FormatInt(z.LocationType, 10))
 		arg := d.AddZoneParams{
 			Name:         z.Name,
 			Father:       int64ToNull(z.Father),
@@ -82,8 +82,8 @@ func (r *SpecOpsSQLiteRepository) ImportAllStructs(ctx context.Context, all e.Al
 	// 7. ModelDevices
 	for _, md := range all.ModelDevices {
 		// Assume you have helpers: getBrandID, getDeviceClassID
-		brandID, _ := r.getBrandID(ctx, string(md.Brand))
-		classID, _ := r.getDeviceClassID(ctx, string(md.ClassID))
+		brandID, _ := r.getBrandID(ctx, strconv.FormatInt(md.Brand, 10))
+		classID, _ := r.getDeviceClassID(ctx, strconv.FormatInt(md.ClassID, 10))
 		arg := d.AddModelParams{
 			Model:   md.Model,
 			Brand:   brandID,
