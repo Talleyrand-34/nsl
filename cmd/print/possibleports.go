@@ -1,23 +1,23 @@
-
 /*
-  Copyright © 2025 Tecdesoft (rodrigo-gonzalez@tecdesoft.es, t34@t34.dev)
- 
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU Affero General Public License as published
-  by the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
- 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-  GNU Affero General Public License for more details.
- 
-  You should have received a copy of the GNU Affero General Public License
-  along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+Copyright © 2025 Tecdesoft (rodrigo-gonzalez@tecdesoft.es, t34@t34.dev)
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+*/
 package cmd_print
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -25,6 +25,7 @@ import (
 
 	cmd "nsl-graph/cmd/root"
 	util "nsl-graph/cmd/utils"
+	"nsl-graph/internal/repository/entities"
 )
 
 // devicesCmd represents the devices command
@@ -43,11 +44,22 @@ var possiblePortPrintCmd = &cobra.Command{
 		if err != nil {
 			return
 		}
+		var brands []entities.DevicePort
 		if deviceid == "" {
-			fmt.Println(string(service.GetAllPortsAll()))
+			brands, err = service.GetAllPortsAll()
 		} else {
-			fmt.Println(string(service.GetAllPortsDevice(deviceid)))
+			brands, err = service.GetAllPortsDevice(deviceid)
 		}
+		if err != nil {
+			fmt.Println("Error getting ModelPorts:", err)
+			return
+		}
+		jsonBytes, err := json.MarshalIndent(brands, "", "  ")
+		if err != nil {
+			fmt.Println("Error marshaling ModelPorts to JSON:", err)
+			return
+		}
+		fmt.Println(string(jsonBytes))
 	},
 }
 

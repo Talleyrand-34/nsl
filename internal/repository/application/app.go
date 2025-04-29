@@ -1,20 +1,19 @@
-
 /*
   Copyright © 2025 Tecdesoft (rodrigo-gonzalez@tecdesoft.es, t34@t34.dev)
- 
+
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU Affero General Public License as published
   by the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
- 
+
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU Affero General Public License for more details.
- 
+
   You should have received a copy of the GNU Affero General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+*/
 // package application set ups an interface for access to database and transforms outputs to json
 package application
 
@@ -23,6 +22,7 @@ import (
 	"log"
 
 	d "nsl-graph/internal/repository/domain"
+	e "nsl-graph/internal/repository/entities"
 )
 
 type NetService struct {
@@ -33,19 +33,19 @@ type NetServiceInt interface {
 	// Brand
 	AddBrand(brand string) error
 	// Brand
-	GetBrands() []byte
+	GetBrands() ([]e.Brand, error)
 	// deviceclass
 	AddDeviceClass(brand string) error
 	// deviceclass
-	GetDeviceClasses() []byte
+	GetDeviceClasses() ([]e.DevClass, error)
 	// deviceclass
 	AddZoneType(name string) error
 	// deviceclass
-	GetZonetypes() []byte
+	GetZonetypes() ([]e.ZoneType, error)
 	// deviceclass
 	AddProprietary(name string) error
 	// deviceclass
-	GetProperties() []byte
+	GetProperties() ([]e.Proprietary, error)
 	// deviceclass
 	AddZone(
 		name string,
@@ -55,7 +55,7 @@ type NetServiceInt interface {
 		zonename string,
 	) error
 	// deviceclass
-	GetZones() []byte
+	GetZones() ([]e.Zone, error)
 	// GetZone(name string) int
 	AddModel(
 		modelName string,
@@ -63,7 +63,7 @@ type NetServiceInt interface {
 		className string,
 	) error
 
-	GetModels() []byte
+	GetModels() ([]e.ModelDevice, error)
 	AddDevice(
 		label string,
 		model string,
@@ -71,8 +71,8 @@ type NetServiceInt interface {
 		zoneName string,
 		proprietary string,
 	) error
-	GetDevices() []byte
-	GetModelPorts() []byte
+	GetDevices() ([]e.Device, error)
+	GetModelPorts() ([]e.ModelPort, error)
 
 	AddModelPort(
 		name string,
@@ -80,17 +80,17 @@ type NetServiceInt interface {
 		posy string,
 		modelName string,
 	) error
-	GetDevicePorts() []byte
+	GetDevicePorts() ([]e.DevicePort, error)
 	AddDevicePort(deviceid string, modelportid string) error
-	GetConnections() []byte
+	GetConnections() ([]e.Connection, error)
 	AddConnection(
 		fromDevice string,
 		fromModelPort string,
 		toDevice string,
 		toModelPort string,
 	) error
-	GetAllPortsDevice(deviceid string) []byte
-	GetAllPortsAll() []byte
+	GetAllPortsDevice(deviceid string) ([]e.DevicePort, error)
+	GetAllPortsAll() ([]e.DevicePort, error)
 	ExportAllStructs() []byte
 }
 
@@ -102,72 +102,32 @@ func (ns *NetService) AddBrand(brand string) error {
 	return ns.netRepo.AddBrand(brand)
 }
 
-func (ns *NetService) GetBrands() []byte {
-	brands, err := ns.netRepo.GetBrands()
-	if err != nil {
-		log.Printf("Error exporting: %v", err)
-		return []byte("{\"error\": \"Failed to export\"}")
-	}
-	jsonData, err := json.Marshal(brands)
-	if err != nil {
-		log.Printf("Error marshaling properties to JSON: %v", err)
-		return []byte("[]") // Return empty JSON array on error
-	}
-	return jsonData
+func (ns *NetService) GetBrands() ([]e.Brand, error) {
+	return ns.netRepo.GetBrands()
 }
 
 func (ns *NetService) AddDeviceClass(deviceClassName string) error {
 	return ns.netRepo.AddDeviceClass(deviceClassName)
 }
 
-func (ns *NetService) GetDeviceClasses() []byte {
-	devclass, err := ns.netRepo.GetDeviceClasses()
-	if err != nil {
-		log.Printf("Error exporting: %v", err)
-		return []byte("{\"error\": \"Failed to export\"}")
-	}
-	jsonData, err := json.Marshal(devclass)
-	if err != nil {
-		log.Printf("Error marshaling properties to JSON: %v", err)
-		return []byte("[]") // Return empty JSON array on error
-	}
-	return jsonData
+func (ns *NetService) GetDeviceClasses() ([]e.DevClass, error) {
+	return ns.netRepo.GetDeviceClasses()
 }
 
 func (ns *NetService) AddZoneType(zoneTypeName string) error {
 	return ns.netRepo.AddZoneType(zoneTypeName)
 }
 
-func (ns *NetService) GetZonetypes() []byte {
-	zonetypes, err := ns.netRepo.GetZonetypes()
-	if err != nil {
-		log.Printf("Error exporting: %v", err)
-		return []byte("{\"error\": \"Failed to export\"}")
-	}
-	jsonData, err := json.Marshal(zonetypes)
-	if err != nil {
-		log.Printf("Error marshaling properties to JSON: %v", err)
-		return []byte("[]") // Return empty JSON array on error
-	}
-	return jsonData
+func (ns *NetService) GetZonetypes() ([]e.ZoneType, error) {
+	return ns.netRepo.GetZonetypes()
 }
 
 func (ns *NetService) AddProprietary(proprietary string) error {
 	return ns.netRepo.AddProprietary(proprietary)
 }
 
-func (ns *NetService) GetProperties() []byte {
-	properties, err := ns.netRepo.GetProperties()
-	if err != nil {
-		log.Printf("Error exporting: %v", err)
-		return []byte("{\"error\": \"Failed to export\"}")
-	}
-	jsonData, err := json.Marshal(properties)
-	if err != nil {
-		log.Printf("Error marshaling properties to JSON: %v", err)
-		return []byte("[]") // Return empty JSON array on error
-	}
-	return jsonData
+func (ns *NetService) GetProperties() ([]e.Proprietary, error) {
+	return ns.netRepo.GetProperties()
 }
 
 func (ns *NetService) AddZone(
@@ -180,32 +140,12 @@ func (ns *NetService) AddZone(
 	return ns.netRepo.AddZone(name, fatherid, father, proprietary, zonename)
 }
 
-func (ns *NetService) GetZones() []byte {
-	zones, err := ns.netRepo.GetZones()
-	if err != nil {
-		log.Printf("Error exporting: %v", err)
-		return []byte("{\"error\": \"Failed to export\"}")
-	}
-	jsonData, err := json.Marshal(zones)
-	if err != nil {
-		log.Printf("Error marshaling to JSON: %v", err)
-		return []byte("[]") // Return empty JSON array on error
-	}
-	return jsonData
+func (ns *NetService) GetZones() ([]e.Zone, error) {
+	return ns.netRepo.GetZones()
 }
 
-func (ns *NetService) GetModels() []byte {
-	zones, err := ns.netRepo.GetModels()
-	if err != nil {
-		log.Printf("Error exporting: %v", err)
-		return []byte("{\"error\": \"Failed to export\"}")
-	}
-	jsonData, err := json.Marshal(zones)
-	if err != nil {
-		log.Printf("Error marshaling to JSON: %v", err)
-		return []byte("[]") // Return empty JSON array on error
-	}
-	return jsonData
+func (ns *NetService) GetModels() ([]e.ModelDevice, error) {
+	return ns.netRepo.GetModels()
 }
 
 func (ns *NetService) AddModelPort(
@@ -217,18 +157,8 @@ func (ns *NetService) AddModelPort(
 	return ns.netRepo.AddModelPort(name, posx, posy, modelName)
 }
 
-func (ns *NetService) GetModelPorts() []byte {
-	zones, err := ns.netRepo.GetModelPorts()
-	if err != nil {
-		log.Printf("Error exporting: %v", err)
-		return []byte("{\"error\": \"Failed to export\"}")
-	}
-	jsonData, err := json.Marshal(zones)
-	if err != nil {
-		log.Printf("Error marshaling to JSON: %v", err)
-		return []byte("[]") // Return empty JSON array on error
-	}
-	return jsonData
+func (ns *NetService) GetModelPorts() ([]e.ModelPort, error) {
+	return ns.netRepo.GetModelPorts()
 }
 
 func (ns *NetService) AddModel(
@@ -239,18 +169,8 @@ func (ns *NetService) AddModel(
 	return ns.netRepo.AddModel(modelName, brandName, className)
 }
 
-func (ns *NetService) GetDevices() []byte {
-	zones, err := ns.netRepo.GetDevices()
-	if err != nil {
-		log.Printf("Error exporting: %v", err)
-		return []byte("{\"error\": \"Failed to export\"}")
-	}
-	jsonData, err := json.Marshal(zones)
-	if err != nil {
-		log.Printf("Error marshaling to JSON: %v", err)
-		return []byte("[]") // Return empty JSON array on error
-	}
-	return jsonData
+func (ns *NetService) GetDevices() ([]e.Device, error) {
+	return ns.netRepo.GetDevices()
 }
 
 func (ns *NetService) AddDevice(
@@ -263,18 +183,9 @@ func (ns *NetService) AddDevice(
 	return ns.netRepo.AddDevice(label, model, zoneId, zoneName, proprietary)
 }
 
-func (ns *NetService) GetDevicePorts() []byte {
+func (ns *NetService) GetDevicePorts() ([]e.DevicePort, error) {
 	zones, err := ns.netRepo.GetDevicePorts()
-	if err != nil {
-		log.Printf("Error exporting: %v", err)
-		return []byte("{\"error\": \"Failed to export\"}")
-	}
-	jsonData, err := json.Marshal(zones)
-	if err != nil {
-		log.Printf("Error marshaling to JSON: %v", err)
-		return []byte("[]") // Return empty JSON array on error
-	}
-	return jsonData
+	return zones, err
 }
 
 func (ns *NetService) AddDevicePort(
@@ -284,18 +195,8 @@ func (ns *NetService) AddDevicePort(
 	return ns.netRepo.AddDevicePort(deviceid, modelportid)
 }
 
-func (ns *NetService) GetConnections() []byte {
-	zones, err := ns.netRepo.GetConnections()
-	if err != nil {
-		log.Printf("Error exporting: %v", err)
-		return []byte("{\"error\": \"Failed to export\"}")
-	}
-	jsonData, err := json.Marshal(zones)
-	if err != nil {
-		log.Printf("Error marshaling to JSON: %v", err)
-		return []byte("[]") // Return empty JSON array on error
-	}
-	return jsonData
+func (ns *NetService) GetConnections() ([]e.Connection, error) {
+	return ns.netRepo.GetConnections()
 }
 
 func (ns *NetService) AddConnection(
@@ -307,32 +208,12 @@ func (ns *NetService) AddConnection(
 	return ns.netRepo.AddConnection(fromDevice, fromModelPort, toDevice, toModelPort)
 }
 
-func (ns *NetService) GetAllPortsAll() []byte {
-	zones, err := ns.netRepo.GetAllPortsAll()
-	if err != nil {
-		log.Printf("Error exporting: %v", err)
-		return []byte("{\"error\": \"Failed to export\"}")
-	}
-	jsonData, err := json.Marshal(zones)
-	if err != nil {
-		log.Printf("Error marshaling to JSON: %v", err)
-		return []byte("[]") // Return empty JSON array on error
-	}
-	return jsonData
+func (ns *NetService) GetAllPortsAll() ([]e.DevicePort, error) {
+	return ns.netRepo.GetAllPortsAll()
 }
 
-func (ns *NetService) GetAllPortsDevice(deviceid string) []byte {
-	zones, err := ns.netRepo.GetAllPortsDevice(deviceid)
-	if err != nil {
-		log.Printf("Error exporting: %v", err)
-		return []byte("{\"error\": \"Failed to export\"}")
-	}
-	jsonData, err := json.Marshal(zones)
-	if err != nil {
-		log.Printf("Error marshaling to JSON: %v", err)
-		return []byte("[]") // Return empty JSON array on error
-	}
-	return jsonData
+func (ns *NetService) GetAllPortsDevice(deviceid string) ([]e.DevicePort, error) {
+	return ns.netRepo.GetAllPortsDevice(deviceid)
 }
 
 func (ns *NetService) ExportAllStructs() []byte {

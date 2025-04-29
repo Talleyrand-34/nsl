@@ -1,28 +1,28 @@
-
 /*
-  Copyright © 2025 Tecdesoft (rodrigo-gonzalez@tecdesoft.es, t34@t34.dev)
- 
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU Affero General Public License as published
-  by the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
- 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-  GNU Affero General Public License for more details.
- 
-  You should have received a copy of the GNU Affero General Public License
-  along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+Copyright © 2025 Tecdesoft (rodrigo-gonzalez@tecdesoft.es, t34@t34.dev)
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+*/
 package cmd_root
 
 import (
+	"nsl-graph/internal/format"
+
 	"github.com/spf13/cobra"
 
 	cmd "nsl-graph/cmd"
 	util "nsl-graph/cmd/utils"
-	"nsl-graph/internal/format"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -45,9 +45,9 @@ var DiagramCmd = &cobra.Command{
 		if err != nil {
 			return
 		}
-		connections := service.GetConnections()
-		devices := service.GetDevices()
-		d2diagram := format.GenerateD2FromJSON(devices, connections)
+		connections, err := service.GetConnections()
+		devices, err := service.GetDevices()
+		d2diagram := format.GenerateD2FromStruct(devices, connections)
 		format.WriteDiagram(d2diagram, op, of, oi)
 	},
 }
