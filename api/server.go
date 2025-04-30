@@ -47,6 +47,7 @@ func rootHandler() http.HandlerFunc {
 			"DELETE /connections",
 			"GET    /connections",
 			"POST   /connections",
+			"PUT   /connections",
 
 			// /deviceclasses
 			"DELETE /deviceclasses",
@@ -161,6 +162,7 @@ func RegisterRoutes(r *mux.Router, service q.NetServiceInt) {
 	r.HandleFunc("/deviceports", deleteDevicePortHandler(service)).Methods("DELETE")
 	// Connection
 	r.HandleFunc("/connections", deleteConnectionHandler(service)).Methods("DELETE")
+	r.HandleFunc("/connections", updateConnectionHandler(service)).Methods("PUT")
 }
 
 func StartServer(dbPath string, port int) {

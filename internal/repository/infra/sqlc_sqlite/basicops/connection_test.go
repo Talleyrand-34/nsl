@@ -237,3 +237,121 @@ func TestConnection_AddGetAndDeleteConnections(t *testing.T) {
 		}
 	}
 }
+
+func TestConnection_UpdateConnection(t *testing.T) {
+	repo, err := setupTestRepository(t)
+	if err != nil {
+		t.Fatalf("failed to setup repository: %v", err)
+	}
+	defer repo.Close()
+
+	// Prepare all referenced data
+	if err := repo.AddBrand("Fortinet"); err != nil {
+		t.Fatalf("failed to add brand: %v", err)
+	}
+	if err := repo.AddDeviceClass("Router"); err != nil {
+		t.Fatalf("failed to add device class: %v", err)
+	}
+	if err := repo.AddModel("F100", "Fortinet", "Router"); err != nil {
+		t.Fatalf("failed to add model: %v", err)
+	}
+	if err := repo.AddModelPort("eth0", "10", "20", "F100"); err != nil {
+		t.Fatalf("failed to add model port: %v", err)
+	}
+	if err := repo.AddModelPort("eth1", "15", "25", "F100"); err != nil {
+		t.Fatalf("failed to add model port: %v", err)
+	}
+	if err := repo.AddModelPort("eth2", "30", "40", "F100"); err != nil {
+		t.Fatalf("failed to add model port: %v", err)
+	}
+	if err := repo.AddProprietary("IT Department"); err != nil {
+		t.Fatalf("failed to add proprietary: %v", err)
+	}
+	if err := repo.AddZoneType("Physical"); err != nil {
+		t.Fatalf("failed to add zone type: %v", err)
+	}
+	if err := repo.AddZone("HQ", "", "", "IT Department", "Physical"); err != nil {
+		t.Fatalf("failed to add zone: %v", err)
+	}
+	if err := repo.AddDevice("MainRouter", "F100", "", "HQ", "IT Department"); err != nil {
+		t.Fatalf("failed to add device: %v", err)
+	}
+	if err := repo.AddDevice("BackupRouter", "F100", "", "HQ", "IT Department"); err != nil {
+		t.Fatalf("failed to add device: %v", err)
+	}
+
+	// Get device and modelport IDs
+	devices, _ := repo.GetDevices()
+	modelPorts, _ := repo.GetModelPorts()
+	if len(devices) < 2 || len(modelPorts) < 3 {
+		t.Fatalf("expected at least two devices and three model ports")
+	}
+	deviceID1 := strconv.Itoa(devices[0].ID)
+	deviceID2 := strconv.Itoa(devices[1].ID)
+	modelPortID1 := strconv.Itoa(modelPorts[0].ID)
+	modelPortID2 := strconv.Itoa(modelPorts[1].ID)
+	modelPortID3 := strconv.Itoa(modelPorts[2].ID)
+
+	// Add device ports for both devices
+	if err := repo.AddDevicePort(deviceID1, modelPortID1); err != nil {
+		t.Fatalf("failed to add device port 1: %v", err)
+	}
+	if err := repo.AddDevicePort(deviceID2, modelPortID2); err != nil {
+		t.Fatalf("failed to add device port 2: %v", err)
+	}
+	if err := repo.AddDevicePort(deviceID2, modelPortID3); err != nil {
+		t.Fatalf("failed to add device port 3: %v", err)
+	}
+
+	// Add connection (MainRouter:eth0 -> BackupRouter:eth1)
+	if err := repo.AddConnection(deviceID1, modelPortID1, deviceID2, modelPortID2); err != nil {
+		t.Fatalf("failed to add connection: %v", err)
+	}
+
+	// Retrieve and verify the connection exists
+	connections, _ := repo.GetConnections()
+	var connID string
+	for _, c := range connections {
+		if c.FromDevice == devices[0].Name && c.FromModelPort == modelPorts[0].Name &&
+			c.ToDevice == devices[1].Name && c.ToModelPort == modelPorts[1].Name {
+			connID = strconv.Itoa(c.ID)
+			break
+		}
+	}
+	if connID == "" {
+		t.Fatalf("could not find connection to update")
+	}
+
+	// --- Update the connection: change to MainRouter:eth0 -> BackupRouter:eth2
+	if err := repo.UpdateConnection(
+		connID,
+		deviceID1,
+		modelPortID1,
+		deviceID2,
+		modelPortID3,
+	); err != nil {
+		t.Fatalf("failed to update connection: %v", err)
+	}
+
+	// Retrieve and verify update
+	connectionsAfter, _ := repo.GetConnections()
+	found := false
+	for _, c := range connectionsAfter {
+		if strconv.Itoa(c.ID) == connID &&
+			c.FromDevice == devices[0].Name && c.FromModelPort == modelPorts[0].Name &&
+			c.ToDevice == devices[1].Name && c.ToModelPort == modelPorts[2].Name {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf(
+			"expected updated connection from device %q port %q to device %q port %q, got %+v",
+			devices[0].Name,
+			modelPorts[0].Name,
+			devices[1].Name,
+			modelPorts[2].Name,
+			connectionsAfter,
+		)
+	}
+}

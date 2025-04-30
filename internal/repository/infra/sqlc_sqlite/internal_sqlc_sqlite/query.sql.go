@@ -663,8 +663,6 @@ func (q *Queries) DeleteBrand(ctx context.Context, brand string) error {
 }
 
 const deleteConnection = `-- name: DeleteConnection :exec
-;
-
 DELETE FROM Connection 
 WHERE
     id = ?
@@ -1449,4 +1447,36 @@ func (q *Queries) GetZones(ctx context.Context) ([]GetZonesRow, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateConnection = `-- name: UpdateConnection :exec
+;
+
+UPDATE connection
+SET
+    from_device_port_device_id = ?,
+    from_device_port_model_port_id = ?,
+    to_device_port_device_id = ?,
+    to_device_port_model_port_id = ?
+WHERE
+    id = ?
+`
+
+type UpdateConnectionParams struct {
+	FromDevicePortDeviceID    int64
+	FromDevicePortModelPortID int64
+	ToDevicePortDeviceID      int64
+	ToDevicePortModelPortID   int64
+	ID                        int64
+}
+
+func (q *Queries) UpdateConnection(ctx context.Context, arg UpdateConnectionParams) error {
+	_, err := q.db.ExecContext(ctx, updateConnection,
+		arg.FromDevicePortDeviceID,
+		arg.FromDevicePortModelPortID,
+		arg.ToDevicePortDeviceID,
+		arg.ToDevicePortModelPortID,
+		arg.ID,
+	)
+	return err
 }

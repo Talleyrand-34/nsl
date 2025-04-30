@@ -111,6 +111,13 @@ type NetServiceInt interface {
 	DeleteDevicePort(deviceID, modelPortID string) error
 
 	DeleteConnection(id string) error
+	UpdateConnection(
+		id string,
+		from_device string,
+		from_port string,
+		to_device string,
+		to_port string,
+	) error
 }
 
 func NewNetService(netRepository d.NetRepository) NetServiceInt {
@@ -287,4 +294,14 @@ func (ns *NetService) DeleteDevicePort(deviceID, modelPortID string) error {
 
 func (ns *NetService) DeleteConnection(id string) error {
 	return ns.netRepo.DeleteConnection(id)
+}
+
+func (ns *NetService) UpdateConnection(
+	id string,
+	from_device string,
+	from_port string,
+	to_device string,
+	to_port string,
+) error {
+	return ns.netRepo.UpdateConnection(id, from_device, from_port, to_device, to_port)
 }

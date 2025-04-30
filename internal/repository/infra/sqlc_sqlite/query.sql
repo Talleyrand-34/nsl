@@ -18,7 +18,6 @@ SELECT id FROM Brand WHERE brand = ? LIMIT 1;
 	
 -- name: DeleteBrand :exec
 DELETE FROM Brand WHERE brand = ?;
-
 --- DeviceClass
 
 -- name: GetDeviceClasses :many
@@ -294,6 +293,15 @@ WHERE
     to_device_port_model_port_id = ?
 ;
 
+-- name: UpdateConnection :exec
+UPDATE connection
+SET
+    from_device_port_device_id = ?,
+    from_device_port_model_port_id = ?,
+    to_device_port_device_id = ?,
+    to_device_port_model_port_id = ?
+WHERE
+    id = ?;
 -- name: DeleteConnection :exec
 DELETE FROM Connection 
 WHERE

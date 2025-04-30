@@ -156,3 +156,56 @@ func (r BasicOpsSQLiteRepository) DeleteConnection(id string) error {
 	}
 	return nil
 }
+
+// DeleteConnection deletes a zone from the database by its integer ID
+func (r BasicOpsSQLiteRepository) UpdateConnection(
+	id string,
+	from_device string,
+	from_port string,
+	to_device string,
+	to_port string,
+) error {
+	ctx := context.Background()
+	// Helper function to parse string to int64
+	parseInt64 := func(s, field string) (int64, error) {
+		val, err := strconv.ParseInt(s, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("invalid %s '%s': %w", field, s, err)
+		}
+		return val, nil
+	}
+
+	intID, err := parseInt64(id, "id")
+	if err != nil {
+		return fmt.Errorf("UpdateConnection: %w", err)
+	}
+	fromDeviceID, err := parseInt64(from_device, "from_device")
+	if err != nil {
+		return fmt.Errorf("UpdateConnection: %w", err)
+	}
+	fromPortID, err := parseInt64(from_port, "from_port")
+	if err != nil {
+		return fmt.Errorf("UpdateConnection: %w", err)
+	}
+	toDeviceID, err := parseInt64(to_device, "to_device")
+	if err != nil {
+		return fmt.Errorf("UpdateConnection: %w", err)
+	}
+	toPortID, err := parseInt64(to_port, "to_port")
+	if err != nil {
+		return fmt.Errorf("UpdateConnection: %w", err)
+	}
+
+	construct := d.UpdateConnectionParams{
+		ID:                        intID,
+		FromDevicePortDeviceID:    fromDeviceID,
+		FromDevicePortModelPortID: fromPortID,
+		ToDevicePortDeviceID:      toDeviceID,
+		ToDevicePortModelPortID:   toPortID,
+	}
+
+	if err := r.query.UpdateConnection(ctx, construct); err != nil {
+		return fmt.Errorf("DeleteConnection failed: %w", err)
+	}
+	return nil
+}

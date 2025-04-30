@@ -100,6 +100,13 @@ type Repository interface {
 
 	GetAllPortsDevice(deviceid string) ([]e.DevicePort, error)
 	GetAllPortsAll() ([]e.DevicePort, error)
+	UpdateConnection(
+		id string,
+		from_device string,
+		from_port string,
+		to_device string,
+		to_port string,
+	) error
 	ExportAllStructs() (e.All, error)
 }
 
