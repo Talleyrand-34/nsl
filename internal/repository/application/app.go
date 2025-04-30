@@ -92,6 +92,25 @@ type NetServiceInt interface {
 	GetAllPortsDevice(deviceid string) ([]e.DevicePort, error)
 	GetAllPortsAll() ([]e.DevicePort, error)
 	ExportAllStructs() []byte
+	DeleteBrand(brand string) error
+
+	DeleteDeviceClass(name string) error
+
+	DeleteZoneType(locationType string) error
+
+	DeleteProprietary(proprietary string) error
+
+	DeleteZone(id string) error
+
+	DeleteModel(id string) error
+
+	DeleteDevice(id string) error
+
+	DeleteModelPort(id string) error
+
+	DeleteDevicePort(deviceID, modelPortID string) error
+
+	DeleteConnection(id string) error
 }
 
 func NewNetService(netRepository d.NetRepository) NetServiceInt {
@@ -228,4 +247,44 @@ func (ns *NetService) ExportAllStructs() []byte {
 		return []byte("[]") // Return empty JSON array on error
 	}
 	return jsonData
+}
+
+func (ns *NetService) DeleteBrand(brand string) error {
+	return ns.netRepo.DeleteBrand(brand)
+}
+
+func (ns *NetService) DeleteDeviceClass(name string) error {
+	return ns.netRepo.DeleteDeviceClass(name)
+}
+
+func (ns *NetService) DeleteZoneType(locationType string) error {
+	return ns.netRepo.DeleteZoneType(locationType)
+}
+
+func (ns *NetService) DeleteProprietary(proprietary string) error {
+	return ns.netRepo.DeleteProprietary(proprietary)
+}
+
+func (ns *NetService) DeleteZone(id string) error {
+	return ns.netRepo.DeleteZone(id)
+}
+
+func (ns *NetService) DeleteModel(id string) error {
+	return ns.netRepo.DeleteModel(id)
+}
+
+func (ns *NetService) DeleteDevice(id string) error {
+	return ns.netRepo.DeleteDevice(id)
+}
+
+func (ns *NetService) DeleteModelPort(id string) error {
+	return ns.netRepo.DeleteModelPort(id)
+}
+
+func (ns *NetService) DeleteDevicePort(deviceID, modelPortID string) error {
+	return ns.netRepo.DeleteDevicePort(deviceID, modelPortID)
+}
+
+func (ns *NetService) DeleteConnection(id string) error {
+	return ns.netRepo.DeleteConnection(id)
 }

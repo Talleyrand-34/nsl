@@ -1,20 +1,19 @@
-
 /*
-  Copyright © 2025 Tecdesoft (rodrigo-gonzalez@tecdesoft.es, t34@t34.dev)
- 
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU Affero General Public License as published
-  by the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
- 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-  GNU Affero General Public License for more details.
- 
-  You should have received a copy of the GNU Affero General Public License
-  along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+Copyright © 2025 Tecdesoft (rodrigo-gonzalez@tecdesoft.es, t34@t34.dev)
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+*/
 package basicops
 
 import (
@@ -104,6 +103,43 @@ func TestProprietary_CaseSensitivity(t *testing.T) {
 	got, _ := repo.GetProperties()
 	if !proprietarySliceContains(got, p1) || !proprietarySliceContains(got, p2) {
 		t.Errorf("expected both %q and %q in list, got %v", p1, p2, got)
+	}
+}
+
+func TestProprietary_AddGetAndDeleteTypicalOwners(t *testing.T) {
+	repo, err := setupTestRepository(t)
+	if err != nil {
+		t.Fatalf("failed to setup repository: %v", err)
+	}
+	defer repo.Close()
+
+	owners := []string{"IT Department", "OT Team", "External Vendor", "Facility Management"}
+	for _, o := range owners {
+		if err := repo.AddProprietary(o); err != nil {
+			t.Errorf("failed to add proprietary/owner %q: %v", o, err)
+		}
+	}
+
+	got, _ := repo.GetProperties()
+	for _, want := range owners {
+		if !proprietarySliceContains(got, want) {
+			t.Errorf("expected proprietary/owner %q in list, got %v", want, got)
+		}
+	}
+
+	// Now test delete
+	deleteTarget := "External Vendor"
+	if err := repo.DeleteProprietary(deleteTarget); err != nil {
+		t.Errorf("failed to delete proprietary/owner %q: %v", deleteTarget, err)
+	}
+
+	gotAfterDelete, _ := repo.GetProperties()
+	if proprietarySliceContains(gotAfterDelete, deleteTarget) {
+		t.Errorf(
+			"proprietary/owner %q should have been deleted, but got %v",
+			deleteTarget,
+			gotAfterDelete,
+		)
 	}
 }
 

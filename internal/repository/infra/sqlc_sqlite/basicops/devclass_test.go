@@ -1,20 +1,19 @@
-
 /*
-  Copyright © 2025 Tecdesoft (rodrigo-gonzalez@tecdesoft.es, t34@t34.dev)
- 
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU Affero General Public License as published
-  by the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
- 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-  GNU Affero General Public License for more details.
- 
-  You should have received a copy of the GNU Affero General Public License
-  along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+Copyright © 2025 Tecdesoft (rodrigo-gonzalez@tecdesoft.es, t34@t34.dev)
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+*/
 package basicops
 
 import (
@@ -83,6 +82,43 @@ func TestDeviceClass_CaseSensitivity(t *testing.T) {
 	got, _ := repo.GetDeviceClasses()
 	if !devClassSliceContains(got, c1) || !devClassSliceContains(got, c2) {
 		t.Errorf("expected both %q and %q in list, got %v", c1, c2, got)
+	}
+}
+
+func TestDeviceClass_AddGetAndDeleteTypicalClasses(t *testing.T) {
+	repo, err := setupTestRepository(t)
+	if err != nil {
+		t.Fatalf("failed to setup repository: %v", err)
+	}
+	defer repo.Close()
+
+	deviceClasses := []string{"Router", "Switch", "Endpoint", "AP"}
+	for _, c := range deviceClasses {
+		if err := repo.AddDeviceClass(c); err != nil {
+			t.Errorf("failed to add device class %q: %v", c, err)
+		}
+	}
+
+	got, _ := repo.GetDeviceClasses()
+	for _, want := range deviceClasses {
+		if !devClassSliceContains(got, want) {
+			t.Errorf("expected device class %q in list, got %v", want, got)
+		}
+	}
+
+	// Now test delete
+	deleteTarget := "Endpoint"
+	if err := repo.DeleteDeviceClass(deleteTarget); err != nil {
+		t.Errorf("failed to delete device class %q: %v", deleteTarget, err)
+	}
+
+	gotAfterDelete, _ := repo.GetDeviceClasses()
+	if devClassSliceContains(gotAfterDelete, deleteTarget) {
+		t.Errorf(
+			"device class %q should have been deleted, but got %v",
+			deleteTarget,
+			gotAfterDelete,
+		)
 	}
 }
 

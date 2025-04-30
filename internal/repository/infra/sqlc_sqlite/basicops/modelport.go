@@ -1,20 +1,19 @@
-
 /*
-  Copyright © 2025 Tecdesoft (rodrigo-gonzalez@tecdesoft.es, t34@t34.dev)
- 
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU Affero General Public License as published
-  by the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
- 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-  GNU Affero General Public License for more details.
- 
-  You should have received a copy of the GNU Affero General Public License
-  along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+Copyright © 2025 Tecdesoft (rodrigo-gonzalez@tecdesoft.es, t34@t34.dev)
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+*/
 package basicops
 
 import (
@@ -83,6 +82,21 @@ func (r BasicOpsSQLiteRepository) AddModelPort(
 
 	if err := r.query.AddModelPort(ctx, modelStruct); err != nil {
 		return fmt.Errorf("failed to create modelport: %v", err)
+	}
+	return nil
+}
+
+// DeleteModelPort deletes a model port from the database by its integer ID
+func (r BasicOpsSQLiteRepository) DeleteModelPort(id string) error {
+	ctx := context.Background()
+
+	intID, err := strconv.Atoi(id)
+	if err != nil {
+		return fmt.Errorf("DeleteModelPort: invalid id '%s': %w", id, err)
+	}
+
+	if err := r.query.DeleteModelPort(ctx, int64(intID)); err != nil {
+		return fmt.Errorf("DeleteModelPort failed: %w", err)
 	}
 	return nil
 }

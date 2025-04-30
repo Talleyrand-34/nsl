@@ -1,20 +1,19 @@
-
 /*
-  Copyright © 2025 Tecdesoft (rodrigo-gonzalez@tecdesoft.es, t34@t34.dev)
- 
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU Affero General Public License as published
-  by the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
- 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-  GNU Affero General Public License for more details.
- 
-  You should have received a copy of the GNU Affero General Public License
-  along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+Copyright © 2025 Tecdesoft (rodrigo-gonzalez@tecdesoft.es, t34@t34.dev)
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+*/
 package basicops
 
 import (
@@ -103,6 +102,39 @@ func TestZoneType_CaseSensitivity(t *testing.T) {
 	got, _ := repo.GetZonetypes()
 	if !zoneTypeSliceContains(got, z1) || !zoneTypeSliceContains(got, z2) {
 		t.Errorf("expected both %q and %q in list, got %v", z1, z2, got)
+	}
+}
+
+func TestZoneType_AddGetAndDeleteTypicalZoneTypes(t *testing.T) {
+	repo, err := setupTestRepository(t)
+	if err != nil {
+		t.Fatalf("failed to setup repository: %v", err)
+	}
+	defer repo.Close()
+
+	zoneTypes := []string{"Physical", "VPN", "DMZ", "Guest"}
+	for _, z := range zoneTypes {
+		if err := repo.AddZoneType(z); err != nil {
+			t.Errorf("failed to add zone type %q: %v", z, err)
+		}
+	}
+
+	got, _ := repo.GetZonetypes()
+	for _, want := range zoneTypes {
+		if !zoneTypeSliceContains(got, want) {
+			t.Errorf("expected zone type %q in list, got %v", want, got)
+		}
+	}
+
+	// Now test delete
+	deleteTarget := "DMZ"
+	if err := repo.DeleteZoneType(deleteTarget); err != nil {
+		t.Errorf("failed to delete zone type %q: %v", deleteTarget, err)
+	}
+
+	gotAfterDelete, _ := repo.GetZonetypes()
+	if zoneTypeSliceContains(gotAfterDelete, deleteTarget) {
+		t.Errorf("zone type %q should have been deleted, but got %v", deleteTarget, gotAfterDelete)
 	}
 }
 

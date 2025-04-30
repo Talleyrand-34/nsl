@@ -1,18 +1,3 @@
- --  Copyright © 2025 Tecdesoft (rodrigo-gonzalez@tecdesoft.es, t34@t34.dev)
- -- 
- --  This program is free software: you can redistribute it and/or modify
- --  it under the terms of the GNU Affero General Public License as published
- --  by the Free Software Foundation, either version 3 of the License, or
- --  (at your option) any later version.
- -- 
- --  This program is distributed in the hope that it will be useful,
- --  but WITHOUT ANY WARRANTY; without even the implied warranty of
- --  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- --  GNU Affero General Public License for more details.
- -- 
- --  You should have received a copy of the GNU Affero General Public License
- --  along with this program. If not, see <https://www.gnu.org/licenses/>.
-
 ---- Getters and setters for each table
 
 --- Brand
@@ -31,6 +16,9 @@ INSERT INTO brand (
 -- name: GetBrandId :one
 SELECT id FROM Brand WHERE brand = ? LIMIT 1;
 	
+-- name: DeleteBrand :exec
+DELETE FROM Brand WHERE brand = ?;
+
 --- DeviceClass
 
 -- name: GetDeviceClasses :many
@@ -46,6 +34,9 @@ INSERT INTO DeviceClass(
 
 -- name: GetClassId :one
 SELECT id FROM DeviceClass WHERE name = ? LIMIT 1;
+
+-- name: DeleteDeviceClass :exec
+DELETE FROM DeviceClass WHERE name = ?;
 
 --- ZoneTypes
 
@@ -65,6 +56,9 @@ INSERT INTO Zonetype(
   ?	
 );
 
+-- name: DeleteZoneType :exec
+DELETE FROM Zonetype WHERE location_type = ?;
+
 --- Proprietary
 
 -- name: GetProprietaries :many
@@ -81,6 +75,9 @@ INSERT INTO Proprietary(
 ) VALUES (
   ?	
 );
+
+-- name: DeleteProprietary :exec
+DELETE FROM Proprietary WHERE proprietary = ?;
 
 --- Zone
 
@@ -104,6 +101,9 @@ name,father,location_type,proprietary
 ) VALUES (
 ?,?,?,?	
 );
+
+-- name: DeleteZone :exec
+DELETE FROM Zone WHERE id = ?;
 
 --- Model
 
@@ -135,6 +135,9 @@ INSERT INTO ModelDevice(
 ) VALUES (
     ?,?,?
 );
+
+-- name: DeleteModel :exec
+DELETE FROM ModelDevice WHERE id = ?;
 
 --- Device
 
@@ -175,6 +178,9 @@ INSERT INTO Device(
     ?,?,?,?
 );
 
+-- name: DeleteDevice :exec
+DELETE FROM Device WHERE id = ?;
+
 --- ModelPort
 
 -- name: GetModelPorts :many
@@ -211,6 +217,10 @@ INSERT INTO ModelPort(
     ?,?,?,?
 );
 
+
+-- name: DeleteModelPort :exec
+DELETE FROM ModelPort WHERE id = ?;
+
 --- DevicePort
 
 -- name: GetDevicePorts :many
@@ -226,6 +236,9 @@ INSERT INTO DevicePort (
 ) VALUES (
 	?,?
 );
+
+-- name: DeleteDevicePort :exec
+DELETE FROM DevicePort WHERE device_id = ? AND model_port_id = ?;
 
 --- Connection
 
@@ -281,6 +294,10 @@ WHERE
     to_device_port_model_port_id = ?
 ;
 
+-- name: DeleteConnection :exec
+DELETE FROM Connection 
+WHERE
+    id = ?;
 ---- Special 
 
 

@@ -676,11 +676,11 @@ func (q *Queries) DeleteConnection(ctx context.Context, id int64) error {
 }
 
 const deleteDevice = `-- name: DeleteDevice :exec
-DELETE FROM Device WHERE label = ?
+DELETE FROM Device WHERE id = ?
 `
 
-func (q *Queries) DeleteDevice(ctx context.Context, label string) error {
-	_, err := q.db.ExecContext(ctx, deleteDevice, label)
+func (q *Queries) DeleteDevice(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteDevice, id)
 	return err
 }
 
@@ -708,11 +708,20 @@ func (q *Queries) DeleteDevicePort(ctx context.Context, arg DeleteDevicePortPara
 }
 
 const deleteModel = `-- name: DeleteModel :exec
-DELETE FROM ModelDevice WHERE model = ?
+DELETE FROM ModelDevice WHERE id = ?
 `
 
-func (q *Queries) DeleteModel(ctx context.Context, model string) error {
-	_, err := q.db.ExecContext(ctx, deleteModel, model)
+func (q *Queries) DeleteModel(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteModel, id)
+	return err
+}
+
+const deleteModelPort = `-- name: DeleteModelPort :exec
+DELETE FROM ModelPort WHERE id = ?
+`
+
+func (q *Queries) DeleteModelPort(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteModelPort, id)
 	return err
 }
 
@@ -726,11 +735,11 @@ func (q *Queries) DeleteProprietary(ctx context.Context, proprietary string) err
 }
 
 const deleteZone = `-- name: DeleteZone :exec
-DELETE FROM Zone WHERE name = ?
+DELETE FROM Zone WHERE id = ?
 `
 
-func (q *Queries) DeleteZone(ctx context.Context, name string) error {
-	_, err := q.db.ExecContext(ctx, deleteZone, name)
+func (q *Queries) DeleteZone(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteZone, id)
 	return err
 }
 

@@ -34,367 +34,62 @@ import (
 func rootHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		endpoints := []string{
+			// /allports/all and /allports/device
+			"GET    /allports/all",
+			"GET    /allports/device?deviceid=<id>",
+
+			// /brands
+			"DELETE /brands",
 			"GET    /brands",
 			"POST   /brands",
-			"GET    /deviceclasses",
-			"POST   /deviceclasses",
-			"GET    /zonetypes",
-			"POST   /zonetypes",
-			"GET    /proprietaries",
-			"POST   /proprietaries",
-			"GET    /zones",
-			"POST   /zones",
-			"GET    /models",
-			"POST   /models",
-			"GET    /devices",
-			"POST   /devices",
-			"GET    /modelports",
-			"POST   /modelports",
-			"GET    /deviceports",
-			"POST   /deviceports",
+
+			// /connections
+			"DELETE /connections",
 			"GET    /connections",
 			"POST   /connections",
-			"GET    /allports/device?deviceid=<id>",
-			"GET    /allports/all",
+
+			// /deviceclasses
+			"DELETE /deviceclasses",
+			"GET    /deviceclasses",
+			"POST   /deviceclasses",
+
+			// /deviceports
+			"DELETE /deviceports",
+			"GET    /deviceports",
+			"POST   /deviceports",
+
+			// /devices
+			"DELETE /devices",
+			"GET    /devices",
+			"POST   /devices",
+
+			// /modelports
+			"DELETE /modelports",
+			"GET    /modelports",
+			"POST   /modelports",
+
+			// /models
+			"DELETE /models",
+			"GET    /models",
+			"POST   /models",
+
+			// /proprietaries
+			"DELETE /proprietaries",
+			"GET    /proprietaries",
+			"POST   /proprietaries",
+
+			// /zones
+			"DELETE /zones",
+			"GET    /zones",
+			"POST   /zones",
+
+			// /zonetypes
+			"DELETE /zonetypes",
+			"GET    /zonetypes",
+			"POST   /zonetypes",
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(endpoints)
-	}
-}
-
-// --- Brand ---
-func addBrandHandler(service q.NetServiceInt) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			Brand string `json:"brand"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if err := service.AddBrand(req.Brand); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusCreated)
-	}
-}
-
-func getBrandsHandler(service q.NetServiceInt) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		brands, err := service.GetBrands()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		json.NewEncoder(w).Encode(brands)
-	}
-}
-
-// --- DeviceClass ---
-func addDeviceClassHandler(service q.NetServiceInt) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			Brand string `json:"brand"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if err := service.AddDeviceClass(req.Brand); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusCreated)
-	}
-}
-
-func getDeviceClassesHandler(service q.NetServiceInt) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		classes, err := service.GetDeviceClasses()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		json.NewEncoder(w).Encode(classes)
-	}
-}
-
-// --- ZoneType ---
-func addZoneTypeHandler(service q.NetServiceInt) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			Name string `json:"name"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if err := service.AddZoneType(req.Name); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusCreated)
-	}
-}
-
-func getZoneTypesHandler(service q.NetServiceInt) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		types, err := service.GetZonetypes()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		json.NewEncoder(w).Encode(types)
-	}
-}
-
-// --- Proprietary ---
-func addProprietaryHandler(service q.NetServiceInt) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			Name string `json:"name"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if err := service.AddProprietary(req.Name); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusCreated)
-	}
-}
-
-func getProprietariesHandler(service q.NetServiceInt) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		props, err := service.GetProperties()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		json.NewEncoder(w).Encode(props)
-	}
-}
-
-// --- Zone ---
-func addZoneHandler(service q.NetServiceInt) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			Name        string `json:"name"`
-			Father      string `json:"father"`
-			FatherID    string `json:"fatherid"`
-			Proprietary string `json:"proprietary"`
-			ZoneName    string `json:"zonename"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if err := service.AddZone(req.Name, req.Father, req.FatherID, req.Proprietary, req.ZoneName); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusCreated)
-	}
-}
-
-func getZonesHandler(service q.NetServiceInt) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		zones, err := service.GetZones()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		json.NewEncoder(w).Encode(zones)
-	}
-}
-
-// --- Model ---
-func addModelHandler(service q.NetServiceInt) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			ModelName string `json:"modelName"`
-			BrandName string `json:"brandName"`
-			ClassName string `json:"className"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if err := service.AddModel(req.ModelName, req.BrandName, req.ClassName); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusCreated)
-	}
-}
-
-func getModelsHandler(service q.NetServiceInt) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		models, err := service.GetModels()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		json.NewEncoder(w).Encode(models)
-	}
-}
-
-// --- Device ---
-func addDeviceHandler(service q.NetServiceInt) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			Label       string `json:"label"`
-			Model       string `json:"model"`
-			ZoneId      string `json:"zoneId"`
-			ZoneName    string `json:"zoneName"`
-			Proprietary string `json:"proprietary"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if err := service.AddDevice(req.Label, req.Model, req.ZoneId, req.ZoneName, req.Proprietary); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusCreated)
-	}
-}
-
-func getDevicesHandler(service q.NetServiceInt) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		devices, err := service.GetDevices()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		json.NewEncoder(w).Encode(devices)
-	}
-}
-
-// --- ModelPort ---
-func addModelPortHandler(service q.NetServiceInt) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			Name      string `json:"name"`
-			PosX      string `json:"posx"`
-			PosY      string `json:"posy"`
-			ModelName string `json:"modelName"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if err := service.AddModelPort(req.Name, req.PosX, req.PosY, req.ModelName); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusCreated)
-	}
-}
-
-func getModelPortsHandler(service q.NetServiceInt) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ports, err := service.GetModelPorts()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		json.NewEncoder(w).Encode(ports)
-	}
-}
-
-// --- DevicePort ---
-func addDevicePortHandler(service q.NetServiceInt) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			DeviceID    string `json:"deviceid"`
-			ModelPortID string `json:"modelportid"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if err := service.AddDevicePort(req.DeviceID, req.ModelPortID); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusCreated)
-	}
-}
-
-func getDevicePortsHandler(service q.NetServiceInt) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ports, err := service.GetDevicePorts()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		json.NewEncoder(w).Encode(ports)
-	}
-}
-
-// --- Connection ---
-func addConnectionHandler(service q.NetServiceInt) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			FromDevice    string `json:"fromDevice"`
-			FromModelPort string `json:"fromModelPort"`
-			ToDevice      string `json:"toDevice"`
-			ToModelPort   string `json:"toModelPort"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if err := service.AddConnection(req.FromDevice, req.FromModelPort, req.ToDevice, req.ToModelPort); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusCreated)
-	}
-}
-
-func getConnectionsHandler(service q.NetServiceInt) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		conns, err := service.GetConnections()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		json.NewEncoder(w).Encode(conns)
-	}
-}
-
-// --- All Ports for Device ---
-func getAllPortsDeviceHandler(service q.NetServiceInt) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		deviceID := r.URL.Query().Get("deviceid")
-		if deviceID == "" {
-			http.Error(w, "deviceid is required", http.StatusBadRequest)
-			return
-		}
-		ports, err := service.GetAllPortsDevice(deviceID)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		json.NewEncoder(w).Encode(ports)
-	}
-}
-
-// --- All Ports (All Devices) ---
-func getAllPortsAllHandler(service q.NetServiceInt) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ports, err := service.GetAllPortsAll()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		json.NewEncoder(w).Encode(ports)
 	}
 }
 
@@ -446,6 +141,26 @@ func RegisterRoutes(r *mux.Router, service q.NetServiceInt) {
 	r.HandleFunc("/allports/all", getAllPortsAllHandler(service)).Methods("GET")
 	// Export
 	// r.HandleFunc("/export", exportAllStructsHandler(service)).Methods("GET")
+	// Brand
+	r.HandleFunc("/brands", deleteBrandHandler(service)).Methods("DELETE")
+	// DeviceClass
+	r.HandleFunc("/deviceclasses", deleteDeviceClassHandler(service)).Methods("DELETE")
+	// ZoneType
+	r.HandleFunc("/zonetypes", deleteZoneTypeHandler(service)).Methods("DELETE")
+	// Proprietary
+	r.HandleFunc("/proprietaries", deleteProprietaryHandler(service)).Methods("DELETE")
+	// Zone
+	r.HandleFunc("/zones", deleteZoneHandler(service)).Methods("DELETE")
+	// Model
+	r.HandleFunc("/models", deleteModelHandler(service)).Methods("DELETE")
+	// Device
+	r.HandleFunc("/devices", deleteDeviceHandler(service)).Methods("DELETE")
+	// ModelPort
+	r.HandleFunc("/modelports", deleteModelPortHandler(service)).Methods("DELETE")
+	// DevicePort
+	r.HandleFunc("/deviceports", deleteDevicePortHandler(service)).Methods("DELETE")
+	// Connection
+	r.HandleFunc("/connections", deleteConnectionHandler(service)).Methods("DELETE")
 }
 
 func StartServer(dbPath string, port int) {

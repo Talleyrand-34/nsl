@@ -1,20 +1,19 @@
-
 /*
-  Copyright © 2025 Tecdesoft (rodrigo-gonzalez@tecdesoft.es, t34@t34.dev)
- 
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU Affero General Public License as published
-  by the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
- 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-  GNU Affero General Public License for more details.
- 
-  You should have received a copy of the GNU Affero General Public License
-  along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+Copyright © 2025 Tecdesoft (rodrigo-gonzalez@tecdesoft.es, t34@t34.dev)
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+*/
 package basicops
 
 import (
@@ -96,6 +95,110 @@ func TestDevice_AddAndGetDevices(t *testing.T) {
 		}
 		if !found {
 			t.Errorf("expected device %+v in list, got %+v", want, devices)
+		}
+	}
+}
+
+func TestDevice_AddGetAndDeleteDevices(t *testing.T) {
+	repo, err := setupTestRepository(t)
+	if err != nil {
+		t.Fatalf("failed to setup repository: %v", err)
+	}
+	defer repo.Close()
+
+	// Prepare referenced data: Proprietary, Brand, DeviceClass, Model, ZoneType, Zone
+	if err := repo.AddProprietary("IT Department"); err != nil {
+		t.Fatalf("failed to add proprietary: %v", err)
+	}
+	if err := repo.AddBrand("Fortinet"); err != nil {
+		t.Fatalf("failed to add brand: %v", err)
+	}
+	if err := repo.AddDeviceClass("Router"); err != nil {
+		t.Fatalf("failed to add device class: %v", err)
+	}
+	if err := repo.AddZoneType("Physical"); err != nil {
+		t.Fatalf("failed to add zone type: %v", err)
+	}
+	if err := repo.AddZone("HQ", "", "", "IT Department", "Physical"); err != nil {
+		t.Fatalf("failed to add zone: %v", err)
+	}
+	if err := repo.AddModel("F100", "Fortinet", "Router"); err != nil {
+		t.Fatalf("failed to add model: %v", err)
+	}
+
+	// Get IDs/names for device creation
+	zones, _ := repo.GetZones()
+	var zoneId string
+	for _, z := range zones {
+		if z.Name == "HQ" {
+			zoneId = strconv.Itoa(z.ID)
+			break
+		}
+	}
+	if zoneId == "" {
+		t.Fatalf("could not find HQ zone id")
+	}
+
+	// Add device by zoneId
+	if err := repo.AddDevice("MainRouter", "F100", zoneId, "", "IT Department"); err != nil {
+		t.Errorf("failed to add device: %v", err)
+	}
+
+	// Add device by zoneName
+	if err := repo.AddDevice("BackupRouter", "F100", "", "HQ", "IT Department"); err != nil {
+		t.Errorf("failed to add device by zone name: %v", err)
+	}
+
+	// Retrieve and verify
+	devices, _ := repo.GetDevices()
+	expectedDevices := []struct {
+		Label       string
+		Model       string
+		Brand       string
+		ZoneName    string
+		Proprietary string
+	}{
+		{"MainRouter", "F100", "Fortinet", "HQ", "IT Department"},
+		{"BackupRouter", "F100", "Fortinet", "HQ", "IT Department"},
+	}
+	for _, want := range expectedDevices {
+		found := false
+		for _, d := range devices {
+			if d.Name == want.Label {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected device %+v in list, got %+v", want, devices)
+		}
+	}
+
+	// --- Test delete by ID ---
+	// Find the ID of the device to delete (e.g., delete "BackupRouter")
+	var deleteDeviceID string
+	for _, d := range devices {
+		if d.Name == "BackupRouter" {
+			deleteDeviceID = strconv.Itoa(d.ID)
+			break
+		}
+	}
+	if deleteDeviceID == "" {
+		t.Fatalf("could not find device ID for BackupRouter")
+	}
+	if err := repo.DeleteDevice(deleteDeviceID); err != nil {
+		t.Errorf("failed to delete device with id %q: %v", deleteDeviceID, err)
+	}
+
+	// Check that the device was deleted
+	devicesAfterDelete, _ := repo.GetDevices()
+	for _, d := range devicesAfterDelete {
+		if strconv.Itoa(d.ID) == deleteDeviceID {
+			t.Errorf(
+				"device with id %q should have been deleted, but got %+v",
+				deleteDeviceID,
+				devicesAfterDelete,
+			)
 		}
 	}
 }

@@ -1,44 +1,48 @@
-
 /*
   Copyright © 2025 Tecdesoft (rodrigo-gonzalez@tecdesoft.es, t34@t34.dev)
- 
+
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU Affero General Public License as published
   by the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
- 
+
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU Affero General Public License for more details.
- 
+
   You should have received a copy of the GNU Affero General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+*/
 // Package domain set ups the interface for implementations for operations with the repository
 package domain
 
 import e "nsl-graph/internal/repository/entities"
 
 // Comment
+
 type Repository interface {
 	// Brand
 	AddBrand(brand string) error
-	// Brand
 	GetBrands() ([]e.Brand, error)
-	// deviceclass
+	DeleteBrand(brand string) error
+
+	// DeviceClass
 	AddDeviceClass(devclass string) error
-	// deviceclass
 	GetDeviceClasses() ([]e.DevClass, error)
-	// deviceclass
+	DeleteDeviceClass(devclass string) error
+
+	// ZoneType
 	AddZoneType(name string) error
-	// deviceclass
 	GetZonetypes() ([]e.ZoneType, error)
-	// deviceclass
+	DeleteZoneType(name string) error
+
+	// Proprietary
 	AddProprietary(name string) error
-	// deviceclass
 	GetProperties() ([]e.Proprietary, error)
-	// deviceclass
+	DeleteProprietary(name string) error
+
+	// Zone
 	AddZone(
 		name string,
 		fatherid string,
@@ -46,17 +50,19 @@ type Repository interface {
 		proprietary string,
 		zonename string,
 	) error
-	// deviceclass
 	GetZones() ([]e.Zone, error)
-	// GetZone(name string) int
+	DeleteZone(name string) error
+
+	// Model
 	AddModel(
 		modelName string,
 		brandName string,
 		className string,
 	) error
-
 	GetModels() ([]e.ModelDevice, error)
-	GetDevices() ([]e.Device, error)
+	DeleteModel(modelName string) error
+
+	// Device
 	AddDevice(
 		label string,
 		model string,
@@ -64,23 +70,34 @@ type Repository interface {
 		zoneName string,
 		proprietary string,
 	) error
-	GetModelPorts() ([]e.ModelPort, error)
+	GetDevices() ([]e.Device, error)
+	DeleteDevice(deviceId string) error
 
+	// ModelPort
 	AddModelPort(
 		name string,
 		posx string,
 		posy string,
 		modelName string,
 	) error
-	GetDevicePorts() ([]e.DevicePort, error)
+	GetModelPorts() ([]e.ModelPort, error)
+	DeleteModelPort(modelPortId string) error
+
+	// DevicePort
 	AddDevicePort(deviceid string, modelportid string) error
-	GetConnections() ([]e.Connection, error)
+	GetDevicePorts() ([]e.DevicePort, error)
+	DeleteDevicePort(devicePortId string, modelportid string) error
+
+	// Connection
 	AddConnection(
 		fromDevice string,
 		fromModelPort string,
 		toDevice string,
 		toModelPort string,
 	) error
+	GetConnections() ([]e.Connection, error)
+	DeleteConnection(connectionId string) error
+
 	GetAllPortsDevice(deviceid string) ([]e.DevicePort, error)
 	GetAllPortsAll() ([]e.DevicePort, error)
 	ExportAllStructs() (e.All, error)
