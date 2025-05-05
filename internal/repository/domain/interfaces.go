@@ -1,3 +1,6 @@
+// Package domain set ups the interface for implementations for operations with the repository
+package domain
+
 /*
   Copyright © 2025 Tecdesoft (rodrigo-gonzalez@tecdesoft.es, t34@t34.dev)
 
@@ -14,14 +17,12 @@
   You should have received a copy of the GNU Affero General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-// Package domain set ups the interface for implementations for operations with the repository
-package domain
 
 import e "nsl-graph/internal/repository/entities"
 
 // Comment
 
-type Repository interface {
+type repository interface {
 	// Brand
 	AddBrand(brand string) error
 	GetBrands() ([]e.Brand, error)
@@ -110,4 +111,5 @@ type Repository interface {
 	ExportAllStructs() (e.All, error)
 }
 
-type NetRepository Repository
+// type NetRepository exposes the interface for implementation
+type NetRepository repository
