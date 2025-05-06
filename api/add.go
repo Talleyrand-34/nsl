@@ -18,194 +18,235 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"reflect"
+	"strings"
 
 	q "nsl-graph/internal/repository/application"
 )
 
-func addBrandHandler(service q.NetServiceInt) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			Brand string `json:"brand"`
+// validateRequiredFields checks that all required fields in v are non-empty.
+// v must be a pointer to a struct.
+func validateRequiredFields(v interface{}, requiredFields []string) error {
+	rv := reflect.ValueOf(v).Elem()
+	for _, field := range requiredFields {
+		f := rv.FieldByName(field)
+		if !f.IsValid() {
+			return fmt.Errorf("field %s not found", field)
 		}
+		// Only check string fields for emptiness
+		if f.Kind() == reflect.String && strings.TrimSpace(f.String()) == "" {
+			return fmt.Errorf("field %s cannot be empty", field)
+		}
+	}
+	return nil
+}
+
+// genericAddHandler abstracts common POST handler logic
+func genericAddHandler[T any](
+	service q.NetServiceInt,
+	requiredFields []string,
+	addFunc func(service q.NetServiceInt, req *T) error,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req T
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		if err := service.AddBrand(req.Brand); err != nil {
+		if err := validateRequiredFields(&req, requiredFields); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err := addFunc(service, &req); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		w.WriteHeader(http.StatusCreated)
 	}
+}
+
+// Brand
+type AddBrandRequest struct {
+	Brand string `json:"brand"`
+}
+
+func addBrandHandler(service q.NetServiceInt) http.HandlerFunc {
+	return genericAddHandler[AddBrandRequest](
+		service,
+		[]string{"Brand"},
+		func(service q.NetServiceInt, req *AddBrandRequest) error {
+			return service.AddBrand(req.Brand)
+		},
+	)
+}
+
+// DeviceClass
+type AddDeviceClassRequest struct {
+	DevClass string `json:"name"`
 }
 
 func addDeviceClassHandler(service q.NetServiceInt) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			Brand string `json:"brand"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if err := service.AddDeviceClass(req.Brand); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusCreated)
-	}
+	return genericAddHandler[AddDeviceClassRequest](
+		service,
+		[]string{"DevClass"},
+		func(service q.NetServiceInt, req *AddDeviceClassRequest) error {
+			return service.AddDeviceClass(req.DevClass)
+		},
+	)
+}
+
+// ZoneType
+type AddZoneTypeRequest struct {
+	Name string `json:"name"`
 }
 
 func addZoneTypeHandler(service q.NetServiceInt) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			Name string `json:"name"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if err := service.AddZoneType(req.Name); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusCreated)
-	}
+	return genericAddHandler[AddZoneTypeRequest](
+		service,
+		[]string{"Name"},
+		func(service q.NetServiceInt, req *AddZoneTypeRequest) error {
+			return service.AddZoneType(req.Name)
+		},
+	)
+}
+
+// Proprietary
+type AddProprietaryRequest struct {
+	Name string `json:"name"`
 }
 
 func addProprietaryHandler(service q.NetServiceInt) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			Name string `json:"name"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if err := service.AddProprietary(req.Name); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusCreated)
-	}
+	return genericAddHandler[AddProprietaryRequest](
+		service,
+		[]string{"Name"},
+		func(service q.NetServiceInt, req *AddProprietaryRequest) error {
+			return service.AddProprietary(req.Name)
+		},
+	)
+}
+
+// Zone
+type AddZoneRequest struct {
+	Name          string `json:"name"`
+	Father        string `json:"father"`
+	FatherID      string `json:"fatherid"`
+	Proprietary   string `json:"proprietary"`
+	Location_type string `json:"location_type"`
 }
 
 func addZoneHandler(service q.NetServiceInt) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			Name        string `json:"name"`
-			Father      string `json:"father"`
-			FatherID    string `json:"fatherid"`
-			Proprietary string `json:"proprietary"`
-			ZoneName    string `json:"zonename"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if err := service.AddZone(req.Name, req.Father, req.FatherID, req.Proprietary, req.ZoneName); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusCreated)
-	}
+	return genericAddHandler[AddZoneRequest](
+		service,
+		[]string{"Name", "Proprietary"}, // Only these are required, adjust as needed
+		func(service q.NetServiceInt, req *AddZoneRequest) error {
+			return service.AddZone(
+				req.Name,
+				req.FatherID,
+				req.Father,
+				req.Proprietary,
+				req.Location_type,
+			)
+		},
+	)
+}
+
+// Model
+type AddModelRequest struct {
+	ModelName string `json:"model"`
+	BrandName string `json:"brand"`
+	ClassName string `json:"class"`
 }
 
 func addModelHandler(service q.NetServiceInt) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			ModelName string `json:"modelName"`
-			BrandName string `json:"brandName"`
-			ClassName string `json:"className"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if err := service.AddModel(req.ModelName, req.BrandName, req.ClassName); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusCreated)
-	}
+	return genericAddHandler[AddModelRequest](
+		service,
+		[]string{"ModelName", "BrandName", "ClassName"},
+		func(service q.NetServiceInt, req *AddModelRequest) error {
+			return service.AddModel(req.ModelName, req.BrandName, req.ClassName)
+		},
+	)
+}
+
+// Device
+type AddDeviceRequest struct {
+	Label       string `json:"label"`
+	Model       string `json:"model"`
+	ZoneId      string `json:"zoneId"`
+	ZoneName    string `json:"zoneName"`
+	Proprietary string `json:"proprietary"`
 }
 
 func addDeviceHandler(service q.NetServiceInt) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			Label       string `json:"label"`
-			Model       string `json:"model"`
-			ZoneId      string `json:"zoneId"`
-			ZoneName    string `json:"zoneName"`
-			Proprietary string `json:"proprietary"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if err := service.AddDevice(req.Label, req.Model, req.ZoneId, req.ZoneName, req.Proprietary); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusCreated)
-	}
+	return genericAddHandler[AddDeviceRequest](
+		service,
+		[]string{"Label", "Model", "Proprietary"}, // Adjust required fields as needed
+		func(service q.NetServiceInt, req *AddDeviceRequest) error {
+			return service.AddDevice(
+				req.Label,
+				req.Model,
+				req.ZoneId,
+				req.ZoneName,
+				req.Proprietary,
+			)
+		},
+	)
+}
+
+// ModelPort
+type AddModelPortRequest struct {
+	Name      string `json:"name"`
+	PosX      string `json:"posx"`
+	PosY      string `json:"posy"`
+	ModelName string `json:"modelName"`
 }
 
 func addModelPortHandler(service q.NetServiceInt) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			Name      string `json:"name"`
-			PosX      string `json:"posx"`
-			PosY      string `json:"posy"`
-			ModelName string `json:"modelName"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if err := service.AddModelPort(req.Name, req.PosX, req.PosY, req.ModelName); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusCreated)
-	}
+	return genericAddHandler[AddModelPortRequest](
+		service,
+		[]string{"Name", "ModelName"}, // Adjust required fields as needed
+		func(service q.NetServiceInt, req *AddModelPortRequest) error {
+			return service.AddModelPort(req.Name, req.PosX, req.PosY, req.ModelName)
+		},
+	)
+}
+
+// DevicePort
+type AddDevicePortRequest struct {
+	DeviceID    string `json:"deviceid"`
+	ModelPortID string `json:"modelportid"`
 }
 
 func addDevicePortHandler(service q.NetServiceInt) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			DeviceID    string `json:"deviceid"`
-			ModelPortID string `json:"modelportid"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if err := service.AddDevicePort(req.DeviceID, req.ModelPortID); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusCreated)
-	}
+	return genericAddHandler[AddDevicePortRequest](
+		service,
+		[]string{"DeviceID", "ModelPortID"},
+		func(service q.NetServiceInt, req *AddDevicePortRequest) error {
+			return service.AddDevicePort(req.DeviceID, req.ModelPortID)
+		},
+	)
+}
+
+// Connection
+type AddConnectionRequest struct {
+	FromDevice    string `json:"fromDevice"`
+	FromModelPort string `json:"fromModelPort"`
+	ToDevice      string `json:"toDevice"`
+	ToModelPort   string `json:"toModelPort"`
 }
 
 func addConnectionHandler(service q.NetServiceInt) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			FromDevice    string `json:"fromDevice"`
-			FromModelPort string `json:"fromModelPort"`
-			ToDevice      string `json:"toDevice"`
-			ToModelPort   string `json:"toModelPort"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if err := service.AddConnection(req.FromDevice, req.FromModelPort, req.ToDevice, req.ToModelPort); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusCreated)
-	}
+	return genericAddHandler[AddConnectionRequest](
+		service,
+		[]string{"FromDevice", "FromModelPort", "ToDevice", "ToModelPort"},
+		func(service q.NetServiceInt, req *AddConnectionRequest) error {
+			return service.AddConnection(
+				req.FromDevice,
+				req.FromModelPort,
+				req.ToDevice,
+				req.ToModelPort,
+			)
+		},
+	)
 }

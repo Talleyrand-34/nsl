@@ -88,6 +88,9 @@ func rootHandler() http.HandlerFunc {
 			"DELETE /zonetypes",
 			"GET    /zonetypes",
 			"POST   /zonetypes",
+
+			// /diagram
+			"GET    /zonetypes",
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(endpoints)
@@ -140,6 +143,7 @@ func RegisterRoutes(r *mux.Router, service q.NetServiceInt) {
 	r.HandleFunc("/allports/device", getAllPortsDeviceHandler(service)).Methods("GET")
 	// All Ports (All Devices)
 	r.HandleFunc("/allports/all", getAllPortsAllHandler(service)).Methods("GET")
+	r.HandleFunc("/diagram", getDiagram(service)).Methods("GET")
 	// Export
 	// r.HandleFunc("/export", exportAllStructsHandler(service)).Methods("GET")
 	// Brand

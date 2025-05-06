@@ -47,7 +47,8 @@ var DiagramCmd = &cobra.Command{
 		}
 		connections, err := service.GetConnections()
 		devices, err := service.GetDevices()
-		d2diagram := format.GenerateD2FromStruct(devices, connections)
+		zones, err := service.GetZones()
+		d2diagram := format.GenerateD2FromStruct(devices, connections, zones)
 		format.WriteDiagram(d2diagram, op, of, oi)
 	},
 }

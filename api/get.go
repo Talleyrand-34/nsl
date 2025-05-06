@@ -19,9 +19,48 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"nsl-graph/internal/format"
 
 	q "nsl-graph/internal/repository/application"
 )
+
+func getDiagram(service q.NetServiceInt) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		connections, err := service.GetConnections()
+		if err != nil {
+			http.Error(w, "Failed to get connections: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		devices, err := service.GetDevices()
+		if err != nil {
+			http.Error(w, "Failed to get devices: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		zones, err := service.GetZones()
+		if err != nil {
+			http.Error(w, "Failed to get devices: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		diagramString := format.GenerateD2FromStruct(devices, connections, zones)
+
+		var diagram []byte
+		diagram, err = format.GenerateDiagramSVG(diagramString)
+		if err != nil {
+			http.Error(
+				w,
+				"Failed to generate diagram: "+err.Error(),
+				http.StatusInternalServerError,
+			)
+			return
+		}
+
+		w.Header().Set("Content-Type", "image/svg+xml")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(diagram)
+	}
+}
 
 // --- Brand ---
 
