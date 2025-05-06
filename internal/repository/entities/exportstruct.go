@@ -1,23 +1,24 @@
+// exportstruct.go: Contains helper structs for exporting data.
+package entities
 
 /*
   Copyright © 2025 Tecdesoft (rodrigo-gonzalez@tecdesoft.es, t34@t34.dev)
- 
+
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU Affero General Public License as published
   by the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
- 
+
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU Affero General Public License for more details.
- 
+
   You should have received a copy of the GNU Affero General Public License
   along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
-// Package entities contains the structs needed for the processing of sql queries
-package entities
+*/
 
+// All is the composition of all the info in the db
 type All struct {
 	Brands          []BasicBrand
 	ConnectionTypes []BasicConnectiontype
@@ -33,16 +34,19 @@ type All struct {
 	Zones           []BasicZone
 }
 
+// BasicBrand maps the info of the brand in the db
 type BasicBrand struct {
 	ID   int64  `json:"id"`
 	Name string `json:"name"`
 }
 
+// BasicConnectiontype maps the info of the connectiontype in the db
 type BasicConnectiontype struct {
 	ID             int64  `json:"id"`
 	ConnectionType string `json:"connection_type"`
 }
 
+// BasicConnectionmaps the info of the connection in the db
 type BasicConnection struct {
 	ID                        int64  `json:"id"`
 	FromDevicePortModelPortID int64  `json:"from_device_port_model_port_id"`
@@ -87,6 +91,7 @@ type BasicModelport struct {
 	ModelID   int64  `json:"model_id"`
 }
 
+// Experimental/Not completed
 type BasicPolicy struct {
 	ID                   int64  `json:"id"`
 	Name                 string `json:"name"`

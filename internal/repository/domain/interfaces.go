@@ -20,30 +20,29 @@ package domain
 
 import e "nsl-graph/internal/repository/entities"
 
-// Comment
-
+// Type repository is an interface for interaction with all the db logic needed from application
 type repository interface {
-	// Brand
+	// Brand interaction
 	AddBrand(brand string) error
 	GetBrands() ([]e.Brand, error)
 	DeleteBrand(brand string) error
 
-	// DeviceClass
+	// DeviceClass interaction
 	AddDeviceClass(devclass string) error
 	GetDeviceClasses() ([]e.DevClass, error)
 	DeleteDeviceClass(devclass string) error
 
-	// ZoneType
+	// ZoneType interaction
 	AddZoneType(name string) error
 	GetZonetypes() ([]e.ZoneType, error)
 	DeleteZoneType(name string) error
 
-	// Proprietary
+	// Proprietary interaction
 	AddProprietary(name string) error
 	GetProperties() ([]e.Proprietary, error)
 	DeleteProprietary(name string) error
 
-	// Zone
+	// Zone interaction
 	AddZone(
 		name string,
 		fatherid string,
@@ -54,7 +53,7 @@ type repository interface {
 	GetZones() ([]e.Zone, error)
 	DeleteZone(name string) error
 
-	// Model
+	// Model interaction
 	AddModel(
 		modelName string,
 		brandName string,
@@ -63,7 +62,7 @@ type repository interface {
 	GetModels() ([]e.ModelDevice, error)
 	DeleteModel(modelName string) error
 
-	// Device
+	// Device interaction
 	AddDevice(
 		label string,
 		model string,
@@ -74,7 +73,7 @@ type repository interface {
 	GetDevices() ([]e.Device, error)
 	DeleteDevice(deviceId string) error
 
-	// ModelPort
+	// ModelPort interaction
 	AddModelPort(
 		name string,
 		posx string,
@@ -84,12 +83,12 @@ type repository interface {
 	GetModelPorts() ([]e.ModelPort, error)
 	DeleteModelPort(modelPortId string) error
 
-	// DevicePort
+	// DevicePort interaction
 	AddDevicePort(deviceid string, modelportid string) error
 	GetDevicePorts() ([]e.DevicePort, error)
 	DeleteDevicePort(devicePortId string, modelportid string) error
 
-	// Connection
+	// Connection interaction
 	AddConnection(
 		fromDevice string,
 		fromModelPort string,
@@ -98,9 +97,7 @@ type repository interface {
 	) error
 	GetConnections() ([]e.Connection, error)
 	DeleteConnection(connectionId string) error
-
-	GetAllPortsDevice(deviceid string) ([]e.DevicePort, error)
-	GetAllPortsAll() ([]e.DevicePort, error)
+	// Modify Connection
 	UpdateConnection(
 		id string,
 		from_device string,
@@ -108,6 +105,12 @@ type repository interface {
 		to_device string,
 		to_port string,
 	) error
+
+	// get all the ports mapped
+	GetAllPortsAll() ([]e.DevicePort, error)
+	// get all the ports mapped for a device
+	GetAllPortsDevice(deviceid string) ([]e.DevicePort, error)
+	// Export info
 	ExportAllStructs() (e.All, error)
 }
 

@@ -82,7 +82,7 @@ DELETE FROM Proprietary WHERE proprietary = ?;
 
 -- name: GetZones :many
 SELECT z1.id as id,z1.name as name,z2.id as fatherid,z2.name as father,Zonetype.location_type,proprietary.proprietary
-FROM Zone z1 JOIN proprietary JOIN ZoneType LEFT JOIN Zone z2 on z1.father=z2.id;
+FROM Zone z1 JOIN proprietary JOIN ZoneType LEFT JOIN Zone z2 on z1.father=z2.id GROUP BY z1.id;
 
 -- name: GetZoneId :one
 SELECT id

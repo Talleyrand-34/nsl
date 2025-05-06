@@ -1,3 +1,8 @@
+// package sqlcbase contains the struct and public functions to interact with the satabase
+//
+// add.go contains addition operations
+package sqlcbase
+
 /*
 Copyright © 2025 Tecdesoft (rodrigo-gonzalez@tecdesoft.es, t34@t34.dev)
 
@@ -14,7 +19,6 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-package sqlcbase
 
 func (r SQLiteRepository) AddBrand(brand string) error {
 	return r.basicops.AddBrand(brand)
