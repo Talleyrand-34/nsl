@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	_ "modernc.org/sqlite" // This imports is the sqlite driver needed to access the db
 
@@ -45,7 +46,7 @@ func (r BasicOpsSQLiteRepository) GetConnections() ([]e.Connection, error) {
 			ToModelPort:   row.Tomodelportname.String,
 			FromZoneID:    int(row.Fromzoneid.Int64),
 			FromZoneName:  row.Fromzonename.String,
-			ToZoneID:      int(row.Fromzoneid.Int64),
+			ToZoneID:      int(row.Tozoneid.Int64),
 			ToZoneName:    row.Tozonename.String,
 		}
 		result = append(result, model)
@@ -54,6 +55,52 @@ func (r BasicOpsSQLiteRepository) GetConnections() ([]e.Connection, error) {
 }
 
 // AddModel creates new model entry resolving brand/class names to IDs
+// func (r BasicOpsSQLiteRepository) AddConnection(
+// 	fromDevice string,
+// 	fromModelPort string,
+// 	toDevice string,
+// 	toModelPort string,
+// ) error {
+// 	ctx := context.Background()
+//
+// 	// Convert string arguments to integers
+// 	sfromDevice, err := strconv.Atoi(fromDevice)
+// 	if err != nil {
+// 		return fmt.Errorf("invalid fromDevice: %v", err)
+// 	}
+// 	sfromModelPort, err := strconv.Atoi(fromModelPort)
+// 	if err != nil {
+// 		return fmt.Errorf("invalid fromModelPort: %v", err)
+// 	}
+// 	stoDevice, err := strconv.Atoi(toDevice)
+// 	if err != nil {
+// 		return fmt.Errorf("invalid toDevice: %v", err)
+// 	}
+// 	stoModelPort, err := strconv.Atoi(toModelPort)
+// 	if err != nil {
+// 		return fmt.Errorf("invalid toModelPort: %v", err)
+// 	}
+//
+// 	err = validInputConnection(ctx, r, sfromDevice, sfromModelPort, stoDevice, stoModelPort)
+// 	if err != nil {
+// 		return err
+// 	}
+//
+// 	// Prepare parameters for adding a new connection
+// 	addConnParams := d.AddConnectionParams{
+// 		FromDevicePortDeviceID:    int64(sfromDevice),
+// 		FromDevicePortModelPortID: int64(sfromModelPort),
+// 		ToDevicePortDeviceID:      int64(stoDevice),
+// 		ToDevicePortModelPortID:   int64(stoModelPort),
+// 	}
+//
+// 	// Add the new connection
+// 	if err := r.query.AddConnection(ctx, addConnParams); err != nil {
+// 		return fmt.Errorf("failed to create connection: %v", err)
+// 	}
+// 	return nil
+// }
+
 func (r BasicOpsSQLiteRepository) AddConnection(
 	fromDevice string,
 	fromModelPort string,
@@ -80,20 +127,33 @@ func (r BasicOpsSQLiteRepository) AddConnection(
 		return fmt.Errorf("invalid toModelPort: %v", err)
 	}
 
+	// Try to create DevicePort for both ends
+	// If it already exists, ignore the error
+	if err := r.AddDevicePort(fromDevice, fromModelPort); err != nil {
+		// Only ignore "already exists" error, propagate others
+		if !isUniqueConstraintError(err) {
+			return fmt.Errorf("failed to create DevicePort (from): %v", err)
+		}
+	}
+	if err := r.AddDevicePort(toDevice, toModelPort); err != nil {
+		if !isUniqueConstraintError(err) {
+			return fmt.Errorf("failed to create DevicePort (to): %v", err)
+		}
+	}
+
+	// Validate connection (as before)
 	err = validInputConnection(ctx, r, sfromDevice, sfromModelPort, stoDevice, stoModelPort)
 	if err != nil {
 		return err
 	}
 
-	// Prepare parameters for adding a new connection
+	// Prepare and add the new connection (as before)
 	addConnParams := d.AddConnectionParams{
 		FromDevicePortDeviceID:    int64(sfromDevice),
 		FromDevicePortModelPortID: int64(sfromModelPort),
 		ToDevicePortDeviceID:      int64(stoDevice),
 		ToDevicePortModelPortID:   int64(stoModelPort),
 	}
-
-	// Add the new connection
 	if err := r.query.AddConnection(ctx, addConnParams); err != nil {
 		return fmt.Errorf("failed to create connection: %v", err)
 	}
@@ -140,6 +200,14 @@ func validInputConnection(
 		return fmt.Errorf("connection already exists")
 	}
 	return nil
+}
+
+func isUniqueConstraintError(err error) bool {
+	if err == nil {
+		return false
+	}
+	// Check for SQLite unique constraint error message
+	return strings.Contains(err.Error(), "UNIQUE constraint failed")
 }
 
 // DeleteConnection deletes a zone from the database by its integer ID
