@@ -311,6 +311,7 @@ func (q *Queries) BasicGetConnections(ctx context.Context) ([]Connection, error)
 }
 
 const basicGetDeviceClasses = `-- name: BasicGetDeviceClasses :many
+;
 
 
 SELECT id, name
@@ -593,6 +594,51 @@ func (q *Queries) BasicGetZones(ctx context.Context) ([]Zone, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const checkAvailablePorts = `-- name: CheckAvailablePorts :one
+SELECT id
+FROM Connection
+WHERE
+    (from_device_port_device_id = ? AND from_device_port_model_port_id = ?)
+    OR (to_device_port_device_id = ? AND to_device_port_model_port_id = ?)
+`
+
+type CheckAvailablePortsParams struct {
+	FromDevicePortDeviceID    int64
+	FromDevicePortModelPortID int64
+	ToDevicePortDeviceID      int64
+	ToDevicePortModelPortID   int64
+}
+
+func (q *Queries) CheckAvailablePorts(ctx context.Context, arg CheckAvailablePortsParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, checkAvailablePorts,
+		arg.FromDevicePortDeviceID,
+		arg.FromDevicePortModelPortID,
+		arg.ToDevicePortDeviceID,
+		arg.ToDevicePortModelPortID,
+	)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
+const checkDevicePortValid = `-- name: CheckDevicePortValid :one
+select m.id
+FROM ModelDevice m JOIN Device d on m.id=d.model_id JOIN ModelPort mp on m.id=mp.model_id
+where mp.id=? and d.id=?
+`
+
+type CheckDevicePortValidParams struct {
+	ID   int64
+	ID_2 int64
+}
+
+func (q *Queries) CheckDevicePortValid(ctx context.Context, arg CheckDevicePortValidParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, checkDevicePortValid, arg.ID, arg.ID_2)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
 }
 
 const countDevices = `-- name: CountDevices :one

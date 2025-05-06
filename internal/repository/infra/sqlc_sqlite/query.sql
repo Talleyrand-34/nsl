@@ -322,7 +322,18 @@ CROSS JOIN ModelPort
 WHERE Device.id = ?;
 
 
+-- name: CheckDevicePortValid :one
+select m.id
+FROM ModelDevice m JOIN Device d on m.id=d.model_id JOIN ModelPort mp on m.id=mp.model_id
+where mp.id=? and d.id=?;
 
+-- name: CheckAvailablePorts :one
+SELECT id
+FROM Connection
+WHERE
+    (from_device_port_device_id = ? AND from_device_port_model_port_id = ?)
+    OR (to_device_port_device_id = ? AND to_device_port_model_port_id = ?)
+;
 --- Basic getter
 
 

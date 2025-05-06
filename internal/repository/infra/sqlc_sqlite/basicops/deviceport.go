@@ -38,6 +38,14 @@ func (r BasicOpsSQLiteRepository) AddDevicePort(deviceid string, modelportid str
 	if err != nil {
 		return nil
 	}
+	checkValidPort := d.CheckDevicePortValidParams{
+		ID:   int64(smodelportid),
+		ID_2: int64(sdeviceid),
+	}
+	_, err = r.query.CheckDevicePortValid(ctx, checkValidPort)
+	if err != nil {
+		return fmt.Errorf("Succesfully rejected non valid port: %v", err)
+	}
 	devportstruct := d.AddDevicePortParams{
 		DeviceID:    int64(sdeviceid),
 		ModelPortID: int64(smodelportid),

@@ -18,6 +18,7 @@ package basicops
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strconv"
 	"strings"
@@ -127,19 +128,19 @@ func (r BasicOpsSQLiteRepository) AddConnection(
 		return fmt.Errorf("invalid toModelPort: %v", err)
 	}
 
-	// Try to create DevicePort for both ends
-	// If it already exists, ignore the error
-	if err := r.AddDevicePort(fromDevice, fromModelPort); err != nil {
-		// Only ignore "already exists" error, propagate others
-		if !isUniqueConstraintError(err) {
-			return fmt.Errorf("failed to create DevicePort (from): %v", err)
-		}
-	}
-	if err := r.AddDevicePort(toDevice, toModelPort); err != nil {
-		if !isUniqueConstraintError(err) {
-			return fmt.Errorf("failed to create DevicePort (to): %v", err)
-		}
-	}
+	// // Try to create DevicePort for both ends
+	// // If it already exists, ignore the error
+	// if err := r.AddDevicePort(fromDevice, fromModelPort); err != nil {
+	// 	// Only ignore "already exists" error, propagate others
+	// 	if !isUniqueConstraintError(err) {
+	// 		return fmt.Errorf("failed to create DevicePort (from): %v", err)
+	// 	}
+	// }
+	// if err := r.AddDevicePort(toDevice, toModelPort); err != nil {
+	// 	if !isUniqueConstraintError(err) {
+	// 		return fmt.Errorf("failed to create DevicePort (to): %v", err)
+	// 	}
+	// }
 
 	// Validate connection (as before)
 	err = validInputConnection(ctx, r, sfromDevice, sfromModelPort, stoDevice, stoModelPort)
@@ -168,36 +169,19 @@ func validInputConnection(
 	stoDevice int,
 	stoModelPort int,
 ) error {
-	// Forward direction
-	checkConnParams := d.GetConnectionIdParams{
+	params := d.CheckAvailablePortsParams{
 		FromDevicePortDeviceID:    int64(sfromDevice),
 		FromDevicePortModelPortID: int64(sfromModelPort),
 		ToDevicePortDeviceID:      int64(stoDevice),
 		ToDevicePortModelPortID:   int64(stoModelPort),
 	}
-	// Reverse direction
-	checkConnParamsReverse := d.GetConnectionIdParams{
-		FromDevicePortDeviceID:    int64(stoDevice),
-		FromDevicePortModelPortID: int64(stoModelPort),
-		ToDevicePortDeviceID:      int64(sfromDevice),
-		ToDevicePortModelPortID:   int64(sfromModelPort),
+	existing, err := r.query.CheckAvailablePorts(ctx, params)
+	if err != nil && err != sql.ErrNoRows {
+		return fmt.Errorf("failed to check port usage: %v", err)
 	}
-
-	// Check if the connection already exists (forward)
-	existing, err := r.query.GetConnectionId(ctx, checkConnParams)
-	if err != nil {
-		return fmt.Errorf("failed to check existing connection: %v", err)
-	}
-	if len(existing) > 0 {
-		return fmt.Errorf("connection already exists")
-	}
-	// Check if the connection already exists (reverse)
-	existing, err = r.query.GetConnectionId(ctx, checkConnParamsReverse)
-	if err != nil {
-		return fmt.Errorf("failed to check existing connection: %v", err)
-	}
-	if len(existing) > 0 {
-		return fmt.Errorf("connection already exists")
+	fmt.Print(existing)
+	if existing > 0 {
+		return fmt.Errorf("one or both ports are already in use")
 	}
 	return nil
 }
