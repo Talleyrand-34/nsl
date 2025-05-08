@@ -7,10 +7,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $devclass = trim($_POST['devclass'] ?? '');
 
     if ($devclass !== '') {
-        $data = json_encode(['devclass' => $devclass]);
+        $data = json_encode(['name' => $devclass]);
 
         $ch = curl_init(DEVCLASSES_ENDPOINT);
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
         curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
@@ -22,13 +22,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
         if ($httpCode === 201) {
-            $message = "devclass added successfully!";
+            $message = 'devclass added successfully!';
         } else {
-            $message = "Failed to add devclass. Server response: " . htmlspecialchars($response);
+            $message = 'Failed to add devclass. Server response: ' . htmlspecialchars($response);
         }
         curl_close($ch);
     } else {
-        $message = "Please enter a devclass name.";
+        $message = 'Please enter a devclass name.';
     }
 }
 ?>
