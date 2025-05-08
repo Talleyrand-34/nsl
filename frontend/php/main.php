@@ -56,6 +56,13 @@ $actionFiles = [
             border: 1px solid #ccc;
             border-radius: 6px;
             background: #f9f9f9;
+            resize: horizontal;
+            overflow: auto;
+            min-width: 150px;
+            max-width: 80vw;
+        }
+        .grid {
+            grid-template-columns: auto 1fr;
         }
         .diagram {
             text-align: center;
@@ -108,21 +115,18 @@ $actionFiles = [
                 ?>
             </div>
         </div>
-        <!-- <div class="diagram"> -->
-        <!--     <img src="<?= API_BASE_URL ?>/diagram" alt="Diagram" style="max-width:100%; border:1px solid #ccc; border-radius:6px;"> -->
-        <!-- </div> -->
-        <div class="diagram">
-            <img id="diagramImg" src="<?= API_BASE_URL ?>/diagram" alt="Diagram" style="width:500px;">
-        </div>
-        <div>
-            <label for="imgWidth">Resize image:</label>
-            <input type="range" id="imgWidth" min="100" max="1000" value="500" oninput="resizeImg(this.value)">
-        </div>
+            <div class="diagram">
+                <div style="margin-bottom: 10px;">
+                    <label for="imgWidth">Resize image:</label>
+                    <input type="range" id="imgWidth" min="100" max="1000" value="500" oninput="resizeImg(this.value)">
+                </div>
+                <img id="diagramImg" src="<?= API_BASE_URL ?>/diagram" alt="Diagram" style="width:500px;">
+            </div>
+
         <script>
         function resizeImg(val) {
             document.getElementById('diagramImg').style.width = val + 'px';
         }
         </script>
-    </div>
 </body>
 </html>
