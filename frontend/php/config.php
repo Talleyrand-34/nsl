@@ -11,6 +11,7 @@ define('MODELS_ENDPOINT', API_BASE_URL . '/models');
 define('DEVICES_ENDPOINT', API_BASE_URL . '/devices');
 define('MODELPORTS_ENDPOINT', API_BASE_URL . '/modelports');
 define('CONNECTIONS_ENDPOINT', API_BASE_URL . '/connections');
+define('CONNECTIONTYPES_ENDPOINT', API_BASE_URL . '/connectiontypes');
 // Add other endpoints as needed, e.g.:
 // define('DEVICECLASSES_ENDPOINT', API_BASE_URL . '/deviceclasses');
 ?>

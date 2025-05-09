@@ -36,6 +36,8 @@ $actionFiles = [
     'addmodelport' => 'action/addmodelport.php',
     'getconnections' => 'action/getconnections.php',
     'addconnections' => 'action/addconnections.php',
+    'getconnectiontype' => 'action/getconnectiontype.php',
+    'addconnectiontype' => 'action/addconnectiontype.php',
     // Add more as needed
 ];
 // $selectedAction = $_GET['action'] ?? 'getbrand';
@@ -78,6 +80,19 @@ $actionFiles = [
             font-size: 1em;
             margin-top: 8px;
         }
+        <!-- image resizing -->
+        @property --img-width {
+            syntax: "<length>";
+            inherits: true;
+            initial-value: 500px;
+        }
+        .diagram img {
+            width: var(--img-width, 500px);
+            height: auto;
+        }
+        input[type="range"] {
+            width: 100%;
+        }
     </style>
 </head>
 <body>
@@ -101,6 +116,7 @@ $actionFiles = [
                     <option value="device" <?= $entity == 'modeldevice' ? 'selected' : '' ?>>Device</option>
                     <option value="modelport" <?= $entity == 'modelport' ? 'selected' : '' ?>>ModelPort</option>
                     <option value="connections" <?= $entity == 'connections' ? 'selected' : '' ?>>connections</option>
+                    <option value="connectiontype" <?= $entity == 'connectiontype' ? 'selected' : '' ?>>connectiontypes</option>
                     <!-- Add more entities as needed -->
                 </select>
                 <noscript><button type="submit">Go</button></noscript>
@@ -115,18 +131,9 @@ $actionFiles = [
                 ?>
             </div>
         </div>
-            <div class="diagram">
-                <div style="margin-bottom: 10px;">
-                    <label for="imgWidth">Resize image:</label>
-                    <input type="range" id="imgWidth" min="100" max="1000" value="500" oninput="resizeImg(this.value)">
-                </div>
+        <div class="diagram" style="--img-width:500px;">
                 <img id="diagramImg" src="<?= API_BASE_URL ?>/diagram" alt="Diagram" style="width:500px;">
-            </div>
+        </div>
 
-        <script>
-        function resizeImg(val) {
-            document.getElementById('diagramImg').style.width = val + 'px';
-        }
-        </script>
 </body>
 </html>
