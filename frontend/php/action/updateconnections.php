@@ -1,3 +1,4 @@
+
 <?php
 require_once __DIR__ . '/../config.php';
 $message = '';
@@ -7,15 +8,47 @@ $connections = json_decode(@file_get_contents(CONNECTIONS_ENDPOINT), true) ?: []
 $devices = json_decode(@file_get_contents(DEVICES_ENDPOINT), true) ?: [];
 $modelPorts = json_decode(@file_get_contents(MODELPORTS_ENDPOINT), true) ?: [];
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $connectionId = trim($_POST['connection_id'] ?? '');
-    $fromDeviceId = $_POST['from_device_id'] ?? '';
-    $fromModelPortId = $_POST['from_modelport_id'] ?? '';
-    $fromIPSegment = $_POST['from_ip_segment'] ?? '';
-    $toDeviceId = $_POST['to_device_id'] ?? '';
-    $toModelPortId = $_POST['to_modelport_id'] ?? '';
-    $toIPSegment = $_POST['to_ip_segment'] ?? '';
+// Helper: get model for a given device id
+function getDeviceModel($devices, $deviceId)
+{
+    foreach ($devices as $dev) {
+        if ($dev['id'] == $deviceId) {
+            return $dev['model'] ?? null;
+        }
+    }
+    return null;
+}
 
+// Helper: get model ports for a given model name
+function getModelPortsByModel($modelPorts, $modelName)
+{
+    $ports = [];
+    foreach ($modelPorts as $mp) {
+        if ($mp['model'] === $modelName) {
+            $ports[] = $mp;
+        }
+    }
+    return $ports;
+}
+
+// Get POST values or set defaults
+$connectionId = $_POST['connection_id'] ?? '';
+$fromDeviceId = $_POST['from_device_id'] ?? '';
+$fromModelPortId = $_POST['from_modelport_id'] ?? '';
+$fromIPSegment = $_POST['from_ip_segment'] ?? '';
+$toDeviceId = $_POST['to_device_id'] ?? '';
+$toModelPortId = $_POST['to_modelport_id'] ?? '';
+$toIPSegment = $_POST['to_ip_segment'] ?? '';
+
+// Filter model ports for each device selection
+$fromDeviceModel = getDeviceModel($devices, $fromDeviceId);
+$toDeviceModel = getDeviceModel($devices, $toDeviceId);
+
+$fromModelPorts = $fromDeviceModel ? getModelPortsByModel($modelPorts, $fromDeviceModel) : [];
+$toModelPorts = $toDeviceModel ? getModelPortsByModel($modelPorts, $toDeviceModel) : [];
+
+// Handle form submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($connectionId === '') {
         $message = 'Please select a connection to update.';
     } elseif ($fromDeviceId === '') {
@@ -71,10 +104,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <?php else: ?>
     <form method="post">
         <label for="connection_id">Select Connection to Update:</label>
-        <select id="connection_id" name="connection_id" required>
+        <select id="connection_id" name="connection_id" required onchange="this.form.submit()">
             <option value="">-- Select Connection --</option>
             <?php foreach ($connections as $connection): ?>
-                <option value="<?= htmlspecialchars($connection['id']) ?>">
+                <option value="<?= htmlspecialchars($connection['id']) ?>"
+                    <?= ($connectionId == $connection['id']) ? 'selected' : '' ?>>
                     ID: <?= htmlspecialchars($connection['id']) ?> 
                     (From: <?= htmlspecialchars($connection['fromdevice'] ?? 'N/A') ?> 
                     To: <?= htmlspecialchars($connection['todevice'] ?? 'N/A') ?>)
@@ -83,11 +117,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </select><br><br>
 
         <label for="from_device_id">Source Device:</label>
-        <select id="from_device_id" name="from_device_id" required>
+        <select id="from_device_id" name="from_device_id" required onchange="this.form.submit()">
             <option value="">-- Select Source Device --</option>
             <?php foreach ($devices as $device): ?>
-                <option value="<?= htmlspecialchars($device['id']) ?>">
-                    <?= htmlspecialchars($device['label']) ?> (ID: <?= htmlspecialchars($device['id']) ?>)
+                <option value="<?= htmlspecialchars($device['id']) ?>"
+                    <?= ($fromDeviceId == $device['id']) ? 'selected' : '' ?>>
+                    <?= htmlspecialchars($device['label'] ?? $device['name'] ?? $device['id']) ?> (ID: <?= htmlspecialchars($device['id']) ?>)
                 </option>
             <?php endforeach; ?>
         </select><br><br>
@@ -95,19 +130,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <label for="from_modelport_id">Source Model Port:</label>
         <select id="from_modelport_id" name="from_modelport_id" required>
             <option value="">-- Select Source Port --</option>
-            <?php foreach ($modelPorts as $port): ?>
-                <option value="<?= htmlspecialchars($port['id']) ?>">
-                    <?= htmlspecialchars($port['name']) ?> (ID: <?= htmlspecialchars($port['id']) ?>)
+            <?php foreach ($fromModelPorts as $port): ?>
+                <option value="<?= htmlspecialchars($port['id']) ?>"
+                    <?= ($fromModelPortId == $port['id']) ? 'selected' : '' ?>>
+                    <?= htmlspecialchars($port['name']) ?> (<?= htmlspecialchars($port['model']) ?>)
                 </option>
             <?php endforeach; ?>
         </select><br><br>
 
         <label for="to_device_id">Destination Device:</label>
-        <select id="to_device_id" name="to_device_id" required>
+        <select id="to_device_id" name="to_device_id" required onchange="this.form.submit()">
             <option value="">-- Select Destination Device --</option>
             <?php foreach ($devices as $device): ?>
-                <option value="<?= htmlspecialchars($device['id']) ?>">
-                    <?= htmlspecialchars($device['label']) ?> (ID: <?= htmlspecialchars($device['id']) ?>)
+                <option value="<?= htmlspecialchars($device['id']) ?>"
+                    <?= ($toDeviceId == $device['id']) ? 'selected' : '' ?>>
+                    <?= htmlspecialchars($device['label'] ?? $device['name'] ?? $device['id']) ?> (ID: <?= htmlspecialchars($device['id']) ?>)
                 </option>
             <?php endforeach; ?>
         </select><br><br>
@@ -115,19 +152,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <label for="to_modelport_id">Destination Model Port:</label>
         <select id="to_modelport_id" name="to_modelport_id" required>
             <option value="">-- Select Destination Port --</option>
-            <?php foreach ($modelPorts as $port): ?>
-                <option value="<?= htmlspecialchars($port['id']) ?>">
-                    <?= htmlspecialchars($port['name']) ?> (ID: <?= htmlspecialchars($port['id']) ?>)
+            <?php foreach ($toModelPorts as $port): ?>
+                <option value="<?= htmlspecialchars($port['id']) ?>"
+                    <?= ($toModelPortId == $port['id']) ? 'selected' : '' ?>>
+                    <?= htmlspecialchars($port['name']) ?> (<?= htmlspecialchars($port['model']) ?>)
                 </option>
             <?php endforeach; ?>
         </select><br><br>
 
         <label for="from_ip_segment">Source IP Segment (optional):</label>
         <input type="text" id="from_ip_segment" name="from_ip_segment" 
+               value="<?= htmlspecialchars($fromIPSegment) ?>"
                placeholder="e.g., 192.168.1.0/24"><br><br>
 
         <label for="to_ip_segment">Destination IP Segment (optional):</label>
         <input type="text" id="to_ip_segment" name="to_ip_segment" 
+               value="<?= htmlspecialchars($toIPSegment) ?>"
                placeholder="e.g., 10.0.1.0/24"><br><br>
 
         <button type="submit">Update Connection</button>
