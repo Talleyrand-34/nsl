@@ -42,8 +42,8 @@ type ModelDevice struct {
 type ModelPort struct {
 	ID        int    `json:"id"`
 	Name      string `json:"name"`
-	Positionx int    `json:"positiony"`
-	Positiony int    `json:"positionx"`
+	Positionx int    `json:"positionx"`
+	Positiony int    `json:"positiony"`
 	Model     string `json:"model"`
 	Brand     string `json:"brand"`
 }
@@ -51,7 +51,7 @@ type ModelPort struct {
 // Device This struct contains the info about a device
 type Device struct {
 	ID          int    `json:"id"`
-	Name        string `json:"name"`
+	Name        string `json:"label"`
 	Model       string `json:"model"`
 	Brand       string `json:"brand"`
 	ZoneID      int    `json:"zoneid"`
@@ -66,8 +66,8 @@ type DevicePort struct {
 	ModelID   int    `json:"modelid"`
 	PortName  string `json:"portname"`
 	DevLabel  string `json:"devname"`
-	Positionx int    `json:"positiony"`
-	Positiony int    `json:"positionx"`
+	Positionx int    `json:"positionx"`
+	Positiony int    `json:"positiony"`
 }
 
 // Connection This struct contains the info about a connection
