@@ -42,17 +42,24 @@ func rootHandler() http.HandlerFunc {
 			"DELETE /brands",
 			"GET    /brands",
 			"POST   /brands",
+			"PUT    /brands",
 
 			// /connections
 			"DELETE /connections",
 			"GET    /connections",
 			"POST   /connections",
-			"PUT   /connections",
+			"PUT    /connections",
+
+			// /connectiontypes
+			"GET    /connectiontypes",
+			"POST   /connectiontypes", 
+			"PUT    /connectiontypes",
 
 			// /deviceclasses
 			"DELETE /deviceclasses",
 			"GET    /deviceclasses",
 			"POST   /deviceclasses",
+			"PUT    /deviceclasses",
 
 			// /deviceports
 			"DELETE /deviceports",
@@ -63,31 +70,37 @@ func rootHandler() http.HandlerFunc {
 			"DELETE /devices",
 			"GET    /devices",
 			"POST   /devices",
+			"PUT    /devices",
 
 			// /modelports
 			"DELETE /modelports",
 			"GET    /modelports",
 			"POST   /modelports",
+			"PUT    /modelports",
 
 			// /models
 			"DELETE /models",
 			"GET    /models",
 			"POST   /models",
+			"PUT    /models",
 
 			// /proprietaries
 			"DELETE /proprietaries",
 			"GET    /proprietaries",
 			"POST   /proprietaries",
+			"PUT    /proprietaries",
 
 			// /zones
 			"DELETE /zones",
 			"GET    /zones",
 			"POST   /zones",
+			"PUT    /zones",
 
 			// /zonetypes
 			"DELETE /zonetypes",
 			"GET    /zonetypes",
 			"POST   /zonetypes",
+			"PUT    /zonetypes",
 
 			// /diagram
 			"GET    /zonetypes",
@@ -170,6 +183,26 @@ func RegisterRoutes(r *mux.Router, service q.NetServiceInt) {
 	// Connection
 	r.HandleFunc("/connections", deleteConnectionHandler(service)).Methods("DELETE")
 	r.HandleFunc("/connections", updateConnectionHandler(service)).Methods("PUT")
+	
+	// ADD ALL MISSING UPDATE ROUTES
+	// Brand
+	r.HandleFunc("/brands", updateBrandHandler(service)).Methods("PUT")
+	// DeviceClass  
+	r.HandleFunc("/deviceclasses", updateDeviceClassHandler(service)).Methods("PUT")
+	// ZoneType
+	r.HandleFunc("/zonetypes", updateZoneTypeHandler(service)).Methods("PUT")
+	// Proprietary
+	r.HandleFunc("/proprietaries", updateProprietaryHandler(service)).Methods("PUT")
+	// Zone
+	r.HandleFunc("/zones", updateZoneHandler(service)).Methods("PUT")
+	// Model
+	r.HandleFunc("/models", updateModelHandler(service)).Methods("PUT")
+	// Device
+	r.HandleFunc("/devices", updateDeviceHandler(service)).Methods("PUT")
+	// ModelPort
+	r.HandleFunc("/modelports", updateModelPortHandler(service)).Methods("PUT")
+	// ConnectionType
+	r.HandleFunc("/connectiontypes", updateConnectionTypeHandler(service)).Methods("PUT")
 }
 
 func StartServer(dbPath string, port int) {
