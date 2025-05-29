@@ -43,7 +43,7 @@ func getDiagram(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		diagramString := format.GenerateD2FromStruct(devices, connections, zones)
+		diagramString := format.GenerateD2FromStruct2(devices, connections, zones)
 
 		var diagram []byte
 		diagram, err = format.GenerateDiagramSVG(diagramString)
@@ -71,6 +71,7 @@ func getBrandsHandler(service q.NetServiceInt) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(brands)
 	}
 }
@@ -84,6 +85,7 @@ func getDeviceClassesHandler(service q.NetServiceInt) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(classes)
 	}
 }
@@ -97,6 +99,7 @@ func getZoneTypesHandler(service q.NetServiceInt) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(types)
 	}
 }
@@ -110,6 +113,7 @@ func getProprietariesHandler(service q.NetServiceInt) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(props)
 	}
 }
@@ -123,6 +127,7 @@ func getZonesHandler(service q.NetServiceInt) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(zones)
 	}
 }
@@ -136,6 +141,7 @@ func getModelsHandler(service q.NetServiceInt) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(models)
 	}
 }
@@ -149,6 +155,7 @@ func getDevicesHandler(service q.NetServiceInt) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(devices)
 	}
 }
@@ -162,6 +169,7 @@ func getModelPortsHandler(service q.NetServiceInt) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(ports)
 	}
 }
@@ -175,6 +183,7 @@ func getDevicePortsHandler(service q.NetServiceInt) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(ports)
 	}
 }
@@ -188,6 +197,7 @@ func getConnectionsTypeHandler(service q.NetServiceInt) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(conns)
 	}
 }
@@ -201,6 +211,7 @@ func getConnectionsHandler(service q.NetServiceInt) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(conns)
 	}
 }
@@ -218,6 +229,7 @@ func getAllPortsDeviceHandler(service q.NetServiceInt) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(ports)
 	}
 }
@@ -230,6 +242,7 @@ func getAllPortsAllHandler(service q.NetServiceInt) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(ports)
 	}
 }

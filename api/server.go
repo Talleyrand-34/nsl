@@ -51,6 +51,7 @@ func rootHandler() http.HandlerFunc {
 			"PUT    /connections",
 
 			// /connectiontypes
+			"DELETE /connectiontypes",
 			"GET    /connectiontypes",
 			"POST   /connectiontypes", 
 			"PUT    /connectiontypes",
@@ -183,6 +184,8 @@ func RegisterRoutes(r *mux.Router, service q.NetServiceInt) {
 	// Connection
 	r.HandleFunc("/connections", deleteConnectionHandler(service)).Methods("DELETE")
 	r.HandleFunc("/connections", updateConnectionHandler(service)).Methods("PUT")
+	// ConnectionType
+	r.HandleFunc("/connectiontypes", deleteConnectionTypeHandler(service)).Methods("DELETE")
 	
 	// ADD ALL MISSING UPDATE ROUTES
 	// Brand
