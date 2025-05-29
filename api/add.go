@@ -250,3 +250,18 @@ func addConnectionHandler(service q.NetServiceInt) http.HandlerFunc {
 		},
 	)
 }
+
+// ConnectionType
+type AddConnectionTypeRequest struct {
+	Name string `json:"name"`
+}
+
+func addConnectionTypeHandler(service q.NetServiceInt) http.HandlerFunc {
+	return genericAddHandler[AddConnectionTypeRequest](
+		service,
+		[]string{"Name"},
+		func(service q.NetServiceInt, req *AddConnectionTypeRequest) error {
+			return service.AddConnectionType(req.Name)
+		},
+	)
+}

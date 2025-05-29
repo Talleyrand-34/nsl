@@ -21,23 +21,30 @@ $selectedModel = isset($_GET['model']) ? $_GET['model'] : '';
 // Filter model ports if a model is selected
 if ($selectedModel && is_array($modelPorts)) {
     $modelPorts = array_filter($modelPorts, function ($port) use ($selectedModel) {
-        return $port['model'] === $selectedModel;
+        // Case-insensitive comparison for robustness
+        return isset($port['model']) && strtolower($port['model']) === strtolower($selectedModel);
     });
 }
 
-// Filter form
-echo '<form method="get">';
-echo '<label for="model">Filter by Model:</label> ';
-echo '<select name="model" id="model">';
-echo '<option value="">-- All Models --</option>';
-foreach ($models as $model) {
-    $selected = ($model === $selectedModel) ? 'selected' : '';
-    echo '<option value="' . htmlspecialchars($model) . '" ' . $selected . '>' . htmlspecialchars($model) . '</option>';
-}
-echo '</select> ';
-echo '<button type="submit">Filter</button>';
-echo '</form>';
+// Filter form with required GET parameters in the URL
+?>
+<form method="get" action="main.php">
+    <input type="hidden" name="actionType" value="get">
+    <input type="hidden" name="entity" value="modelport">
+    <label for="model">Filter by Model:</label>
+    <select name="model" id="model">
+        <option value="">-- All Models --</option>
+        <?php foreach ($models as $model): ?>
+            <option value="<?= htmlspecialchars($model) ?>" <?= ($model === $selectedModel) ? 'selected' : '' ?>>
+                <?= htmlspecialchars($model) ?>
+            </option>
+        <?php endforeach; ?>
+    </select>
+    <button type="submit">Filter</button>
+</form>
+<?php
 
+// Output the filtered or all model ports
 if (is_array($modelPorts) && count($modelPorts) > 0) {
     echo '<ul>';
     foreach ($modelPorts as $port) {

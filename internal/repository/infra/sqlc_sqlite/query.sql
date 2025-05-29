@@ -239,6 +239,17 @@ INSERT INTO DevicePort (
 -- name: DeleteDevicePort :exec
 DELETE FROM DevicePort WHERE device_id = ? AND model_port_id = ?;
 
+--- ConnectionType
+-- name: GetConnectionTypes :many
+SELECT connection_type
+FROM ConnectionType;
+
+-- name: AddConnectinType :exec
+INSERT INTO ConnectionType (
+	connection_type
+) VALUES (
+	?
+);
 --- Connection
 
 -- name: GetConnections :many

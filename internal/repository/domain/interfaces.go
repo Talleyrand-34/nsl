@@ -88,6 +88,8 @@ type repository interface {
 	GetDevicePorts() ([]e.DevicePort, error)
 	DeleteDevicePort(devicePortId string, modelportid string) error
 
+	AddConnectionType(connectionTypeName string) error
+	GetConnectionTypes() ([]e.ConnectionType, error)
 	// Connection interaction
 	AddConnection(
 		fromDevice string,

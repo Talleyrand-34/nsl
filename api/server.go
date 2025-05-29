@@ -139,6 +139,9 @@ func RegisterRoutes(r *mux.Router, service q.NetServiceInt) {
 	// Connection
 	r.HandleFunc("/connections", addConnectionHandler(service)).Methods("POST")
 	r.HandleFunc("/connections", getConnectionsHandler(service)).Methods("GET")
+	// ConnectionType
+	r.HandleFunc("/connectiontypes", addConnectionTypeHandler(service)).Methods("POST")
+	r.HandleFunc("/connectiontypes", getConnectionsTypeHandler(service)).Methods("GET")
 	// All Ports for a Device
 	r.HandleFunc("/allports/device", getAllPortsDeviceHandler(service)).Methods("GET")
 	// All Ports (All Devices)

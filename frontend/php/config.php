@@ -1,7 +1,7 @@
 
 <?php
 // config.php
-define('API_BASE_URL', 'http://localhost:8080');
+define('API_BASE_URL', 'http://localhost:8081');
 define('BRANDS_ENDPOINT', API_BASE_URL . '/brands');
 define('DEVCLASSES_ENDPOINT', API_BASE_URL . '/deviceclasses');
 define('PROPRIETARIES_ENDPOINT', API_BASE_URL . '/proprietaries');

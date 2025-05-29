@@ -58,6 +58,10 @@ func (r SQLiteRepository) GetDevicePorts() ([]e.DevicePort, error) {
 	return r.basicops.GetDevicePorts()
 }
 
+func (r SQLiteRepository) GetConnectionTypes() ([]e.ConnectionType, error) {
+	return r.basicops.GetConnectionTypes()
+}
+
 func (r SQLiteRepository) GetConnections() ([]e.Connection, error) {
 	return r.basicops.GetConnections()
 }

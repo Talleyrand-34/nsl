@@ -23,6 +23,19 @@ func (q *Queries) AddBrand(ctx context.Context, brand string) error {
 	return err
 }
 
+const addConnectinType = `-- name: AddConnectinType :exec
+INSERT INTO ConnectionType (
+	connection_type
+) VALUES (
+	?
+)
+`
+
+func (q *Queries) AddConnectinType(ctx context.Context, connectionType string) error {
+	_, err := q.db.ExecContext(ctx, addConnectinType, connectionType)
+	return err
+}
+
 const addConnection = `-- name: AddConnection :exec
 ;
 
@@ -907,6 +920,35 @@ func (q *Queries) GetConnectionId(ctx context.Context, arg GetConnectionIdParams
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getConnectionTypes = `-- name: GetConnectionTypes :many
+SELECT connection_type
+FROM ConnectionType
+`
+
+// - ConnectionType
+func (q *Queries) GetConnectionTypes(ctx context.Context) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, getConnectionTypes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var connection_type string
+		if err := rows.Scan(&connection_type); err != nil {
+			return nil, err
+		}
+		items = append(items, connection_type)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err

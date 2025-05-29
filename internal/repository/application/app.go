@@ -82,6 +82,8 @@ type NetServiceInt interface {
 	) error
 	GetDevicePorts() ([]e.DevicePort, error)
 	AddDevicePort(deviceid string, modelportid string) error
+	AddConnectionType(connectionTypeName string) error
+	GetConnectionTypes() ([]e.ConnectionType, error)
 	GetConnections() ([]e.Connection, error)
 	AddConnection(
 		fromDevice string,
@@ -219,6 +221,14 @@ func (ns *NetService) AddDevicePort(
 	modelportid string,
 ) error {
 	return ns.netRepo.AddDevicePort(deviceid, modelportid)
+}
+
+func (ns *NetService) AddConnectionType(connectionTypeName string) error {
+	return ns.netRepo.AddConnectionType(connectionTypeName)
+}
+
+func (ns *NetService) GetConnectionTypes() ([]e.ConnectionType, error) {
+	return ns.netRepo.GetConnectionTypes()
 }
 
 func (ns *NetService) GetConnections() ([]e.Connection, error) {

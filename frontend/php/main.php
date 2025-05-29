@@ -93,6 +93,24 @@ $actionFiles = [
         input[type="range"] {
             width: 100%;
         }
+        .resizable-img-container {
+            resize: vertical;
+            overflow: auto;
+            min-height: 100px;   /* set as you wish */
+            max-height: 190vh;    /* set as you wish */
+            width: 100%;         /* or a fixed width if you prefer */
+            border: 1px solid #ccc;
+            display: flex;
+            align-items: stretch;
+            justify-content: center;
+            background: #fff;
+        }
+        .resizable-img-container img {
+            height: 100%;
+            width: auto;
+            display: block;
+            object-fit: contain;
+        }
     </style>
 </head>
 <body>
@@ -113,7 +131,7 @@ $actionFiles = [
                     <option value="zonetype" <?= $entity == 'zonetype' ? 'selected' : '' ?>>Zone Type</option>
                     <option value="zone" <?= $entity == 'zone' ? 'selected' : '' ?>>Zone</option>
                     <option value="modeldevice" <?= $entity == 'modeldevice' ? 'selected' : '' ?>>Model</option>
-                    <option value="device" <?= $entity == 'modeldevice' ? 'selected' : '' ?>>Device</option>
+                    <option value="device" <?= $entity == 'device' ? 'selected' : '' ?>>Device</option>
                     <option value="modelport" <?= $entity == 'modelport' ? 'selected' : '' ?>>ModelPort</option>
                     <option value="connections" <?= $entity == 'connections' ? 'selected' : '' ?>>connections</option>
                     <option value="connectiontype" <?= $entity == 'connectiontype' ? 'selected' : '' ?>>connectiontypes</option>
@@ -131,8 +149,13 @@ $actionFiles = [
                 ?>
             </div>
         </div>
-        <div class="diagram" style="--img-width:500px;">
-                <img id="diagramImg" src="<?= API_BASE_URL ?>/diagram" alt="Diagram" style="width:500px;">
+        <!-- <div class="diagram" style="--img-width:500px;"> -->
+        <!--         <img id="diagramImg" src="<?= API_BASE_URL ?>/diagram" alt="Diagram" style="width:500px;"> -->
+        <!-- </div> -->
+        <div class="diagram">
+            <div class="resizable-img-container" style="height:500px;">
+                <img id="diagramImg" src="<?= API_BASE_URL ?>/diagram" alt="Diagram">
+            </div>
         </div>
 
 </body>

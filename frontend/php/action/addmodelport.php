@@ -1,10 +1,15 @@
-
 <?php
 require_once __DIR__ . '/../config.php';
 $message = '';
 
 // Fetch models for selection
 $models = json_decode(@file_get_contents(MODELS_ENDPOINT), true) ?: [];
+
+// Default form values
+$name = '';
+$posx = '';
+$posy = '';
+$modelName = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim($_POST['name'] ?? '');
@@ -42,6 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($httpCode === 201) {
             $message = 'Model port added successfully!';
+            // Do NOT reset the form values here
         } else {
             $message = 'Failed to add model port. Server response: ' . htmlspecialchars($response);
         }
@@ -56,19 +62,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <?php endif; ?>
 <form method="post">
     <label for="name">Port name:</label>
-    <input type="text" id="name" name="name" required><br><br>
+    <input type="text" id="name" name="name" required value="<?= htmlspecialchars($name) ?>"><br><br>
 
     <label for="posx">Position X:</label>
-    <input type="number" id="posx" name="posx" required><br><br>
+    <input type="number" id="posx" name="posx" required value="<?= htmlspecialchars($posx) ?>"><br><br>
 
     <label for="posy">Position Y:</label>
-    <input type="number" id="posy" name="posy" required><br><br>
+    <input type="number" id="posy" name="posy" required value="<?= htmlspecialchars($posy) ?>"><br><br>
 
     <label for="modelName">Model:</label>
     <select id="modelName" name="modelName" required>
         <option value="">-- Select --</option>
         <?php foreach ($models as $model): ?>
-            <option value="<?= htmlspecialchars($model['model']) ?>">
+            <option value="<?= htmlspecialchars($model['model']) ?>"
+                <?= ($model['model'] === $modelName) ? 'selected' : '' ?>>
                 <?= htmlspecialchars($model['model']) ?>
             </option>
         <?php endforeach; ?>

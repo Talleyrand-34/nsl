@@ -102,3 +102,8 @@ type Proprietary struct {
 type ZoneType struct {
 	Name string `json:"name"`
 }
+
+// ConnectionType represents the type of zone a zone can be
+type ConnectionType struct {
+	Name string `json:"name"`
+}
