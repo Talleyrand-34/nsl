@@ -297,8 +297,10 @@ SELECT
     c.id,
     d.label as fromdevname,
     mp.name as frommodelportname,
+    c.from_ip_segment,
     d2.label as todevname,
     mp2.name as tomodelportname,
+    c.to_ip_segment,
     ct.connection_type,
     z.id as fromzoneid,
     z.name as fromzonename,
@@ -321,11 +323,13 @@ LEFT JOIN Zone z2 on d2.zone_id=z2.id
 INSERT INTO Connection (
 	from_device_port_device_id,
 	from_device_port_model_port_id,
+	from_ip_segment,
 	to_device_port_device_id,
 	to_device_port_model_port_id,
+	to_ip_segment,
 	connection_type
 ) VALUES (
-	?,?,?,?,?
+	?,?,?,?,?,?,?
 );
 
 -- name: GetConnectionId :many
@@ -349,8 +353,10 @@ UPDATE connection
 SET
     from_device_port_device_id = ?,
     from_device_port_model_port_id = ?,
+    from_ip_segment = ?,
     to_device_port_device_id = ?,
-    to_device_port_model_port_id = ?
+    to_device_port_model_port_id = ?,
+    to_ip_segment = ?
 WHERE
     id = ?;
 

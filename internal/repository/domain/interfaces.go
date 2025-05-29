@@ -129,16 +129,20 @@ type repository interface {
 	AddConnection(
 		fromDeviceId string,
 		fromModelPortId string,
+		fromIPSegment string,
 		toDeviceId string,
 		toModelPortId string,
+		toIPSegment string,
 	) error
 	GetConnections() ([]e.Connection, error)
 	UpdateConnection(
 		connectionId string,
 		newFromDeviceId string,
 		newFromModelPortId string,
+		newFromIPSegment string,
 		newToDeviceId string,
 		newToModelPortId string,
+		newToIPSegment string,
 	) error
 	DeleteConnection(connectionId string) error
 

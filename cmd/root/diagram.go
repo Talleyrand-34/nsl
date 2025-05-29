@@ -17,12 +17,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 package cmd_root
 
 import (
-	"nsl-graph/internal/format"
+	"fmt"
 
 	"github.com/spf13/cobra"
 
 	cmd "nsl-graph/cmd"
-	util "nsl-graph/cmd/utils"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -33,23 +32,8 @@ var DiagramCmd = &cobra.Command{
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
-		flagNames := []string{"outPath", "outFile", "outImage"}
-		vals := util.Flagproc(
-			cmd,
-			flagNames,
-		)
-		op := vals[0]
-		of := vals[1]
-		oi := vals[2]
-		service, err := util.ServiceConnection()
-		if err != nil {
-			return
-		}
-		connections, err := service.GetConnections()
-		devices, err := service.GetDevices()
-		zones, err := service.GetZones()
-		d2diagram := format.GenerateD2FromStruct(devices, connections, zones)
-		format.WriteDiagram(d2diagram, op, of, oi)
+		fmt.Println("diagram called - use a specific subcommand to do diagrams")
+		cmd.Help()
 	},
 }
 

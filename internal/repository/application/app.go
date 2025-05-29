@@ -137,16 +137,20 @@ type NetServiceInt interface {
 	AddConnection(
 		fromDeviceId string,
 		fromModelPortId string,
+		fromIPSegment string,
 		toDeviceId string,
 		toModelPortId string,
+		toIPSegment string,
 	) error
 	GetConnections() ([]e.Connection, error)
 	UpdateConnection(
 		connectionId string,
 		newFromDeviceId string,
 		newFromModelPortId string,
+		newFromIPSegment string,
 		newToDeviceId string,
 		newToModelPortId string,
+		newToIPSegment string,
 	) error
 	DeleteConnection(connectionId string) error
 
@@ -277,10 +281,12 @@ func (ns *NetService) GetConnections() ([]e.Connection, error) {
 func (ns *NetService) AddConnection(
 	fromDevice string,
 	fromModelPort string,
+	fromIPSegment string,
 	toDevice string,
 	toModelPort string,
+	toIPSegment string,
 ) error {
-	return ns.netRepo.AddConnection(fromDevice, fromModelPort, toDevice, toModelPort)
+	return ns.netRepo.AddConnection(fromDevice, fromModelPort, fromIPSegment, toDevice, toModelPort, toIPSegment)
 }
 
 func (ns *NetService) GetAllPortsAll() ([]e.DevicePort, error) {
@@ -408,8 +414,10 @@ func (ns *NetService) UpdateConnection(
 	connectionId string,
 	newFromDeviceId string,
 	newFromModelPortId string,
+	newFromIPSegment string,
 	newToDeviceId string,
 	newToModelPortId string,
+	newToIPSegment string,
 ) error {
-	return ns.netRepo.UpdateConnection(connectionId, newFromDeviceId, newFromModelPortId, newToDeviceId, newToModelPortId)
+	return ns.netRepo.UpdateConnection(connectionId, newFromDeviceId, newFromModelPortId, newFromIPSegment, newToDeviceId, newToModelPortId, newToIPSegment)
 }

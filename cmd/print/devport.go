@@ -28,7 +28,7 @@ import (
 
 // devicePortsCmd represents the devices command
 var devicePortPrintCmd = &cobra.Command{
-	Use:   "devicePort",
+	Use:   "deviceport",
 	Short: "Print the devicePorts",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {

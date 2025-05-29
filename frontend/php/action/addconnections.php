@@ -32,8 +32,10 @@ function getModelPortsByModel($modelports, $modelName)
 
 $fromDevice = $_POST['fromDevice'] ?? '';
 $fromModelPort = $_POST['fromModelPort'] ?? '';
+$fromIPSegment = $_POST['fromIPSegment'] ?? '';
 $toDevice = $_POST['toDevice'] ?? '';
 $toModelPort = $_POST['toModelPort'] ?? '';
+$toIPSegment = $_POST['toIPSegment'] ?? '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($fromDevice === '' || $fromModelPort === '' || $toDevice === '' || $toModelPort === '') {
@@ -42,8 +44,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $data = json_encode([
             'fromDevice' => $fromDevice,
             'fromModelPort' => $fromModelPort,
+            'fromIPSegment' => $fromIPSegment,
             'toDevice' => $toDevice,
-            'toModelPort' => $toModelPort
+            'toModelPort' => $toModelPort,
+            'toIPSegment' => $toIPSegment
         ]);
 
         // Debug: echo the JSON being sent
@@ -107,6 +111,11 @@ $toModelPorts = $toDeviceModel ? getModelPortsByModel($modelports, $toDeviceMode
                 </option>
             <?php endforeach; ?>
         </select>
+
+        <label for="fromIPSegment">IP Segment (optional):</label>
+        <input type="text" id="fromIPSegment" name="fromIPSegment" 
+               value="<?= htmlspecialchars($fromIPSegment) ?>" 
+               placeholder="e.g., 192.168.1.0/24">
     </fieldset>
     <br>
     <fieldset>
@@ -132,6 +141,11 @@ $toModelPorts = $toDeviceModel ? getModelPortsByModel($modelports, $toDeviceMode
                 </option>
             <?php endforeach; ?>
         </select>
+
+        <label for="toIPSegment">IP Segment (optional):</label>
+        <input type="text" id="toIPSegment" name="toIPSegment" 
+               value="<?= htmlspecialchars($toIPSegment) ?>" 
+               placeholder="e.g., 10.0.1.0/24">
     </fieldset>
     <br>
     <button type="submit">Add Connection</button>

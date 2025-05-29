@@ -42,19 +42,23 @@ const addConnection = `-- name: AddConnection :exec
 INSERT INTO Connection (
 	from_device_port_device_id,
 	from_device_port_model_port_id,
+	from_ip_segment,
 	to_device_port_device_id,
 	to_device_port_model_port_id,
+	to_ip_segment,
 	connection_type
 ) VALUES (
-	?,?,?,?,?
+	?,?,?,?,?,?,?
 )
 `
 
 type AddConnectionParams struct {
 	FromDevicePortDeviceID    int64
 	FromDevicePortModelPortID int64
+	FromIpSegment             sql.NullString
 	ToDevicePortDeviceID      int64
 	ToDevicePortModelPortID   int64
+	ToIpSegment               sql.NullString
 	ConnectionType            sql.NullInt64
 }
 
@@ -62,8 +66,10 @@ func (q *Queries) AddConnection(ctx context.Context, arg AddConnectionParams) er
 	_, err := q.db.ExecContext(ctx, addConnection,
 		arg.FromDevicePortDeviceID,
 		arg.FromDevicePortModelPortID,
+		arg.FromIpSegment,
 		arg.ToDevicePortDeviceID,
 		arg.ToDevicePortModelPortID,
+		arg.ToIpSegment,
 		arg.ConnectionType,
 	)
 	return err
@@ -1008,8 +1014,10 @@ SELECT
     c.id,
     d.label as fromdevname,
     mp.name as frommodelportname,
+    c.from_ip_segment,
     d2.label as todevname,
     mp2.name as tomodelportname,
+    c.to_ip_segment,
     ct.connection_type,
     z.id as fromzoneid,
     z.name as fromzonename,
@@ -1031,8 +1039,10 @@ type GetConnectionsRow struct {
 	ID                int64
 	Fromdevname       sql.NullString
 	Frommodelportname sql.NullString
+	FromIpSegment     sql.NullString
 	Todevname         sql.NullString
 	Tomodelportname   sql.NullString
+	ToIpSegment       sql.NullString
 	ConnectionType    sql.NullString
 	Fromzoneid        sql.NullInt64
 	Fromzonename      sql.NullString
@@ -1054,8 +1064,10 @@ func (q *Queries) GetConnections(ctx context.Context) ([]GetConnectionsRow, erro
 			&i.ID,
 			&i.Fromdevname,
 			&i.Frommodelportname,
+			&i.FromIpSegment,
 			&i.Todevname,
 			&i.Tomodelportname,
+			&i.ToIpSegment,
 			&i.ConnectionType,
 			&i.Fromzoneid,
 			&i.Fromzonename,
@@ -1639,8 +1651,10 @@ UPDATE connection
 SET
     from_device_port_device_id = ?,
     from_device_port_model_port_id = ?,
+    from_ip_segment = ?,
     to_device_port_device_id = ?,
-    to_device_port_model_port_id = ?
+    to_device_port_model_port_id = ?,
+    to_ip_segment = ?
 WHERE
     id = ?
 `
@@ -1648,8 +1662,10 @@ WHERE
 type UpdateConnectionParams struct {
 	FromDevicePortDeviceID    int64
 	FromDevicePortModelPortID int64
+	FromIpSegment             sql.NullString
 	ToDevicePortDeviceID      int64
 	ToDevicePortModelPortID   int64
+	ToIpSegment               sql.NullString
 	ID                        int64
 }
 
@@ -1657,8 +1673,10 @@ func (q *Queries) UpdateConnection(ctx context.Context, arg UpdateConnectionPara
 	_, err := q.db.ExecContext(ctx, updateConnection,
 		arg.FromDevicePortDeviceID,
 		arg.FromDevicePortModelPortID,
+		arg.FromIpSegment,
 		arg.ToDevicePortDeviceID,
 		arg.ToDevicePortModelPortID,
+		arg.ToIpSegment,
 		arg.ID,
 	)
 	return err

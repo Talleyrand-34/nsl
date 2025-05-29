@@ -50,11 +50,13 @@ func genericUpdateHandler[T any](
 func updateConnectionHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
-			ID         string `json:"id"`
-			FromDevice string `json:"from_device"`
-			FromPort   string `json:"from_port"`
-			ToDevice   string `json:"to_device"`
-			ToPort     string `json:"to_port"`
+			ID            string `json:"id"`
+			FromDevice    string `json:"from_device"`
+			FromPort      string `json:"from_port"`
+			FromIPSegment string `json:"from_ip_segment"`
+			ToDevice      string `json:"to_device"`
+			ToPort        string `json:"to_port"`
+			ToIPSegment   string `json:"to_ip_segment"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -64,7 +66,7 @@ func updateConnectionHandler(service q.NetServiceInt) http.HandlerFunc {
 			http.Error(w, "id is required", http.StatusBadRequest)
 			return
 		}
-		if err := service.UpdateConnection(req.ID, req.FromDevice, req.FromPort, req.ToDevice, req.ToPort); err != nil {
+		if err := service.UpdateConnection(req.ID, req.FromDevice, req.FromPort, req.FromIPSegment, req.ToDevice, req.ToPort, req.ToIPSegment); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}

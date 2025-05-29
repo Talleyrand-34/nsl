@@ -11,8 +11,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $connectionId = trim($_POST['connection_id'] ?? '');
     $fromDeviceId = $_POST['from_device_id'] ?? '';
     $fromModelPortId = $_POST['from_modelport_id'] ?? '';
+    $fromIPSegment = $_POST['from_ip_segment'] ?? '';
     $toDeviceId = $_POST['to_device_id'] ?? '';
     $toModelPortId = $_POST['to_modelport_id'] ?? '';
+    $toIPSegment = $_POST['to_ip_segment'] ?? '';
 
     if ($connectionId === '') {
         $message = 'Please select a connection to update.';
@@ -29,8 +31,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'id' => $connectionId,
             'from_device' => $fromDeviceId,
             'from_port' => $fromModelPortId,
+            'from_ip_segment' => $fromIPSegment,
             'to_device' => $toDeviceId,
-            'to_port' => $toModelPortId
+            'to_port' => $toModelPortId,
+            'to_ip_segment' => $toIPSegment
         ]);
 
         $ch = curl_init(CONNECTIONS_ENDPOINT);
@@ -72,8 +76,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php foreach ($connections as $connection): ?>
                 <option value="<?= htmlspecialchars($connection['id']) ?>">
                     ID: <?= htmlspecialchars($connection['id']) ?> 
-                    (From: <?= htmlspecialchars($connection['from_device'] ?? 'N/A') ?> 
-                    To: <?= htmlspecialchars($connection['to_device'] ?? 'N/A') ?>)
+                    (From: <?= htmlspecialchars($connection['fromdevice'] ?? 'N/A') ?> 
+                    To: <?= htmlspecialchars($connection['todevice'] ?? 'N/A') ?>)
                 </option>
             <?php endforeach; ?>
         </select><br><br>
@@ -117,6 +121,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </option>
             <?php endforeach; ?>
         </select><br><br>
+
+        <label for="from_ip_segment">Source IP Segment (optional):</label>
+        <input type="text" id="from_ip_segment" name="from_ip_segment" 
+               placeholder="e.g., 192.168.1.0/24"><br><br>
+
+        <label for="to_ip_segment">Destination IP Segment (optional):</label>
+        <input type="text" id="to_ip_segment" name="to_ip_segment" 
+               placeholder="e.g., 10.0.1.0/24"><br><br>
 
         <button type="submit">Update Connection</button>
     </form>

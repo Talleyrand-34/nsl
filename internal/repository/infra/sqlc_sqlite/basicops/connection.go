@@ -39,12 +39,23 @@ func (r BasicOpsSQLiteRepository) GetConnections() ([]e.Connection, error) {
 
 	result := make([]e.Connection, 0, len(models))
 	for _, row := range models {
+		fromIPSegment := ""
+		if row.FromIpSegment.Valid {
+			fromIPSegment = row.FromIpSegment.String
+		}
+		toIPSegment := ""
+		if row.ToIpSegment.Valid {
+			toIPSegment = row.ToIpSegment.String
+		}
+
 		model := e.Connection{
 			ID:            int(row.ID),
 			FromDevice:    row.Fromdevname.String,
 			FromModelPort: row.Frommodelportname.String,
+			FromIPSegment: fromIPSegment,
 			ToDevice:      row.Todevname.String,
 			ToModelPort:   row.Tomodelportname.String,
+			ToIPSegment:   toIPSegment,
 			FromZoneID:    int(row.Fromzoneid.Int64),
 			FromZoneName:  row.Fromzonename.String,
 			ToZoneID:      int(row.Tozoneid.Int64),
@@ -105,8 +116,10 @@ func (r BasicOpsSQLiteRepository) GetConnections() ([]e.Connection, error) {
 func (r BasicOpsSQLiteRepository) AddConnection(
 	fromDevice string,
 	fromModelPort string,
+	fromIPSegment string,
 	toDevice string,
 	toModelPort string,
+	toIPSegment string,
 ) error {
 	ctx := context.Background()
 
@@ -148,12 +161,24 @@ func (r BasicOpsSQLiteRepository) AddConnection(
 		return err
 	}
 
-	// Prepare and add the new connection (as before)
+	// Handle nullable IP segments
+	var fromIPNullable sql.NullString
+	if fromIPSegment != "" {
+		fromIPNullable = sql.NullString{String: fromIPSegment, Valid: true}
+	}
+	var toIPNullable sql.NullString
+	if toIPSegment != "" {
+		toIPNullable = sql.NullString{String: toIPSegment, Valid: true}
+	}
+
+	// Prepare and add the new connection
 	addConnParams := d.AddConnectionParams{
 		FromDevicePortDeviceID:    int64(sfromDevice),
 		FromDevicePortModelPortID: int64(sfromModelPort),
+		FromIpSegment:             fromIPNullable,
 		ToDevicePortDeviceID:      int64(stoDevice),
 		ToDevicePortModelPortID:   int64(stoModelPort),
+		ToIpSegment:               toIPNullable,
 	}
 	if err := r.query.AddConnection(ctx, addConnParams); err != nil {
 		return fmt.Errorf("failed to create connection: %v", err)
@@ -209,13 +234,15 @@ func (r BasicOpsSQLiteRepository) DeleteConnection(id string) error {
 	return nil
 }
 
-// DeleteConnection deletes a zone from the database by its integer ID
+// UpdateConnection updates a connection in the database by its integer ID
 func (r BasicOpsSQLiteRepository) UpdateConnection(
 	id string,
 	from_device string,
 	from_port string,
+	from_ip_segment string,
 	to_device string,
 	to_port string,
+	to_ip_segment string,
 ) error {
 	ctx := context.Background()
 	// Helper function to parse string to int64
@@ -248,12 +275,24 @@ func (r BasicOpsSQLiteRepository) UpdateConnection(
 		return fmt.Errorf("UpdateConnection: %w", err)
 	}
 
+	// Handle nullable IP segments
+	var fromIPNullable sql.NullString
+	if from_ip_segment != "" {
+		fromIPNullable = sql.NullString{String: from_ip_segment, Valid: true}
+	}
+	var toIPNullable sql.NullString
+	if to_ip_segment != "" {
+		toIPNullable = sql.NullString{String: to_ip_segment, Valid: true}
+	}
+
 	construct := d.UpdateConnectionParams{
 		ID:                        intID,
 		FromDevicePortDeviceID:    fromDeviceID,
 		FromDevicePortModelPortID: fromPortID,
+		FromIpSegment:             fromIPNullable,
 		ToDevicePortDeviceID:      toDeviceID,
 		ToDevicePortModelPortID:   toPortID,
+		ToIpSegment:               toIPNullable,
 	}
 
 	if err := r.query.UpdateConnection(ctx, construct); err != nil {

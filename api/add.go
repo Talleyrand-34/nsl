@@ -216,6 +216,7 @@ func addModelPortHandler(service q.NetServiceInt) http.HandlerFunc {
 type AddDevicePortRequest struct {
 	DeviceID    string `json:"deviceid"`
 	ModelPortID string `json:"modelportid"`
+	MacAddress  string `json:"mac_address"`
 }
 
 func addDevicePortHandler(service q.NetServiceInt) http.HandlerFunc {
@@ -223,7 +224,7 @@ func addDevicePortHandler(service q.NetServiceInt) http.HandlerFunc {
 		service,
 		[]string{"DeviceID", "ModelPortID"},
 		func(service q.NetServiceInt, req *AddDevicePortRequest) error {
-			return service.AddDevicePort(req.DeviceID, req.ModelPortID)
+			return service.AddDevicePort(req.DeviceID, req.ModelPortID, req.MacAddress)
 		},
 	)
 }
@@ -232,8 +233,10 @@ func addDevicePortHandler(service q.NetServiceInt) http.HandlerFunc {
 type AddConnectionRequest struct {
 	FromDevice    string `json:"fromDevice"`
 	FromModelPort string `json:"fromModelPort"`
+	FromIPSegment string `json:"fromIPSegment"`
 	ToDevice      string `json:"toDevice"`
 	ToModelPort   string `json:"toModelPort"`
+	ToIPSegment   string `json:"toIPSegment"`
 }
 
 func addConnectionHandler(service q.NetServiceInt) http.HandlerFunc {
@@ -244,8 +247,10 @@ func addConnectionHandler(service q.NetServiceInt) http.HandlerFunc {
 			return service.AddConnection(
 				req.FromDevice,
 				req.FromModelPort,
+				req.FromIPSegment,
 				req.ToDevice,
 				req.ToModelPort,
+				req.ToIPSegment,
 			)
 		},
 	)

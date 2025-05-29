@@ -22,10 +22,12 @@ func (r SQLiteRepository) UpdateConnection(
 	id string,
 	fromDevice string,
 	fromPort string,
+	fromIPSegment string,
 	toDevice string,
 	toPort string,
+	toIPSegment string,
 ) error {
-	return r.basicops.UpdateConnection(id, fromDevice, fromPort, toDevice, toPort)
+	return r.basicops.UpdateConnection(id, fromDevice, fromPort, fromIPSegment, toDevice, toPort, toIPSegment)
 }
 
 func (r SQLiteRepository) UpdateBrand(brandId string, newBrandName string) error {
