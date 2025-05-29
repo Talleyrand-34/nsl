@@ -49,6 +49,17 @@ $actionFiles = [
     'updatemodelport' => 'action/updatemodelport.php',
     'updateconnections' => 'action/updateconnections.php',
     'updateconnectiontype' => 'action/updateconnectiontype.php',
+    // DELETE actions
+    'deletebrand' => 'action/deletebrand.php',
+    'deletedevclass' => 'action/deletedevclass.php',
+    'deleteproprietary' => 'action/deleteproprietary.php',
+    'deletezonetype' => 'action/deletezonetype.php',
+    'deletezone' => 'action/deletezone.php',
+    'deletemodeldevice' => 'action/deletemodeldevice.php',
+    'deletedevice' => 'action/deletedevice.php',
+    'deletemodelport' => 'action/deletemodelport.php',
+    'deleteconnections' => 'action/deleteconnections.php',
+    'deleteconnectiontype' => 'action/deleteconnectiontype.php',
     // Add more as needed
 ];
 // $selectedAction = $_GET['action'] ?? 'getbrand';
@@ -133,6 +144,7 @@ $actionFiles = [
                     <option value="get" <?= $actionType == 'get' ? 'selected' : '' ?>>Get</option>
                     <option value="add" <?= $actionType == 'add' ? 'selected' : '' ?>>Add</option>
                     <option value="update" <?= $actionType == 'update' ? 'selected' : '' ?>>Update</option>
+                    <option value="delete" <?= $actionType == 'delete' ? 'selected' : '' ?>>Delete</option>
                 </select>
 
                 <label for="entity">Choose entity:</label>
