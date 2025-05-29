@@ -114,19 +114,20 @@ const addDevicePort = `-- name: AddDevicePort :exec
 ;
 
 INSERT INTO DevicePort (
-	device_id,model_port_id
+	device_id,model_port_id,mac_address
 ) VALUES (
-	?,?
+	?,?,?
 )
 `
 
 type AddDevicePortParams struct {
 	DeviceID    int64
 	ModelPortID int64
+	MacAddress  sql.NullString
 }
 
 func (q *Queries) AddDevicePort(ctx context.Context, arg AddDevicePortParams) error {
-	_, err := q.db.ExecContext(ctx, addDevicePort, arg.DeviceID, arg.ModelPortID)
+	_, err := q.db.ExecContext(ctx, addDevicePort, arg.DeviceID, arg.ModelPortID, arg.MacAddress)
 	return err
 }
 
@@ -384,7 +385,7 @@ func (q *Queries) BasicGetDeviceClasses(ctx context.Context) ([]Deviceclass, err
 }
 
 const basicGetDevicePorts = `-- name: BasicGetDevicePorts :many
-SELECT model_port_id, device_id
+SELECT model_port_id, device_id, mac_address
 FROM DevicePort
 `
 
@@ -397,7 +398,7 @@ func (q *Queries) BasicGetDevicePorts(ctx context.Context) ([]Deviceport, error)
 	var items []Deviceport
 	for rows.Next() {
 		var i Deviceport
-		if err := rows.Scan(&i.ModelPortID, &i.DeviceID); err != nil {
+		if err := rows.Scan(&i.ModelPortID, &i.DeviceID, &i.MacAddress); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -1119,7 +1120,7 @@ func (q *Queries) GetDeviceId(ctx context.Context, label string) (int64, error) 
 
 const getDevicePorts = `-- name: GetDevicePorts :many
 
-SELECT dp.device_id,dp.model_port_id,mp.name,d.label,mp.positionx,mp.positiony
+SELECT dp.device_id,dp.model_port_id,dp.mac_address,mp.name,d.label,mp.positionx,mp.positiony
 FROM DevicePort dp
 LEFT JOIN ModelPort mp on dp.model_port_id=mp.id 
 LEFT JOIN Device d on dp.device_id=d.id
@@ -1128,6 +1129,7 @@ LEFT JOIN Device d on dp.device_id=d.id
 type GetDevicePortsRow struct {
 	DeviceID    int64
 	ModelPortID int64
+	MacAddress  sql.NullString
 	Name        sql.NullString
 	Label       sql.NullString
 	Positionx   sql.NullInt64
@@ -1147,6 +1149,7 @@ func (q *Queries) GetDevicePorts(ctx context.Context) ([]GetDevicePortsRow, erro
 		if err := rows.Scan(
 			&i.DeviceID,
 			&i.ModelPortID,
+			&i.MacAddress,
 			&i.Name,
 			&i.Label,
 			&i.Positionx,

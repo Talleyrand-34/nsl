@@ -123,7 +123,7 @@ type NetServiceInt interface {
 	DeleteModelPort(modelPortId string) error
 
 	// DevicePort operations
-	AddDevicePort(deviceId string, modelPortId string) error
+	AddDevicePort(deviceId string, modelPortId string, macAddress string) error
 	GetDevicePorts() ([]e.DevicePort, error)
 	DeleteDevicePort(deviceId string, modelPortId string) error
 
@@ -257,8 +257,9 @@ func (ns *NetService) GetDevicePorts() ([]e.DevicePort, error) {
 func (ns *NetService) AddDevicePort(
 	deviceid string,
 	modelportid string,
+	macAddress string,
 ) error {
-	return ns.netRepo.AddDevicePort(deviceid, modelportid)
+	return ns.netRepo.AddDevicePort(deviceid, modelportid, macAddress)
 }
 
 func (ns *NetService) AddConnectionType(connectionTypeName string) error {

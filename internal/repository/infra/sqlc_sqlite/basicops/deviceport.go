@@ -18,6 +18,7 @@ package basicops
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strconv"
 
@@ -27,8 +28,8 @@ import (
 	d "nsl-graph/internal/repository/infra/sqlc_sqlite/internal_sqlc_sqlite"
 )
 
-// AddBrand adds a new brand to the database
-func (r BasicOpsSQLiteRepository) AddDevicePort(deviceid string, modelportid string) error {
+// AddDevicePort adds a new device port to the database
+func (r BasicOpsSQLiteRepository) AddDevicePort(deviceid string, modelportid string, macAddress string) error {
 	ctx := context.Background()
 	sdeviceid, err := strconv.Atoi(deviceid)
 	if err != nil {
@@ -46,9 +47,17 @@ func (r BasicOpsSQLiteRepository) AddDevicePort(deviceid string, modelportid str
 	if err != nil {
 		return fmt.Errorf("Succesfully rejected non valid port: %v", err)
 	}
+	
+	// Handle nullable mac_address
+	var macAddressNullable sql.NullString
+	if macAddress != "" {
+		macAddressNullable = sql.NullString{String: macAddress, Valid: true}
+	}
+	
 	devportstruct := d.AddDevicePortParams{
 		DeviceID:    int64(sdeviceid),
 		ModelPortID: int64(smodelportid),
+		MacAddress:  macAddressNullable,
 	}
 	execErr := r.query.AddDevicePort(ctx, devportstruct)
 	if execErr != nil {
@@ -66,13 +75,18 @@ func (r BasicOpsSQLiteRepository) GetDevicePorts() ([]e.DevicePort, error) {
 	}
 	result := make([]e.DevicePort, 0, len(devports))
 	for _, row := range devports {
+		macAddress := ""
+		if row.MacAddress.Valid {
+			macAddress = row.MacAddress.String
+		}
 		model := e.DevicePort{
-			DeviceID:  int(row.DeviceID),
-			ModelID:   int(row.ModelPortID),
-			DevLabel:  row.Label.String,
-			PortName:  row.Name.String,
-			Positionx: int(row.Positionx.Int64),
-			Positiony: int(row.Positiony.Int64),
+			DeviceID:   int(row.DeviceID),
+			ModelID:    int(row.ModelPortID),
+			MacAddress: macAddress,
+			DevLabel:   row.Label.String,
+			PortName:   row.Name.String,
+			Positionx:  int(row.Positionx.Int64),
+			Positiony:  int(row.Positiony.Int64),
 		}
 		result = append(result, model)
 	}

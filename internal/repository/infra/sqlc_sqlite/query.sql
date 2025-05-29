@@ -255,7 +255,7 @@ WHERE id = ?;
 --- DevicePort
 
 -- name: GetDevicePorts :many
-SELECT dp.device_id,dp.model_port_id,mp.name,d.label,mp.positionx,mp.positiony
+SELECT dp.device_id,dp.model_port_id,dp.mac_address,mp.name,d.label,mp.positionx,mp.positiony
 FROM DevicePort dp
 LEFT JOIN ModelPort mp on dp.model_port_id=mp.id 
 LEFT JOIN Device d on dp.device_id=d.id 
@@ -263,9 +263,9 @@ LEFT JOIN Device d on dp.device_id=d.id
 
 -- name: AddDevicePort :exec
 INSERT INTO DevicePort (
-	device_id,model_port_id
+	device_id,model_port_id,mac_address
 ) VALUES (
-	?,?
+	?,?,?
 );
 
 -- name: DeleteDevicePort :exec
@@ -423,7 +423,7 @@ SELECT id, label, model_id, zone_id, proprietary
 FROM Device;
 
 -- name: BasicGetDevicePorts :many
-SELECT model_port_id, device_id
+SELECT model_port_id, device_id, mac_address
 FROM DevicePort;
 
 -- name: BasicGetConnectionTypes :many

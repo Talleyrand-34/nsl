@@ -73,8 +73,8 @@ func (r SQLiteRepository) AddModelPort(
 	return r.basicops.AddModelPort(name, posx, posy, modelName)
 }
 
-func (r SQLiteRepository) AddDevicePort(deviceid string, modelportid string) error {
-	return r.basicops.AddDevicePort(deviceid, modelportid)
+func (r SQLiteRepository) AddDevicePort(deviceid string, modelportid string, macAddress string) error {
+	return r.basicops.AddDevicePort(deviceid, modelportid, macAddress)
 }
 
 func (r SQLiteRepository) AddConnectionType(connectionTypeName string) error {

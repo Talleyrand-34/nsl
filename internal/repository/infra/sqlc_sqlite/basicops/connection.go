@@ -130,17 +130,17 @@ func (r BasicOpsSQLiteRepository) AddConnection(
 
 	// Try to create DevicePort for both ends
 	// If it already exists, ignore the error
-	if err := r.AddDevicePort(fromDevice, fromModelPort); err != nil {
-		// Only ignore "already exists" error, propagate others
-		if !isUniqueConstraintError(err) {
-			return fmt.Errorf("failed to create DevicePort (from): %v", err)
-		}
-	}
-	if err := r.AddDevicePort(toDevice, toModelPort); err != nil {
-		if !isUniqueConstraintError(err) {
-			return fmt.Errorf("failed to create DevicePort (to): %v", err)
-		}
-	}
+	// if err := r.AddDevicePort(fromDevice, fromModelPort, ""); err != nil {
+	// 	// Only ignore "already exists" error, propagate others
+	// 	if !isUniqueConstraintError(err) {
+	// 		return fmt.Errorf("failed to create DevicePort (from): %v", err)
+	// 	}
+	// }
+	// if err := r.AddDevicePort(toDevice, toModelPort, ""); err != nil {
+	// 	if !isUniqueConstraintError(err) {
+	// 		return fmt.Errorf("failed to create DevicePort (to): %v", err)
+	// 	}
+	// }
 
 	// Validate connection (as before)
 	err = validInputConnection(ctx, r, sfromDevice, sfromModelPort, stoDevice, stoModelPort)

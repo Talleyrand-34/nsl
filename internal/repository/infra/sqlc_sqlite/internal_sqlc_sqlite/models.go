@@ -53,6 +53,7 @@ type Deviceclass struct {
 type Deviceport struct {
 	ModelPortID int64
 	DeviceID    int64
+	MacAddress  sql.NullString
 }
 
 type Modeldevice struct {

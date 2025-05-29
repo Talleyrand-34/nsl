@@ -90,6 +90,7 @@ CREATE TABLE Device (
 CREATE TABLE DevicePort (
     model_port_id INTEGER NOT NULL,
     device_id INTEGER NOT NULL,
+    mac_address VARCHAR,
     PRIMARY KEY (model_port_id, device_id),
     FOREIGN KEY (model_port_id) REFERENCES ModelPort (id),
     FOREIGN KEY (device_id) REFERENCES Device (id)

@@ -38,6 +38,8 @@ $actionFiles = [
     'addconnections' => 'action/addconnections.php',
     'getconnectiontype' => 'action/getconnectiontype.php',
     'addconnectiontype' => 'action/addconnectiontype.php',
+    'getdeviceport' => 'action/getdeviceport.php',
+    'adddeviceport' => 'action/adddeviceport.php',
     // UPDATE actions
     'updatebrand' => 'action/updatebrand.php',
     'updatedevclass' => 'action/updatedevclass.php',
@@ -58,6 +60,7 @@ $actionFiles = [
     'deletemodeldevice' => 'action/deletemodeldevice.php',
     'deletedevice' => 'action/deletedevice.php',
     'deletemodelport' => 'action/deletemodelport.php',
+    'deletedeviceport' => 'action/deletedeviceport.php',
     'deleteconnections' => 'action/deleteconnections.php',
     'deleteconnectiontype' => 'action/deleteconnectiontype.php',
     // Add more as needed
@@ -157,6 +160,7 @@ $actionFiles = [
                     <option value="modeldevice" <?= $entity == 'modeldevice' ? 'selected' : '' ?>>Model</option>
                     <option value="device" <?= $entity == 'device' ? 'selected' : '' ?>>Device</option>
                     <option value="modelport" <?= $entity == 'modelport' ? 'selected' : '' ?>>ModelPort</option>
+                    <option value="deviceport" <?= $entity == 'deviceport' ? 'selected' : '' ?>>DevicePort</option>
                     <option value="connections" <?= $entity == 'connections' ? 'selected' : '' ?>>connections</option>
                     <option value="connectiontype" <?= $entity == 'connectiontype' ? 'selected' : '' ?>>connectiontypes</option>
                     <!-- Add more entities as needed -->

@@ -115,7 +115,7 @@ type repository interface {
 	DeleteModelPort(modelPortId string) error
 
 	// DevicePort interaction
-	AddDevicePort(deviceId string, modelPortId string) error
+	AddDevicePort(deviceId string, modelPortId string, macAddress string) error
 	GetDevicePorts() ([]e.DevicePort, error)
 	DeleteDevicePort(deviceId string, modelPortId string) error
 

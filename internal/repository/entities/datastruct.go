@@ -62,12 +62,13 @@ type Device struct {
 
 // DevicePort This struct contains the info about ports asociated to a device since the information is contained in the model
 type DevicePort struct {
-	DeviceID  int    `json:"devid"`
-	ModelID   int    `json:"modelid"`
-	PortName  string `json:"portname"`
-	DevLabel  string `json:"devname"`
-	Positionx int    `json:"positionx"`
-	Positiony int    `json:"positiony"`
+	DeviceID   int    `json:"devid"`
+	ModelID    int    `json:"modelid"`
+	MacAddress string `json:"mac_address"`
+	PortName   string `json:"portname"`
+	DevLabel   string `json:"devname"`
+	Positionx  int    `json:"positionx"`
+	Positiony  int    `json:"positiony"`
 }
 
 // Connection This struct contains the info about a connection
