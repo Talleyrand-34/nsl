@@ -47,7 +47,8 @@ func (r BasicOpsSQLiteRepository) GetBrands() ([]e.Brand, error) {
 	result := make([]e.Brand, 0, len(brands))
 	for _, row := range brands {
 		brand := e.Brand{
-			Name: row,
+			ID:   row.ID,
+			Name: row.Brand,
 		}
 		result = append(result, brand)
 	}

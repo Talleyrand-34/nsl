@@ -36,20 +36,21 @@ func (r BasicOpsSQLiteRepository) AddConnectionType(connectiontypes string) erro
 	return nil
 }
 
-// GetBrands gets all the brands available
+// GetConnectionTypes gets all the connection types available
 func (r BasicOpsSQLiteRepository) GetConnectionTypes() ([]e.ConnectionType, error) {
 	ctx := context.Background()
-	brands, execErr := r.query.GetConnectionTypes(ctx)
+	connectionTypes, execErr := r.query.GetConnectionTypes(ctx)
 	if execErr != nil {
 		return []e.ConnectionType{}, execErr
 	}
 
-	result := make([]e.ConnectionType, 0, len(brands))
-	for _, row := range brands {
-		cts := e.ConnectionType{
-			Name: row,
+	result := make([]e.ConnectionType, 0, len(connectionTypes))
+	for _, row := range connectionTypes {
+		connectionType := e.ConnectionType{
+			ID:   row.ID,
+			Name: row.ConnectionType,
 		}
-		result = append(result, cts)
+		result = append(result, connectionType)
 	}
 	return result, nil
 }

@@ -37,7 +37,7 @@ func (r BasicOpsSQLiteRepository) AddZoneType(zoneName string) error {
 	return nil
 }
 
-// deviceclass
+// GetZonetypes gets all the zone types available
 func (r BasicOpsSQLiteRepository) GetZonetypes() ([]e.ZoneType, error) {
 	ctx := context.Background()
 	zonetypes, execErr := r.query.GetZoneTypes(ctx)
@@ -47,7 +47,8 @@ func (r BasicOpsSQLiteRepository) GetZonetypes() ([]e.ZoneType, error) {
 	result := make([]e.ZoneType, 0, len(zonetypes))
 	for _, row := range zonetypes {
 		zonetype := e.ZoneType{
-			Name: row,
+			ID:   row.ID,
+			Name: row.LocationType,
 		}
 		result = append(result, zonetype)
 	}

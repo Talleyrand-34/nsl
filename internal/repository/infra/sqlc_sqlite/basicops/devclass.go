@@ -36,7 +36,7 @@ func (r BasicOpsSQLiteRepository) AddDeviceClass(devClassName string) error {
 	return nil
 }
 
-// GetDeviceClasses gets all the brands available
+// GetDeviceClasses gets all the device classes available
 func (r BasicOpsSQLiteRepository) GetDeviceClasses() ([]e.DevClass, error) {
 	ctx := context.Background()
 	devclasses, execErr := r.query.GetDeviceClasses(ctx)
@@ -46,7 +46,8 @@ func (r BasicOpsSQLiteRepository) GetDeviceClasses() ([]e.DevClass, error) {
 	result := make([]e.DevClass, 0, len(devclasses))
 	for _, row := range devclasses {
 		singleDevClass := e.DevClass{
-			Name: row,
+			ID:   row.ID,
+			Name: row.Name,
 		}
 		result = append(result, singleDevClass)
 	}

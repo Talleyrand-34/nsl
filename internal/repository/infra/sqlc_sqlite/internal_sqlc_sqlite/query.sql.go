@@ -821,23 +821,23 @@ func (q *Queries) GetBrandId(ctx context.Context, brand string) (int64, error) {
 }
 
 const getBrands = `-- name: GetBrands :many
-SELECT brand
+SELECT id, brand
 FROM brand
 `
 
-func (q *Queries) GetBrands(ctx context.Context) ([]string, error) {
+func (q *Queries) GetBrands(ctx context.Context) ([]Brand, error) {
 	rows, err := q.db.QueryContext(ctx, getBrands)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []string
+	var items []Brand
 	for rows.Next() {
-		var brand string
-		if err := rows.Scan(&brand); err != nil {
+		var i Brand
+		if err := rows.Scan(&i.ID, &i.Brand); err != nil {
 			return nil, err
 		}
-		items = append(items, brand)
+		items = append(items, i)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -927,24 +927,24 @@ func (q *Queries) GetConnectionId(ctx context.Context, arg GetConnectionIdParams
 }
 
 const getConnectionTypes = `-- name: GetConnectionTypes :many
-SELECT connection_type
+SELECT id, connection_type
 FROM ConnectionType
 `
 
 // - ConnectionType
-func (q *Queries) GetConnectionTypes(ctx context.Context) ([]string, error) {
+func (q *Queries) GetConnectionTypes(ctx context.Context) ([]Connectiontype, error) {
 	rows, err := q.db.QueryContext(ctx, getConnectionTypes)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []string
+	var items []Connectiontype
 	for rows.Next() {
-		var connection_type string
-		if err := rows.Scan(&connection_type); err != nil {
+		var i Connectiontype
+		if err := rows.Scan(&i.ID, &i.ConnectionType); err != nil {
 			return nil, err
 		}
-		items = append(items, connection_type)
+		items = append(items, i)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -1030,24 +1030,24 @@ func (q *Queries) GetConnections(ctx context.Context) ([]GetConnectionsRow, erro
 
 const getDeviceClasses = `-- name: GetDeviceClasses :many
 
-SELECT name
+SELECT id, name
 FROM DeviceClass
 `
 
 // - DeviceClass
-func (q *Queries) GetDeviceClasses(ctx context.Context) ([]string, error) {
+func (q *Queries) GetDeviceClasses(ctx context.Context) ([]Deviceclass, error) {
 	rows, err := q.db.QueryContext(ctx, getDeviceClasses)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []string
+	var items []Deviceclass
 	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
+		var i Deviceclass
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
 			return nil, err
 		}
-		items = append(items, name)
+		items = append(items, i)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -1390,24 +1390,24 @@ func (q *Queries) GetPossiblePortsDevice(ctx context.Context, id int64) ([]GetPo
 
 const getProprietaries = `-- name: GetProprietaries :many
 
-SELECT proprietary 
+SELECT id, proprietary 
 FROM Proprietary
 `
 
 // - Proprietary
-func (q *Queries) GetProprietaries(ctx context.Context) ([]string, error) {
+func (q *Queries) GetProprietaries(ctx context.Context) ([]Proprietary, error) {
 	rows, err := q.db.QueryContext(ctx, getProprietaries)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []string
+	var items []Proprietary
 	for rows.Next() {
-		var proprietary string
-		if err := rows.Scan(&proprietary); err != nil {
+		var i Proprietary
+		if err := rows.Scan(&i.ID, &i.Proprietary); err != nil {
 			return nil, err
 		}
-		items = append(items, proprietary)
+		items = append(items, i)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -1459,24 +1459,24 @@ func (q *Queries) GetZoneType(ctx context.Context, locationType string) (int64, 
 
 const getZoneTypes = `-- name: GetZoneTypes :many
 
-SELECT location_type
+SELECT id, location_type
 FROM Zonetype
 `
 
 // - ZoneTypes
-func (q *Queries) GetZoneTypes(ctx context.Context) ([]string, error) {
+func (q *Queries) GetZoneTypes(ctx context.Context) ([]Zonetype, error) {
 	rows, err := q.db.QueryContext(ctx, getZoneTypes)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []string
+	var items []Zonetype
 	for rows.Next() {
-		var location_type string
-		if err := rows.Scan(&location_type); err != nil {
+		var i Zonetype
+		if err := rows.Scan(&i.ID, &i.LocationType); err != nil {
 			return nil, err
 		}
-		items = append(items, location_type)
+		items = append(items, i)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err

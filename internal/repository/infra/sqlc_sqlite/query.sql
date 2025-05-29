@@ -1,5 +1,5 @@
 -- name: GetBrands :many
-SELECT brand
+SELECT id, brand
 FROM brand;
 
 -- name: AddBrand :exec
@@ -21,7 +21,7 @@ UPDATE brand SET brand = ? where id=?;
 --- DeviceClass
 
 -- name: GetDeviceClasses :many
-SELECT name
+SELECT id, name
 FROM DeviceClass;
 
 -- name: AddDeviceClass :exec
@@ -42,7 +42,7 @@ UPDATE deviceclass SET name = ? where id=?;
 --- ZoneTypes
 
 -- name: GetZoneTypes :many
-SELECT location_type
+SELECT id, location_type
 FROM Zonetype;
 
 -- name: GetZoneType :one
@@ -69,7 +69,7 @@ DELETE FROM Zonetype WHERE location_type = ?;
 --- Proprietary
 
 -- name: GetProprietaries :many
-SELECT proprietary 
+SELECT id, proprietary 
 FROM Proprietary;
 
 -- name: GetProprietary :one
@@ -273,7 +273,7 @@ DELETE FROM DevicePort WHERE device_id = ? AND model_port_id = ?;
 
 --- ConnectionType
 -- name: GetConnectionTypes :many
-SELECT connection_type
+SELECT id, connection_type
 FROM ConnectionType;
 
 -- name: AddConnectinType :exec

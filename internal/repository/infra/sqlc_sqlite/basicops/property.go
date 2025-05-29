@@ -37,7 +37,7 @@ func (r BasicOpsSQLiteRepository) AddProprietary(proprietary string) error {
 	return nil
 }
 
-// deviceclass
+// GetProperties gets all the proprietaries available
 func (r BasicOpsSQLiteRepository) GetProperties() ([]e.Proprietary, error) {
 	ctx := context.Background()
 	proprietaries, execErr := r.query.GetProprietaries(ctx)
@@ -46,10 +46,11 @@ func (r BasicOpsSQLiteRepository) GetProperties() ([]e.Proprietary, error) {
 	}
 	result := make([]e.Proprietary, 0, len(proprietaries))
 	for _, row := range proprietaries {
-		brand := e.Proprietary{
-			Name: row,
+		proprietary := e.Proprietary{
+			ID:   row.ID,
+			Name: row.Proprietary,
 		}
-		result = append(result, brand)
+		result = append(result, proprietary)
 	}
 	return result, nil
 }

@@ -85,25 +85,30 @@ type Connection struct {
 
 // Brand represents a brand
 type Brand struct {
+	ID   int64  `json:"id"`
 	Name string `json:"name"`
 }
 
 // DevClass represents the class of a device
 type DevClass struct {
+	ID   int64  `json:"id"`
 	Name string `json:"name"`
 }
 
 // Proprietary represents a proprietary of a device o zone
 type Proprietary struct {
+	ID   int64  `json:"id"`
 	Name string `json:"name"`
 }
 
 // ZoneType represents the type of zone a zone can be
 type ZoneType struct {
+	ID   int64  `json:"id"`
 	Name string `json:"name"`
 }
 
-// ConnectionType represents the type of zone a zone can be
+// ConnectionType represents the type of connection a connection can be
 type ConnectionType struct {
+	ID   int64  `json:"id"`
 	Name string `json:"name"`
 }
