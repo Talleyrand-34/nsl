@@ -1,7 +1,3 @@
----- Getters and setters for each table
-
---- Brand
-
 -- name: GetBrands :many
 SELECT brand
 FROM brand;
@@ -16,8 +12,12 @@ INSERT INTO brand (
 -- name: GetBrandId :one
 SELECT id FROM Brand WHERE brand = ? LIMIT 1;
 	
+
 -- name: DeleteBrand :exec
 DELETE FROM Brand WHERE brand = ?;
+
+-- name: UpdateBrand :exec
+UPDATE brand SET brand = ? where id=?;
 --- DeviceClass
 
 -- name: GetDeviceClasses :many
@@ -37,6 +37,8 @@ SELECT id FROM DeviceClass WHERE name = ? LIMIT 1;
 -- name: DeleteDeviceClass :exec
 DELETE FROM DeviceClass WHERE name = ?;
 
+-- name: UpdateDeviceClass :exec
+UPDATE deviceclass SET name = ? where id=?;
 --- ZoneTypes
 
 -- name: GetZoneTypes :many
@@ -54,6 +56,12 @@ INSERT INTO Zonetype(
 ) VALUES (
   ?	
 );
+
+
+-- name: UpdateZoneType :exec
+UPDATE zonetype 
+SET location_type = ? 
+WHERE id = ?;
 
 -- name: DeleteZoneType :exec
 DELETE FROM Zonetype WHERE location_type = ?;
@@ -77,6 +85,11 @@ INSERT INTO Proprietary(
 
 -- name: DeleteProprietary :exec
 DELETE FROM Proprietary WHERE proprietary = ?;
+
+-- name: UpdateProprietary :exec
+UPDATE proprietary 
+SET proprietary = ? 
+WHERE id = ?;
 
 --- Zone
 
@@ -103,6 +116,11 @@ name,father,location_type,proprietary
 
 -- name: DeleteZone :exec
 DELETE FROM Zone WHERE id = ?;
+
+-- name: UpdateZone :exec
+UPDATE Zone 
+SET name = ?, father = ?, location_type = ?, proprietary = ? 
+WHERE id = ?;
 
 --- Model
 
@@ -137,6 +155,10 @@ INSERT INTO ModelDevice(
 
 -- name: DeleteModel :exec
 DELETE FROM ModelDevice WHERE id = ?;
+-- name: UpdateModelDevice :exec
+UPDATE modeldevice 
+SET model = ?, brand = ?, class_id = ? 
+WHERE id = ?;
 
 --- Device
 
@@ -180,6 +202,11 @@ INSERT INTO Device(
 -- name: DeleteDevice :exec
 DELETE FROM Device WHERE id = ?;
 
+-- name: UpdateDevice :exec
+UPDATE device 
+SET label = ?, model_id = ?, zone_id = ?, proprietary = ? 
+WHERE id = ?;
+
 --- ModelPort
 
 -- name: GetModelPorts :many
@@ -220,6 +247,11 @@ INSERT INTO ModelPort(
 -- name: DeleteModelPort :exec
 DELETE FROM ModelPort WHERE id = ?;
 
+-- name: UpdateModelPort :exec
+UPDATE modelport 
+SET name = ?, positionx = ?, positiony = ?, model_id = ? 
+WHERE id = ?;
+
 --- DevicePort
 
 -- name: GetDevicePorts :many
@@ -250,6 +282,11 @@ INSERT INTO ConnectionType (
 ) VALUES (
 	?
 );
+-- name: UpdateConnectionType :exec
+UPDATE connectiontype 
+SET connection_type = ? 
+WHERE id = ?;
+
 --- Connection
 
 -- name: GetConnections :many
@@ -313,6 +350,8 @@ SET
     to_device_port_model_port_id = ?
 WHERE
     id = ?;
+
+
 -- name: DeleteConnection :exec
 DELETE FROM Connection 
 WHERE
