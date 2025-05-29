@@ -179,6 +179,34 @@ func (q *Queries) AddModelPort(ctx context.Context, arg AddModelPortParams) erro
 	return err
 }
 
+const addPolicy = `-- name: AddPolicy :exec
+INSERT INTO Policy (
+    name,
+    description,
+    associated_connection,
+    TODO
+) VALUES (
+    ?,?,?,?
+)
+`
+
+type AddPolicyParams struct {
+	Name                 string
+	Description          string
+	AssociatedConnection sql.NullInt64
+	Todo                 sql.NullString
+}
+
+func (q *Queries) AddPolicy(ctx context.Context, arg AddPolicyParams) error {
+	_, err := q.db.ExecContext(ctx, addPolicy,
+		arg.Name,
+		arg.Description,
+		arg.AssociatedConnection,
+		arg.Todo,
+	)
+	return err
+}
+
 const addProprietary = `-- name: AddProprietary :exec
 INSERT INTO Proprietary(
 	proprietary 
@@ -732,6 +760,15 @@ func (q *Queries) DeleteConnection(ctx context.Context, id int64) error {
 	return err
 }
 
+const deleteConnectionType = `-- name: DeleteConnectionType :exec
+DELETE FROM ConnectionType WHERE connection_type = ?
+`
+
+func (q *Queries) DeleteConnectionType(ctx context.Context, connectionType string) error {
+	_, err := q.db.ExecContext(ctx, deleteConnectionType, connectionType)
+	return err
+}
+
 const deleteDevice = `-- name: DeleteDevice :exec
 DELETE FROM Device WHERE id = ?
 `
@@ -779,6 +816,15 @@ DELETE FROM ModelPort WHERE id = ?
 
 func (q *Queries) DeleteModelPort(ctx context.Context, id int64) error {
 	_, err := q.db.ExecContext(ctx, deleteModelPort, id)
+	return err
+}
+
+const deletePolicy = `-- name: DeletePolicy :exec
+DELETE FROM Policy WHERE id = ?
+`
+
+func (q *Queries) DeletePolicy(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deletePolicy, id)
 	return err
 }
 
@@ -1316,6 +1362,42 @@ func (q *Queries) GetModels(ctx context.Context) ([]GetModelsRow, error) {
 	return items, nil
 }
 
+const getPolicies = `-- name: GetPolicies :many
+
+SELECT id, name, description, associated_connection, TODO
+FROM Policy
+`
+
+// - Policy operations
+func (q *Queries) GetPolicies(ctx context.Context) ([]Policy, error) {
+	rows, err := q.db.QueryContext(ctx, getPolicies)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Policy
+	for rows.Next() {
+		var i Policy
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Description,
+			&i.AssociatedConnection,
+			&i.Todo,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getPossiblePortsAll = `-- name: GetPossiblePortsAll :many
 
 
@@ -1677,6 +1759,31 @@ func (q *Queries) UpdateModelPort(ctx context.Context, arg UpdateModelPortParams
 		arg.Positionx,
 		arg.Positiony,
 		arg.ModelID,
+		arg.ID,
+	)
+	return err
+}
+
+const updatePolicy = `-- name: UpdatePolicy :exec
+UPDATE policy 
+SET name = ?, description = ?, associated_connection = ?, TODO = ? 
+WHERE id = ?
+`
+
+type UpdatePolicyParams struct {
+	Name                 string
+	Description          string
+	AssociatedConnection sql.NullInt64
+	Todo                 sql.NullString
+	ID                   int64
+}
+
+func (q *Queries) UpdatePolicy(ctx context.Context, arg UpdatePolicyParams) error {
+	_, err := q.db.ExecContext(ctx, updatePolicy,
+		arg.Name,
+		arg.Description,
+		arg.AssociatedConnection,
+		arg.Todo,
 		arg.ID,
 	)
 	return err

@@ -131,6 +131,7 @@ type NetServiceInt interface {
 	AddConnectionType(connectionTypeName string) error
 	GetConnectionTypes() ([]e.ConnectionType, error)
 	UpdateConnectionType(connectionTypeId string, newConnectionTypeName string) error
+	DeleteConnectionType(connectionTypeName string) error
 
 	// Connection operations
 	AddConnection(
@@ -396,6 +397,10 @@ func (ns *NetService) UpdateModelPort(
 
 func (ns *NetService) UpdateConnectionType(connectionTypeId string, newConnectionTypeName string) error {
 	return ns.netRepo.UpdateConnectionType(connectionTypeId, newConnectionTypeName)
+}
+
+func (ns *NetService) DeleteConnectionType(connectionTypeName string) error {
+	return ns.netRepo.DeleteConnectionType(connectionTypeName)
 }
 
 func (ns *NetService) UpdateConnection(

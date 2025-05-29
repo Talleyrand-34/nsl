@@ -287,6 +287,9 @@ UPDATE connectiontype
 SET connection_type = ? 
 WHERE id = ?;
 
+-- name: DeleteConnectionType :exec
+DELETE FROM ConnectionType WHERE connection_type = ?;
+
 --- Connection
 
 -- name: GetConnections :many
@@ -434,6 +437,30 @@ FROM Connection;
 -- name: BasicGetPolicies :many
 SELECT id, name, description, associated_connection, TODO
 FROM Policy;
+
+--- Policy operations
+
+-- name: GetPolicies :many
+SELECT id, name, description, associated_connection, TODO
+FROM Policy;
+
+-- name: AddPolicy :exec
+INSERT INTO Policy (
+    name,
+    description,
+    associated_connection,
+    TODO
+) VALUES (
+    ?,?,?,?
+);
+
+-- name: UpdatePolicy :exec
+UPDATE policy 
+SET name = ?, description = ?, associated_connection = ?, TODO = ? 
+WHERE id = ?;
+
+-- name: DeletePolicy :exec
+DELETE FROM Policy WHERE id = ?;
 
 
 

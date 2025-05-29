@@ -123,6 +123,7 @@ type repository interface {
 	AddConnectionType(connectionTypeName string) error
 	GetConnectionTypes() ([]e.ConnectionType, error)
 	UpdateConnectionType(connectionTypeId string, newConnectionTypeName string) error
+	DeleteConnectionType(connectionTypeName string) error
 
 	// Connection interaction
 	AddConnection(

@@ -57,3 +57,7 @@ func (r SQLiteRepository) DeleteDevicePort(deviceID, modelPortID string) error {
 func (r SQLiteRepository) DeleteConnection(id string) error {
 	return r.basicops.DeleteConnection(id)
 }
+
+func (r SQLiteRepository) DeleteConnectionType(connectionTypeName string) error {
+	return r.basicops.DeleteConnectionType(connectionTypeName)
+}

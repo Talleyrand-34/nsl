@@ -74,3 +74,13 @@ func (r BasicOpsSQLiteRepository) UpdateConnectionType(connectionTypeId string, 
 	}
 	return nil
 }
+
+// DeleteConnectionType deletes a connection type from the database by its name
+func (r BasicOpsSQLiteRepository) DeleteConnectionType(connectionTypeName string) error {
+	ctx := context.Background()
+	execErr := r.query.DeleteConnectionType(ctx, connectionTypeName)
+	if execErr != nil {
+		return execErr
+	}
+	return nil
+}
