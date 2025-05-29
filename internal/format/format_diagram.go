@@ -19,6 +19,7 @@ package format
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	e "nsl-graph/internal/repository/entities"
@@ -193,6 +194,98 @@ func GenerateD2FromStruct(devices []e.Device, connections []e.Connection, zones 
 		d2Devices.WriteString("}\n")
 	}
 
+	return d2Connections.String() + "\n" + d2Devices.String()
+}
+
+func GenerateD2FromStruct2(devices []e.Device, connections []e.Connection, zones []e.Zone) string {
+	zoneFullName := buildZoneFullNameMap(zones)
+	// Build device map
+	deviceMap := make(map[string]*DeviceD2)
+	for _, d := range devices {
+		fullZoneName := zoneFullName[d.ZoneID]
+		key := fullZoneName + "." + d.Name
+		deviceMap[key] = &DeviceD2{
+			ZoneHierarchy: strings.Split(fullZoneName, "."),
+			Label:         d.Name,
+			Shape:         "rectangle",
+			Ports:         make(map[string]DevicePort),
+			PortOrder:     []string{},
+			PortNumMap:    make(map[string]string),
+		}
+	}
+	// Collect ports and preserve insertion order
+	for _, c := range connections {
+		fromFullZone := zoneFullName[c.FromZoneID]
+		toFullZone := zoneFullName[c.ToZoneID]
+		fromKey := fromFullZone + "." + c.FromDevice
+		toKey := toFullZone + "." + c.ToDevice
+		if dev, ok := deviceMap[fromKey]; ok {
+			if _, exists := dev.Ports[c.FromModelPort]; !exists {
+				dev.Ports[c.FromModelPort] = DevicePort{Name: c.FromModelPort}
+				dev.PortOrder = append(dev.PortOrder, c.FromModelPort)
+			}
+		}
+		if dev, ok := deviceMap[toKey]; ok {
+			if _, exists := dev.Ports[c.ToModelPort]; !exists {
+				dev.Ports[c.ToModelPort] = DevicePort{Name: c.ToModelPort}
+				dev.PortOrder = append(dev.PortOrder, c.ToModelPort)
+			}
+		}
+	}
+	// Assign numbered ports per device (e.g., 1-1, 2-1, ...)
+	for _, dev := range deviceMap {
+		for i, portName := range dev.PortOrder {
+			num := fmt.Sprintf("%d-1", i+1)
+			dev.PortNumMap[portName] = num
+		}
+	}
+
+	// Sort connections for better D2 diagram flow
+	sortedConnections := make([]e.Connection, len(connections))
+	copy(sortedConnections, connections)
+
+	sort.Slice(sortedConnections, func(i, j int) bool {
+		// Create full device keys for comparison
+		fromKeyI := zoneFullName[sortedConnections[i].FromZoneID] + "." + sortedConnections[i].FromDevice
+		fromKeyJ := zoneFullName[sortedConnections[j].FromZoneID] + "." + sortedConnections[j].FromDevice
+
+		// First sort by source device
+		if fromKeyI != fromKeyJ {
+			return fromKeyI < fromKeyJ
+		}
+
+		// If same source device, sort by target device
+		toKeyI := zoneFullName[sortedConnections[i].ToZoneID] + "." + sortedConnections[i].ToDevice
+		toKeyJ := zoneFullName[sortedConnections[j].ToZoneID] + "." + sortedConnections[j].ToDevice
+
+		return toKeyI < toKeyJ
+	})
+
+	// Generate D2 connections using sorted connections
+	var d2Connections, d2Devices strings.Builder
+	for _, c := range sortedConnections {
+		fromKey := zoneFullName[c.FromZoneID] + "." + c.FromDevice
+		toKey := zoneFullName[c.ToZoneID] + "." + c.ToDevice
+
+		fromPortNum := deviceMap[fromKey].PortNumMap[c.FromModelPort]
+		toPortNum := deviceMap[toKey].PortNumMap[c.ToModelPort]
+
+		from := fmt.Sprintf("%s.%s", fromKey, fromPortNum)
+		to := fmt.Sprintf("%s.%s", toKey, toPortNum)
+		d2Connections.WriteString(fmt.Sprintf("%s -- %s\n", from, to))
+	}
+
+	// Generate D2 device blocks
+	for key, dev := range deviceMap {
+		d2Devices.WriteString(fmt.Sprintf("%s: {\n", key))
+		d2Devices.WriteString(fmt.Sprintf("  shape: %s\n", dev.Shape))
+		d2Devices.WriteString(fmt.Sprintf("  label: \"%s\"\n", dev.Label))
+		for _, portName := range dev.PortOrder {
+			num := dev.PortNumMap[portName]
+			d2Devices.WriteString(fmt.Sprintf("  %s: \"%s\"\n", num, portName))
+		}
+		d2Devices.WriteString("}\n")
+	}
 	return d2Connections.String() + "\n" + d2Devices.String()
 }
 
