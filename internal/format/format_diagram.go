@@ -272,7 +272,14 @@ func GenerateD2FromStruct2(devices []e.Device, connections []e.Connection, zones
 
 		from := fmt.Sprintf("%s.%s", fromKey, fromPortNum)
 		to := fmt.Sprintf("%s.%s", toKey, toPortNum)
-		d2Connections.WriteString(fmt.Sprintf("%s -- %s\n", from, to))
+
+		// Add IP addresses as comments if they exist
+		var ipComment string
+		if c.FromIPSegment != "" || c.ToIPSegment != "" {
+			ipComment = fmt.Sprintf(": %s -- %s", c.FromIPSegment, c.ToIPSegment)
+		}
+
+		d2Connections.WriteString(fmt.Sprintf("%s -- %s%s\n", from, to, ipComment))
 	}
 
 	// Generate D2 device blocks
