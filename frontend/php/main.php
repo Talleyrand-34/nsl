@@ -38,6 +38,17 @@ $actionFiles = [
     'addconnections' => 'action/addconnections.php',
     'getconnectiontype' => 'action/getconnectiontype.php',
     'addconnectiontype' => 'action/addconnectiontype.php',
+    // UPDATE actions
+    'updatebrand' => 'action/updatebrand.php',
+    'updatedevclass' => 'action/updatedevclass.php',
+    'updateproprietary' => 'action/updateproprietary.php',
+    'updatezonetype' => 'action/updatezonetype.php',
+    'updatezone' => 'action/updatezone.php',
+    'updatemodeldevice' => 'action/updatemodeldevice.php',
+    'updatedevice' => 'action/updatedevice.php',
+    'updatemodelport' => 'action/updatemodelport.php',
+    'updateconnections' => 'action/updateconnections.php',
+    'updateconnectiontype' => 'action/updateconnectiontype.php',
     // Add more as needed
 ];
 // $selectedAction = $_GET['action'] ?? 'getbrand';
@@ -121,6 +132,7 @@ $actionFiles = [
                 <select id="actionType" name="actionType" onchange="this.form.submit()">
                     <option value="get" <?= $actionType == 'get' ? 'selected' : '' ?>>Get</option>
                     <option value="add" <?= $actionType == 'add' ? 'selected' : '' ?>>Add</option>
+                    <option value="update" <?= $actionType == 'update' ? 'selected' : '' ?>>Update</option>
                 </select>
 
                 <label for="entity">Choose entity:</label>

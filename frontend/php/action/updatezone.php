@@ -1,0 +1,112 @@
+<?php
+require_once __DIR__ . '/../config.php';
+$message = '';
+
+// Fetch data for form options
+$zones = json_decode(@file_get_contents(ZONES_ENDPOINT), true) ?: [];
+$zoneTypes = json_decode(@file_get_contents(ZONETYPES_ENDPOINT), true) ?: [];
+$proprietaries = json_decode(@file_get_contents(PROPRIETARIES_ENDPOINT), true) ?: [];
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $zoneId = trim($_POST['zone_id'] ?? '');
+    $newZoneName = trim($_POST['zone_name'] ?? '');
+    $fatherZoneId = $_POST['father_zone_id'] ?? '';
+    $zoneTypeId = $_POST['zone_type_id'] ?? '';
+    $proprietaryId = $_POST['proprietary_id'] ?? '';
+
+    if ($zoneId === '') {
+        $message = 'Please select a zone to update.';
+    } elseif ($newZoneName === '') {
+        $message = 'Please enter a new zone name.';
+    } elseif ($zoneTypeId === '') {
+        $message = 'Please select a zone type.';
+    } elseif ($proprietaryId === '') {
+        $message = 'Please select a proprietary.';
+    } else {
+        $data = json_encode([
+            'id' => $zoneId,
+            'name' => $newZoneName,
+            'father_zone_id' => $fatherZoneId === '' ? null : $fatherZoneId,
+            'zone_type_id' => $zoneTypeId,
+            'proprietary_id' => $proprietaryId
+        ]);
+
+        $ch = curl_init(ZONES_ENDPOINT);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PUT');
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Content-Type: application/json',
+            'Content-Length: ' . strlen($data)
+        ]);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+        if ($httpCode === 200) {
+            $message = 'Zone updated successfully!';
+            // Refresh zones list
+            $zones = json_decode(@file_get_contents(ZONES_ENDPOINT), true) ?: [];
+        } else {
+            $message = 'Failed to update zone. Server response: ' . htmlspecialchars($response);
+        }
+        curl_close($ch);
+    }
+}
+?>
+
+<h2>Update Zone</h2>
+<?php if ($message): ?>
+    <p><strong><?= htmlspecialchars($message) ?></strong></p>
+<?php endif; ?>
+
+<?php if (empty($zones)): ?>
+    <p><em>No zones available to update.</em></p>
+<?php else: ?>
+    <form method="post">
+        <label for="zone_id">Select Zone to Update:</label>
+        <select id="zone_id" name="zone_id" required>
+            <option value="">-- Select Zone --</option>
+            <?php foreach ($zones as $zone): ?>
+                <option value="<?= htmlspecialchars($zone['id']) ?>">
+                    <?= htmlspecialchars($zone['name']) ?> (ID: <?= htmlspecialchars($zone['id']) ?>)
+                </option>
+            <?php endforeach; ?>
+        </select><br><br>
+
+        <label for="zone_name">New Zone Name:</label>
+        <input type="text" id="zone_name" name="zone_name" required><br><br>
+
+        <label for="father_zone_id">Parent Zone (optional):</label>
+        <select id="father_zone_id" name="father_zone_id">
+            <option value="">-- No Parent --</option>
+            <?php foreach ($zones as $zone): ?>
+                <option value="<?= htmlspecialchars($zone['id']) ?>">
+                    <?= htmlspecialchars($zone['name']) ?> (ID: <?= htmlspecialchars($zone['id']) ?>)
+                </option>
+            <?php endforeach; ?>
+        </select><br><br>
+
+        <label for="zone_type_id">Zone Type:</label>
+        <select id="zone_type_id" name="zone_type_id" required>
+            <option value="">-- Select Zone Type --</option>
+            <?php foreach ($zoneTypes as $zoneType): ?>
+                <option value="<?= htmlspecialchars($zoneType['id']) ?>">
+                    <?= htmlspecialchars($zoneType['name']) ?>
+                </option>
+            <?php endforeach; ?>
+        </select><br><br>
+
+        <label for="proprietary_id">Proprietary:</label>
+        <select id="proprietary_id" name="proprietary_id" required>
+            <option value="">-- Select Proprietary --</option>
+            <?php foreach ($proprietaries as $proprietary): ?>
+                <option value="<?= htmlspecialchars($proprietary['id']) ?>">
+                    <?= htmlspecialchars($proprietary['name']) ?>
+                </option>
+            <?php endforeach; ?>
+        </select><br><br>
+
+        <button type="submit">Update Zone</button>
+    </form>
+<?php endif; ?>
