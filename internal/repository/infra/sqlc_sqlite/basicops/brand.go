@@ -18,10 +18,12 @@ package basicops
 
 import (
 	"context"
+	"strconv"
 
 	_ "modernc.org/sqlite" // This imports is the sqlite driver needed to access the db
 
 	e "nsl-graph/internal/repository/entities"
+	d "nsl-graph/internal/repository/infra/sqlc_sqlite/internal_sqlc_sqlite"
 )
 
 // AddBrand adds a new brand to the database
@@ -50,6 +52,26 @@ func (r BasicOpsSQLiteRepository) GetBrands() ([]e.Brand, error) {
 		result = append(result, brand)
 	}
 	return result, nil
+}
+
+// UpdateBrand updates a brand in the database by its ID
+func (r BasicOpsSQLiteRepository) UpdateBrand(brandId string, newBrandName string) error {
+	ctx := context.Background()
+
+	// Convert string ID to int64
+	id, err := strconv.ParseInt(brandId, 10, 64)
+	if err != nil {
+		return err
+	}
+
+	execErr := r.query.UpdateBrand(ctx, d.UpdateBrandParams{
+		Brand: newBrandName,
+		ID:    id,
+	})
+	if execErr != nil {
+		return execErr
+	}
+	return nil
 }
 
 // DeleteBrand deletes a brand from the database by its name

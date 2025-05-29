@@ -27,39 +27,67 @@ import (
 	util "nsl-graph/cmd/utils"
 )
 
-// modelDeviceModCmd represents the port command
+// modelDeviceModCmd represents the model creation command
 var modelDeviceModCmd = &cobra.Command{
 	Use:   "model",
-	Short: "model modifications subcommand",
-	Long:  `.`,
+	Short: "Create a new device model",
+	Long: `Create a new device model with a specified name, brand, and device class.
+	
+A model represents a specific network device template (like "ISR4431" or "Catalyst2960") 
+that defines the capabilities and characteristics of devices.
+
+Examples:
+  nsl-graph modify model --name "ISR4431" --brand "Cisco" --class "Router"
+  nsl-graph modify model --name "Catalyst2960" --brand "Cisco" --class "Switch"`,
 	Run: func(cmd *cobra.Command, args []string) {
-		flagNames := []string{"name", "brand", "class"}
-		vals := util.Flagproc(
-			cmd,
-			flagNames,
-		)
-		name := vals[0]
-		brand := vals[1]
-		class := vals[2]
-		service, err := util.ServiceConnection()
-		if err != nil {
-			return
-		}
-		err = service.AddModel(name, brand, class)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error writing modelDevice: %v\n", err)
+		// Get required model name
+		modelName, err := cmd.Flags().GetString("name")
+		if err != nil || modelName == "" {
+			fmt.Fprintf(os.Stderr, "Model name is required. Use --name flag.\n")
 			os.Exit(1)
 		}
+
+		// Get required brand name
+		brandName, err := cmd.Flags().GetString("brand")
+		if err != nil || brandName == "" {
+			fmt.Fprintf(os.Stderr, "Brand name is required. Use --brand flag.\n")
+			os.Exit(1)
+		}
+
+		// Get required device class
+		deviceClass, err := cmd.Flags().GetString("class")
+		if err != nil || deviceClass == "" {
+			fmt.Fprintf(os.Stderr, "Device class is required. Use --class flag.\n")
+			os.Exit(1)
+		}
+
+		// Get service connection
+		service, err := util.ServiceConnection()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error connecting to service: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Create the model
+		err = service.AddModel(modelName, brandName, deviceClass)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error creating model: %v\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Printf("Successfully created model '%s' from brand '%s' with class '%s'\n", 
+			modelName, brandName, deviceClass)
 	},
 }
 
 func init() {
 	cmd.ModifyCmd.AddCommand(modelDeviceModCmd)
 
-	modelDeviceModCmd.Flags().
-		String("name", "", "Sets the name of the modelDevice")
-	modelDeviceModCmd.Flags().
-		String("brand", "", "Sets the brand associated of the modelDevice")
-	modelDeviceModCmd.Flags().
-		String("class", "", "Sets the deviceclass of the modelDevice")
+	modelDeviceModCmd.Flags().String("name", "", "Model name/identifier (required)")
+	modelDeviceModCmd.Flags().String("brand", "", "Brand name for the model (required)")
+	modelDeviceModCmd.Flags().String("class", "", "Device class name for the model (required)")
+	
+	modelDeviceModCmd.MarkFlagRequired("name")
+	modelDeviceModCmd.MarkFlagRequired("brand")
+	modelDeviceModCmd.MarkFlagRequired("class")
 }

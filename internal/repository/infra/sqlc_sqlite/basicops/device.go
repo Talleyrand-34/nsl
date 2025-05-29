@@ -18,6 +18,7 @@ package basicops
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strconv"
 
@@ -84,6 +85,61 @@ func (r BasicOpsSQLiteRepository) GetDevices() ([]e.Device, error) {
 		result = append(result, zone)
 	}
 	return result, nil
+}
+
+// UpdateDevice updates a device in the database by its ID
+func (r BasicOpsSQLiteRepository) UpdateDevice(
+	deviceId string,
+	newDeviceLabel string,
+	newModelId string,
+	newZoneId string,
+	newProprietaryId string,
+) error {
+	ctx := context.Background()
+
+	// Convert string ID to int64
+	id, err := strconv.ParseInt(deviceId, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid device ID '%s': %w", deviceId, err)
+	}
+
+	// Convert model ID to int64
+	modelId, err := strconv.ParseInt(newModelId, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid model ID '%s': %w", newModelId, err)
+	}
+
+	// Handle nullable zone ID
+	var zoneId sql.NullInt64
+	if newZoneId != "" && newZoneId != "0" {
+		zId, err := strconv.ParseInt(newZoneId, 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid zone ID '%s': %w", newZoneId, err)
+		}
+		zoneId = sql.NullInt64{Int64: zId, Valid: true}
+	}
+
+	// Handle nullable proprietary ID
+	var proprietaryId sql.NullInt64
+	if newProprietaryId != "" && newProprietaryId != "0" {
+		propId, err := strconv.ParseInt(newProprietaryId, 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid proprietary ID '%s': %w", newProprietaryId, err)
+		}
+		proprietaryId = sql.NullInt64{Int64: propId, Valid: true}
+	}
+
+	execErr := r.query.UpdateDevice(ctx, d.UpdateDeviceParams{
+		Label:       newDeviceLabel,
+		ModelID:     modelId,
+		ZoneID:      zoneId,
+		Proprietary: proprietaryId,
+		ID:          id,
+	})
+	if execErr != nil {
+		return fmt.Errorf("UpdateDevice failed: %w", execErr)
+	}
+	return nil
 }
 
 // DeleteDevice deletes a device from the database by its integer ID

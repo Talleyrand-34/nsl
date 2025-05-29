@@ -18,6 +18,7 @@ package basicops
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strconv"
 
@@ -87,6 +88,65 @@ func (r BasicOpsSQLiteRepository) GetZones() ([]e.Zone, error) {
 		result = append(result, zone)
 	}
 	return result, nil
+}
+
+// UpdateZone updates a zone in the database by its ID
+func (r BasicOpsSQLiteRepository) UpdateZone(
+	zoneId string,
+	newZoneName string,
+	newFatherZoneId string,
+	newZoneTypeId string,
+	newProprietaryId string,
+) error {
+	ctx := context.Background()
+
+	// Convert string ID to int64
+	id, err := strconv.ParseInt(zoneId, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid zone ID '%s': %w", zoneId, err)
+	}
+
+	// Handle nullable father zone ID
+	var fatherZoneId sql.NullInt64
+	if newFatherZoneId != "" && newFatherZoneId != "0" {
+		fatherId, err := strconv.ParseInt(newFatherZoneId, 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid father zone ID '%s': %w", newFatherZoneId, err)
+		}
+		fatherZoneId = sql.NullInt64{Int64: fatherId, Valid: true}
+	}
+
+	// Handle nullable zone type ID
+	var zoneTypeId sql.NullInt64
+	if newZoneTypeId != "" && newZoneTypeId != "0" {
+		ztId, err := strconv.ParseInt(newZoneTypeId, 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid zone type ID '%s': %w", newZoneTypeId, err)
+		}
+		zoneTypeId = sql.NullInt64{Int64: ztId, Valid: true}
+	}
+
+	// Handle nullable proprietary ID
+	var proprietaryId sql.NullInt64
+	if newProprietaryId != "" && newProprietaryId != "0" {
+		propId, err := strconv.ParseInt(newProprietaryId, 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid proprietary ID '%s': %w", newProprietaryId, err)
+		}
+		proprietaryId = sql.NullInt64{Int64: propId, Valid: true}
+	}
+
+	execErr := r.query.UpdateZone(ctx, d.UpdateZoneParams{
+		Name:         newZoneName,
+		Father:       fatherZoneId,
+		LocationType: zoneTypeId,
+		Proprietary:  proprietaryId,
+		ID:           id,
+	})
+	if execErr != nil {
+		return fmt.Errorf("UpdateZone failed: %w", execErr)
+	}
+	return nil
 }
 
 // DeleteZone deletes a zone from the database by its integer ID

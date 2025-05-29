@@ -18,10 +18,12 @@ package basicops
 
 import (
 	"context"
+	"strconv"
 
 	_ "modernc.org/sqlite" // This imports is the sqlite driver needed to access the db
 
 	e "nsl-graph/internal/repository/entities"
+	d "nsl-graph/internal/repository/infra/sqlc_sqlite/internal_sqlc_sqlite"
 )
 
 // AddDeviceClass adds a new brand to the database
@@ -51,7 +53,27 @@ func (r BasicOpsSQLiteRepository) GetDeviceClasses() ([]e.DevClass, error) {
 	return result, nil
 }
 
-// DeleteDeviceClass deletes a new brand to the database
+// UpdateDeviceClass updates a device class in the database by its ID
+func (r BasicOpsSQLiteRepository) UpdateDeviceClass(deviceClassId string, newDeviceClassName string) error {
+	ctx := context.Background()
+
+	// Convert string ID to int64
+	id, err := strconv.ParseInt(deviceClassId, 10, 64)
+	if err != nil {
+		return err
+	}
+
+	execErr := r.query.UpdateDeviceClass(ctx, d.UpdateDeviceClassParams{
+		Name: newDeviceClassName,
+		ID:   id,
+	})
+	if execErr != nil {
+		return execErr
+	}
+	return nil
+}
+
+// DeleteDeviceClass deletes a device class from the database
 func (r BasicOpsSQLiteRepository) DeleteDeviceClass(devClassName string) error {
 	ctx := context.Background()
 	execErr := r.query.DeleteDeviceClass(ctx, devClassName)

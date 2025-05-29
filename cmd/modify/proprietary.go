@@ -27,35 +27,49 @@ import (
 	util "nsl-graph/cmd/utils"
 )
 
-// proprietaryModCmd represents the port command
+// proprietaryModCmd represents the proprietary creation command
 var proprietaryModCmd = &cobra.Command{
 	Use:   "proprietary",
-	Short: "proprietary modifications subcommand",
-	Long: `Specify a proprietary which consists on a name
+	Short: "Create a new proprietary owner",
+	Long: `Create a new proprietary owner entity.
 
-	A proprietary is the owner of a Device or a Zone(more commonly known as faclity)`,
+A proprietary represents the owner or responsible party for devices and zones in the network.
+This could be a department, organization, or individual responsible for network assets.
+
+Examples:
+  nsl-graph modify proprietary --name "IT Department"
+  nsl-graph modify proprietary --name "Network Operations Team"
+  nsl-graph modify proprietary --name "Security Division"`,
 	Run: func(cmd *cobra.Command, args []string) {
-		flag := "name"
-		name, err := cmd.Flags().GetString("name")
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error reading flag '%v': %v\n", flag, err)
+		// Get required proprietary name
+		proprietaryName, err := cmd.Flags().GetString("name")
+		if err != nil || proprietaryName == "" {
+			fmt.Fprintf(os.Stderr, "Proprietary name is required. Use --name flag.\n")
 			os.Exit(1)
 		}
+
+		// Get service connection
 		service, err := util.ServiceConnection()
 		if err != nil {
-			return
-		}
-		err = service.AddProprietary(name)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error writing proprietary: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error connecting to service: %v\n", err)
 			os.Exit(1)
 		}
+
+		// Create the proprietary
+		err = service.AddProprietary(proprietaryName)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error creating proprietary: %v\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Printf("Successfully created proprietary owner '%s'\n", proprietaryName)
 	},
 }
 
 func init() {
 	cmd.ModifyCmd.AddCommand(proprietaryModCmd)
 
-	proprietaryModCmd.Flags().
-		String("name", "", "Sets the name of the proprietary")
+	proprietaryModCmd.Flags().String("name", "", "Proprietary owner name (required)")
+	
+	proprietaryModCmd.MarkFlagRequired("name")
 }

@@ -821,14 +821,10 @@ func (q *Queries) GetBrandId(ctx context.Context, brand string) (int64, error) {
 }
 
 const getBrands = `-- name: GetBrands :many
-
-
 SELECT brand
 FROM brand
 `
 
-// -- Getters and setters for each table
-// - Brand
 func (q *Queries) GetBrands(ctx context.Context) ([]string, error) {
 	rows, err := q.db.QueryContext(ctx, getBrands)
 	if err != nil {
@@ -1537,6 +1533,20 @@ func (q *Queries) GetZones(ctx context.Context) ([]GetZonesRow, error) {
 	return items, nil
 }
 
+const updateBrand = `-- name: UpdateBrand :exec
+UPDATE brand SET brand = ? where id=?
+`
+
+type UpdateBrandParams struct {
+	Brand string
+	ID    int64
+}
+
+func (q *Queries) UpdateBrand(ctx context.Context, arg UpdateBrandParams) error {
+	_, err := q.db.ExecContext(ctx, updateBrand, arg.Brand, arg.ID)
+	return err
+}
+
 const updateConnection = `-- name: UpdateConnection :exec
 ;
 
@@ -1566,5 +1576,165 @@ func (q *Queries) UpdateConnection(ctx context.Context, arg UpdateConnectionPara
 		arg.ToDevicePortModelPortID,
 		arg.ID,
 	)
+	return err
+}
+
+const updateConnectionType = `-- name: UpdateConnectionType :exec
+UPDATE connectiontype 
+SET connection_type = ? 
+WHERE id = ?
+`
+
+type UpdateConnectionTypeParams struct {
+	ConnectionType string
+	ID             int64
+}
+
+func (q *Queries) UpdateConnectionType(ctx context.Context, arg UpdateConnectionTypeParams) error {
+	_, err := q.db.ExecContext(ctx, updateConnectionType, arg.ConnectionType, arg.ID)
+	return err
+}
+
+const updateDevice = `-- name: UpdateDevice :exec
+UPDATE device 
+SET label = ?, model_id = ?, zone_id = ?, proprietary = ? 
+WHERE id = ?
+`
+
+type UpdateDeviceParams struct {
+	Label       string
+	ModelID     int64
+	ZoneID      sql.NullInt64
+	Proprietary sql.NullInt64
+	ID          int64
+}
+
+func (q *Queries) UpdateDevice(ctx context.Context, arg UpdateDeviceParams) error {
+	_, err := q.db.ExecContext(ctx, updateDevice,
+		arg.Label,
+		arg.ModelID,
+		arg.ZoneID,
+		arg.Proprietary,
+		arg.ID,
+	)
+	return err
+}
+
+const updateDeviceClass = `-- name: UpdateDeviceClass :exec
+UPDATE deviceclass SET name = ? where id=?
+`
+
+type UpdateDeviceClassParams struct {
+	Name string
+	ID   int64
+}
+
+func (q *Queries) UpdateDeviceClass(ctx context.Context, arg UpdateDeviceClassParams) error {
+	_, err := q.db.ExecContext(ctx, updateDeviceClass, arg.Name, arg.ID)
+	return err
+}
+
+const updateModelDevice = `-- name: UpdateModelDevice :exec
+UPDATE modeldevice 
+SET model = ?, brand = ?, class_id = ? 
+WHERE id = ?
+`
+
+type UpdateModelDeviceParams struct {
+	Model   string
+	Brand   int64
+	ClassID int64
+	ID      int64
+}
+
+func (q *Queries) UpdateModelDevice(ctx context.Context, arg UpdateModelDeviceParams) error {
+	_, err := q.db.ExecContext(ctx, updateModelDevice,
+		arg.Model,
+		arg.Brand,
+		arg.ClassID,
+		arg.ID,
+	)
+	return err
+}
+
+const updateModelPort = `-- name: UpdateModelPort :exec
+UPDATE modelport 
+SET name = ?, positionx = ?, positiony = ?, model_id = ? 
+WHERE id = ?
+`
+
+type UpdateModelPortParams struct {
+	Name      string
+	Positionx int64
+	Positiony int64
+	ModelID   int64
+	ID        int64
+}
+
+func (q *Queries) UpdateModelPort(ctx context.Context, arg UpdateModelPortParams) error {
+	_, err := q.db.ExecContext(ctx, updateModelPort,
+		arg.Name,
+		arg.Positionx,
+		arg.Positiony,
+		arg.ModelID,
+		arg.ID,
+	)
+	return err
+}
+
+const updateProprietary = `-- name: UpdateProprietary :exec
+UPDATE proprietary 
+SET proprietary = ? 
+WHERE id = ?
+`
+
+type UpdateProprietaryParams struct {
+	Proprietary string
+	ID          int64
+}
+
+func (q *Queries) UpdateProprietary(ctx context.Context, arg UpdateProprietaryParams) error {
+	_, err := q.db.ExecContext(ctx, updateProprietary, arg.Proprietary, arg.ID)
+	return err
+}
+
+const updateZone = `-- name: UpdateZone :exec
+UPDATE zone 
+SET name = ?, father = ?, location_type = ?, proprietary = ? 
+WHERE id = ?
+`
+
+type UpdateZoneParams struct {
+	Name         string
+	Father       sql.NullInt64
+	LocationType sql.NullInt64
+	Proprietary  sql.NullInt64
+	ID           int64
+}
+
+func (q *Queries) UpdateZone(ctx context.Context, arg UpdateZoneParams) error {
+	_, err := q.db.ExecContext(ctx, updateZone,
+		arg.Name,
+		arg.Father,
+		arg.LocationType,
+		arg.Proprietary,
+		arg.ID,
+	)
+	return err
+}
+
+const updateZoneType = `-- name: UpdateZoneType :exec
+UPDATE zonetype 
+SET location_type = ? 
+WHERE id = ?
+`
+
+type UpdateZoneTypeParams struct {
+	LocationType string
+	ID           int64
+}
+
+func (q *Queries) UpdateZoneType(ctx context.Context, arg UpdateZoneTypeParams) error {
+	_, err := q.db.ExecContext(ctx, updateZoneType, arg.LocationType, arg.ID)
 	return err
 }

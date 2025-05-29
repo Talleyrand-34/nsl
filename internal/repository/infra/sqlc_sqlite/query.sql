@@ -118,7 +118,7 @@ name,father,location_type,proprietary
 DELETE FROM Zone WHERE id = ?;
 
 -- name: UpdateZone :exec
-UPDATE Zone 
+UPDATE zone 
 SET name = ?, father = ?, location_type = ?, proprietary = ? 
 WHERE id = ?;
 

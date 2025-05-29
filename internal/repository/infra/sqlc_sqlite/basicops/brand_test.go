@@ -17,6 +17,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 package basicops
 
 import (
+	"context"
+	"fmt"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -85,36 +87,106 @@ func TestBrand_CaseSensitivity(t *testing.T) {
 	}
 }
 
-func TestBrand_AddGetAndDeleteIndustrialBrands(t *testing.T) {
+func TestBrand_CreateOnly(t *testing.T) {
 	repo, err := setupTestRepository(t)
 	if err != nil {
 		t.Fatalf("failed to setup repository: %v", err)
 	}
 	defer repo.Close()
 
-	brands := []string{"Fortinet", "Siemens", "Cisco"}
-	for _, b := range brands {
-		if err := repo.AddBrand(b); err != nil {
-			t.Errorf("failed to add brand %q: %v", b, err)
-		}
+	// Test CREATE operation
+	brandName := "Cisco Systems"
+	if err := repo.AddBrand(brandName); err != nil {
+		t.Errorf("failed to add brand %q: %v", brandName, err)
 	}
 
-	got, _ := repo.GetBrands()
-	for _, want := range brands {
-		if !brandSliceContains(got, want) {
-			t.Errorf("expected brand %q in list, got %v", want, got)
-		}
+	// Verify brand was created
+	brands, err := repo.GetBrands()
+	if err != nil {
+		t.Errorf("failed to get brands: %v", err)
 	}
 
-	// Now test delete
-	deleteTarget := "Siemens"
-	if err := repo.DeleteBrand(deleteTarget); err != nil {
-		t.Errorf("failed to delete brand %q: %v", deleteTarget, err)
+	if !brandSliceContains(brands, brandName) {
+		t.Errorf("expected brand %q in list, got %v", brandName, brands)
+	}
+}
+
+func TestBrand_CreateAndUpdate(t *testing.T) {
+	repo, err := setupTestRepository(t)
+	if err != nil {
+		t.Fatalf("failed to setup repository: %v", err)
+	}
+	defer repo.Close()
+
+	// Test CREATE operation
+	originalName := "Juniper"
+	if err := repo.AddBrand(originalName); err != nil {
+		t.Errorf("failed to add brand %q: %v", originalName, err)
 	}
 
-	gotAfterDelete, _ := repo.GetBrands()
-	if brandSliceContains(gotAfterDelete, deleteTarget) {
-		t.Errorf("brand %q should have been deleted, but got %v", deleteTarget, gotAfterDelete)
+	// Get the brand ID using the existing query method
+	brandId, err := repo.query.GetBrandId(context.Background(), originalName)
+	if err != nil {
+		t.Fatalf("failed to get brand ID: %v", err)
+	}
+
+	// Test UPDATE operation
+	updatedName := "Juniper Networks"
+	if err := repo.UpdateBrand(fmt.Sprintf("%d", brandId), updatedName); err != nil {
+		t.Errorf("failed to update brand: %v", err)
+	}
+
+	// Verify update was successful
+	brands, err := repo.GetBrands()
+	if err != nil {
+		t.Errorf("failed to get brands after update: %v", err)
+	}
+
+	if !brandSliceContains(brands, updatedName) {
+		t.Errorf("expected updated brand %q in list, got %v", updatedName, brands)
+	}
+
+	if brandSliceContains(brands, originalName) {
+		t.Errorf("original brand %q should not exist after update, got %v", originalName, brands)
+	}
+}
+
+func TestBrand_CreateAndDelete(t *testing.T) {
+	repo, err := setupTestRepository(t)
+	if err != nil {
+		t.Fatalf("failed to setup repository: %v", err)
+	}
+	defer repo.Close()
+
+	// Test CREATE operation
+	brandName := "Fortinet"
+	if err := repo.AddBrand(brandName); err != nil {
+		t.Errorf("failed to add brand %q: %v", brandName, err)
+	}
+
+	// Verify brand was created
+	brands, err := repo.GetBrands()
+	if err != nil {
+		t.Errorf("failed to get brands: %v", err)
+	}
+
+	if !brandSliceContains(brands, brandName) {
+		t.Errorf("expected brand %q in list before deletion, got %v", brandName, brands)
+	}
+
+	// Test DELETE operation
+	if err := repo.DeleteBrand(brandName); err != nil {
+		t.Errorf("failed to delete brand %q: %v", brandName, err)
+	}
+
+	// Verify brand was deleted
+	brandsAfterDelete, err := repo.GetBrands()
+	if err != nil {
+		t.Errorf("failed to get brands after deletion: %v", err)
+	}
+
+	if brandSliceContains(brandsAfterDelete, brandName) {
+		t.Errorf("brand %q should have been deleted, but got %v", brandName, brandsAfterDelete)
 	}
 }
 

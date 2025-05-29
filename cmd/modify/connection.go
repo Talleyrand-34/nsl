@@ -26,42 +26,72 @@ import (
 	util "nsl-graph/cmd/utils"
 )
 
-// zoneModCmd represents the port command
+// connectionModCmd represents the connection creation command
 var connectionModCmd = &cobra.Command{
 	Use:   "connection",
-	Short: "connection modifications subcommand",
-	Long:  `.`,
+	Short: "Create a new network connection between two device ports",
+	Long: `Create a connection between two device ports by specifying device IDs and model port IDs.
+	
+A connection represents a physical link between two network devices through their specific ports.
+All device and port IDs must exist in the database before creating the connection.
+
+Example:
+  nsl-graph modify connection --from-device-id 1 --from-modelport-id 2 --to-device-id 3 --to-modelport-id 4`,
 	Run: func(cmd *cobra.Command, args []string) {
-		flagNames := []string{"from-device", "from-model-port-id", "to-device", "to-model-port-id"}
-		vals := util.Flagproc(
-			cmd,
-			flagNames,
-		)
-		fromDevice := vals[0]
-		fromModelPortId := vals[1]
-		toDevice := vals[2]
-		toModelPortId := vals[3]
-		service, err := util.ServiceConnection()
-		if err != nil {
-			return
-		}
-		err = service.AddConnection(fromDevice, fromModelPortId, toDevice, toModelPortId)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error writing connection: %v\n", err)
+		// Get required parameters with meaningful names
+		fromDeviceId, err := cmd.Flags().GetString("from-device-id")
+		if err != nil || fromDeviceId == "" {
+			fmt.Fprintf(os.Stderr, "Source device ID is required. Use --from-device-id flag.\n")
 			os.Exit(1)
 		}
+
+		fromModelPortId, err := cmd.Flags().GetString("from-modelport-id")
+		if err != nil || fromModelPortId == "" {
+			fmt.Fprintf(os.Stderr, "Source model port ID is required. Use --from-modelport-id flag.\n")
+			os.Exit(1)
+		}
+
+		toDeviceId, err := cmd.Flags().GetString("to-device-id")
+		if err != nil || toDeviceId == "" {
+			fmt.Fprintf(os.Stderr, "Destination device ID is required. Use --to-device-id flag.\n")
+			os.Exit(1)
+		}
+
+		toModelPortId, err := cmd.Flags().GetString("to-modelport-id")
+		if err != nil || toModelPortId == "" {
+			fmt.Fprintf(os.Stderr, "Destination model port ID is required. Use --to-modelport-id flag.\n")
+			os.Exit(1)
+		}
+
+		// Get service connection
+		service, err := util.ServiceConnection()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error connecting to service: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Create the connection
+		err = service.AddConnection(fromDeviceId, fromModelPortId, toDeviceId, toModelPortId)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error creating connection: %v\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Printf("Successfully created connection from device %s (port %s) to device %s (port %s)\n", 
+			fromDeviceId, fromModelPortId, toDeviceId, toModelPortId)
 	},
 }
 
 func init() {
 	cmd.ModifyCmd.AddCommand(connectionModCmd)
 
-	connectionModCmd.Flags().
-		String("from-device", "", "Sets the fatherzone by name if there is")
-	connectionModCmd.Flags().
-		String("to-device", "", "Sets the fatherzone by id if there is")
-	connectionModCmd.Flags().
-		String("from-model-port-id", "", "Sets the name of the zone")
-	connectionModCmd.Flags().
-		String("to-model-port-id", "", "Sets the proprietary of the zone")
+	connectionModCmd.Flags().String("from-device-id", "", "ID of the source device (required)")
+	connectionModCmd.Flags().String("from-modelport-id", "", "ID of the source device's model port (required)")
+	connectionModCmd.Flags().String("to-device-id", "", "ID of the destination device (required)")
+	connectionModCmd.Flags().String("to-modelport-id", "", "ID of the destination device's model port (required)")
+	
+	connectionModCmd.MarkFlagRequired("from-device-id")
+	connectionModCmd.MarkFlagRequired("from-modelport-id")
+	connectionModCmd.MarkFlagRequired("to-device-id")
+	connectionModCmd.MarkFlagRequired("to-modelport-id")
 }

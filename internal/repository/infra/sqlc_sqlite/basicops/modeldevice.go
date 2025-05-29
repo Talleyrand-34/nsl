@@ -80,6 +80,45 @@ func (r BasicOpsSQLiteRepository) AddModel(
 	return nil
 }
 
+// UpdateModel updates a model in the database by its ID
+func (r BasicOpsSQLiteRepository) UpdateModel(
+	modelId string,
+	newModelName string,
+	newBrandId string,
+	newDeviceClassId string,
+) error {
+	ctx := context.Background()
+
+	// Convert string ID to int64
+	id, err := strconv.ParseInt(modelId, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid model ID '%s': %w", modelId, err)
+	}
+
+	// Convert brand ID to int64
+	brandId, err := strconv.ParseInt(newBrandId, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid brand ID '%s': %w", newBrandId, err)
+	}
+
+	// Convert device class ID to int64
+	deviceClassId, err := strconv.ParseInt(newDeviceClassId, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid device class ID '%s': %w", newDeviceClassId, err)
+	}
+
+	execErr := r.query.UpdateModelDevice(ctx, d.UpdateModelDeviceParams{
+		Model:   newModelName,
+		Brand:   brandId,
+		ClassID: deviceClassId,
+		ID:      id,
+	})
+	if execErr != nil {
+		return fmt.Errorf("UpdateModel failed: %w", execErr)
+	}
+	return nil
+}
+
 // DeleteModel deletes a model from the database by its integer ID
 func (r BasicOpsSQLiteRepository) DeleteModel(id string) error {
 	ctx := context.Background()

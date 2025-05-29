@@ -19,10 +19,12 @@ package basicops
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	_ "modernc.org/sqlite" // This imports is the sqlite driver needed to access the db
 
 	e "nsl-graph/internal/repository/entities"
+	d "nsl-graph/internal/repository/infra/sqlc_sqlite/internal_sqlc_sqlite"
 )
 
 // deviceclass
@@ -50,6 +52,26 @@ func (r BasicOpsSQLiteRepository) GetProperties() ([]e.Proprietary, error) {
 		result = append(result, brand)
 	}
 	return result, nil
+}
+
+// UpdateProprietary updates a proprietary entry in the database by its ID
+func (r BasicOpsSQLiteRepository) UpdateProprietary(proprietaryId string, newProprietaryName string) error {
+	ctx := context.Background()
+
+	// Convert string ID to int64
+	id, err := strconv.ParseInt(proprietaryId, 10, 64)
+	if err != nil {
+		return err
+	}
+
+	execErr := r.query.UpdateProprietary(ctx, d.UpdateProprietaryParams{
+		Proprietary: newProprietaryName,
+		ID:          id,
+	})
+	if execErr != nil {
+		return execErr
+	}
+	return nil
 }
 
 // DeleteProprietary deletes a proprietary entry from the database by its name

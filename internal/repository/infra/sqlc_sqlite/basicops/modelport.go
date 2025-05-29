@@ -86,6 +86,53 @@ func (r BasicOpsSQLiteRepository) AddModelPort(
 	return nil
 }
 
+// UpdateModelPort updates a model port in the database by its ID
+func (r BasicOpsSQLiteRepository) UpdateModelPort(
+	modelPortId string,
+	newPortName string,
+	newPositionX string,
+	newPositionY string,
+	newModelId string,
+) error {
+	ctx := context.Background()
+
+	// Convert string ID to int64
+	id, err := strconv.ParseInt(modelPortId, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid model port ID '%s': %w", modelPortId, err)
+	}
+
+	// Convert position X to int64
+	posX, err := strconv.ParseInt(newPositionX, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid position X '%s': %w", newPositionX, err)
+	}
+
+	// Convert position Y to int64
+	posY, err := strconv.ParseInt(newPositionY, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid position Y '%s': %w", newPositionY, err)
+	}
+
+	// Convert model ID to int64
+	modelId, err := strconv.ParseInt(newModelId, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid model ID '%s': %w", newModelId, err)
+	}
+
+	execErr := r.query.UpdateModelPort(ctx, d.UpdateModelPortParams{
+		Name:      newPortName,
+		Positionx: posX,
+		Positiony: posY,
+		ModelID:   modelId,
+		ID:        id,
+	})
+	if execErr != nil {
+		return fmt.Errorf("UpdateModelPort failed: %w", execErr)
+	}
+	return nil
+}
+
 // DeleteModelPort deletes a model port from the database by its integer ID
 func (r BasicOpsSQLiteRepository) DeleteModelPort(id string) error {
 	ctx := context.Background()

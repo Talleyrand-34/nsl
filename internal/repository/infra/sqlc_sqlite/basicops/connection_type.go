@@ -18,7 +18,6 @@ package basicops
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 
 	_ "modernc.org/sqlite" // This imports is the sqlite driver needed to access the db
@@ -27,58 +26,50 @@ import (
 	d "nsl-graph/internal/repository/infra/sqlc_sqlite/internal_sqlc_sqlite"
 )
 
-// deviceclass
-func (r BasicOpsSQLiteRepository) AddZoneType(zoneName string) error {
+// AddBrand adds a new brand to the database
+func (r BasicOpsSQLiteRepository) AddConnectionType(connectiontypes string) error {
 	ctx := context.Background()
-	execErr := r.query.AddZoneType(ctx, zoneName)
+	execErr := r.query.AddConnectinType(ctx, connectiontypes)
 	if execErr != nil {
 		return execErr
 	}
 	return nil
 }
 
-// deviceclass
-func (r BasicOpsSQLiteRepository) GetZonetypes() ([]e.ZoneType, error) {
+// GetBrands gets all the brands available
+func (r BasicOpsSQLiteRepository) GetConnectionTypes() ([]e.ConnectionType, error) {
 	ctx := context.Background()
-	zonetypes, execErr := r.query.GetZoneTypes(ctx)
+	brands, execErr := r.query.GetConnectionTypes(ctx)
 	if execErr != nil {
-		return []e.ZoneType{}, execErr
+		return []e.ConnectionType{}, execErr
 	}
-	result := make([]e.ZoneType, 0, len(zonetypes))
-	for _, row := range zonetypes {
-		zonetype := e.ZoneType{
+
+	result := make([]e.ConnectionType, 0, len(brands))
+	for _, row := range brands {
+		cts := e.ConnectionType{
 			Name: row,
 		}
-		result = append(result, zonetype)
+		result = append(result, cts)
 	}
 	return result, nil
 }
 
-// UpdateZoneType updates a zone type in the database by its ID
-func (r BasicOpsSQLiteRepository) UpdateZoneType(zoneTypeId string, newZoneTypeName string) error {
+// UpdateConnectionType updates a connection type in the database by its ID
+func (r BasicOpsSQLiteRepository) UpdateConnectionType(connectionTypeId string, newConnectionTypeName string) error {
 	ctx := context.Background()
 
 	// Convert string ID to int64
-	id, err := strconv.ParseInt(zoneTypeId, 10, 64)
+	id, err := strconv.ParseInt(connectionTypeId, 10, 64)
 	if err != nil {
 		return err
 	}
 
-	execErr := r.query.UpdateZoneType(ctx, d.UpdateZoneTypeParams{
-		LocationType: newZoneTypeName,
-		ID:           id,
+	execErr := r.query.UpdateConnectionType(ctx, d.UpdateConnectionTypeParams{
+		ConnectionType: newConnectionTypeName,
+		ID:             id,
 	})
 	if execErr != nil {
 		return execErr
-	}
-	return nil
-}
-
-// DeleteZoneType deletes a zone type from the database by its name
-func (r BasicOpsSQLiteRepository) DeleteZoneType(zonetype string) error {
-	ctx := context.Background()
-	if err := r.query.DeleteZoneType(ctx, zonetype); err != nil {
-		return fmt.Errorf("DeleteZoneType failed: %w", err)
 	}
 	return nil
 }

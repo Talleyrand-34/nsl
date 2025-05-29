@@ -30,108 +30,145 @@ type NetService struct {
 }
 
 type NetServiceInt interface {
-	// Brand
-	AddBrand(brand string) error
-	// Brand
+	// Brand operations
+	AddBrand(brandName string) error
 	GetBrands() ([]e.Brand, error)
-	// deviceclass
-	AddDeviceClass(brand string) error
-	// deviceclass
+	UpdateBrand(brandId string, newBrandName string) error
+	DeleteBrand(brandName string) error
+
+	// DeviceClass operations
+	AddDeviceClass(deviceClassName string) error
 	GetDeviceClasses() ([]e.DevClass, error)
-	// deviceclass
-	AddZoneType(name string) error
-	// deviceclass
+	UpdateDeviceClass(deviceClassId string, newDeviceClassName string) error
+	DeleteDeviceClass(deviceClassName string) error
+
+	// ZoneType operations
+	AddZoneType(zoneTypeName string) error
 	GetZonetypes() ([]e.ZoneType, error)
-	// deviceclass
-	AddProprietary(name string) error
-	// deviceclass
+	UpdateZoneType(zoneTypeId string, newZoneTypeName string) error
+	DeleteZoneType(zoneTypeName string) error
+
+	// Proprietary operations
+	AddProprietary(proprietaryName string) error
 	GetProperties() ([]e.Proprietary, error)
-	// deviceclass
+	UpdateProprietary(proprietaryId string, newProprietaryName string) error
+	DeleteProprietary(proprietaryName string) error
+
+	// Zone operations
 	AddZone(
-		name string,
-		father string,
-		fatherid string,
-		proprietary string,
-		zonename string,
+		zoneName string,
+		fatherZoneName string,
+		fatherZoneId string,
+		proprietaryName string,
+		zoneTypeName string,
 	) error
-	// deviceclass
 	GetZones() ([]e.Zone, error)
-	// GetZone(name string) int
+	UpdateZone(
+		zoneId string,
+		newZoneName string,
+		newFatherZoneId string,
+		newZoneTypeId string,
+		newProprietaryId string,
+	) error
+	DeleteZone(zoneId string) error
+
+	// Model operations
 	AddModel(
 		modelName string,
 		brandName string,
-		className string,
+		deviceClassName string,
 	) error
-
 	GetModels() ([]e.ModelDevice, error)
+	UpdateModel(
+		modelId string,
+		newModelName string,
+		newBrandId string,
+		newDeviceClassId string,
+	) error
+	DeleteModel(modelId string) error
+
+	// Device operations
 	AddDevice(
-		label string,
-		model string,
+		deviceLabel string,
+		modelName string,
 		zoneId string,
 		zoneName string,
-		proprietary string,
+		proprietaryName string,
 	) error
 	GetDevices() ([]e.Device, error)
-	GetModelPorts() ([]e.ModelPort, error)
+	UpdateDevice(
+		deviceId string,
+		newDeviceLabel string,
+		newModelId string,
+		newZoneId string,
+		newProprietaryId string,
+	) error
+	DeleteDevice(deviceId string) error
 
+	// ModelPort operations
 	AddModelPort(
-		name string,
-		posx string,
-		posy string,
+		portName string,
+		positionX string,
+		positionY string,
 		modelName string,
 	) error
+	GetModelPorts() ([]e.ModelPort, error)
+	UpdateModelPort(
+		modelPortId string,
+		newPortName string,
+		newPositionX string,
+		newPositionY string,
+		newModelId string,
+	) error
+	DeleteModelPort(modelPortId string) error
+
+	// DevicePort operations
+	AddDevicePort(deviceId string, modelPortId string) error
 	GetDevicePorts() ([]e.DevicePort, error)
-	AddDevicePort(deviceid string, modelportid string) error
+	DeleteDevicePort(deviceId string, modelPortId string) error
+
+	// ConnectionType operations
 	AddConnectionType(connectionTypeName string) error
 	GetConnectionTypes() ([]e.ConnectionType, error)
-	GetConnections() ([]e.Connection, error)
+	UpdateConnectionType(connectionTypeId string, newConnectionTypeName string) error
+
+	// Connection operations
 	AddConnection(
-		fromDevice string,
-		fromModelPort string,
-		toDevice string,
-		toModelPort string,
+		fromDeviceId string,
+		fromModelPortId string,
+		toDeviceId string,
+		toModelPortId string,
 	) error
-	GetAllPortsDevice(deviceid string) ([]e.DevicePort, error)
+	GetConnections() ([]e.Connection, error)
+	UpdateConnection(
+		connectionId string,
+		newFromDeviceId string,
+		newFromModelPortId string,
+		newToDeviceId string,
+		newToModelPortId string,
+	) error
+	DeleteConnection(connectionId string) error
+
+	// Special operations
+	GetAllPortsDevice(deviceId string) ([]e.DevicePort, error)
 	GetAllPortsAll() ([]e.DevicePort, error)
 	ExportAllStructs() []byte
-	DeleteBrand(brand string) error
-
-	DeleteDeviceClass(name string) error
-
-	DeleteZoneType(locationType string) error
-
-	DeleteProprietary(proprietary string) error
-
-	DeleteZone(id string) error
-
-	DeleteModel(id string) error
-
-	DeleteDevice(id string) error
-
-	DeleteModelPort(id string) error
-
-	DeleteDevicePort(deviceID, modelPortID string) error
-
-	DeleteConnection(id string) error
-	UpdateConnection(
-		id string,
-		from_device string,
-		from_port string,
-		to_device string,
-		to_port string,
-	) error
 }
 
 func NewNetService(netRepository d.NetRepository) NetServiceInt {
 	return &NetService{netRepo: netRepository}
 }
 
-func (ns *NetService) AddBrand(brand string) error {
-	return ns.netRepo.AddBrand(brand)
+func (ns *NetService) AddBrand(brandName string) error {
+	return ns.netRepo.AddBrand(brandName)
 }
 
 func (ns *NetService) GetBrands() ([]e.Brand, error) {
 	return ns.netRepo.GetBrands()
+}
+
+func (ns *NetService) UpdateBrand(brandId string, newBrandName string) error {
+	return ns.netRepo.UpdateBrand(brandId, newBrandName)
 }
 
 func (ns *NetService) AddDeviceClass(deviceClassName string) error {
@@ -306,12 +343,67 @@ func (ns *NetService) DeleteConnection(id string) error {
 	return ns.netRepo.DeleteConnection(id)
 }
 
-func (ns *NetService) UpdateConnection(
-	id string,
-	from_device string,
-	from_port string,
-	to_device string,
-	to_port string,
+func (ns *NetService) UpdateDeviceClass(deviceClassId string, newDeviceClassName string) error {
+	return ns.netRepo.UpdateDeviceClass(deviceClassId, newDeviceClassName)
+}
+
+func (ns *NetService) UpdateZoneType(zoneTypeId string, newZoneTypeName string) error {
+	return ns.netRepo.UpdateZoneType(zoneTypeId, newZoneTypeName)
+}
+
+func (ns *NetService) UpdateProprietary(proprietaryId string, newProprietaryName string) error {
+	return ns.netRepo.UpdateProprietary(proprietaryId, newProprietaryName)
+}
+
+func (ns *NetService) UpdateZone(
+	zoneId string,
+	newZoneName string,
+	newFatherZoneId string,
+	newZoneTypeId string,
+	newProprietaryId string,
 ) error {
-	return ns.netRepo.UpdateConnection(id, from_device, from_port, to_device, to_port)
+	return ns.netRepo.UpdateZone(zoneId, newZoneName, newFatherZoneId, newZoneTypeId, newProprietaryId)
+}
+
+func (ns *NetService) UpdateModel(
+	modelId string,
+	newModelName string,
+	newBrandId string,
+	newDeviceClassId string,
+) error {
+	return ns.netRepo.UpdateModel(modelId, newModelName, newBrandId, newDeviceClassId)
+}
+
+func (ns *NetService) UpdateDevice(
+	deviceId string,
+	newDeviceLabel string,
+	newModelId string,
+	newZoneId string,
+	newProprietaryId string,
+) error {
+	return ns.netRepo.UpdateDevice(deviceId, newDeviceLabel, newModelId, newZoneId, newProprietaryId)
+}
+
+func (ns *NetService) UpdateModelPort(
+	modelPortId string,
+	newPortName string,
+	newPositionX string,
+	newPositionY string,
+	newModelId string,
+) error {
+	return ns.netRepo.UpdateModelPort(modelPortId, newPortName, newPositionX, newPositionY, newModelId)
+}
+
+func (ns *NetService) UpdateConnectionType(connectionTypeId string, newConnectionTypeName string) error {
+	return ns.netRepo.UpdateConnectionType(connectionTypeId, newConnectionTypeName)
+}
+
+func (ns *NetService) UpdateConnection(
+	connectionId string,
+	newFromDeviceId string,
+	newFromModelPortId string,
+	newToDeviceId string,
+	newToModelPortId string,
+) error {
+	return ns.netRepo.UpdateConnection(connectionId, newFromDeviceId, newFromModelPortId, newToDeviceId, newToModelPortId)
 }

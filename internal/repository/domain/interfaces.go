@@ -23,90 +23,123 @@ import e "nsl-graph/internal/repository/entities"
 // Type repository is an interface for interaction with all the db logic needed from application
 type repository interface {
 	// Brand interaction
-	AddBrand(brand string) error
+	AddBrand(brandName string) error
 	GetBrands() ([]e.Brand, error)
-	DeleteBrand(brand string) error
+	UpdateBrand(brandId string, newBrandName string) error
+	DeleteBrand(brandName string) error
 
 	// DeviceClass interaction
-	AddDeviceClass(devclass string) error
+	AddDeviceClass(deviceClassName string) error
 	GetDeviceClasses() ([]e.DevClass, error)
-	DeleteDeviceClass(devclass string) error
+	UpdateDeviceClass(deviceClassId string, newDeviceClassName string) error
+	DeleteDeviceClass(deviceClassName string) error
 
 	// ZoneType interaction
-	AddZoneType(name string) error
+	AddZoneType(zoneTypeName string) error
 	GetZonetypes() ([]e.ZoneType, error)
-	DeleteZoneType(name string) error
+	UpdateZoneType(zoneTypeId string, newZoneTypeName string) error
+	DeleteZoneType(zoneTypeName string) error
 
 	// Proprietary interaction
-	AddProprietary(name string) error
+	AddProprietary(proprietaryName string) error
 	GetProperties() ([]e.Proprietary, error)
-	DeleteProprietary(name string) error
+	UpdateProprietary(proprietaryId string, newProprietaryName string) error
+	DeleteProprietary(proprietaryName string) error
 
 	// Zone interaction
 	AddZone(
-		name string,
-		fatherid string,
-		father string,
-		proprietary string,
-		zonename string,
+		zoneName string,
+		fatherZoneId string,
+		fatherZoneName string,
+		proprietaryName string,
+		zoneTypeName string,
 	) error
 	GetZones() ([]e.Zone, error)
-	DeleteZone(name string) error
+	UpdateZone(
+		zoneId string,
+		newZoneName string,
+		newFatherZoneId string,
+		newZoneTypeId string,
+		newProprietaryId string,
+	) error
+	DeleteZone(zoneId string) error
 
 	// Model interaction
 	AddModel(
 		modelName string,
 		brandName string,
-		className string,
+		deviceClassName string,
 	) error
 	GetModels() ([]e.ModelDevice, error)
-	DeleteModel(modelName string) error
+	UpdateModel(
+		modelId string,
+		newModelName string,
+		newBrandId string,
+		newDeviceClassId string,
+	) error
+	DeleteModel(modelId string) error
 
 	// Device interaction
 	AddDevice(
-		label string,
-		model string,
+		deviceLabel string,
+		modelName string,
 		zoneId string,
 		zoneName string,
-		proprietary string,
+		proprietaryName string,
 	) error
 	GetDevices() ([]e.Device, error)
+	UpdateDevice(
+		deviceId string,
+		newDeviceLabel string,
+		newModelId string,
+		newZoneId string,
+		newProprietaryId string,
+	) error
 	DeleteDevice(deviceId string) error
 
 	// ModelPort interaction
 	AddModelPort(
-		name string,
-		posx string,
-		posy string,
+		portName string,
+		positionX string,
+		positionY string,
 		modelName string,
 	) error
 	GetModelPorts() ([]e.ModelPort, error)
+	UpdateModelPort(
+		modelPortId string,
+		newPortName string,
+		newPositionX string,
+		newPositionY string,
+		newModelId string,
+	) error
 	DeleteModelPort(modelPortId string) error
 
 	// DevicePort interaction
-	AddDevicePort(deviceid string, modelportid string) error
+	AddDevicePort(deviceId string, modelPortId string) error
 	GetDevicePorts() ([]e.DevicePort, error)
-	DeleteDevicePort(devicePortId string, modelportid string) error
+	DeleteDevicePort(deviceId string, modelPortId string) error
 
+	// ConnectionType interaction
 	AddConnectionType(connectionTypeName string) error
 	GetConnectionTypes() ([]e.ConnectionType, error)
+	UpdateConnectionType(connectionTypeId string, newConnectionTypeName string) error
+
 	// Connection interaction
 	AddConnection(
-		fromDevice string,
-		fromModelPort string,
-		toDevice string,
-		toModelPort string,
+		fromDeviceId string,
+		fromModelPortId string,
+		toDeviceId string,
+		toModelPortId string,
 	) error
 	GetConnections() ([]e.Connection, error)
-	DeleteConnection(connectionId string) error
-	// Modify Connection
 	UpdateConnection(
-		id string,
-		from_device string,
-		from_port string,
-		to_device string,
-		to_port string,
+		connectionId string,
+		newFromDeviceId string,
+		newFromModelPortId string,
+		newToDeviceId string,
+		newToModelPortId string,
 	) error
+	DeleteConnection(connectionId string) error
 
 	// get all the ports mapped
 	GetAllPortsAll() ([]e.DevicePort, error)

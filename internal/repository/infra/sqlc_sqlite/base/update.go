@@ -27,3 +27,62 @@ func (r SQLiteRepository) UpdateConnection(
 ) error {
 	return r.basicops.UpdateConnection(id, fromDevice, fromPort, toDevice, toPort)
 }
+
+func (r SQLiteRepository) UpdateBrand(brandId string, newBrandName string) error {
+	return r.basicops.UpdateBrand(brandId, newBrandName)
+}
+
+func (r SQLiteRepository) UpdateDeviceClass(deviceClassId string, newDeviceClassName string) error {
+	return r.basicops.UpdateDeviceClass(deviceClassId, newDeviceClassName)
+}
+
+func (r SQLiteRepository) UpdateZoneType(zoneTypeId string, newZoneTypeName string) error {
+	return r.basicops.UpdateZoneType(zoneTypeId, newZoneTypeName)
+}
+
+func (r SQLiteRepository) UpdateProprietary(proprietaryId string, newProprietaryName string) error {
+	return r.basicops.UpdateProprietary(proprietaryId, newProprietaryName)
+}
+
+func (r SQLiteRepository) UpdateZone(
+	zoneId string,
+	newZoneName string,
+	newFatherZoneId string,
+	newZoneTypeId string,
+	newProprietaryId string,
+) error {
+	return r.basicops.UpdateZone(zoneId, newZoneName, newFatherZoneId, newZoneTypeId, newProprietaryId)
+}
+
+func (r SQLiteRepository) UpdateModel(
+	modelId string,
+	newModelName string,
+	newBrandId string,
+	newDeviceClassId string,
+) error {
+	return r.basicops.UpdateModel(modelId, newModelName, newBrandId, newDeviceClassId)
+}
+
+func (r SQLiteRepository) UpdateDevice(
+	deviceId string,
+	newDeviceLabel string,
+	newModelId string,
+	newZoneId string,
+	newProprietaryId string,
+) error {
+	return r.basicops.UpdateDevice(deviceId, newDeviceLabel, newModelId, newZoneId, newProprietaryId)
+}
+
+func (r SQLiteRepository) UpdateModelPort(
+	modelPortId string,
+	newPortName string,
+	newPositionX string,
+	newPositionY string,
+	newModelId string,
+) error {
+	return r.basicops.UpdateModelPort(modelPortId, newPortName, newPositionX, newPositionY, newModelId)
+}
+
+func (r SQLiteRepository) UpdateConnectionType(connectionTypeId string, newConnectionTypeName string) error {
+	return r.basicops.UpdateConnectionType(connectionTypeId, newConnectionTypeName)
+}
