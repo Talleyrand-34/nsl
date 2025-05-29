@@ -18,6 +18,7 @@ package main
 
 import (
 	"nsl-graph/cmd"
+	_ "nsl-graph/cmd/diagram"
 	_ "nsl-graph/cmd/export"
 	_ "nsl-graph/cmd/modify"
 	_ "nsl-graph/cmd/print"
