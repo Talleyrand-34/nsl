@@ -19,19 +19,82 @@ package api
 import (
 	"encoding/json"
 	"net/http"
-	"nsl-graph/internal/format"
 
+	"nsl-graph/internal/format"
 	q "nsl-graph/internal/repository/application"
 )
 
+// func getDiagram(service q.NetServiceInt) http.HandlerFunc {
+// 	return func(w http.ResponseWriter, r *http.Request) {
+// 		connections, err := service.GetConnections()
+// 		if err != nil {
+// 			http.Error(w, "Failed to get connections: "+err.Error(), http.StatusInternalServerError)
+// 			return
+// 		}
+//
+// 		devices, err := service.GetDevices()
+// 		if err != nil {
+// 			http.Error(w, "Failed to get devices: "+err.Error(), http.StatusInternalServerError)
+// 			return
+// 		}
+// 		zones, err := service.GetZones()
+// 		if err != nil {
+// 			http.Error(w, "Failed to get devices: "+err.Error(), http.StatusInternalServerError)
+// 			return
+// 		}
+//
+// 		diagramString := format.GenerateD2FromStruct2(devices, connections, zones)
+//
+// 		var diagram []byte
+// 		diagram, err = format.GenerateDiagramSVG(diagramString)
+// 		if err != nil {
+// 			http.Error(
+// 				w,
+// 				"Failed to generate diagram: "+err.Error(),
+// 				http.StatusInternalServerError,
+// 			)
+// 			return
+// 		}
+//
+// 		w.Header().Set("Content-Type", "image/svg+xml")
+// 		w.WriteHeader(http.StatusOK)
+// 		_, _ = w.Write(diagram)
+// 	}
+// }
+
+type DiagramFormat string
+
+const (
+	FormatPorts       DiagramFormat = "ports"
+	FormatConnections DiagramFormat = "connections"
+)
+
+// Updated function to read format from query parameter
 func getDiagram(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Get format from query parameter, default to connections
+		formatParam := r.URL.Query().Get("format")
+		var diagramFormat DiagramFormat
+
+		switch formatParam {
+		case "ports":
+			diagramFormat = FormatPorts
+		case "connections", "": // Default to v2 if not specified
+			diagramFormat = FormatConnections
+		default:
+			http.Error(
+				w,
+				"Invalid diagram format. Use 'ports' or 'connections'",
+				http.StatusBadRequest,
+			)
+			return
+		}
+
 		connections, err := service.GetConnections()
 		if err != nil {
 			http.Error(w, "Failed to get connections: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
-
 		devices, err := service.GetDevices()
 		if err != nil {
 			http.Error(w, "Failed to get devices: "+err.Error(), http.StatusInternalServerError)
@@ -39,14 +102,19 @@ func getDiagram(service q.NetServiceInt) http.HandlerFunc {
 		}
 		zones, err := service.GetZones()
 		if err != nil {
-			http.Error(w, "Failed to get devices: "+err.Error(), http.StatusInternalServerError)
+			http.Error(w, "Failed to get zones: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		diagramString := format.GenerateD2FromStruct2(devices, connections, zones)
+		var diagramString string
+		switch diagramFormat {
+		case FormatPorts:
+			diagramString = format.GenerateD2FromStruct(devices, connections, zones)
+		case FormatConnections:
+			diagramString = format.GenerateD2FromStruct2(devices, connections, zones)
+		}
 
-		var diagram []byte
-		diagram, err = format.GenerateDiagramSVG(diagramString)
+		diagram, err := format.GenerateDiagramSVG(diagramString)
 		if err != nil {
 			http.Error(
 				w,
@@ -56,9 +124,13 @@ func getDiagram(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
+		// Add cache headers to prevent unwanted caching during format switching
 		w.Header().Set("Content-Type", "image/svg+xml")
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(diagram)
+		w.Write(diagram)
 	}
 }
 

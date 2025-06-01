@@ -180,11 +180,40 @@ $actionFiles = [
         <!-- <div class="diagram" style="--img-width:500px;"> -->
         <!--         <img id="diagramImg" src="<?= API_BASE_URL ?>/diagram" alt="Diagram" style="width:500px;"> -->
         <!-- </div> -->
-        <div class="diagram">
-            <div class="resizable-img-container" style="height:500px;">
-                <img id="diagramImg" src="<?= API_BASE_URL ?>/diagram" alt="Diagram">
-            </div>
-        </div>
+        <!-- <div class="diagram"> -->
+        <!--     <div class="resizable-img-container" style="height:500px;"> -->
+        <!--         <img id="diagramImg" src="<?= API_BASE_URL ?>/diagram" alt="Diagram"> -->
+        <!--     </div> -->
+        <!-- </div> -->
 
+        <!-- Updated HTML structure -->
+
+<!-- <div class="diagram"> -->
+<!--     <div class="resizable-img-container" style="height:500px;"> -->
+<!--         <img id="diagramImg" src="<?= API_BASE_URL ?>/diagram?format=v2" alt="Diagram"> -->
+<!--     </div> -->
+<!-- </div> -->
+<!---->
+<!-- <div class="diagram-controls"> -->
+<!--     <span class="format-label">Diagram Format:</span> -->
+<!--     <button id="formatToggle" class="format-toggle" data-format="v2"> -->
+<!--         Format V2 (Current) -->
+<!--     </button> -->
+<!-- </div> -->
+            <form method="GET" action="">
+    <div class="diagram-controls">
+        <label for="formatSelect" class="format-label">Diagram Format:</label>
+        <select id="formatSelect" name="format" onchange="this.form.submit()">
+            <option value="ports" <?= (isset($_GET['format']) && $_GET['format'] === 'ports') ? 'selected' : '' ?>>Ports</option>
+            <option value="connections" <?= (!isset($_GET['format']) || $_GET['format'] === 'connections') ? 'selected' : '' ?>>Connections</option>
+        </select>
+    </div>
+    
+    <div class="diagram">
+        <div class="resizable-img-container" style="height:500px;">
+            <img id="diagramImg" src="<?= API_BASE_URL ?>/diagram?format=<?= isset($_GET['format']) ? htmlspecialchars($_GET['format']) : 'connections' ?>" alt="Diagram">
+        </div>
+    </div>
+</form>
 </body>
 </html>
