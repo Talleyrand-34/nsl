@@ -296,15 +296,15 @@ func GenerateD2FromStruct2(devices []e.Device, connections []e.Connection, zones
 	return d2Connections.String() + "\n" + d2Devices.String()
 }
 
-func buildZoneFullNameMap(zones []e.Zone) map[int]string {
-	zoneByID := make(map[int]e.Zone)
+func buildZoneFullNameMap(zones []e.Zone) map[string]string {
+	zoneByID := make(map[string]e.Zone)
 	for _, z := range zones {
 		zoneByID[z.ID] = z
 	}
 
-	fullNameByID := make(map[int]string)
-	var getFullName func(int) string
-	getFullName = func(id int) string {
+	fullNameByID := make(map[string]string)
+	var getFullName func(string) string
+	getFullName = func(id string) string {
 		// If already computed, return it
 		if name, ok := fullNameByID[id]; ok {
 			return name
@@ -313,7 +313,7 @@ func buildZoneFullNameMap(zones []e.Zone) map[int]string {
 		if !ok {
 			return "" // or panic/error
 		}
-		if z.FatherID == 0 {
+		if z.FatherID == "" || z.FatherID == "0" {
 			fullNameByID[id] = z.Name
 		} else {
 			parentFull := getFullName(z.FatherID)
