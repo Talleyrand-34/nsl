@@ -1,25 +1,25 @@
-
 /*
-  Copyright © 2025 Tecdesoft (rodrigo-gonzalez@tecdesoft.es, t34@t34.dev)
- 
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU Affero General Public License as published
-  by the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
- 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-  GNU Affero General Public License for more details.
- 
-  You should have received a copy of the GNU Affero General Public License
-  along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+Copyright © 2025 Tecdesoft (rodrigo-gonzalez@tecdesoft.es, t34@t34.dev)
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+*/
 package specops
 
 import (
 	"context"
 	"database/sql"
+	"strconv"
 
 	_ "modernc.org/sqlite" // This imports is the sqlite driver needed to access the db
 
@@ -36,8 +36,9 @@ func (r *SpecOpsSQLiteRepository) ExportAllStructs() (e.All, error) {
 		return result, err
 	}
 	for _, b := range brands {
+
 		result.Brands = append(result.Brands, e.BasicBrand{
-			ID:   b.ID,
+			ID:   strconv.FormatInt(b.ID, 10),
 			Name: b.Brand,
 		})
 	}
@@ -49,7 +50,7 @@ func (r *SpecOpsSQLiteRepository) ExportAllStructs() (e.All, error) {
 	}
 	for _, ct := range connectionTypes {
 		result.ConnectionTypes = append(result.ConnectionTypes, e.BasicConnectiontype{
-			ID:             ct.ID,
+			ID:             strconv.FormatInt(ct.ID, 10),
 			ConnectionType: ct.ConnectionType,
 		})
 	}
@@ -61,12 +62,12 @@ func (r *SpecOpsSQLiteRepository) ExportAllStructs() (e.All, error) {
 	}
 	for _, c := range connections {
 		result.Connections = append(result.Connections, e.BasicConnection{
-			ID:                        c.ID,
-			FromDevicePortModelPortID: c.FromDevicePortModelPortID,
-			FromDevicePortDeviceID:    c.FromDevicePortDeviceID,
+			ID:                        strconv.FormatInt(c.ID, 10),
+			FromDevicePortModelPortID: strconv.FormatInt(c.FromDevicePortModelPortID, 10),
+			FromDevicePortDeviceID:    strconv.FormatInt(c.FromDevicePortDeviceID, 10),
 			FromIPSegment:             nullStringToString(c.FromIpSegment),
-			ToDevicePortModelPortID:   c.ToDevicePortModelPortID,
-			ToDevicePortDeviceID:      c.ToDevicePortDeviceID,
+			ToDevicePortModelPortID:   strconv.FormatInt(c.ToDevicePortModelPortID, 10),
+			ToDevicePortDeviceID:      strconv.FormatInt(c.ToDevicePortDeviceID, 10),
 			ToIPSegment:               nullStringToString(c.ToIpSegment),
 			ConnectionType:            nullInt64ToInt64(c.ConnectionType),
 		})
@@ -79,7 +80,7 @@ func (r *SpecOpsSQLiteRepository) ExportAllStructs() (e.All, error) {
 	}
 	for _, dc := range deviceClasses {
 		result.DeviceClasses = append(result.DeviceClasses, e.BasicDeviceclass{
-			ID:   dc.ID,
+			ID:   strconv.FormatInt(dc.ID, 10),
 			Name: dc.Name,
 		})
 	}
@@ -91,8 +92,8 @@ func (r *SpecOpsSQLiteRepository) ExportAllStructs() (e.All, error) {
 	}
 	for _, dp := range devicePorts {
 		result.DevicePorts = append(result.DevicePorts, e.BasicDeviceport{
-			ModelPortID: dp.ModelPortID,
-			DeviceID:    dp.DeviceID,
+			ModelPortID: strconv.FormatInt(dp.ModelPortID, 10),
+			DeviceID:    strconv.FormatInt(dp.DeviceID, 10),
 		})
 	}
 
@@ -103,10 +104,10 @@ func (r *SpecOpsSQLiteRepository) ExportAllStructs() (e.All, error) {
 	}
 	for _, d := range devices {
 		result.Devices = append(result.Devices, e.BasicDevice{
-			ID:          d.ID,
+			ID:          strconv.FormatInt(d.ID, 10),
 			Label:       d.Label,
-			ModelID:     d.ModelID,
-			ZoneID:      nullInt64ToInt64(d.ZoneID),
+			ModelID:     strconv.FormatInt(d.ModelID, 10),
+			ZoneID:      strconv.FormatInt(nullInt64ToInt64(d.ZoneID), 10),
 			Proprietary: nullInt64ToInt64(d.Proprietary),
 		})
 	}
@@ -118,10 +119,10 @@ func (r *SpecOpsSQLiteRepository) ExportAllStructs() (e.All, error) {
 	}
 	for _, md := range modelDevices {
 		result.ModelDevices = append(result.ModelDevices, e.BasicModeldevice{
-			ID:      md.ID,
+			ID:      strconv.FormatInt(md.ID, 10),
 			Model:   md.Model,
 			Brand:   md.Brand,
-			ClassID: md.ClassID,
+			ClassID: strconv.FormatInt(md.ClassID, 10),
 		})
 	}
 
@@ -132,11 +133,11 @@ func (r *SpecOpsSQLiteRepository) ExportAllStructs() (e.All, error) {
 	}
 	for _, mp := range modelPorts {
 		result.ModelPorts = append(result.ModelPorts, e.BasicModelport{
-			ID:        mp.ID,
+			ID:        strconv.FormatInt(mp.ID, 10),
 			Name:      mp.Name,
 			Positionx: mp.Positionx,
 			Positiony: mp.Positiony,
-			ModelID:   mp.ModelID,
+			ModelID:   strconv.FormatInt(mp.ModelID, 10),
 		})
 	}
 
@@ -147,7 +148,7 @@ func (r *SpecOpsSQLiteRepository) ExportAllStructs() (e.All, error) {
 	}
 	for _, p := range policies {
 		result.Policies = append(result.Policies, e.BasicPolicy{
-			ID:                   p.ID,
+			ID:                   strconv.FormatInt(p.ID, 10),
 			Name:                 p.Name,
 			Description:          p.Description,
 			AssociatedConnection: nullInt64ToInt64(p.AssociatedConnection),
@@ -162,7 +163,7 @@ func (r *SpecOpsSQLiteRepository) ExportAllStructs() (e.All, error) {
 	}
 	for _, pr := range proprietaries {
 		result.Proprietaries = append(result.Proprietaries, e.BasicProprietary{
-			ID:          pr.ID,
+			ID:          strconv.FormatInt(pr.ID, 10),
 			Proprietary: pr.Proprietary,
 		})
 	}
@@ -174,7 +175,7 @@ func (r *SpecOpsSQLiteRepository) ExportAllStructs() (e.All, error) {
 	}
 	for _, zt := range zoneTypes {
 		result.ZoneTypes = append(result.ZoneTypes, e.BasicZonetype{
-			ID:           zt.ID,
+			ID:           strconv.FormatInt(zt.ID, 10),
 			LocationType: zt.LocationType,
 		})
 	}
@@ -186,7 +187,7 @@ func (r *SpecOpsSQLiteRepository) ExportAllStructs() (e.All, error) {
 	}
 	for _, z := range zones {
 		result.Zones = append(result.Zones, e.BasicZone{
-			ID:           z.ID,
+			ID:           strconv.FormatInt(z.ID, 10),
 			Name:         z.Name,
 			Father:       nullInt64ToInt64(z.Father),
 			Granularity:  nullInt64ToInt64(z.Granularity),

@@ -47,7 +47,7 @@ func (r BasicOpsSQLiteRepository) GetZonetypes() ([]e.ZoneType, error) {
 	result := make([]e.ZoneType, 0, len(zonetypes))
 	for _, row := range zonetypes {
 		zonetype := e.ZoneType{
-			ID:   row.ID,
+			ID:   strconv.FormatInt(row.ID, 10),
 			Name: row.LocationType,
 		}
 		result = append(result, zonetype)

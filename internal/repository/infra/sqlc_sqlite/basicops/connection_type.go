@@ -47,7 +47,7 @@ func (r BasicOpsSQLiteRepository) GetConnectionTypes() ([]e.ConnectionType, erro
 	result := make([]e.ConnectionType, 0, len(connectionTypes))
 	for _, row := range connectionTypes {
 		connectionType := e.ConnectionType{
-			ID:   row.ID,
+			ID:   strconv.FormatInt(row.ID, 10),
 			Name: row.ConnectionType,
 		}
 		result = append(result, connectionType)

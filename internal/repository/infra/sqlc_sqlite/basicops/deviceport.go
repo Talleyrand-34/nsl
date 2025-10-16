@@ -47,13 +47,13 @@ func (r BasicOpsSQLiteRepository) AddDevicePort(deviceid string, modelportid str
 	if err != nil {
 		return fmt.Errorf("Succesfully rejected non valid port: %v", err)
 	}
-	
+
 	// Handle nullable mac_address
 	var macAddressNullable sql.NullString
 	if macAddress != "" {
 		macAddressNullable = sql.NullString{String: macAddress, Valid: true}
 	}
-	
+
 	devportstruct := d.AddDevicePortParams{
 		DeviceID:    int64(sdeviceid),
 		ModelPortID: int64(smodelportid),
@@ -80,8 +80,8 @@ func (r BasicOpsSQLiteRepository) GetDevicePorts() ([]e.DevicePort, error) {
 			macAddress = row.MacAddress.String
 		}
 		model := e.DevicePort{
-			DeviceID:   int(row.DeviceID),
-			ModelID:    int(row.ModelPortID),
+			DeviceID:   strconv.FormatInt(row.DeviceID, 10),
+			ModelID:    strconv.FormatInt(row.ModelPortID, 10),
 			MacAddress: macAddress,
 			DevLabel:   row.Label.String,
 			PortName:   row.Name.String,

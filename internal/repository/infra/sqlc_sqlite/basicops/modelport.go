@@ -38,7 +38,7 @@ func (r BasicOpsSQLiteRepository) GetModelPorts() ([]e.ModelPort, error) {
 	result := make([]e.ModelPort, 0, len(models))
 	for _, row := range models {
 		model := e.ModelPort{
-			ID:        int(row.ID),
+			ID:        strconv.FormatInt(row.ID, 10),
 			Name:      row.Name,
 			Positionx: int(row.Positionx),
 			Positiony: int(row.Positiony),

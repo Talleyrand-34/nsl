@@ -46,7 +46,7 @@ func (r BasicOpsSQLiteRepository) GetDeviceClasses() ([]e.DevClass, error) {
 	result := make([]e.DevClass, 0, len(devclasses))
 	for _, row := range devclasses {
 		singleDevClass := e.DevClass{
-			ID:   row.ID,
+			ID:   strconv.FormatInt(row.ID, 10),
 			Name: row.Name,
 		}
 		result = append(result, singleDevClass)

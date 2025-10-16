@@ -72,12 +72,12 @@ func (r BasicOpsSQLiteRepository) GetDevices() ([]e.Device, error) {
 	for _, row := range devices {
 
 		zone := e.Device{
-			ID:          int(row.ID), // sql.NullInt64 to int
+			ID:          strconv.FormatInt(row.ID, 10),
 			Name:        row.Label,
 			Model:       nullStringToString(row.Model),
 			Brand:       nullStringToString(row.Brand),
 			ZoneName:    nullStringToString(row.Zonename),
-			ZoneID:      int(row.Zoneid.Int64), // sql.NullInt64 to int
+			ZoneID:      strconv.FormatInt(row.Zoneid.Int64, 10),
 			ZoneFather:  nullStringToString(row.Zonefathername),
 			Proprietary: nullStringToString(row.Proprietary),
 		}

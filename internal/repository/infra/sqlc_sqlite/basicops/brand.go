@@ -43,11 +43,11 @@ func (r BasicOpsSQLiteRepository) GetBrands() ([]e.Brand, error) {
 	if execErr != nil {
 		return []e.Brand{}, execErr
 	}
-
 	result := make([]e.Brand, 0, len(brands))
 	for _, row := range brands {
+		strID := strconv.FormatInt(row.ID, 10)
 		brand := e.Brand{
-			ID:   row.ID,
+			ID:   strID,
 			Name: row.Brand,
 		}
 		result = append(result, brand)

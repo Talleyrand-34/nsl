@@ -47,7 +47,7 @@ func (r BasicOpsSQLiteRepository) GetProperties() ([]e.Proprietary, error) {
 	result := make([]e.Proprietary, 0, len(proprietaries))
 	for _, row := range proprietaries {
 		proprietary := e.Proprietary{
-			ID:   row.ID,
+			ID:   strconv.FormatInt(row.ID, 10),
 			Name: row.Proprietary,
 		}
 		result = append(result, proprietary)

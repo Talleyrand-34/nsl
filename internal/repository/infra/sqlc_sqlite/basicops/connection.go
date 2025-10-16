@@ -49,16 +49,16 @@ func (r BasicOpsSQLiteRepository) GetConnections() ([]e.Connection, error) {
 		}
 
 		model := e.Connection{
-			ID:            int(row.ID),
+			ID:            strconv.FormatInt(row.ID, 10),
 			FromDevice:    row.Fromdevname.String,
 			FromModelPort: row.Frommodelportname.String,
 			FromIPSegment: fromIPSegment,
 			ToDevice:      row.Todevname.String,
 			ToModelPort:   row.Tomodelportname.String,
 			ToIPSegment:   toIPSegment,
-			FromZoneID:    int(row.Fromzoneid.Int64),
+			FromZoneID:    strconv.FormatInt(row.Fromzoneid.Int64, 10),
 			FromZoneName:  row.Fromzonename.String,
-			ToZoneID:      int(row.Tozoneid.Int64),
+			ToZoneID:      strconv.FormatInt(row.Tozoneid.Int64, 10),
 			ToZoneName:    row.Tozonename.String,
 		}
 		result = append(result, model)

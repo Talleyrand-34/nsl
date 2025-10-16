@@ -78,10 +78,10 @@ func (r BasicOpsSQLiteRepository) GetZones() ([]e.Zone, error) {
 		}
 
 		zone := e.Zone{
-			ID:           int(row.ID),
+			ID:           strconv.FormatInt(row.ID, 10),
 			Name:         row.Name,
 			Father:       father,
-			FatherID:     int(row.Fatherid.Int64),
+			FatherID:     strconv.FormatInt(row.Fatherid.Int64, 10),
 			LocationType: row.LocationType,
 			Proprietary:  row.Proprietary,
 		}

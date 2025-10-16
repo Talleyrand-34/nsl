@@ -83,7 +83,7 @@ func (r *SpecOpsSQLiteRepository) ImportAllStructs(ctx context.Context, all e.Al
 	for _, md := range all.ModelDevices {
 		// Assume you have helpers: getBrandID, getDeviceClassID
 		brandID, _ := r.getBrandID(ctx, strconv.FormatInt(md.Brand, 10))
-		classID, _ := r.getDeviceClassID(ctx, strconv.FormatInt(md.ClassID, 10))
+		classID, _ := r.getDeviceClassID(ctx, md.ClassID)
 		arg := d.AddModelParams{
 			Model:   md.Model,
 			Brand:   brandID,
@@ -96,11 +96,16 @@ func (r *SpecOpsSQLiteRepository) ImportAllStructs(ctx context.Context, all e.Al
 
 	// 8. ModelPorts
 	for _, mp := range all.ModelPorts {
+		modelid, err := strconv.Atoi(mp.ModelID)
+		if err != nil {
+			modelid = 0
+
+		}
 		arg := d.AddModelPortParams{
 			Name:      mp.Name,
 			Positionx: mp.Positionx,
 			Positiony: mp.Positiony,
-			ModelID:   mp.ModelID,
+			ModelID:   int64(modelid),
 		}
 		if err := r.query.AddModelPort(ctx, arg); err != nil {
 			return err
@@ -109,10 +114,20 @@ func (r *SpecOpsSQLiteRepository) ImportAllStructs(ctx context.Context, all e.Al
 
 	// 9. Devices
 	for _, dv := range all.Devices {
+		modelid, err := strconv.Atoi(dv.ModelID)
+		if err != nil {
+			modelid = 0
+
+		}
+		zoneid, err := strconv.Atoi(dv.ZoneID)
+		if err != nil {
+			modelid = 0
+
+		}
 		arg := d.AddDeviceParams{
 			Label:       dv.Label,
-			ModelID:     dv.ModelID,
-			ZoneID:      int64ToNull(dv.ZoneID),
+			ModelID:     int64(modelid),
+			ZoneID:      int64ToNull(int64(zoneid)),
 			Proprietary: int64ToNull(dv.Proprietary),
 		}
 		if err := r.query.AddDevice(ctx, arg); err != nil {
@@ -122,9 +137,19 @@ func (r *SpecOpsSQLiteRepository) ImportAllStructs(ctx context.Context, all e.Al
 
 	// 10. DevicePorts
 	for _, dp := range all.DevicePorts {
+		deviceid, err := strconv.Atoi(dp.DeviceID)
+		if err != nil {
+			deviceid = 0
+
+		}
+		modelportid, err := strconv.Atoi(dp.ModelPortID)
+		if err != nil {
+			modelportid = 0
+
+		}
 		arg := d.AddDevicePortParams{
-			DeviceID:    dp.DeviceID,
-			ModelPortID: dp.ModelPortID,
+			DeviceID:    int64(deviceid),
+			ModelPortID: int64(modelportid),
 		}
 		if err := r.query.AddDevicePort(ctx, arg); err != nil {
 			return err
@@ -132,19 +157,38 @@ func (r *SpecOpsSQLiteRepository) ImportAllStructs(ctx context.Context, all e.Al
 	}
 
 	// 11. Connections
+
 	for _, c := range all.Connections {
+		fromDevicePortDeviceID, err1 := strconv.ParseInt(c.FromDevicePortDeviceID, 10, 64)
+		fromDevicePortModelPortID, err2 := strconv.ParseInt(c.FromDevicePortModelPortID, 10, 64)
+		toDevicePortDeviceID, err3 := strconv.ParseInt(c.ToDevicePortDeviceID, 10, 64)
+		toDevicePortModelPortID, err4 := strconv.ParseInt(c.ToDevicePortModelPortID, 10, 64)
+
+		// Handle errors gracefully
+		if err1 != nil {
+			fromDevicePortDeviceID = 0
+		}
+		if err2 != nil {
+			fromDevicePortModelPortID = 0
+		}
+		if err3 != nil {
+			toDevicePortDeviceID = 0
+		}
+		if err4 != nil {
+			toDevicePortModelPortID = 0
+		}
+
 		arg := d.AddConnectionParams{
-			FromDevicePortDeviceID:    c.FromDevicePortDeviceID,
-			FromDevicePortModelPortID: c.FromDevicePortModelPortID,
-			ToDevicePortDeviceID:      c.ToDevicePortDeviceID,
-			ToDevicePortModelPortID:   c.ToDevicePortModelPortID,
+			FromDevicePortDeviceID:    fromDevicePortDeviceID,
+			FromDevicePortModelPortID: fromDevicePortModelPortID,
+			ToDevicePortDeviceID:      toDevicePortDeviceID,
+			ToDevicePortModelPortID:   toDevicePortModelPortID,
 			ConnectionType:            int64ToNull(c.ConnectionType),
 		}
 		if err := r.query.AddConnection(ctx, arg); err != nil {
 			return err
 		}
 	}
-
 	// 12. Policies
 	// for _, p := range all.Policies {
 	// 	// You may need to adapt this if AddPolicy uses a struct or separate args
