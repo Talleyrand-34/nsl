@@ -22,9 +22,9 @@ package entities
 
 // Zone This struct containd the info about a zone
 type Zone struct {
-	ID           int    `json:"id"`
+	ID           string `json:"id"`
 	Name         string `json:"name"`
-	FatherID     int    `json:"fatherid"`
+	FatherID     string `json:"fatherid"`
 	Father       string `json:"father"`
 	LocationType string `json:"location_type"`
 	Proprietary  string `json:"proprietary"`
@@ -40,7 +40,7 @@ type ModelDevice struct {
 
 // ModelPort This struct contains the info about a port from the model perspective
 type ModelPort struct {
-	ID        int    `json:"id"`
+	ID        string `json:"id"`
 	Name      string `json:"name"`
 	Positionx int    `json:"positionx"`
 	Positiony int    `json:"positiony"`
@@ -50,11 +50,11 @@ type ModelPort struct {
 
 // Device This struct contains the info about a device
 type Device struct {
-	ID          int    `json:"id"`
+	ID          string `json:"id"`
 	Name        string `json:"label"`
 	Model       string `json:"model"`
 	Brand       string `json:"brand"`
-	ZoneID      int    `json:"zoneid"`
+	ZoneID      string `json:"zoneid"`
 	ZoneName    string `json:"zonename"`
 	ZoneFather  string `json:"zonefathername"`
 	Proprietary string `json:"proprietary"`
@@ -62,8 +62,8 @@ type Device struct {
 
 // DevicePort This struct contains the info about ports asociated to a device since the information is contained in the model
 type DevicePort struct {
-	DeviceID   int    `json:"devid"`
-	ModelID    int    `json:"modelid"`
+	DeviceID   string `json:"devid"`
+	ModelID    string `json:"modelid"`
 	MacAddress string `json:"mac_address"`
 	PortName   string `json:"portname"`
 	DevLabel   string `json:"devname"`
@@ -73,45 +73,45 @@ type DevicePort struct {
 
 // Connection This struct contains the info about a connection
 type Connection struct {
-	ID            int    `json:"id"`
+	ID            string `json:"id"`
 	FromDevice    string `json:"fromdevice"`    // Name of the FromDevice
 	FromModelPort string `json:"frommodel"`     // Name of the port on the model
 	FromIPSegment string `json:"fromipsegment"` // IP segment of the from port
 	FromZoneName  string `json:"fromzonename"`
-	FromZoneID    int    `json:"fromzoneid"`
+	FromZoneID    string `json:"fromzoneid"`
 	ToDevice      string `json:"todevice"`    // Name of the ToDevice
 	ToModelPort   string `json:"tomodel"`     // Name of the port on the model
 	ToIPSegment   string `json:"toipsegment"` // IP segment of the to port
 	ToZoneName    string `json:"tozonename"`
-	ToZoneID      int    `json:"tozoneid"`
+	ToZoneID      string `json:"tozoneid"`
 }
 
 // Brand represents a brand
 type Brand struct {
-	ID   int64  `json:"id"`
+	ID   string `json:"id"`
 	Name string `json:"name"`
 }
 
 // DevClass represents the class of a device
 type DevClass struct {
-	ID   int64  `json:"id"`
+	ID   string `json:"id"`
 	Name string `json:"name"`
 }
 
 // Proprietary represents a proprietary of a device o zone
 type Proprietary struct {
-	ID   int64  `json:"id"`
+	ID   string `json:"id"`
 	Name string `json:"name"`
 }
 
 // ZoneType represents the type of zone a zone can be
 type ZoneType struct {
-	ID   int64  `json:"id"`
+	ID   string `json:"id"`
 	Name string `json:"name"`
 }
 
 // ConnectionType represents the type of connection a connection can be
 type ConnectionType struct {
-	ID   int64  `json:"id"`
+	ID   string `json:"id"`
 	Name string `json:"name"`
 }

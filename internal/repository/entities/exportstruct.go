@@ -36,64 +36,64 @@ type All struct {
 
 // BasicBrand maps the info of the brand in the db
 type BasicBrand struct {
-	ID   int64  `json:"id"`
+	ID   string `json:"id"`
 	Name string `json:"name"`
 }
 
 // BasicConnectiontype maps the info of the connectiontype in the db
 type BasicConnectiontype struct {
-	ID             int64  `json:"id"`
+	ID             string `json:"id"`
 	ConnectionType string `json:"connection_type"`
 }
 
 // BasicConnectionmaps the info of the connection in the db
 type BasicConnection struct {
-	ID                        int64  `json:"id"`
-	FromDevicePortModelPortID int64  `json:"from_device_port_model_port_id"`
-	FromDevicePortDeviceID    int64  `json:"from_device_port_device_id"`
+	ID                        string `json:"id"`
+	FromDevicePortModelPortID string `json:"from_device_port_model_port_id"`
+	FromDevicePortDeviceID    string `json:"from_device_port_device_id"`
 	FromIPSegment             string `json:"from_ip_segment"` // "" if null
-	ToDevicePortModelPortID   int64  `json:"to_device_port_model_port_id"`
-	ToDevicePortDeviceID      int64  `json:"to_device_port_device_id"`
+	ToDevicePortModelPortID   string `json:"to_device_port_model_port_id"`
+	ToDevicePortDeviceID      string `json:"to_device_port_device_id"`
 	ToIPSegment               string `json:"to_ip_segment"`   // "" if null
 	ConnectionType            int64  `json:"connection_type"` // -1 if null
 }
 
 type BasicDeviceclass struct {
-	ID   int64  `json:"id"`
+	ID   string `json:"id"`
 	Name string `json:"name"`
 }
 
 type BasicDeviceport struct {
-	ModelPortID int64 `json:"model_port_id"`
-	DeviceID    int64 `json:"device_id"`
+	ModelPortID string `json:"model_port_id"`
+	DeviceID    string `json:"device_id"`
 }
 
 type BasicDevice struct {
-	ID          int64  `json:"id"`
+	ID          string `json:"id"`
 	Label       string `json:"label"`
-	ModelID     int64  `json:"model_id"`
-	ZoneID      int64  `json:"zone_id"`     // -1 if null
+	ModelID     string `json:"model_id"`
+	ZoneID      string `json:"zone_id"`     // -1 if null
 	Proprietary int64  `json:"proprietary"` // -1 if null
 }
 
 type BasicModeldevice struct {
-	ID      int64  `json:"id"`
+	ID      string `json:"id"`
 	Model   string `json:"model"`
 	Brand   int64  `json:"brand"`
-	ClassID int64  `json:"class_id"`
+	ClassID string `json:"class_id"`
 }
 
 type BasicModelport struct {
-	ID        int64  `json:"id"`
+	ID        string `json:"id"`
 	Name      string `json:"name"`
 	Positionx int64  `json:"positionx"`
 	Positiony int64  `json:"positiony"`
-	ModelID   int64  `json:"model_id"`
+	ModelID   string `json:"model_id"`
 }
 
 // Experimental/Not completed
 type BasicPolicy struct {
-	ID                   int64  `json:"id"`
+	ID                   string `json:"id"`
 	Name                 string `json:"name"`
 	Description          string `json:"description"`
 	AssociatedConnection int64  `json:"associated_connection"` // -1 if null
@@ -101,17 +101,17 @@ type BasicPolicy struct {
 }
 
 type BasicProprietary struct {
-	ID          int64  `json:"id"`
+	ID          string `json:"id"`
 	Proprietary string `json:"proprietary"`
 }
 
 type BasicZonetype struct {
-	ID           int64  `json:"id"`
+	ID           string `json:"id"`
 	LocationType string `json:"location_type"`
 }
 
 type BasicZone struct {
-	ID           int64  `json:"id"`
+	ID           string `json:"id"`
 	Name         string `json:"name"`
 	Father       int64  `json:"father"`        // -1 if null
 	Granularity  int64  `json:"granularity"`   // -1 if null
