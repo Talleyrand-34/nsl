@@ -74,15 +74,15 @@ func TestConnection_AddAndGetConnections(t *testing.T) {
 	modelPortID2 := strconv.Itoa(modelPorts[1].ID)
 
 	// Add device ports for both devices
-	if err := repo.AddDevicePort(deviceID1, modelPortID1); err != nil {
+	if err := repo.AddDevicePort(deviceID1, modelPortID1, ""); err != nil {
 		t.Fatalf("failed to add device port 1: %v", err)
 	}
-	if err := repo.AddDevicePort(deviceID2, modelPortID2); err != nil {
+	if err := repo.AddDevicePort(deviceID2, modelPortID2, ""); err != nil {
 		t.Fatalf("failed to add device port 2: %v", err)
 	}
 
 	// Add connection
-	if err := repo.AddConnection(deviceID1, modelPortID1, deviceID2, modelPortID2); err != nil {
+	if err := repo.AddConnection(deviceID1, modelPortID1, "", deviceID2, modelPortID2, ""); err != nil {
 		t.Errorf("failed to add connection: %v", err)
 	}
 
@@ -113,25 +113,25 @@ func TestConnection_AddConnection_InvalidIDs(t *testing.T) {
 	defer repo.Close()
 
 	// Invalid device ID
-	err = repo.AddConnection("notanumber", "1", "2", "3")
+	err = repo.AddConnection("notanumber", "1", "", "2", "3", "")
 	if err == nil {
 		t.Errorf("Expected error invalid number")
 	}
 
 	// Invalid model port ID
-	err = repo.AddConnection("1", "notanumber", "2", "3")
+	err = repo.AddConnection("1", "notanumber", "", "2", "3", "")
 	if err == nil {
 		t.Errorf("Expected error invalid number")
 	}
 
 	// Invalid toDevice ID
-	err = repo.AddConnection("1", "2", "notanumber", "3")
+	err = repo.AddConnection("1", "2", "", "notanumber", "3", "")
 	if err == nil {
 		t.Errorf("Expected error invalid number")
 	}
 
 	// Invalid toModelPort ID
-	err = repo.AddConnection("1", "2", "3", "notanumber")
+	err = repo.AddConnection("1", "2", "", "3", "notanumber", "")
 	if err == nil {
 		t.Errorf("Expected error invalid number")
 	}
@@ -188,15 +188,15 @@ func TestConnection_AddGetAndDeleteConnections(t *testing.T) {
 	modelPortID2 := strconv.Itoa(modelPorts[1].ID)
 
 	// Add device ports for both devices
-	if err := repo.AddDevicePort(deviceID1, modelPortID1); err != nil {
+	if err := repo.AddDevicePort(deviceID1, modelPortID1, ""); err != nil {
 		t.Fatalf("failed to add device port 1: %v", err)
 	}
-	if err := repo.AddDevicePort(deviceID2, modelPortID2); err != nil {
+	if err := repo.AddDevicePort(deviceID2, modelPortID2, ""); err != nil {
 		t.Fatalf("failed to add device port 2: %v", err)
 	}
 
 	// Add connection
-	if err := repo.AddConnection(deviceID1, modelPortID1, deviceID2, modelPortID2); err != nil {
+	if err := repo.AddConnection(deviceID1, modelPortID1, "", deviceID2, modelPortID2, ""); err != nil {
 		t.Errorf("failed to add connection: %v", err)
 	}
 
@@ -293,18 +293,18 @@ func TestConnection_UpdateConnection(t *testing.T) {
 	modelPortID3 := strconv.Itoa(modelPorts[2].ID)
 
 	// Add device ports for both devices
-	if err := repo.AddDevicePort(deviceID1, modelPortID1); err != nil {
+	if err := repo.AddDevicePort(deviceID1, modelPortID1, ""); err != nil {
 		t.Fatalf("failed to add device port 1: %v", err)
 	}
-	if err := repo.AddDevicePort(deviceID2, modelPortID2); err != nil {
+	if err := repo.AddDevicePort(deviceID2, modelPortID2, ""); err != nil {
 		t.Fatalf("failed to add device port 2: %v", err)
 	}
-	if err := repo.AddDevicePort(deviceID2, modelPortID3); err != nil {
+	if err := repo.AddDevicePort(deviceID2, modelPortID3, ""); err != nil {
 		t.Fatalf("failed to add device port 3: %v", err)
 	}
 
 	// Add connection (MainRouter:eth0 -> BackupRouter:eth1)
-	if err := repo.AddConnection(deviceID1, modelPortID1, deviceID2, modelPortID2); err != nil {
+	if err := repo.AddConnection(deviceID1, modelPortID1, "", deviceID2, modelPortID2, ""); err != nil {
 		t.Fatalf("failed to add connection: %v", err)
 	}
 
@@ -326,9 +326,9 @@ func TestConnection_UpdateConnection(t *testing.T) {
 	if err := repo.UpdateConnection(
 		connID,
 		deviceID1,
-		modelPortID1,
+		modelPortID1, "",
 		deviceID2,
-		modelPortID3,
+		modelPortID3, "",
 	); err != nil {
 		t.Fatalf("failed to update connection: %v", err)
 	}

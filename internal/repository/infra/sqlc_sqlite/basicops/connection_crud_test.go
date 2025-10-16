@@ -95,16 +95,16 @@ func setupNetworkInfrastructure(
 	}
 
 	// Add device ports
-	if err := repo.AddDevicePort(device1Id, port1Id); err != nil {
+	if err := repo.AddDevicePort(device1Id, port1Id, ""); err != nil {
 		t.Fatalf("failed to add device port 1: %v", err)
 	}
-	if err := repo.AddDevicePort(device1Id, port2Id); err != nil {
+	if err := repo.AddDevicePort(device1Id, port2Id, ""); err != nil {
 		t.Fatalf("failed to add device port 2: %v", err)
 	}
-	if err := repo.AddDevicePort(device2Id, port1Id); err != nil {
+	if err := repo.AddDevicePort(device2Id, port1Id, ""); err != nil {
 		t.Fatalf("failed to add device port 3: %v", err)
 	}
-	if err := repo.AddDevicePort(device2Id, port2Id); err != nil {
+	if err := repo.AddDevicePort(device2Id, port2Id, ""); err != nil {
 		t.Fatalf("failed to add device port 4: %v", err)
 	}
 
@@ -122,7 +122,7 @@ func TestConnection_CreateOnly(t *testing.T) {
 	device1Id, device2Id, port1Id, port2Id := setupNetworkInfrastructure(t, repo)
 
 	// Test CREATE operation
-	if err := repo.AddConnection(device1Id, port1Id, device2Id, port2Id); err != nil {
+	if err := repo.AddConnection(device1Id, port1Id, "", device2Id, port2Id, ""); err != nil {
 		t.Errorf("failed to add connection: %v", err)
 	}
 
@@ -161,7 +161,7 @@ func TestConnection_CreateAndUpdate(t *testing.T) {
 	device1Id, device2Id, port1Id, port2Id := setupNetworkInfrastructure(t, repo)
 
 	// Test CREATE operation
-	if err := repo.AddConnection(device1Id, port1Id, device2Id, port1Id); err != nil {
+	if err := repo.AddConnection(device1Id, port1Id, "", device2Id, port1Id, ""); err != nil {
 		t.Errorf("failed to add connection: %v", err)
 	}
 
@@ -178,7 +178,7 @@ func TestConnection_CreateAndUpdate(t *testing.T) {
 	connectionId := strconv.Itoa(connections[0].ID)
 
 	// Test UPDATE operation - change the connection to use different ports
-	if err := repo.UpdateConnection(connectionId, device1Id, port2Id, device2Id, port2Id); err != nil {
+	if err := repo.UpdateConnection(connectionId, device1Id, port2Id, "", device2Id, port2Id, ""); err != nil {
 		t.Errorf("failed to update connection: %v", err)
 	}
 
@@ -226,7 +226,7 @@ func TestConnection_CreateAndDelete(t *testing.T) {
 	device1Id, device2Id, port1Id, port2Id := setupNetworkInfrastructure(t, repo)
 
 	// Test CREATE operation
-	if err := repo.AddConnection(device1Id, port1Id, device2Id, port2Id); err != nil {
+	if err := repo.AddConnection(device1Id, port1Id, "", device2Id, port2Id, ""); err != nil {
 		t.Errorf("failed to add connection: %v", err)
 	}
 
