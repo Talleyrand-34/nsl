@@ -17,7 +17,20 @@ import (
 	c "github.com/ostafen/clover/v2"
 )
 
-const brandsCollection = "brands"
+// Collection constants
+const (
+	brandsCollection          = "brands"
+	devclassesCollection      = "devclasses"
+	proprietariesCollection   = "proprietaries"
+	zonetypesCollection       = "zonetypes"
+	zonesCollection           = "zones"
+	modelsCollection          = "models"
+	modelportsCollection      = "modelports"
+	devicesCollection         = "devices"
+	deviceportsCollection     = "deviceports"
+	connectionsCollection     = "connections"
+	connectiontypesCollection = "connectiontypes"
+)
 
 type BasicOpsCloverRepository struct {
 	db *c.DB
@@ -25,12 +38,29 @@ type BasicOpsCloverRepository struct {
 
 // NewCloverRepositoryFromDB creates a repository from an existing CloverDB instance
 func NewCloverRepositoryFromDB(db *c.DB) (BasicOpsCloverRepository, error) {
-	// Create the brands collection if it doesn't exist
-	if exists, err := db.HasCollection(brandsCollection); err != nil {
-		return BasicOpsCloverRepository{}, err
-	} else if !exists {
-		if err := db.CreateCollection(brandsCollection); err != nil {
+	// List of all collections to create
+	collections := []string{
+		brandsCollection,
+		devclassesCollection,
+		proprietariesCollection,
+		zonetypesCollection,
+		zonesCollection,
+		modelsCollection,
+		modelportsCollection,
+		devicesCollection,
+		deviceportsCollection,
+		connectionsCollection,
+		connectiontypesCollection,
+	}
+
+	// Create each collection if it doesn't exist
+	for _, collectionName := range collections {
+		if exists, err := db.HasCollection(collectionName); err != nil {
 			return BasicOpsCloverRepository{}, err
+		} else if !exists {
+			if err := db.CreateCollection(collectionName); err != nil {
+				return BasicOpsCloverRepository{}, err
+			}
 		}
 	}
 
