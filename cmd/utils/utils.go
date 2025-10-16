@@ -1,20 +1,19 @@
-
 /*
-  Copyright © 2025 Tecdesoft (rodrigo-gonzalez@tecdesoft.es, t34@t34.dev)
- 
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU Affero General Public License as published
-  by the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
- 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-  GNU Affero General Public License for more details.
- 
-  You should have received a copy of the GNU Affero General Public License
-  along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+Copyright © 2025 Tecdesoft (rodrigo-gonzalez@tecdesoft.es, t34@t34.dev)
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+*/
 package cmd_utils
 
 import (
@@ -23,36 +22,61 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/cobra"
 
 	c "nsl-graph/cmd"
 	q "nsl-graph/internal/repository/application"
-	infra "nsl-graph/internal/repository/infra/sqlc_sqlite/base"
+	cloverInfra "nsl-graph/internal/repository/infra/manual_cloverdb/base"
+	sqliteInfra "nsl-graph/internal/repository/infra/sqlc_sqlite/base"
+	// sqliteInfra "nsl-graph/internal/repository/infra/sqlc_sqlite/base"
 )
 
 // openDatabaseConnection establishes and returns a database connection.
-func OpenDatabaseConnection() (*sql.DB, error) {
+func OpenDatabaseConnectionSqlite() (*sql.DB, error) {
 	db, err := sql.Open("sqlite3", c.Srcdbpath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open SQLite database: %w", err)
 	}
 	return db, nil
 }
+func OpenDatabaseConnectionClover() {
+	os.Mkdir(c.Srcdbpath, 0755)
+}
 
 // Return repositoryDB connection
 func ServiceConnection() (q.NetServiceInt, error) {
-	db, err := OpenDatabaseConnection()
-	if err != nil {
-		log.Fatalf("Error connecting to the database: %v", err)
+	backend := strings.ToLower(c.Backend)
+
+	switch backend {
+	case "cloverdb", "clover":
+		// Use CloverDB backend
+		OpenDatabaseConnectionClover()
+		repository, err := cloverInfra.NewCloverRepository(c.Srcdbpath)
+		if err != nil {
+			log.Fatalf("Error connecting to CloverDB: %v", err)
+		}
+		service := q.NewNetService(repository)
+		return service, nil
+
+	case "sqlite", "":
+		// Use SQLite backend (default)
+		db, err := OpenDatabaseConnectionSqlite()
+		if err != nil {
+			log.Fatalf("Error connecting to SQLite database: %v", err)
+		}
+		repository, err := sqliteInfra.NewSQLiteRepositoryFromDB(db)
+		if err != nil {
+			log.Fatalf("Error initializing SQLite repository: %v", err)
+		}
+		service := q.NewNetService(repository)
+		return service, nil
+
+	default:
+		return nil, fmt.Errorf("unsupported backend type: %s (supported: sqlite, cloverdb)", backend)
 	}
-	repository, err := infra.NewSQLiteRepositoryFromDB(db)
-	if err != nil {
-		log.Fatalf("Error connecting to the database: %v", err)
-	}
-	service := q.NewNetService(repository)
-	return service, err
 }
 
 // PrintPrettyJSON prints the JSON data in a human-readable format.
