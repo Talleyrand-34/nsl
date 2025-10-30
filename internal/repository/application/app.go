@@ -286,6 +286,9 @@ func (ns *NetService) AddConnection(
 	toModelPort string,
 	toIPSegment string,
 ) error {
+	_ = ns.netRepo.AddDevicePort(fromDevice, fromModelPort, "")
+	_ = ns.netRepo.AddDevicePort(toDevice, toDevice, "")
+
 	return ns.netRepo.AddConnection(fromDevice, fromModelPort, fromIPSegment, toDevice, toModelPort, toIPSegment)
 }
 
