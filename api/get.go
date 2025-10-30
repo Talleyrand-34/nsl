@@ -74,12 +74,15 @@ func getDiagram(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Get format from query parameter, default to connections
 		formatParam := r.URL.Query().Get("format")
+		vlanParam := r.URL.Query().Get("vlan") // "true" or "false"
+
 		var diagramFormat DiagramFormat
+		includeVlans := vlanParam == "true"
 
 		switch formatParam {
 		case "ports":
 			diagramFormat = FormatPorts
-		case "connections", "": // Default to v2 if not specified
+		case "connections", "": // Default to connections if not specified
 			diagramFormat = FormatConnections
 		default:
 			http.Error(
@@ -109,9 +112,17 @@ func getDiagram(service q.NetServiceInt) http.HandlerFunc {
 		var diagramString string
 		switch diagramFormat {
 		case FormatPorts:
-			diagramString = format.GenerateD2FocusPorts(devices, connections, zones)
+			if includeVlans {
+				diagramString = format.GenerateD2FocusPortsWithVlans(devices, connections, zones)
+			} else {
+				diagramString = format.GenerateD2FocusPorts(devices, connections, zones)
+			}
 		case FormatConnections:
-			diagramString = format.GenerateD2FocusConnections(devices, connections, zones)
+			if includeVlans {
+				diagramString = format.GenerateD2FocusConnectionsWithVlans(devices, connections, zones)
+			} else {
+				diagramString = format.GenerateD2FocusConnections(devices, connections, zones)
+			}
 		}
 
 		diagram, err := format.GenerateDiagramSVG(diagramString)

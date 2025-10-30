@@ -213,11 +213,22 @@ $actionFiles = [
             <option value="ports" <?= (isset($_GET['format']) && $_GET['format'] === 'ports') ? 'selected' : '' ?>>Ports</option>
             <option value="connections" <?= (!isset($_GET['format']) || $_GET['format'] === 'connections') ? 'selected' : '' ?>>Connections</option>
         </select>
+
+        <label for="vlanSelect" class="format-label" style="margin-left: 20px;">VLAN Display:</label>
+        <select id="vlanSelect" name="vlan" onchange="this.form.submit()">
+            <option value="false" <?= (!isset($_GET['vlan']) || $_GET['vlan'] === 'false') ? 'selected' : '' ?>>No VLAN</option>
+            <option value="true" <?= (isset($_GET['vlan']) && $_GET['vlan'] === 'true') ? 'selected' : '' ?>>With VLANs</option>
+        </select>
     </div>
-    
+
     <div class="diagram">
         <div class="resizable-img-container" style="height:500px;">
-            <img id="diagramImg" src="<?= API_BASE_URL ?>/diagram?format=<?= isset($_GET['format']) ? htmlspecialchars($_GET['format']) : 'connections' ?>" alt="Diagram">
+            <?php
+                $format = isset($_GET['format']) ? htmlspecialchars($_GET['format']) : 'connections';
+                $vlan = isset($_GET['vlan']) ? htmlspecialchars($_GET['vlan']) : 'false';
+                $diagramUrl = API_BASE_URL . "/diagram?format=" . $format . "&vlan=" . $vlan;
+            ?>
+            <img id="diagramImg" src="<?= $diagramUrl ?>" alt="Diagram">
         </div>
     </div>
 </form>
