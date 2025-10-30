@@ -73,7 +73,7 @@ func init() {
 		StringVarP(&Srcdbpath, "source", "s", "test.db", "database file or directory path")
 	viper.BindPFlag("source", RootCmd.PersistentFlags().Lookup("source"))
 	RootCmd.PersistentFlags().
-		StringVarP(&Backend, "backend", "b", "sqlite", "database backend type (sqlite or cloverdb)")
+		StringVarP(&Backend, "backend", "b", "cloverdb", "database backend type (sqlite or cloverdb)")
 	viper.BindPFlag("backend", RootCmd.PersistentFlags().Lookup("backend"))
 	RootCmd.PersistentFlags().
 		StringVar(&outpath, "outPath", "out/", "output path for files")
