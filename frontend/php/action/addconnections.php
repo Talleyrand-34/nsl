@@ -37,7 +37,7 @@ $fromIPSegment = $_POST['fromIPSegment'] ?? '';
 $toDevice = $_POST['toDevice'] ?? '';
 $toModelPort = $_POST['toModelPort'] ?? '';
 $toIPSegment = $_POST['toIPSegment'] ?? '';
-$vlanId = $_POST['vlanId'] ?? '';
+$vlanIds = $_POST['vlanIds'] ?? [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($fromDevice === '' || $fromModelPort === '' || $toDevice === '' || $toModelPort === '') {
@@ -50,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'toDevice' => $toDevice,
             'toModelPort' => $toModelPort,
             'toIPSegment' => $toIPSegment,
-            'vlanId' => $vlanId
+            'vlanIds' => $vlanIds
         ]);
 
         // Debug: echo the JSON being sent
@@ -152,17 +152,17 @@ $toModelPorts = $toDeviceModel ? getModelPortsByModel($modelports, $toDeviceMode
     </fieldset>
     <br>
     <fieldset>
-        <legend>VLAN (Optional)</legend>
-        <label for="vlanId">VLAN:</label>
-        <select id="vlanId" name="vlanId">
-            <option value="">-- No VLAN --</option>
+        <legend>VLANs (Optional - select multiple)</legend>
+        <label for="vlanIds">VLANs:</label>
+        <select id="vlanIds" name="vlanIds[]" multiple size="5" style="width: 100%;">
             <?php foreach ($vlans as $vlan): ?>
                 <option value="<?= htmlspecialchars($vlan['id']) ?>"
-                    <?= ($vlanId == $vlan['id']) ? 'selected' : '' ?>>
+                    <?= in_array($vlan['id'], $vlanIds) ? 'selected' : '' ?>>
                     VLAN <?= htmlspecialchars($vlan['vlanid']) ?> - <?= htmlspecialchars($vlan['vlanname']) ?>
                 </option>
             <?php endforeach; ?>
         </select>
+        <small>Hold Ctrl (or Cmd on Mac) to select multiple VLANs</small>
     </fieldset>
     <br>
     <button type="submit">Add Connection</button>

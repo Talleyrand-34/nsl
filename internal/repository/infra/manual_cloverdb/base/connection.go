@@ -96,11 +96,18 @@ func (r BasicOpsCloverRepository) GetConnections() ([]e.Connection, error) {
 			connection.ToIPSegment = toIPSegment
 		}
 
-		// Get VLAN info
-		if vlanID, ok := doc.Get("vlan_id").(string); ok && vlanID != "" {
-			vlanDoc, err := r.db.FindById(vlansCollection, vlanID)
-			if err == nil && vlanDoc != nil {
-				connection.VlanCon = vlanDoc.Get("vlan_id").(string)
+		// Get VLAN info - array of VLAN IDs
+		connection.VlanCon = make([]string, 0)
+		if vlanIDs, ok := doc.Get("vlan_ids").([]interface{}); ok && len(vlanIDs) > 0 {
+			for _, vlanIDInterface := range vlanIDs {
+				if vlanID, ok := vlanIDInterface.(string); ok && vlanID != "" {
+					vlanDoc, err := r.db.FindById(vlansCollection, vlanID)
+					if err == nil && vlanDoc != nil {
+						if vlanIDStr, ok := vlanDoc.Get("vlan_id").(string); ok {
+							connection.VlanCon = append(connection.VlanCon, vlanIDStr)
+						}
+					}
+				}
 			}
 		}
 
@@ -118,7 +125,7 @@ func (r BasicOpsCloverRepository) AddConnection(
 	toDevice string,
 	toModelPort string,
 	toIPSegment string,
-	vlanID string,
+	vlanIDs []string,
 ) error {
 	// Validate that the ports are not already in use
 	// Check if from port is already used
@@ -159,8 +166,8 @@ func (r BasicOpsCloverRepository) AddConnection(
 	if toIPSegment != "" {
 		doc.Set("to_ip_segment", toIPSegment)
 	}
-	if vlanID != "" {
-		doc.Set("vlan_id", vlanID)
+	if len(vlanIDs) > 0 {
+		doc.Set("vlan_ids", vlanIDs)
 	}
 
 	_, err = r.db.InsertOne(connectionsCollection, doc)
@@ -188,7 +195,7 @@ func (r BasicOpsCloverRepository) UpdateConnection(
 	to_device string,
 	to_port string,
 	to_ip_segment string,
-	vlan_id string,
+	vlan_ids []string,
 ) error {
 	updates := make(map[string]interface{})
 	updates["from_device_id"] = from_device
@@ -202,8 +209,8 @@ func (r BasicOpsCloverRepository) UpdateConnection(
 	if to_ip_segment != "" {
 		updates["to_ip_segment"] = to_ip_segment
 	}
-	if vlan_id != "" {
-		updates["vlan_id"] = vlan_id
+	if len(vlan_ids) > 0 {
+		updates["vlan_ids"] = vlan_ids
 	}
 
 	err := r.db.Update(q.NewQuery(connectionsCollection).Where(q.Field("_id").Eq(id)), updates)
@@ -219,7 +226,7 @@ func (r BasicOpsCloverRepository) AddConnectionSimple(
 	toDevice string,
 	toModelPort string,
 	toIPSegment string,
-	vlanID string,
+	vlanIDs []string,
 ) error {
 
 	doc := d.NewDocument()
@@ -234,8 +241,8 @@ func (r BasicOpsCloverRepository) AddConnectionSimple(
 	if toIPSegment != "" {
 		doc.Set("to_ip_segment", toIPSegment)
 	}
-	if vlanID != "" {
-		doc.Set("vlan_id", vlanID)
+	if len(vlanIDs) > 0 {
+		doc.Set("vlan_ids", vlanIDs)
 	}
 
 	_, err := r.db.InsertOne(connectionsCollection, doc)

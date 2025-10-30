@@ -103,8 +103,14 @@ func rootHandler() http.HandlerFunc {
 			"POST   /zonetypes",
 			"PUT    /zonetypes",
 
+			// /vlans
+			"DELETE /vlans",
+			"GET    /vlans",
+			"POST   /vlans",
+			"PUT    /vlans",
+
 			// /diagram
-			"GET    /zonetypes",
+			"GET    /diagram",
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(endpoints)
@@ -156,6 +162,9 @@ func RegisterRoutes(r *mux.Router, service q.NetServiceInt) {
 	// ConnectionType
 	r.HandleFunc("/connectiontypes", addConnectionTypeHandler(service)).Methods("POST")
 	r.HandleFunc("/connectiontypes", getConnectionsTypeHandler(service)).Methods("GET")
+	// VLAN
+	r.HandleFunc("/vlans", addVlanHandler(service)).Methods("POST")
+	r.HandleFunc("/vlans", getVlansHandler(service)).Methods("GET")
 	// All Ports for a Device
 	r.HandleFunc("/allports/device", getAllPortsDeviceHandler(service)).Methods("GET")
 	// All Ports (All Devices)
@@ -186,7 +195,9 @@ func RegisterRoutes(r *mux.Router, service q.NetServiceInt) {
 	r.HandleFunc("/connections", updateConnectionHandler(service)).Methods("PUT")
 	// ConnectionType
 	r.HandleFunc("/connectiontypes", deleteConnectionTypeHandler(service)).Methods("DELETE")
-	
+	// VLAN
+	r.HandleFunc("/vlans", deleteVlanHandler(service)).Methods("DELETE")
+
 	// ADD ALL MISSING UPDATE ROUTES
 	// Brand
 	r.HandleFunc("/brands", updateBrandHandler(service)).Methods("PUT")
@@ -206,6 +217,8 @@ func RegisterRoutes(r *mux.Router, service q.NetServiceInt) {
 	r.HandleFunc("/modelports", updateModelPortHandler(service)).Methods("PUT")
 	// ConnectionType
 	r.HandleFunc("/connectiontypes", updateConnectionTypeHandler(service)).Methods("PUT")
+	// VLAN
+	r.HandleFunc("/vlans", updateVlanHandler(service)).Methods("PUT")
 }
 
 func StartServer(dbPath string, port int) {

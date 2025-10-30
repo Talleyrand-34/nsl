@@ -55,7 +55,7 @@ Example:
 		toDeviceId, _ := cmd.Flags().GetString("to-device-id")
 		toModelPortId, _ := cmd.Flags().GetString("to-modelport-id")
 		toIPSegment, _ := cmd.Flags().GetString("to-ip-segment")
-		vlanId, _ := cmd.Flags().GetString("vlan-id")
+		vlanIds, _ := cmd.Flags().GetStringSlice("vlan-ids")
 
 		// All connection parameters are required
 		if fromDeviceId == "" || fromModelPortId == "" || toDeviceId == "" || toModelPortId == "" {
@@ -71,7 +71,7 @@ Example:
 		}
 
 		// Update the connection
-		err = service.UpdateConnection(connectionId, fromDeviceId, fromModelPortId, fromIPSegment, toDeviceId, toModelPortId, toIPSegment, vlanId)
+		err = service.UpdateConnection(connectionId, fromDeviceId, fromModelPortId, fromIPSegment, toDeviceId, toModelPortId, toIPSegment, vlanIds)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error updating connection: %v\n", err)
 			os.Exit(1)
@@ -93,7 +93,7 @@ func init() {
 	ConnectionUpdateCmd.Flags().String("to-device-id", "", "Destination device ID (required)")
 	ConnectionUpdateCmd.Flags().String("to-modelport-id", "", "Destination model port ID (required)")
 	ConnectionUpdateCmd.Flags().String("to-ip-segment", "", "IP segment for the destination port (optional)")
-	ConnectionUpdateCmd.Flags().String("vlan-id", "", "VLAN ID for this connection (optional)")
+	ConnectionUpdateCmd.Flags().StringSlice("vlan-ids", []string{}, "VLAN database IDs for this connection (optional, comma-separated)")
 	// ConnectionUpdateCmd.MarkFlagRequired("id")
 	// ConnectionUpdateCmd.MarkFlagRequired("from-device-id")
 	// ConnectionUpdateCmd.MarkFlagRequired("from-modelport-id")

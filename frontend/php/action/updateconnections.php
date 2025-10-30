@@ -7,6 +7,7 @@ $message = '';
 $connections = json_decode(@file_get_contents(CONNECTIONS_ENDPOINT), true) ?: [];
 $devices = json_decode(@file_get_contents(DEVICES_ENDPOINT), true) ?: [];
 $modelPorts = json_decode(@file_get_contents(MODELPORTS_ENDPOINT), true) ?: [];
+$vlans = json_decode(@file_get_contents(VLANS_ENDPOINT), true) ?: [];
 
 // Helper: get model for a given device id
 function getDeviceModel($devices, $deviceId)
@@ -39,6 +40,17 @@ $fromIPSegment = $_POST['from_ip_segment'] ?? '';
 $toDeviceId = $_POST['to_device_id'] ?? '';
 $toModelPortId = $_POST['to_modelport_id'] ?? '';
 $toIPSegment = $_POST['to_ip_segment'] ?? '';
+$vlanIds = $_POST['vlan_ids'] ?? [];
+
+// If a connection is selected, pre-populate its VLAN IDs
+if ($connectionId && empty($vlanIds)) {
+    foreach ($connections as $conn) {
+        if ($conn['id'] == $connectionId) {
+            $vlanIds = $conn['vlanids'] ?? [];
+            break;
+        }
+    }
+}
 
 // Filter model ports for each device selection
 $fromDeviceModel = getDeviceModel($devices, $fromDeviceId);
@@ -67,7 +79,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'from_ip_segment' => $fromIPSegment,
             'to_device' => $toDeviceId,
             'to_port' => $toModelPortId,
-            'to_ip_segment' => $toIPSegment
+            'to_ip_segment' => $toIPSegment,
+            'vlan_ids' => $vlanIds
         ]);
 
         $ch = curl_init(CONNECTIONS_ENDPOINT);
@@ -166,9 +179,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                placeholder="e.g., 192.168.1.0/24"><br><br>
 
         <label for="to_ip_segment">Destination IP Segment (optional):</label>
-        <input type="text" id="to_ip_segment" name="to_ip_segment" 
+        <input type="text" id="to_ip_segment" name="to_ip_segment"
                value="<?= htmlspecialchars($toIPSegment) ?>"
                placeholder="e.g., 10.0.1.0/24"><br><br>
+
+        <fieldset>
+            <legend>VLANs (Optional - select multiple)</legend>
+            <label for="vlan_ids">VLANs:</label>
+            <select id="vlan_ids" name="vlan_ids[]" multiple size="5" style="width: 100%;">
+                <?php foreach ($vlans as $vlan): ?>
+                    <option value="<?= htmlspecialchars($vlan['id']) ?>"
+                        <?= in_array($vlan['id'], $vlanIds) ? 'selected' : '' ?>>
+                        VLAN <?= htmlspecialchars($vlan['vlanid']) ?> - <?= htmlspecialchars($vlan['vlanname']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+            <small>Hold Ctrl (or Cmd on Mac) to select multiple VLANs</small>
+        </fieldset><br>
 
         <button type="submit">Update Connection</button>
     </form>

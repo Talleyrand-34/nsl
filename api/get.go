@@ -260,7 +260,7 @@ func getDevicePortsHandler(service q.NetServiceInt) http.HandlerFunc {
 	}
 }
 
-// --- Connection ---
+// --- ConnectionType ---
 
 func getConnectionsTypeHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -285,6 +285,20 @@ func getConnectionsHandler(service q.NetServiceInt) http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(conns)
+	}
+}
+
+// --- VLAN ---
+
+func getVlansHandler(service q.NetServiceInt) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vlans, err := service.GetVlans()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(vlans)
 	}
 }
 

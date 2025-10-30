@@ -231,13 +231,13 @@ func addDevicePortHandler(service q.NetServiceInt) http.HandlerFunc {
 
 // Connection
 type AddConnectionRequest struct {
-	FromDevice    string `json:"fromDevice"`
-	FromModelPort string `json:"fromModelPort"`
-	FromIPSegment string `json:"fromIPSegment"`
-	ToDevice      string `json:"toDevice"`
-	ToModelPort   string `json:"toModelPort"`
-	ToIPSegment   string `json:"toIPSegment"`
-	VlanId        string `json:"vlanId"`
+	FromDevice    string   `json:"fromDevice"`
+	FromModelPort string   `json:"fromModelPort"`
+	FromIPSegment string   `json:"fromIPSegment"`
+	ToDevice      string   `json:"toDevice"`
+	ToModelPort   string   `json:"toModelPort"`
+	ToIPSegment   string   `json:"toIPSegment"`
+	VlanIds       []string `json:"vlanIds"`
 }
 
 func addConnectionHandler(service q.NetServiceInt) http.HandlerFunc {
@@ -252,7 +252,7 @@ func addConnectionHandler(service q.NetServiceInt) http.HandlerFunc {
 				req.ToDevice,
 				req.ToModelPort,
 				req.ToIPSegment,
-				req.VlanId,
+				req.VlanIds,
 			)
 		},
 	)
@@ -269,6 +269,22 @@ func addConnectionTypeHandler(service q.NetServiceInt) http.HandlerFunc {
 		[]string{"Name"},
 		func(service q.NetServiceInt, req *AddConnectionTypeRequest) error {
 			return service.AddConnectionType(req.Name)
+		},
+	)
+}
+
+// VLAN
+type AddVlanRequest struct {
+	VlanID   string `json:"vlanID"`
+	VlanName string `json:"vlanName"`
+}
+
+func addVlanHandler(service q.NetServiceInt) http.HandlerFunc {
+	return genericAddHandler[AddVlanRequest](
+		service,
+		[]string{"VlanID", "VlanName"},
+		func(service q.NetServiceInt, req *AddVlanRequest) error {
+			return service.AddVlan(req.VlanID, req.VlanName)
 		},
 	)
 }

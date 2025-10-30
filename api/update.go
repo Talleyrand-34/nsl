@@ -50,14 +50,14 @@ func genericUpdateHandler[T any](
 func updateConnectionHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
-			ID            string `json:"id"`
-			FromDevice    string `json:"from_device"`
-			FromPort      string `json:"from_port"`
-			FromIPSegment string `json:"from_ip_segment"`
-			ToDevice      string `json:"to_device"`
-			ToPort        string `json:"to_port"`
-			ToIPSegment   string `json:"to_ip_segment"`
-			VlanId        string `json:"vlan_id"`
+			ID            string   `json:"id"`
+			FromDevice    string   `json:"from_device"`
+			FromPort      string   `json:"from_port"`
+			FromIPSegment string   `json:"from_ip_segment"`
+			ToDevice      string   `json:"to_device"`
+			ToPort        string   `json:"to_port"`
+			ToIPSegment   string   `json:"to_ip_segment"`
+			VlanIds       []string `json:"vlan_ids"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -67,7 +67,7 @@ func updateConnectionHandler(service q.NetServiceInt) http.HandlerFunc {
 			http.Error(w, "id is required", http.StatusBadRequest)
 			return
 		}
-		if err := service.UpdateConnection(req.ID, req.FromDevice, req.FromPort, req.FromIPSegment, req.ToDevice, req.ToPort, req.ToIPSegment, req.VlanId); err != nil {
+		if err := service.UpdateConnection(req.ID, req.FromDevice, req.FromPort, req.FromIPSegment, req.ToDevice, req.ToPort, req.ToIPSegment, req.VlanIds); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -226,6 +226,23 @@ func updateConnectionTypeHandler(service q.NetServiceInt) http.HandlerFunc {
 		[]string{"ID", "Name"},
 		func(service q.NetServiceInt, req *UpdateConnectionTypeRequest) error {
 			return service.UpdateConnectionType(req.ID, req.Name)
+		},
+	)
+}
+
+// VLAN Update
+type UpdateVlanRequest struct {
+	ID       string `json:"id"`
+	VlanID   string `json:"vlanID"`
+	VlanName string `json:"vlanName"`
+}
+
+func updateVlanHandler(service q.NetServiceInt) http.HandlerFunc {
+	return genericUpdateHandler[UpdateVlanRequest](
+		service,
+		[]string{"ID"},
+		func(service q.NetServiceInt, req *UpdateVlanRequest) error {
+			return service.UpdateVlan(req.ID, req.VlanID, req.VlanName)
 		},
 	)
 }

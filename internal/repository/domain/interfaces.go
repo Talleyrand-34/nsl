@@ -134,7 +134,7 @@ type repository interface {
 		toDeviceId string,
 		toModelPortId string,
 		toIPSegment string,
-		vlanId string,
+		vlanIds []string,
 	) error
 	GetConnections() ([]e.Connection, error)
 	UpdateConnection(
@@ -145,7 +145,7 @@ type repository interface {
 		newToDeviceId string,
 		newToModelPortId string,
 		newToIPSegment string,
-		newVlanId string,
+		newVlanIds []string,
 	) error
 	DeleteConnection(connectionId string) error
 

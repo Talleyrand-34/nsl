@@ -73,18 +73,18 @@ type DevicePort struct {
 
 // Connection This struct contains the info about a connection
 type Connection struct {
-	ID            string `json:"id"`
-	FromDevice    string `json:"fromdevice"`    // Name of the FromDevice
-	FromModelPort string `json:"frommodel"`     // Name of the port on the model
-	FromIPSegment string `json:"fromipsegment"` // IP segment of the from port
-	FromZoneName  string `json:"fromzonename"`
-	FromZoneID    string `json:"fromzoneid"`
-	ToDevice      string `json:"todevice"`    // Name of the ToDevice
-	ToModelPort   string `json:"tomodel"`     // Name of the port on the model
-	ToIPSegment   string `json:"toipsegment"` // IP segment of the to port
-	ToZoneName    string `json:"tozonename"`
-	ToZoneID      string `json:"tozoneid"`
-	VlanCon       string `json:"vlanid"`
+	ID            string   `json:"id"`
+	FromDevice    string   `json:"fromdevice"`    // Name of the FromDevice
+	FromModelPort string   `json:"frommodel"`     // Name of the port on the model
+	FromIPSegment string   `json:"fromipsegment"` // IP segment of the from port
+	FromZoneName  string   `json:"fromzonename"`
+	FromZoneID    string   `json:"fromzoneid"`
+	ToDevice      string   `json:"todevice"`    // Name of the ToDevice
+	ToModelPort   string   `json:"tomodel"`     // Name of the port on the model
+	ToIPSegment   string   `json:"toipsegment"` // IP segment of the to port
+	ToZoneName    string   `json:"tozonename"`
+	ToZoneID      string   `json:"tozoneid"`
+	VlanCon       []string `json:"vlanids"` // List of VLAN IDs
 }
 
 type Vlan struct {

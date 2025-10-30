@@ -142,7 +142,7 @@ type NetServiceInt interface {
 		toDeviceId string,
 		toModelPortId string,
 		toIPSegment string,
-		vlanId string,
+		vlanIds []string,
 	) error
 	GetConnections() ([]e.Connection, error)
 	UpdateConnection(
@@ -153,7 +153,7 @@ type NetServiceInt interface {
 		newToDeviceId string,
 		newToModelPortId string,
 		newToIPSegment string,
-		newVlanId string,
+		newVlanIds []string,
 	) error
 	DeleteConnection(connectionId string) error
 
@@ -294,7 +294,7 @@ func (ns *NetService) AddConnection(
 	toDevice string,
 	toModelPort string,
 	toIPSegment string,
-	vlanId string,
+	vlanIds []string,
 ) error {
 	// Business logic: Ensure device ports exist before creating connection
 	// Check if "from" device port exists, create if it doesn't
@@ -322,7 +322,7 @@ func (ns *NetService) AddConnection(
 	}
 
 	// Create the connection
-	return ns.netRepo.AddConnection(fromDevice, fromModelPort, fromIPSegment, toDevice, toModelPort, toIPSegment, vlanId)
+	return ns.netRepo.AddConnection(fromDevice, fromModelPort, fromIPSegment, toDevice, toModelPort, toIPSegment, vlanIds)
 }
 
 func (ns *NetService) GetAllPortsAll() ([]e.DevicePort, error) {
@@ -454,7 +454,7 @@ func (ns *NetService) UpdateConnection(
 	newToDeviceId string,
 	newToModelPortId string,
 	newToIPSegment string,
-	newVlanId string,
+	newVlanIds []string,
 ) error {
 	// Business logic: Ensure device ports exist before updating connection
 	// Check if "from" device port exists, create if it doesn't
@@ -482,7 +482,7 @@ func (ns *NetService) UpdateConnection(
 	}
 
 	// Update the connection
-	return ns.netRepo.UpdateConnection(connectionId, newFromDeviceId, newFromModelPortId, newFromIPSegment, newToDeviceId, newToModelPortId, newToIPSegment, newVlanId)
+	return ns.netRepo.UpdateConnection(connectionId, newFromDeviceId, newFromModelPortId, newFromIPSegment, newToDeviceId, newToModelPortId, newToIPSegment, newVlanIds)
 }
 
 func (ns *NetService) AddVlan(vlanID string, vlanName string) error {
