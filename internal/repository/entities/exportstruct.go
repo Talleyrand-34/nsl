@@ -32,6 +32,7 @@ type All struct {
 	Proprietaries   []BasicProprietary
 	ZoneTypes       []BasicZonetype
 	Zones           []BasicZone
+	Vlans           []BasicVlan
 }
 
 // BasicBrand maps the info of the brand in the db
@@ -48,14 +49,15 @@ type BasicConnectiontype struct {
 
 // BasicConnectionmaps the info of the connection in the db
 type BasicConnection struct {
-	ID                        string `json:"id"`
-	FromDevicePortModelPortID string `json:"from_device_port_model_port_id"`
-	FromDevicePortDeviceID    string `json:"from_device_port_device_id"`
-	FromIPSegment             string `json:"from_ip_segment"` // "" if null
-	ToDevicePortModelPortID   string `json:"to_device_port_model_port_id"`
-	ToDevicePortDeviceID      string `json:"to_device_port_device_id"`
-	ToIPSegment               string `json:"to_ip_segment"`   // "" if null
-	ConnectionType            int64  `json:"connection_type"` // -1 if null
+	ID                        string   `json:"id"`
+	FromDevicePortModelPortID string   `json:"from_device_port_model_port_id"`
+	FromDevicePortDeviceID    string   `json:"from_device_port_device_id"`
+	FromIPSegment             string   `json:"from_ip_segment"` // "" if null
+	ToDevicePortModelPortID   string   `json:"to_device_port_model_port_id"`
+	ToDevicePortDeviceID      string   `json:"to_device_port_device_id"`
+	ToIPSegment               string   `json:"to_ip_segment"`   // "" if null
+	ConnectionType            int64    `json:"connection_type"` // -1 if null
+	VlanIDs                   []string `json:"vlan_ids"`        // Array of VLAN IDs
 }
 
 type BasicDeviceclass struct {
@@ -117,4 +119,10 @@ type BasicZone struct {
 	Granularity  int64  `json:"granularity"`   // -1 if null
 	Proprietary  int64  `json:"proprietary"`   // -1 if null
 	LocationType int64  `json:"location_type"` // -1 if null
+}
+
+type BasicVlan struct {
+	ID       string `json:"id"`
+	VlanID   string `json:"vlan_id"`
+	VlanName string `json:"vlan_name"` // "" if null
 }

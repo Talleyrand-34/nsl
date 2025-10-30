@@ -136,6 +136,23 @@ func (r BasicOpsCloverRepository) ExportAllStructs() (e.All, error) {
 			toIPSegment = ip
 		}
 
+		// Get VLAN IDs - array of VLAN database IDs
+		vlanIDs := make([]string, 0)
+		if vlanIDsInterface, ok := doc.Get("vlan_ids").([]interface{}); ok && len(vlanIDsInterface) > 0 {
+			for _, vlanIDInterface := range vlanIDsInterface {
+				if vlanDbID, ok := vlanIDInterface.(string); ok && vlanDbID != "" {
+					// Look up the VLAN document by its database ID
+					vlanDoc, err := r.db.FindById(vlansCollection, vlanDbID)
+					if err == nil && vlanDoc != nil {
+						// Get the actual VLAN ID (e.g., "100", "200")
+						if vlanIDStr, ok := vlanDoc.Get("vlan_id").(string); ok && vlanIDStr != "" {
+							vlanIDs = append(vlanIDs, vlanIDStr)
+						}
+					}
+				}
+			}
+		}
+
 		result.Connections = append(result.Connections, e.BasicConnection{
 			ID:                        doc.ObjectId(),
 			FromDevicePortDeviceID:    getStringField(doc, "from_device_id"),
@@ -145,6 +162,7 @@ func (r BasicOpsCloverRepository) ExportAllStructs() (e.All, error) {
 			ToDevicePortModelPortID:   getStringField(doc, "to_model_port_id"),
 			ToIPSegment:               toIPSegment,
 			ConnectionType:            -1, // CloverDB doesn't track this
+			VlanIDs:                   vlanIDs,
 		})
 	}
 
@@ -305,6 +323,23 @@ func (r BasicOpsCloverRepository) ExportAllStructs() (e.All, error) {
 			Granularity:  -1, // Not tracked in CloverDB
 			Proprietary:  proprietaryID,
 			LocationType: locationTypeID,
+		})
+	}
+
+	// VLANs
+	vlanDocs, err := r.db.FindAll(q.NewQuery(vlansCollection))
+	if err != nil {
+		return result, err
+	}
+	for _, doc := range vlanDocs {
+		vlanName := ""
+		if name, ok := doc.Get("vlan_name").(string); ok {
+			vlanName = name
+		}
+		result.Vlans = append(result.Vlans, e.BasicVlan{
+			ID:       doc.ObjectId(),
+			VlanID:   doc.Get("vlan_id").(string),
+			VlanName: vlanName,
 		})
 	}
 
