@@ -26,8 +26,8 @@ import (
 
 // rootCmd represents the base command when called without any subcommands
 var DiagramSimple2Cmd = &cobra.Command{
-	Use:   "simple2",
-	Short: "Generates a diagram from an nsl especification",
+	Use:   "connection",
+	Short: "Generates a diagram from an nsl especification with the focus on connections",
 	Long:  `.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
@@ -47,7 +47,7 @@ var DiagramSimple2Cmd = &cobra.Command{
 		connections, err := service.GetConnections()
 		devices, err := service.GetDevices()
 		zones, err := service.GetZones()
-		d2diagram := format.GenerateD2FromStruct2(devices, connections, zones)
+		d2diagram := format.GenerateD2FocusConnections(devices, connections, zones)
 		format.WriteDiagram(d2diagram, op, of, oi)
 	},
 }

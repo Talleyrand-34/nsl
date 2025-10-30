@@ -109,9 +109,9 @@ func getDiagram(service q.NetServiceInt) http.HandlerFunc {
 		var diagramString string
 		switch diagramFormat {
 		case FormatPorts:
-			diagramString = format.GenerateD2FromStruct(devices, connections, zones)
+			diagramString = format.GenerateD2FocusPorts(devices, connections, zones)
 		case FormatConnections:
-			diagramString = format.GenerateD2FromStruct2(devices, connections, zones)
+			diagramString = format.GenerateD2FocusConnections(devices, connections, zones)
 		}
 
 		diagram, err := format.GenerateDiagramSVG(diagramString)
