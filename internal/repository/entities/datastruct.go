@@ -40,12 +40,13 @@ type ModelDevice struct {
 
 // ModelPort This struct contains the info about a port from the model perspective
 type ModelPort struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	Positionx int    `json:"positionx"`
-	Positiony int    `json:"positiony"`
-	Model     string `json:"model"`
-	Brand     string `json:"brand"`
+	ID                       string `json:"id"`
+	Name                     string `json:"name"`
+	Positionx                int    `json:"positionx"`
+	Positiony                int    `json:"positiony"`
+	Model                    string `json:"model"`
+	Brand                    string `json:"brand"`
+	AllowMultipleConnections bool   `json:"allow_multiple_connections"`
 }
 
 // Device This struct contains the info about a device

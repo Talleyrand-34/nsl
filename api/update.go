@@ -197,11 +197,12 @@ func updateDeviceHandler(service q.NetServiceInt) http.HandlerFunc {
 
 // ModelPort Update
 type UpdateModelPortRequest struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	PositionX string `json:"position_x"`
-	PositionY string `json:"position_y"`
-	ModelID   string `json:"model_id"`
+	ID                       string `json:"id"`
+	Name                     string `json:"name"`
+	PositionX                string `json:"position_x"`
+	PositionY                string `json:"position_y"`
+	ModelID                  string `json:"model_id"`
+	AllowMultipleConnections bool   `json:"allow_multiple_connections"`
 }
 
 func updateModelPortHandler(service q.NetServiceInt) http.HandlerFunc {
@@ -209,7 +210,7 @@ func updateModelPortHandler(service q.NetServiceInt) http.HandlerFunc {
 		service,
 		[]string{"ID", "Name", "PositionX", "PositionY", "ModelID"},
 		func(service q.NetServiceInt, req *UpdateModelPortRequest) error {
-			return service.UpdateModelPort(req.ID, req.Name, req.PositionX, req.PositionY, req.ModelID)
+			return service.UpdateModelPort(req.ID, req.Name, req.PositionX, req.PositionY, req.ModelID, req.AllowMultipleConnections)
 		},
 	)
 }

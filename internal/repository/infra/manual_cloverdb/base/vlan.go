@@ -50,10 +50,14 @@ func (r BasicOpsCloverRepository) GetVlans() ([]e.Vlan, error) {
 
 	result := make([]e.Vlan, 0, len(docs))
 	for _, doc := range docs {
+		vlanName := ""
+		if name, ok := doc.Get("vlan_name").(string); ok {
+			vlanName = name
+		}
 		vlan := e.Vlan{
 			ID:       doc.ObjectId(),
 			VlanID:   doc.Get("vlan_id").(string),
-			VlanName: doc.Get("vlan_name").(string),
+			VlanName: vlanName,
 		}
 		result = append(result, vlan)
 	}

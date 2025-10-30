@@ -5,6 +5,7 @@ require_once __DIR__ . '/../config.php';
 // Fetch connections
 $connectionsJson = @file_get_contents(CONNECTIONS_ENDPOINT);
 $connections = json_decode($connectionsJson, true);
+echo $connectionsJson;
 
 if (is_array($connections)) {
     echo '<ul>';
@@ -20,7 +21,13 @@ if (is_array($connections)) {
         if (!empty($conn['toipsegment'])) {
             echo ' | IP: ' . htmlspecialchars($conn['toipsegment']);
         }
-        echo ' | Zone: ' . htmlspecialchars($conn['tozonename']) . ' (ID: ' . htmlspecialchars($conn['tozoneid']) . ')';
+        echo ' | Zone: ' . htmlspecialchars($conn['tozonename']) . ' (ID: ' . htmlspecialchars($conn['tozoneid']) . ')<br>';
+         // Display VLANs if any
+        if (!empty($conn['vlanids'])) {
+            echo 'VLANs: ' . implode(', ', array_map('htmlspecialchars', $conn['vlanids'])) . '<br>';
+        } else {
+            echo 'VLANs: None<br>';
+        }
         echo '</li><hr>';
     }
     echo '</ul>';

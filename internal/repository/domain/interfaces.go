@@ -103,6 +103,7 @@ type repository interface {
 		positionX string,
 		positionY string,
 		modelName string,
+		allowMultipleConnections bool,
 	) error
 	GetModelPorts() ([]e.ModelPort, error)
 	UpdateModelPort(
@@ -111,6 +112,7 @@ type repository interface {
 		newPositionX string,
 		newPositionY string,
 		newModelId string,
+		newAllowMultipleConnections bool,
 	) error
 	DeleteModelPort(modelPortId string) error
 

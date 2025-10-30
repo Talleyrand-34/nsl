@@ -112,6 +112,7 @@ type NetServiceInt interface {
 		positionX string,
 		positionY string,
 		modelName string,
+		allowMultipleConnections bool,
 	) error
 	GetModelPorts() ([]e.ModelPort, error)
 	UpdateModelPort(
@@ -120,6 +121,7 @@ type NetServiceInt interface {
 		newPositionX string,
 		newPositionY string,
 		newModelId string,
+		newAllowMultipleConnections bool,
 	) error
 	DeleteModelPort(modelPortId string) error
 
@@ -232,8 +234,9 @@ func (ns *NetService) AddModelPort(
 	posx string,
 	posy string,
 	modelName string,
+	allowMultipleConnections bool,
 ) error {
-	return ns.netRepo.AddModelPort(name, posx, posy, modelName)
+	return ns.netRepo.AddModelPort(name, posx, posy, modelName, allowMultipleConnections)
 }
 
 func (ns *NetService) GetModelPorts() ([]e.ModelPort, error) {
@@ -434,8 +437,9 @@ func (ns *NetService) UpdateModelPort(
 	newPositionX string,
 	newPositionY string,
 	newModelId string,
+	newAllowMultipleConnections bool,
 ) error {
-	return ns.netRepo.UpdateModelPort(modelPortId, newPortName, newPositionX, newPositionY, newModelId)
+	return ns.netRepo.UpdateModelPort(modelPortId, newPortName, newPositionX, newPositionY, newModelId, newAllowMultipleConnections)
 }
 
 func (ns *NetService) UpdateConnectionType(connectionTypeId string, newConnectionTypeName string) error {

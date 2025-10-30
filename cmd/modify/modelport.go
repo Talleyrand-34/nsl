@@ -42,11 +42,12 @@ var modelPortModCmd = &cobra.Command{
 		posx := vals[1]
 		posy := vals[2]
 		modelname := vals[3]
+		allowMultiple, _ := cmd.Flags().GetBool("allow-multiple")
 		service, err := util.ServiceConnection()
 		if err != nil {
 			return
 		}
-		err = service.AddModelPort(name, posx, posy, modelname)
+		err = service.AddModelPort(name, posx, posy, modelname, allowMultiple)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error writing modelPort: %v\n", err)
 			os.Exit(1)
@@ -60,9 +61,11 @@ func init() {
 	modelPortModCmd.Flags().
 		String("name", "", "Sets the name of the modelPort")
 	modelPortModCmd.Flags().
-		String("posx", "", "Sets the name of the modelPort")
+		String("posx", "", "Sets the position X of the modelPort")
 	modelPortModCmd.Flags().
-		String("posy", "", "Sets the name of the modelPort")
+		String("posy", "", "Sets the position Y of the modelPort")
 	modelPortModCmd.Flags().
-		String("modelname", "", "Sets the name of the modelPort")
+		String("modelname", "", "Sets the model name of the modelPort")
+	modelPortModCmd.Flags().
+		Bool("allow-multiple", false, "Allow multiple connections to this port")
 }

@@ -6,7 +6,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $vlanID = trim($_POST['vlan_id'] ?? '');
     $vlanName = trim($_POST['vlan_name'] ?? '');
 
-    if ($vlanID !== '' && $vlanName !== '') {
+    if ($vlanID !== '') {
         $data = json_encode([
             'vlanID' => $vlanID,
             'vlanName' => $vlanName
@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         curl_close($ch);
     } else {
-        $message = "VLAN ID and VLAN Name are required.";
+        $message = "VLAN ID is required.";
     }
 }
 ?>
@@ -45,8 +45,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <label for="vlan_id">VLAN ID (e.g., 100):</label>
     <input type="text" id="vlan_id" name="vlan_id" required><br><br>
 
-    <label for="vlan_name">VLAN Name (e.g., "Management VLAN"):</label>
-    <input type="text" id="vlan_name" name="vlan_name" required><br><br>
+    <label for="vlan_name">VLAN Name (optional, e.g., "Management VLAN"):</label>
+    <input type="text" id="vlan_name" name="vlan_name"><br><br>
 
     <button type="submit">Add VLAN</button>
 </form>

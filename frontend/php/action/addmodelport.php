@@ -10,12 +10,14 @@ $name = '';
 $posx = '';
 $posy = '';
 $modelName = '';
+$allowMultiple = false;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim($_POST['name'] ?? '');
     $posx = trim($_POST['posx'] ?? '');
     $posy = trim($_POST['posy'] ?? '');
     $modelName = $_POST['modelName'] ?? '';
+    $allowMultiple = isset($_POST['allow_multiple_connections']);
 
     if ($name === '') {
         $message = 'Please enter a port name.';
@@ -30,7 +32,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'name' => $name,
             'posx' => $posx,
             'posy' => $posy,
-            'modelName' => $modelName
+            'modelName' => $modelName,
+            'allow_multiple_connections' => $allowMultiple
         ]);
 
         $ch = curl_init(MODELPORTS_ENDPOINT);
@@ -80,6 +83,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </option>
         <?php endforeach; ?>
     </select><br><br>
+
+    <label for="allow_multiple_connections">
+        <input type="checkbox" id="allow_multiple_connections" name="allow_multiple_connections"
+               <?= $allowMultiple ? 'checked' : '' ?>>
+        Allow multiple connections to this port
+    </label><br><br>
 
     <button type="submit">Add Model Port</button>
 </form>

@@ -49,11 +49,18 @@ func (r BasicOpsCloverRepository) GetModelPorts() ([]e.ModelPort, error) {
 			posY = py
 		}
 
+		// Get allow_multiple_connections field, default to false
+		allowMultiple := false
+		if val, ok := doc.Get("allow_multiple_connections").(bool); ok {
+			allowMultiple = val
+		}
+
 		modelPort := e.ModelPort{
-			ID:        doc.ObjectId(),
-			Name:      doc.Get("name").(string),
-			Positionx: posX,
-			Positiony: posY,
+			ID:                       doc.ObjectId(),
+			Name:                     doc.Get("name").(string),
+			Positionx:                posX,
+			Positiony:                posY,
+			AllowMultipleConnections: allowMultiple,
 		}
 
 		// Get model name and brand if model ID exists
@@ -84,6 +91,7 @@ func (r BasicOpsCloverRepository) AddModelPort(
 	posx string,
 	posy string,
 	modelName string,
+	allowMultipleConnections bool,
 ) error {
 	// Get model ID from name (required)
 	modelID, err := r.getModelID(modelName)
@@ -106,6 +114,7 @@ func (r BasicOpsCloverRepository) AddModelPort(
 	doc.Set("position_x", iposx)
 	doc.Set("position_y", iposy)
 	doc.Set("model_id", modelID)
+	doc.Set("allow_multiple_connections", allowMultipleConnections)
 
 	_, err = r.db.InsertOne(modelportsCollection, doc)
 	if err != nil {
@@ -121,6 +130,7 @@ func (r BasicOpsCloverRepository) UpdateModelPort(
 	newPositionX string,
 	newPositionY string,
 	newModelId string,
+	newAllowMultipleConnections bool,
 ) error {
 	posX, err := strconv.Atoi(newPositionX)
 	if err != nil {
@@ -136,6 +146,7 @@ func (r BasicOpsCloverRepository) UpdateModelPort(
 	updates["name"] = newPortName
 	updates["position_x"] = posX
 	updates["position_y"] = posY
+	updates["allow_multiple_connections"] = newAllowMultipleConnections
 	if newModelId != "" {
 		updates["model_id"] = newModelId
 	}

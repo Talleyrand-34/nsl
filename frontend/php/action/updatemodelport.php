@@ -6,12 +6,27 @@ $message = '';
 $modelPorts = json_decode(@file_get_contents(MODELPORTS_ENDPOINT), true) ?: [];
 $models = json_decode(@file_get_contents(MODELS_ENDPOINT), true) ?: [];
 
+// Get values from POST or initialize defaults
+$modelPortId = $_POST['modelport_id'] ?? '';
+$allowMultiple = false;
+
+// If a model port is selected, fetch its current allow_multiple_connections value
+if ($modelPortId && $_SERVER['REQUEST_METHOD'] !== 'POST') {
+    foreach ($modelPorts as $mp) {
+        if ($mp['id'] == $modelPortId) {
+            $allowMultiple = $mp['allow_multiple_connections'] ?? false;
+            break;
+        }
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $modelPortId = trim($_POST['modelport_id'] ?? '');
     $newPortName = trim($_POST['port_name'] ?? '');
     $positionX = trim($_POST['position_x'] ?? '');
     $positionY = trim($_POST['position_y'] ?? '');
     $modelId = $_POST['model_id'] ?? '';
+    $allowMultiple = isset($_POST['allow_multiple_connections']);
 
     if ($modelPortId === '') {
         $message = 'Please select a model port to update.';
@@ -29,7 +44,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'name' => $newPortName,
             'position_x' => $positionX,
             'position_y' => $positionY,
-            'model_id' => $modelId
+            'model_id' => $modelId,
+            'allow_multiple_connections' => $allowMultiple
         ]);
 
         $ch = curl_init(MODELPORTS_ENDPOINT);
@@ -93,6 +109,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </option>
             <?php endforeach; ?>
         </select><br><br>
+
+        <label for="allow_multiple_connections">
+            <input type="checkbox" id="allow_multiple_connections" name="allow_multiple_connections"
+                   <?= $allowMultiple ? 'checked' : '' ?>>
+            Allow multiple connections to this port
+        </label><br><br>
 
         <button type="submit">Update Model Port</button>
     </form>

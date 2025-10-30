@@ -53,6 +53,7 @@ Example:
 		newPositionX, _ := cmd.Flags().GetString("position-x")
 		newPositionY, _ := cmd.Flags().GetString("position-y")
 		newModelId, _ := cmd.Flags().GetString("model-id")
+		allowMultiple, _ := cmd.Flags().GetBool("allow-multiple")
 
 		// For this implementation, require all fields
 		if newPortName == "" || newPositionX == "" || newPositionY == "" || newModelId == "" {
@@ -68,7 +69,7 @@ Example:
 		}
 
 		// Update the model port
-		err = service.UpdateModelPort(modelPortId, newPortName, newPositionX, newPositionY, newModelId)
+		err = service.UpdateModelPort(modelPortId, newPortName, newPositionX, newPositionY, newModelId, allowMultiple)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error updating model port: %v\n", err)
 			os.Exit(1)
@@ -89,6 +90,7 @@ func init() {
 	ModelPortUpdateCmd.Flags().String("position-x", "", "New X position coordinate (required)")
 	ModelPortUpdateCmd.Flags().String("position-y", "", "New Y position coordinate (required)")
 	ModelPortUpdateCmd.Flags().String("model-id", "", "New model ID for the port (required)")
+	ModelPortUpdateCmd.Flags().Bool("allow-multiple", false, "Allow multiple connections to this port")
 	// ModelPortUpdateCmd.MarkFlagRequired("id")
 	// ModelPortUpdateCmd.MarkFlagRequired("name")
 	// ModelPortUpdateCmd.MarkFlagRequired("position-x")

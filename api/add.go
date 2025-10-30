@@ -196,10 +196,11 @@ func addDeviceHandler(service q.NetServiceInt) http.HandlerFunc {
 
 // ModelPort
 type AddModelPortRequest struct {
-	Name      string `json:"name"`
-	PosX      string `json:"posx"`
-	PosY      string `json:"posy"`
-	ModelName string `json:"modelName"`
+	Name                     string `json:"name"`
+	PosX                     string `json:"posx"`
+	PosY                     string `json:"posy"`
+	ModelName                string `json:"modelName"`
+	AllowMultipleConnections bool   `json:"allow_multiple_connections"`
 }
 
 func addModelPortHandler(service q.NetServiceInt) http.HandlerFunc {
@@ -207,7 +208,7 @@ func addModelPortHandler(service q.NetServiceInt) http.HandlerFunc {
 		service,
 		[]string{"Name", "ModelName"}, // Adjust required fields as needed
 		func(service q.NetServiceInt, req *AddModelPortRequest) error {
-			return service.AddModelPort(req.Name, req.PosX, req.PosY, req.ModelName)
+			return service.AddModelPort(req.Name, req.PosX, req.PosY, req.ModelName, req.AllowMultipleConnections)
 		},
 	)
 }
@@ -282,7 +283,7 @@ type AddVlanRequest struct {
 func addVlanHandler(service q.NetServiceInt) http.HandlerFunc {
 	return genericAddHandler[AddVlanRequest](
 		service,
-		[]string{"VlanID", "VlanName"},
+		[]string{"VlanID"}, // VlanName is optional
 		func(service q.NetServiceInt, req *AddVlanRequest) error {
 			return service.AddVlan(req.VlanID, req.VlanName)
 		},

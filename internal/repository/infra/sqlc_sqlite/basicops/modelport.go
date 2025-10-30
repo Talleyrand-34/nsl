@@ -56,6 +56,7 @@ func (r BasicOpsSQLiteRepository) AddModelPort(
 	posx string,
 	posy string,
 	modelName string,
+	allowMultipleConnections bool,
 ) error {
 	ctx := context.Background()
 
@@ -93,6 +94,7 @@ func (r BasicOpsSQLiteRepository) UpdateModelPort(
 	newPositionX string,
 	newPositionY string,
 	newModelId string,
+	newAllowMultipleConnections bool,
 ) error {
 	ctx := context.Background()
 
