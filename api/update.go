@@ -57,6 +57,7 @@ func updateConnectionHandler(service q.NetServiceInt) http.HandlerFunc {
 			ToDevice      string `json:"to_device"`
 			ToPort        string `json:"to_port"`
 			ToIPSegment   string `json:"to_ip_segment"`
+			VlanId        string `json:"vlan_id"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -66,7 +67,7 @@ func updateConnectionHandler(service q.NetServiceInt) http.HandlerFunc {
 			http.Error(w, "id is required", http.StatusBadRequest)
 			return
 		}
-		if err := service.UpdateConnection(req.ID, req.FromDevice, req.FromPort, req.FromIPSegment, req.ToDevice, req.ToPort, req.ToIPSegment); err != nil {
+		if err := service.UpdateConnection(req.ID, req.FromDevice, req.FromPort, req.FromIPSegment, req.ToDevice, req.ToPort, req.ToIPSegment, req.VlanId); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}

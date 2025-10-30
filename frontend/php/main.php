@@ -63,6 +63,11 @@ $actionFiles = [
     'deletedeviceport' => 'action/deletedeviceport.php',
     'deleteconnections' => 'action/deleteconnections.php',
     'deleteconnectiontype' => 'action/deleteconnectiontype.php',
+    // VLAN actions
+    'getvlan' => 'action/getvlan.php',
+    'addvlan' => 'action/addvlan.php',
+    'updatevlan' => 'action/updatevlan.php',
+    'deletevlan' => 'action/deletevlan.php',
     // Add more as needed
 ];
 // $selectedAction = $_GET['action'] ?? 'getbrand';
@@ -163,6 +168,7 @@ $actionFiles = [
                     <option value="deviceport" <?= $entity == 'deviceport' ? 'selected' : '' ?>>DevicePort</option>
                     <option value="connections" <?= $entity == 'connections' ? 'selected' : '' ?>>connections</option>
                     <option value="connectiontype" <?= $entity == 'connectiontype' ? 'selected' : '' ?>>connectiontypes</option>
+                    <option value="vlan" <?= $entity == 'vlan' ? 'selected' : '' ?>>VLAN</option>
                     <!-- Add more entities as needed -->
                 </select>
                 <noscript><button type="submit">Go</button></noscript>

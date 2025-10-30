@@ -30,7 +30,6 @@ import (
 	c "nsl-graph/cmd"
 	q "nsl-graph/internal/repository/application"
 	cloverInfra "nsl-graph/internal/repository/infra/manual_cloverdb/base"
-	sqliteInfra "nsl-graph/internal/repository/infra/sqlc_sqlite/base"
 	// sqliteInfra "nsl-graph/internal/repository/infra/sqlc_sqlite/base"
 )
 
@@ -62,17 +61,19 @@ func ServiceConnection() (q.NetServiceInt, error) {
 		return service, nil
 
 	case "sqlite", "":
+		// SQLite backend not yet fully supported
 		// Use SQLite backend (default)
-		db, err := OpenDatabaseConnectionSqlite()
-		if err != nil {
-			log.Fatalf("Error connecting to SQLite database: %v", err)
-		}
-		repository, err := sqliteInfra.NewSQLiteRepositoryFromDB(db)
-		if err != nil {
-			log.Fatalf("Error initializing SQLite repository: %v", err)
-		}
-		service := q.NewNetService(repository)
-		return service, nil
+		// 66 -      db, err := OpenDatabaseConnectionSqlite()
+		// 67 -      if err != nil {
+		// 68 -        log.Fatalf("Error connecting to SQLite database: %v", err)
+		// 69 -      }
+		// 70 -      repository, err := sqliteInfra.NewSQLiteRepositoryFromDB(db)
+		// 71 -      if err != nil {
+		// 72 -        log.Fatalf("Error initializing SQLite repository: %v", err)
+		// 73 -      }
+		// 74 -      service := q.NewNetService(repository)
+		// 75 -      return service, nil
+		return nil, fmt.Errorf("SQLite backend is not yet fully supported - please use 'cloverdb' backend instead")
 
 	default:
 		return nil, fmt.Errorf("unsupported backend type: %s (supported: sqlite, cloverdb)", backend)

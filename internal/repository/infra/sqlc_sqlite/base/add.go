@@ -88,6 +88,7 @@ func (r SQLiteRepository) AddConnection(
 	toDevice string,
 	toModelPort string,
 	toIPSegment string,
+	vlanID string,
 ) error {
-	return r.basicops.AddConnection(fromDevice, fromModelPort, fromIPSegment, toDevice, toModelPort, toIPSegment)
+	return r.basicops.AddConnection(fromDevice, fromModelPort, fromIPSegment, toDevice, toModelPort, toIPSegment, vlanID)
 }

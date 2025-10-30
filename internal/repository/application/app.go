@@ -19,6 +19,7 @@ package application
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 
 	d "nsl-graph/internal/repository/domain"
@@ -141,6 +142,7 @@ type NetServiceInt interface {
 		toDeviceId string,
 		toModelPortId string,
 		toIPSegment string,
+		vlanId string,
 	) error
 	GetConnections() ([]e.Connection, error)
 	UpdateConnection(
@@ -151,8 +153,15 @@ type NetServiceInt interface {
 		newToDeviceId string,
 		newToModelPortId string,
 		newToIPSegment string,
+		newVlanId string,
 	) error
 	DeleteConnection(connectionId string) error
+
+	// VLAN operations
+	AddVlan(vlanID string, vlanName string) error
+	GetVlans() ([]e.Vlan, error)
+	UpdateVlan(vlanId string, newVlanID string, newVlanName string) error
+	DeleteVlan(vlanId string) error
 
 	// Special operations
 	GetAllPortsDevice(deviceId string) ([]e.DevicePort, error)
@@ -285,11 +294,35 @@ func (ns *NetService) AddConnection(
 	toDevice string,
 	toModelPort string,
 	toIPSegment string,
+	vlanId string,
 ) error {
-	_ = ns.netRepo.AddDevicePort(fromDevice, fromModelPort, "")
-	_ = ns.netRepo.AddDevicePort(toDevice, toDevice, "")
+	// Business logic: Ensure device ports exist before creating connection
+	// Check if "from" device port exists, create if it doesn't
+	fromExists, err := ns.netRepo.DevicePortExists(fromDevice, fromModelPort)
+	if err != nil {
+		return fmt.Errorf("error checking from device port: %w", err)
+	}
+	if !fromExists {
+		// Try to create the device port, but if it fails due to validation, return error
+		if err := ns.netRepo.AddDevicePort(fromDevice, fromModelPort, ""); err != nil {
+			return fmt.Errorf("error creating from device port: %w", err)
+		}
+	}
 
-	return ns.netRepo.AddConnection(fromDevice, fromModelPort, fromIPSegment, toDevice, toModelPort, toIPSegment)
+	// Check if "to" device port exists, create if it doesn't
+	toExists, err := ns.netRepo.DevicePortExists(toDevice, toModelPort)
+	if err != nil {
+		return fmt.Errorf("error checking to device port: %w", err)
+	}
+	if !toExists {
+		// Try to create the device port, but if it fails due to validation, return error
+		if err := ns.netRepo.AddDevicePort(toDevice, toModelPort, ""); err != nil {
+			return fmt.Errorf("error creating to device port: %w", err)
+		}
+	}
+
+	// Create the connection
+	return ns.netRepo.AddConnection(fromDevice, fromModelPort, fromIPSegment, toDevice, toModelPort, toIPSegment, vlanId)
 }
 
 func (ns *NetService) GetAllPortsAll() ([]e.DevicePort, error) {
@@ -421,6 +454,49 @@ func (ns *NetService) UpdateConnection(
 	newToDeviceId string,
 	newToModelPortId string,
 	newToIPSegment string,
+	newVlanId string,
 ) error {
-	return ns.netRepo.UpdateConnection(connectionId, newFromDeviceId, newFromModelPortId, newFromIPSegment, newToDeviceId, newToModelPortId, newToIPSegment)
+	// Business logic: Ensure device ports exist before updating connection
+	// Check if "from" device port exists, create if it doesn't
+	fromExists, err := ns.netRepo.DevicePortExists(newFromDeviceId, newFromModelPortId)
+	if err != nil {
+		return fmt.Errorf("error checking from device port: %w", err)
+	}
+	if !fromExists {
+		// Try to create the device port, but if it fails due to validation, return error
+		if err := ns.netRepo.AddDevicePort(newFromDeviceId, newFromModelPortId, ""); err != nil {
+			return fmt.Errorf("error creating from device port: %w", err)
+		}
+	}
+
+	// Check if "to" device port exists, create if it doesn't
+	toExists, err := ns.netRepo.DevicePortExists(newToDeviceId, newToModelPortId)
+	if err != nil {
+		return fmt.Errorf("error checking to device port: %w", err)
+	}
+	if !toExists {
+		// Try to create the device port, but if it fails due to validation, return error
+		if err := ns.netRepo.AddDevicePort(newToDeviceId, newToModelPortId, ""); err != nil {
+			return fmt.Errorf("error creating to device port: %w", err)
+		}
+	}
+
+	// Update the connection
+	return ns.netRepo.UpdateConnection(connectionId, newFromDeviceId, newFromModelPortId, newFromIPSegment, newToDeviceId, newToModelPortId, newToIPSegment, newVlanId)
+}
+
+func (ns *NetService) AddVlan(vlanID string, vlanName string) error {
+	return ns.netRepo.AddVlan(vlanID, vlanName)
+}
+
+func (ns *NetService) GetVlans() ([]e.Vlan, error) {
+	return ns.netRepo.GetVlans()
+}
+
+func (ns *NetService) UpdateVlan(vlanId string, newVlanID string, newVlanName string) error {
+	return ns.netRepo.UpdateVlan(vlanId, newVlanID, newVlanName)
+}
+
+func (ns *NetService) DeleteVlan(vlanId string) error {
+	return ns.netRepo.DeleteVlan(vlanId)
 }

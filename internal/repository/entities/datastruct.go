@@ -84,6 +84,13 @@ type Connection struct {
 	ToIPSegment   string `json:"toipsegment"` // IP segment of the to port
 	ToZoneName    string `json:"tozonename"`
 	ToZoneID      string `json:"tozoneid"`
+	VlanCon       string `json:"vlanid"`
+}
+
+type Vlan struct {
+	ID       string `json:"id"`
+	VlanID   string `json:"vlanid"`
+	VlanName string `json:"vlanname"`
 }
 
 // Brand represents a brand

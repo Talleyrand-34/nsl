@@ -237,6 +237,7 @@ type AddConnectionRequest struct {
 	ToDevice      string `json:"toDevice"`
 	ToModelPort   string `json:"toModelPort"`
 	ToIPSegment   string `json:"toIPSegment"`
+	VlanId        string `json:"vlanId"`
 }
 
 func addConnectionHandler(service q.NetServiceInt) http.HandlerFunc {
@@ -251,6 +252,7 @@ func addConnectionHandler(service q.NetServiceInt) http.HandlerFunc {
 				req.ToDevice,
 				req.ToModelPort,
 				req.ToIPSegment,
+				req.VlanId,
 			)
 		},
 	)

@@ -96,6 +96,14 @@ func (r BasicOpsCloverRepository) GetConnections() ([]e.Connection, error) {
 			connection.ToIPSegment = toIPSegment
 		}
 
+		// Get VLAN info
+		if vlanID, ok := doc.Get("vlan_id").(string); ok && vlanID != "" {
+			vlanDoc, err := r.db.FindById(vlansCollection, vlanID)
+			if err == nil && vlanDoc != nil {
+				connection.VlanCon = vlanDoc.Get("vlan_id").(string)
+			}
+		}
+
 		result = append(result, connection)
 	}
 
@@ -110,6 +118,7 @@ func (r BasicOpsCloverRepository) AddConnection(
 	toDevice string,
 	toModelPort string,
 	toIPSegment string,
+	vlanID string,
 ) error {
 	// Validate that the ports are not already in use
 	// Check if from port is already used
@@ -150,6 +159,9 @@ func (r BasicOpsCloverRepository) AddConnection(
 	if toIPSegment != "" {
 		doc.Set("to_ip_segment", toIPSegment)
 	}
+	if vlanID != "" {
+		doc.Set("vlan_id", vlanID)
+	}
 
 	_, err = r.db.InsertOne(connectionsCollection, doc)
 	if err != nil {
@@ -176,6 +188,7 @@ func (r BasicOpsCloverRepository) UpdateConnection(
 	to_device string,
 	to_port string,
 	to_ip_segment string,
+	vlan_id string,
 ) error {
 	updates := make(map[string]interface{})
 	updates["from_device_id"] = from_device
@@ -189,10 +202,45 @@ func (r BasicOpsCloverRepository) UpdateConnection(
 	if to_ip_segment != "" {
 		updates["to_ip_segment"] = to_ip_segment
 	}
+	if vlan_id != "" {
+		updates["vlan_id"] = vlan_id
+	}
 
 	err := r.db.Update(q.NewQuery(connectionsCollection).Where(q.Field("_id").Eq(id)), updates)
 	if err != nil {
 		return fmt.Errorf("UpdateConnection failed: %w", err)
+	}
+	return nil
+}
+func (r BasicOpsCloverRepository) AddConnectionSimple(
+	fromDevice string,
+	fromModelPort string,
+	fromIPSegment string,
+	toDevice string,
+	toModelPort string,
+	toIPSegment string,
+	vlanID string,
+) error {
+
+	doc := d.NewDocument()
+	doc.Set("from_device_id", fromDevice)
+	doc.Set("from_model_port_id", fromModelPort)
+	doc.Set("to_device_id", toDevice)
+	doc.Set("to_model_port_id", toModelPort)
+
+	if fromIPSegment != "" {
+		doc.Set("from_ip_segment", fromIPSegment)
+	}
+	if toIPSegment != "" {
+		doc.Set("to_ip_segment", toIPSegment)
+	}
+	if vlanID != "" {
+		doc.Set("vlan_id", vlanID)
+	}
+
+	_, err := r.db.InsertOne(connectionsCollection, doc)
+	if err != nil {
+		return fmt.Errorf("failed to create connection: %v", err)
 	}
 	return nil
 }

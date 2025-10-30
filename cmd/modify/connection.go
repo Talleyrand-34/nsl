@@ -63,9 +63,10 @@ Example:
 			os.Exit(1)
 		}
 
-		// Get optional IP segment parameters
+		// Get optional IP segment and VLAN parameters
 		fromIPSegment, _ := cmd.Flags().GetString("from-ip-segment")
 		toIPSegment, _ := cmd.Flags().GetString("to-ip-segment")
+		vlanId, _ := cmd.Flags().GetString("vlan-id")
 
 		// Get service connection
 		service, err := util.ServiceConnection()
@@ -75,7 +76,7 @@ Example:
 		}
 
 		// Create the connection
-		err = service.AddConnection(fromDeviceId, fromModelPortId, fromIPSegment, toDeviceId, toModelPortId, toIPSegment)
+		err = service.AddConnection(fromDeviceId, fromModelPortId, fromIPSegment, toDeviceId, toModelPortId, toIPSegment, vlanId)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error creating connection: %v\n", err)
 			os.Exit(1)
@@ -95,7 +96,8 @@ func init() {
 	connectionModCmd.Flags().String("to-device-id", "", "ID of the destination device (required)")
 	connectionModCmd.Flags().String("to-modelport-id", "", "ID of the destination device's model port (required)")
 	connectionModCmd.Flags().String("to-ip-segment", "", "IP segment for the destination port (optional)")
-	
+	connectionModCmd.Flags().String("vlan-id", "", "VLAN ID for this connection (optional)")
+
 	connectionModCmd.MarkFlagRequired("from-device-id")
 	connectionModCmd.MarkFlagRequired("from-modelport-id")
 	connectionModCmd.MarkFlagRequired("to-device-id")

@@ -13,6 +13,7 @@ define('MODELPORTS_ENDPOINT', API_BASE_URL . '/modelports');
 define('CONNECTIONS_ENDPOINT', API_BASE_URL . '/connections');
 define('CONNECTIONTYPES_ENDPOINT', API_BASE_URL . '/connectiontypes');
 define('DEVICEPORTS_ENDPOINT', API_BASE_URL . '/deviceports');
+define('VLANS_ENDPOINT', API_BASE_URL . '/vlans');
 // Add other endpoints as needed, e.g.:
 // define('DEVICECLASSES_ENDPOINT', API_BASE_URL . '/deviceclasses');
 ?>

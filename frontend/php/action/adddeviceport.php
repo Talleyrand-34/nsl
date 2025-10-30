@@ -6,6 +6,37 @@ $message = '';
 $devices = json_decode(@file_get_contents(DEVICES_ENDPOINT), true) ?: [];
 $modelPorts = json_decode(@file_get_contents(MODELPORTS_ENDPOINT), true) ?: [];
 
+// Helper: get model for a given device id
+function getDeviceModel($devices, $deviceId)
+{
+    foreach ($devices as $dev) {
+        if ($dev['id'] == $deviceId) {
+            return $dev['model'] ?? null;
+        }
+    }
+    return null;
+}
+
+// Helper: get model ports for a given model name
+function getModelPortsByModel($modelports, $modelName)
+{
+    $ports = [];
+    foreach ($modelports as $mp) {
+        if ($mp['model'] === $modelName) {
+            $ports[] = $mp;
+        }
+    }
+    return $ports;
+}
+
+$deviceId = $_POST['device_id'] ?? '';
+$modelPortId = $_POST['modelport_id'] ?? '';
+$macAddress = $_POST['mac_address'] ?? '';
+
+// Filter model ports based on selected device
+$deviceModel = getDeviceModel($devices, $deviceId);
+$availableModelPorts = $deviceModel ? getModelPortsByModel($modelPorts, $deviceModel) : [];
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $deviceId = $_POST['device_id'] ?? '';
     $modelPortId = $_POST['modelport_id'] ?? '';
@@ -56,10 +87,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <?php else: ?>
     <form method="post">
         <label for="device_id">Select Device:</label>
-        <select id="device_id" name="device_id" required>
+        <select id="device_id" name="device_id" required onchange="this.form.submit()">
             <option value="">-- Select Device --</option>
             <?php foreach ($devices as $device): ?>
-                <option value="<?= htmlspecialchars($device['id']) ?>">
+                <option value="<?= htmlspecialchars($device['id']) ?>"
+                    <?= ($deviceId == $device['id']) ? 'selected' : '' ?>>
                     <?= htmlspecialchars($device['label']) ?> (ID: <?= htmlspecialchars($device['id']) ?>)
                 </option>
             <?php endforeach; ?>
@@ -68,15 +100,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <label for="modelport_id">Select Model Port:</label>
         <select id="modelport_id" name="modelport_id" required>
             <option value="">-- Select Model Port --</option>
-            <?php foreach ($modelPorts as $modelPort): ?>
-                <option value="<?= htmlspecialchars($modelPort['id']) ?>">
-                    <?= htmlspecialchars($modelPort['name']) ?> (<?= htmlspecialchars($modelPort['model']) ?> - <?= htmlspecialchars($modelPort['brand']) ?>)
+            <?php foreach ($availableModelPorts as $modelPort): ?>
+                <option value="<?= htmlspecialchars($modelPort['id']) ?>"
+                    <?= ($modelPortId == $modelPort['id']) ? 'selected' : '' ?>>
+                    <?= htmlspecialchars($modelPort['name']) ?> (<?= htmlspecialchars($modelPort['model']) ?>)
                 </option>
             <?php endforeach; ?>
         </select><br><br>
 
         <label for="mac_address">MAC Address (optional):</label>
-        <input type="text" id="mac_address" name="mac_address" placeholder="e.g., AA:BB:CC:DD:EE:FF" pattern="[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}" title="MAC address format: XX:XX:XX:XX:XX:XX"><br><br>
+        <input type="text" id="mac_address" name="mac_address"
+               value="<?= htmlspecialchars($macAddress) ?>"
+               placeholder="e.g., AA:BB:CC:DD:EE:FF"
+               pattern="[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}"
+               title="MAC address format: XX:XX:XX:XX:XX:XX"><br><br>
 
         <button type="submit">Add Device Port</button>
     </form>

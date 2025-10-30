@@ -3,9 +3,10 @@
 require_once __DIR__ . '/../config.php';
 $message = '';
 
-// Fetch devices and model ports
+// Fetch devices, model ports, and VLANs
 $devices = json_decode(@file_get_contents(DEVICES_ENDPOINT), true) ?: [];
 $modelports = json_decode(@file_get_contents(MODELPORTS_ENDPOINT), true) ?: [];
+$vlans = json_decode(@file_get_contents(VLANS_ENDPOINT), true) ?: [];
 
 // Helper: get model for a given device id
 function getDeviceModel($devices, $deviceId)
@@ -36,6 +37,7 @@ $fromIPSegment = $_POST['fromIPSegment'] ?? '';
 $toDevice = $_POST['toDevice'] ?? '';
 $toModelPort = $_POST['toModelPort'] ?? '';
 $toIPSegment = $_POST['toIPSegment'] ?? '';
+$vlanId = $_POST['vlanId'] ?? '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($fromDevice === '' || $fromModelPort === '' || $toDevice === '' || $toModelPort === '') {
@@ -47,7 +49,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'fromIPSegment' => $fromIPSegment,
             'toDevice' => $toDevice,
             'toModelPort' => $toModelPort,
-            'toIPSegment' => $toIPSegment
+            'toIPSegment' => $toIPSegment,
+            'vlanId' => $vlanId
         ]);
 
         // Debug: echo the JSON being sent
@@ -146,6 +149,20 @@ $toModelPorts = $toDeviceModel ? getModelPortsByModel($modelports, $toDeviceMode
         <input type="text" id="toIPSegment" name="toIPSegment" 
                value="<?= htmlspecialchars($toIPSegment) ?>" 
                placeholder="e.g., 10.0.1.0/24">
+    </fieldset>
+    <br>
+    <fieldset>
+        <legend>VLAN (Optional)</legend>
+        <label for="vlanId">VLAN:</label>
+        <select id="vlanId" name="vlanId">
+            <option value="">-- No VLAN --</option>
+            <?php foreach ($vlans as $vlan): ?>
+                <option value="<?= htmlspecialchars($vlan['id']) ?>"
+                    <?= ($vlanId == $vlan['id']) ? 'selected' : '' ?>>
+                    VLAN <?= htmlspecialchars($vlan['vlanid']) ?> - <?= htmlspecialchars($vlan['vlanname']) ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
     </fieldset>
     <br>
     <button type="submit">Add Connection</button>

@@ -25,6 +25,19 @@ import (
 	e "nsl-graph/internal/repository/entities"
 )
 
+// DevicePortExists checks if a device port already exists
+func (r BasicOpsCloverRepository) DevicePortExists(deviceid string, modelportid string) (bool, error) {
+	query := q.NewQuery(deviceportsCollection).
+		Where(q.Field("device_id").Eq(deviceid)).
+		Where(q.Field("model_port_id").Eq(modelportid))
+
+	exists, err := r.db.Exists(query)
+	if err != nil {
+		return false, fmt.Errorf("error checking device port existence: %w", err)
+	}
+	return exists, nil
+}
+
 // AddDevicePort adds a new device port to the database
 func (r BasicOpsCloverRepository) AddDevicePort(deviceid string, modelportid string, macAddress string) error {
 	// Validate that the model port belongs to the device's model

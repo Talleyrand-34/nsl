@@ -19,6 +19,7 @@ package cmd_print
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 
@@ -26,31 +27,34 @@ import (
 	util "nsl-graph/cmd/utils"
 )
 
-// devicesCmd represents the devices command
-var brandPrintCmd = &cobra.Command{
-	Use:   "brand",
-	Short: "Print the brands",
-	Long:  ``,
+// vlanPrintCmd represents the vlan print command
+var vlanPrintCmd = &cobra.Command{
+	Use:   "vlan",
+	Short: "Print all VLANs",
+	Long:  `Display all configured VLANs in JSON format.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		service, err := util.ServiceConnection()
 		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error connecting to service: %v\n", err)
 			return
 		}
-		brands, err := service.GetBrands()
+
+		vlans, err := service.GetVlans()
 		if err != nil {
-			fmt.Println("Error getting brands:", err)
+			fmt.Println("Error getting VLANs:", err)
 			return
 		}
-		jsonBytes, err := json.MarshalIndent(brands, "", "  ")
+
+		jsonBytes, err := json.MarshalIndent(vlans, "", "  ")
 		if err != nil {
-			fmt.Println("Error marshaling brands to JSON:", err)
+			fmt.Println("Error marshaling VLANs to JSON:", err)
 			return
 		}
-		// fmt.Println(brands)
+
 		fmt.Println(string(jsonBytes))
 	},
 }
 
 func init() {
-	cmd.PrintCmd.AddCommand(brandPrintCmd)
+	cmd.PrintCmd.AddCommand(vlanPrintCmd)
 }

@@ -120,6 +120,7 @@ func (r BasicOpsSQLiteRepository) AddConnection(
 	toDevice string,
 	toModelPort string,
 	toIPSegment string,
+	vlanID string,
 ) error {
 	ctx := context.Background()
 
@@ -243,6 +244,7 @@ func (r BasicOpsSQLiteRepository) UpdateConnection(
 	to_device string,
 	to_port string,
 	to_ip_segment string,
+	vlan_id string,
 ) error {
 	ctx := context.Background()
 	// Helper function to parse string to int64

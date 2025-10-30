@@ -115,6 +115,7 @@ type repository interface {
 	DeleteModelPort(modelPortId string) error
 
 	// DevicePort interaction
+	DevicePortExists(deviceId string, modelPortId string) (bool, error)
 	AddDevicePort(deviceId string, modelPortId string, macAddress string) error
 	GetDevicePorts() ([]e.DevicePort, error)
 	DeleteDevicePort(deviceId string, modelPortId string) error
@@ -133,6 +134,7 @@ type repository interface {
 		toDeviceId string,
 		toModelPortId string,
 		toIPSegment string,
+		vlanId string,
 	) error
 	GetConnections() ([]e.Connection, error)
 	UpdateConnection(
@@ -143,8 +145,15 @@ type repository interface {
 		newToDeviceId string,
 		newToModelPortId string,
 		newToIPSegment string,
+		newVlanId string,
 	) error
 	DeleteConnection(connectionId string) error
+
+	// VLAN interaction
+	AddVlan(vlanID string, vlanName string) error
+	GetVlans() ([]e.Vlan, error)
+	UpdateVlan(vlanId string, newVlanID string, newVlanName string) error
+	DeleteVlan(vlanId string) error
 
 	// get all the ports mapped
 	GetAllPortsAll() ([]e.DevicePort, error)

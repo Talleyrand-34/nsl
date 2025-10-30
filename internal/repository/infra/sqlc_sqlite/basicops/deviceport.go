@@ -28,6 +28,11 @@ import (
 	d "nsl-graph/internal/repository/infra/sqlc_sqlite/internal_sqlc_sqlite"
 )
 
+// DevicePortExists checks if a device port already exists (SQLite not fully supported)
+func (r BasicOpsSQLiteRepository) DevicePortExists(deviceid string, modelportid string) (bool, error) {
+	return false, fmt.Errorf("SQLite backend is not yet fully supported - please use 'cloverdb' backend instead")
+}
+
 // AddDevicePort adds a new device port to the database
 func (r BasicOpsSQLiteRepository) AddDevicePort(deviceid string, modelportid string, macAddress string) error {
 	ctx := context.Background()

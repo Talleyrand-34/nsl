@@ -17,30 +17,14 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 package api
 
 import (
-	"database/sql"
 	"fmt"
 
-	_ "github.com/mattn/go-sqlite3"
-
 	q "nsl-graph/internal/repository/application"
-	infra "nsl-graph/internal/repository/infra/sqlc_sqlite/base"
+	infra "nsl-graph/internal/repository/infra/manual_cloverdb/base"
 )
 
-// openDatabaseConnection establishes and returns a database connection.
-func openDatabaseConnection(path string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite3", path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open SQLite database: %w", err)
-	}
-	return db, nil
-}
-
 func serviceConnection(path string) (q.NetServiceInt, error) {
-	db, err := openDatabaseConnection(path)
-	if err != nil {
-		return nil, fmt.Errorf("Error connecting to the database: %w", err)
-	}
-	repository, err := infra.NewSQLiteRepositoryFromDB(db)
+	repository, err := infra.NewCloverRepository(path)
 	if err != nil {
 		return nil, fmt.Errorf("Error creating repository: %w", err)
 	}
