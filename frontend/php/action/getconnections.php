@@ -5,7 +5,7 @@ require_once __DIR__ . '/../config.php';
 // Fetch connections
 $connectionsJson = @file_get_contents(CONNECTIONS_ENDPOINT);
 $connections = json_decode($connectionsJson, true);
-echo $connectionsJson;
+/* echo $connectionsJson; */
 
 if (is_array($connections)) {
     echo '<ul>';

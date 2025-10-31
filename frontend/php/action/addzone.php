@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'location_type' => $location_type
         ]);
         // Echo the JSON for debugging
-        echo '<pre>JSON sent:<br>' . htmlspecialchars($data) . '</pre>';
+        /* echo '<pre>JSON sent:<br>' . htmlspecialchars($data) . '</pre>'; */
         $ch = curl_init(ZONES_ENDPOINT);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
         curl_setopt($ch, CURLOPT_POSTFIELDS, $data);

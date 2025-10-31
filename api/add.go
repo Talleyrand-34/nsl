@@ -19,6 +19,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"reflect"
 	"strings"
@@ -211,6 +212,69 @@ func addModelPortHandler(service q.NetServiceInt) http.HandlerFunc {
 			return service.AddModelPort(req.Name, req.PosX, req.PosY, req.ModelName, req.AllowMultipleConnections)
 		},
 	)
+}
+
+// BulkAddModelPortRequest wraps multiple model port requests
+type BulkAddModelPortRequest struct {
+	Ports []AddModelPortRequest `json:"ports"`
+}
+
+type BulkAddModelPortResponse struct {
+	SuccessCount int      `json:"successCount"`
+	FailureCount int      `json:"failureCount"`
+	Errors       []string `json:"errors,omitempty"`
+}
+
+func addBulkModelPortHandler(service q.NetServiceInt) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req BulkAddModelPortRequest
+		log.Print("bulk")
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		if len(req.Ports) == 0 {
+			http.Error(w, "no ports provided", http.StatusBadRequest)
+			return
+		}
+
+		response := BulkAddModelPortResponse{
+			SuccessCount: 0,
+			FailureCount: 0,
+			Errors:       []string{},
+		}
+
+		for i, port := range req.Ports {
+			// Validate required fields
+			if err := validateRequiredFields(&port, []string{"Name", "ModelName"}); err != nil {
+				response.FailureCount++
+				response.Errors = append(response.Errors, fmt.Sprintf("Port %d: %v", i+1, err))
+				continue
+			}
+
+			// Add the model port
+			if err := service.AddModelPort(port.Name, port.PosX, port.PosY, port.ModelName, port.AllowMultipleConnections); err != nil {
+				response.FailureCount++
+				response.Errors = append(response.Errors, fmt.Sprintf("Port %d (%s): %v", i+1, port.Name, err))
+				continue
+			}
+
+			response.SuccessCount++
+		}
+
+		// Determine HTTP status code
+		statusCode := http.StatusCreated
+		if response.FailureCount > 0 && response.SuccessCount == 0 {
+			statusCode = http.StatusBadRequest
+		} else if response.FailureCount > 0 {
+			statusCode = http.StatusMultiStatus // 207 - partial success
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(statusCode)
+		json.NewEncoder(w).Encode(response)
+	}
 }
 
 // DevicePort

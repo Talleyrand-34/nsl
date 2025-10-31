@@ -53,7 +53,7 @@ func rootHandler() http.HandlerFunc {
 			// /connectiontypes
 			"DELETE /connectiontypes",
 			"GET    /connectiontypes",
-			"POST   /connectiontypes", 
+			"POST   /connectiontypes",
 			"PUT    /connectiontypes",
 
 			// /deviceclasses
@@ -77,6 +77,7 @@ func rootHandler() http.HandlerFunc {
 			"DELETE /modelports",
 			"GET    /modelports",
 			"POST   /modelports",
+			"POST   /modelports/bulk",
 			"PUT    /modelports",
 
 			// /models
@@ -151,6 +152,7 @@ func RegisterRoutes(r *mux.Router, service q.NetServiceInt) {
 	r.HandleFunc("/devices", addDeviceHandler(service)).Methods("POST")
 	r.HandleFunc("/devices", getDevicesHandler(service)).Methods("GET")
 	// ModelPort
+	r.HandleFunc("/modelports/bulk", addBulkModelPortHandler(service)).Methods("POST")
 	r.HandleFunc("/modelports", addModelPortHandler(service)).Methods("POST")
 	r.HandleFunc("/modelports", getModelPortsHandler(service)).Methods("GET")
 	// DevicePort
@@ -201,7 +203,7 @@ func RegisterRoutes(r *mux.Router, service q.NetServiceInt) {
 	// ADD ALL MISSING UPDATE ROUTES
 	// Brand
 	r.HandleFunc("/brands", updateBrandHandler(service)).Methods("PUT")
-	// DeviceClass  
+	// DeviceClass
 	r.HandleFunc("/deviceclasses", updateDeviceClassHandler(service)).Methods("PUT")
 	// ZoneType
 	r.HandleFunc("/zonetypes", updateZoneTypeHandler(service)).Methods("PUT")
