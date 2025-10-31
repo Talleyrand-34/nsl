@@ -1,16 +1,6 @@
 <?php
 require_once 'config.php';
 
-// // Map enum values to PHP files
-// $actionFiles = [
-//     'getbrand'  => 'action/getbrand.php',
-//     'addbrand'  => 'action/addbrand.php',
-//     'getdevclass'  => 'action/getdevclass.php',
-//     'getproprietary'  => 'action/getproprietary.php',
-//     'getzonetype'  => 'action/getzonetype.php',
-//     'getzone'  => 'action/getzone.php',
-//     // Add more actions as needed
-// ];
 // Set defaults
 $actionType = $_GET['actionType'] ?? 'get';
 $entity = $_GET['entity'] ?? 'brand';
@@ -70,7 +60,16 @@ $actionFiles = [
     'deletevlan' => 'action/deletevlan.php',
     // Add more as needed
 ];
-// $selectedAction = $_GET['action'] ?? 'getbrand';
+?>
+<?php
+require_once 'config.php';
+
+// Handle API base URL update
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['api_base_url'])) {
+    $_SESSION['api_base_url'] = rtrim($_POST['api_base_url'], '/');  // remove trailing slash
+    header("Location: " . $_SERVER['PHP_SELF'] . '?' . $_SERVER['QUERY_STRING']);
+    exit;
+}
 ?>
 <!DOCTYPE html>
 <html>
@@ -144,6 +143,14 @@ $actionFiles = [
     </style>
 </head>
 <body>
+    <!-- Configuration Section -->
+<div style="margin-top: 20px; padding: 10px; border: 1px solid #ccc; background: #f0f0f0;">
+    <form method="post">
+        <label for="apiUrl">API Base URL:</label>
+        <input type="text" id="apiUrl" name="api_base_url" value="<?= htmlspecialchars(API_BASE_URL) ?>" style="width: 70%;">
+        <button type="submit">Update</button>
+    </form>
+</div>
     <div class="grid">
         <div class="actions">
             <form method="get" action="">
@@ -183,29 +190,7 @@ $actionFiles = [
                 ?>
             </div>
         </div>
-        <!-- <div class="diagram" style="--img-width:500px;"> -->
-        <!--         <img id="diagramImg" src="<?= API_BASE_URL ?>/diagram" alt="Diagram" style="width:500px;"> -->
-        <!-- </div> -->
-        <!-- <div class="diagram"> -->
-        <!--     <div class="resizable-img-container" style="height:500px;"> -->
-        <!--         <img id="diagramImg" src="<?= API_BASE_URL ?>/diagram" alt="Diagram"> -->
-        <!--     </div> -->
-        <!-- </div> -->
 
-        <!-- Updated HTML structure -->
-
-<!-- <div class="diagram"> -->
-<!--     <div class="resizable-img-container" style="height:500px;"> -->
-<!--         <img id="diagramImg" src="<?= API_BASE_URL ?>/diagram?format=v2" alt="Diagram"> -->
-<!--     </div> -->
-<!-- </div> -->
-<!---->
-<!-- <div class="diagram-controls"> -->
-<!--     <span class="format-label">Diagram Format:</span> -->
-<!--     <button id="formatToggle" class="format-toggle" data-format="v2"> -->
-<!--         Format V2 (Current) -->
-<!--     </button> -->
-<!-- </div> -->
             <form method="GET" action="">
     <div class="diagram-controls">
         <label for="formatSelect" class="format-label">Diagram Format:</label>
