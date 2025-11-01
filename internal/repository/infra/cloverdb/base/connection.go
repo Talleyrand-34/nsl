@@ -88,14 +88,6 @@ func (r BasicOpsCloverRepository) GetConnections() ([]e.Connection, error) {
 			}
 		}
 
-		// Get IP segments
-		if fromIPSegment, ok := doc.Get("from_ip_segment").(string); ok {
-			connection.FromIPSegment = fromIPSegment
-		}
-		if toIPSegment, ok := doc.Get("to_ip_segment").(string); ok {
-			connection.ToIPSegment = toIPSegment
-		}
-
 		// Get VLAN info - array of VLAN IDs
 		connection.VlanCon = make([]string, 0)
 		if vlanIDs, ok := doc.Get("vlan_ids").([]interface{}); ok && len(vlanIDs) > 0 {

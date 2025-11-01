@@ -51,14 +51,15 @@ type ModelPort struct {
 
 // Device This struct contains the info about a device
 type Device struct {
-	ID          string `json:"id"`
-	Name        string `json:"label"`
-	Model       string `json:"model"`
-	Brand       string `json:"brand"`
-	ZoneID      string `json:"zoneid"`
-	ZoneName    string `json:"zonename"`
-	ZoneFather  string `json:"zonefathername"`
-	Proprietary string `json:"proprietary"`
+	ID          string   `json:"id"`
+	Name        string   `json:"label"`
+	Model       string   `json:"model"`
+	Brand       string   `json:"brand"`
+	ZoneID      string   `json:"zoneid"`
+	ZoneName    string   `json:"zonename"`
+	ZoneFather  string   `json:"zonefathername"`
+	Proprietary string   `json:"proprietary"`
+	IPs         []string `json:"ips"` // List of IPs IDs
 }
 
 // DevicePort This struct contains the info about ports asociated to a device since the information is contained in the model
@@ -75,14 +76,12 @@ type DevicePort struct {
 // Connection This struct contains the info about a connection
 type Connection struct {
 	ID            string   `json:"id"`
-	FromDevice    string   `json:"fromdevice"`    // Name of the FromDevice
-	FromModelPort string   `json:"frommodel"`     // Name of the port on the model
-	FromIPSegment string   `json:"fromipsegment"` // IP segment of the from port
+	FromDevice    string   `json:"fromdevice"` // Name of the FromDevice
+	FromModelPort string   `json:"frommodel"`  // Name of the port on the model
 	FromZoneName  string   `json:"fromzonename"`
 	FromZoneID    string   `json:"fromzoneid"`
-	ToDevice      string   `json:"todevice"`    // Name of the ToDevice
-	ToModelPort   string   `json:"tomodel"`     // Name of the port on the model
-	ToIPSegment   string   `json:"toipsegment"` // IP segment of the to port
+	ToDevice      string   `json:"todevice"` // Name of the ToDevice
+	ToModelPort   string   `json:"tomodel"`  // Name of the port on the model
 	ToZoneName    string   `json:"tozonename"`
 	ToZoneID      string   `json:"tozoneid"`
 	VlanCon       []string `json:"vlanids"` // List of VLAN IDs
