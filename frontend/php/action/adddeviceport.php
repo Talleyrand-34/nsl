@@ -42,7 +42,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) {
     $deviceId = $_POST['device_id'] ?? '';
     $modelPortId = $_POST['modelport_id'] ?? '';
     $macAddress = trim($_POST['mac_address'] ?? '');
-    $allowMultipleUntagged = isset($_POST['allow_multiple_untagged']);
 
     // Build VLAN configs array
     $vlanConfigs = [];
@@ -67,8 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) {
             'deviceid' => $deviceId,
             'modelportid' => $modelPortId,
             'mac_address' => $macAddress,
-            'vlan_configs' => $vlanConfigs,
-            'allow_multiple_untagged' => $allowMultipleUntagged
+            'vlan_configs' => $vlanConfigs
         ]);
 
         $ch = curl_init(DEVICEPORTS_ENDPOINT);
@@ -139,12 +137,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) {
                 <!-- VLAN configs will be added here dynamically -->
             </div>
             <button type="button" onclick="addVlanConfig()">+ Add VLAN</button>
-            <br><br>
-            <label>
-                <input type="checkbox" name="allow_multiple_untagged" value="1">
-                Allow multiple untagged VLANs per port
-            </label>
-            <br><small><em>By default, only one untagged VLAN is allowed per port</em></small>
+            <br><small><em>Note: Only one untagged VLAN is allowed per port by default (controlled by model port settings)</em></small>
         </fieldset>
         <br>
 

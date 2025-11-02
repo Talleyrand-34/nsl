@@ -285,11 +285,10 @@ func updateVlanHandler(service q.NetServiceInt) http.HandlerFunc {
 
 // DevicePort Update
 type UpdateDevicePortRequest struct {
-	DeviceID              string             `json:"deviceid"`
-	ModelPortID           string             `json:"modelportid"`
-	MacAddress            string             `json:"mac_address"`
-	VlanConfigs           []e.PortVlanConfig `json:"vlan_configs"`
-	AllowMultipleUntagged bool               `json:"allow_multiple_untagged"`
+	DeviceID    string             `json:"deviceid"`
+	ModelPortID string             `json:"modelportid"`
+	MacAddress  string             `json:"mac_address"`
+	VlanConfigs []e.PortVlanConfig `json:"vlan_configs"`
 }
 
 func updateDevicePortHandler(service q.NetServiceInt) http.HandlerFunc {
@@ -303,12 +302,10 @@ func updateDevicePortHandler(service q.NetServiceInt) http.HandlerFunc {
 			http.Error(w, "deviceid and modelportid are required", http.StatusBadRequest)
 			return
 		}
-		// Update VLAN configs if provided
-		if req.VlanConfigs != nil {
-			if err := service.UpdateDevicePortVLANs(req.DeviceID, req.ModelPortID, req.VlanConfigs, req.AllowMultipleUntagged); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
+		// Update device port
+		if err := service.UpdateDevicePort(req.DeviceID, req.ModelPortID, req.MacAddress, req.VlanConfigs); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 		w.WriteHeader(http.StatusOK)
 	}

@@ -282,11 +282,10 @@ func addBulkModelPortHandler(service q.NetServiceInt) http.HandlerFunc {
 
 // DevicePort
 type AddDevicePortRequest struct {
-	DeviceID              string              `json:"deviceid"`
-	ModelPortID           string              `json:"modelportid"`
-	MacAddress            string              `json:"mac_address"`
-	VlanConfigs           []e.PortVlanConfig  `json:"vlan_configs"`
-	AllowMultipleUntagged bool                `json:"allow_multiple_untagged"`
+	DeviceID    string             `json:"deviceid"`
+	ModelPortID string             `json:"modelportid"`
+	MacAddress  string             `json:"mac_address"`
+	VlanConfigs []e.PortVlanConfig `json:"vlan_configs"`
 }
 
 func addDevicePortHandler(service q.NetServiceInt) http.HandlerFunc {
@@ -294,7 +293,7 @@ func addDevicePortHandler(service q.NetServiceInt) http.HandlerFunc {
 		service,
 		[]string{"DeviceID", "ModelPortID"},
 		func(service q.NetServiceInt, req *AddDevicePortRequest) error {
-			return service.AddDevicePort(req.DeviceID, req.ModelPortID, req.MacAddress, req.VlanConfigs, req.AllowMultipleUntagged)
+			return service.AddDevicePort(req.DeviceID, req.ModelPortID, req.MacAddress, req.VlanConfigs)
 		},
 	)
 }

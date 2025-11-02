@@ -38,6 +38,7 @@ $actionFiles = [
     'updatezone' => 'action/updatezone.php',
     'updatemodeldevice' => 'action/updatemodeldevice.php',
     'updatedevice' => 'action/updatedevice.php',
+    'updatedeviceport' => 'action/updatedeviceport.php',
     'updatemodelport' => 'action/updatemodelport.php',
     'updateconnections' => 'action/updateconnections.php',
     'updateconnectiontype' => 'action/updateconnectiontype.php',

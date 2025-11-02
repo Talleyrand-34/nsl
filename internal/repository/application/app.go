@@ -128,9 +128,9 @@ type NetServiceInt interface {
 	DeleteModelPort(modelPortId string) error
 
 	// DevicePort operations
-	AddDevicePort(deviceId string, modelPortId string, macAddress string, vlanConfigs []e.PortVlanConfig, allowMultipleUntagged bool) error
+	AddDevicePort(deviceId string, modelPortId string, macAddress string, vlanConfigs []e.PortVlanConfig) error
 	GetDevicePorts() ([]e.DevicePort, error)
-	UpdateDevicePortVLANs(deviceId string, modelPortId string, vlanConfigs []e.PortVlanConfig, allowMultipleUntagged bool) error
+	UpdateDevicePort(deviceId string, modelPortId string, macAddress string, vlanConfigs []e.PortVlanConfig) error
 	DeleteDevicePort(deviceId string, modelPortId string) error
 
 	// ConnectionType operations
@@ -280,13 +280,12 @@ func (ns *NetService) AddDevicePort(
 	modelportid string,
 	macAddress string,
 	vlanConfigs []e.PortVlanConfig,
-	allowMultipleUntagged bool,
 ) error {
-	return ns.netRepo.AddDevicePort(deviceid, modelportid, macAddress, vlanConfigs, allowMultipleUntagged)
+	return ns.netRepo.AddDevicePort(deviceid, modelportid, macAddress, vlanConfigs)
 }
 
-func (ns *NetService) UpdateDevicePortVLANs(deviceid string, modelportid string, vlanConfigs []e.PortVlanConfig, allowMultipleUntagged bool) error {
-	return ns.netRepo.UpdateDevicePortVLANs(deviceid, modelportid, vlanConfigs, allowMultipleUntagged)
+func (ns *NetService) UpdateDevicePort(deviceid string, modelportid string, macAddress string, vlanConfigs []e.PortVlanConfig) error {
+	return ns.netRepo.UpdateDevicePort(deviceid, modelportid, macAddress, vlanConfigs)
 }
 
 func (ns *NetService) AddConnectionType(connectionTypeName string) error {
@@ -316,7 +315,7 @@ func (ns *NetService) AddConnection(
 	}
 	if !fromExists {
 		// Try to create the device port with empty VLANs
-		if err := ns.netRepo.AddDevicePort(fromDevice, fromModelPort, "", nil, false); err != nil {
+		if err := ns.netRepo.AddDevicePort(fromDevice, fromModelPort, "", nil); err != nil {
 			return fmt.Errorf("error creating from device port: %w", err)
 		}
 	}
@@ -328,7 +327,7 @@ func (ns *NetService) AddConnection(
 	}
 	if !toExists {
 		// Try to create the device port with empty VLANs
-		if err := ns.netRepo.AddDevicePort(toDevice, toModelPort, "", nil, false); err != nil {
+		if err := ns.netRepo.AddDevicePort(toDevice, toModelPort, "", nil); err != nil {
 			return fmt.Errorf("error creating to device port: %w", err)
 		}
 	}
@@ -475,7 +474,7 @@ func (ns *NetService) UpdateConnection(
 	}
 	if !fromExists {
 		// Try to create the device port with empty VLANs
-		if err := ns.netRepo.AddDevicePort(newFromDeviceId, newFromModelPortId, "", nil, false); err != nil {
+		if err := ns.netRepo.AddDevicePort(newFromDeviceId, newFromModelPortId, "", nil); err != nil {
 			return fmt.Errorf("error creating from device port: %w", err)
 		}
 	}
@@ -487,7 +486,7 @@ func (ns *NetService) UpdateConnection(
 	}
 	if !toExists {
 		// Try to create the device port with empty VLANs
-		if err := ns.netRepo.AddDevicePort(newToDeviceId, newToModelPortId, "", nil, false); err != nil {
+		if err := ns.netRepo.AddDevicePort(newToDeviceId, newToModelPortId, "", nil); err != nil {
 			return fmt.Errorf("error creating to device port: %w", err)
 		}
 	}

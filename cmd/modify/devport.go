@@ -47,7 +47,6 @@ var devicePortModCmd = &cobra.Command{
 		// Get optional VLAN configs
 		// Format: "100:tagged,200:untagged" or just "100,200" (defaults to tagged)
 		vlanConfigsStr, _ := cmd.Flags().GetStringSlice("vlan-configs")
-		allowMultipleUntagged, _ := cmd.Flags().GetBool("allow-multiple-untagged")
 
 		// Parse VLAN configs
 		var vlanConfigs []e.PortVlanConfig
@@ -72,7 +71,7 @@ var devicePortModCmd = &cobra.Command{
 		if err != nil {
 			return
 		}
-		err = service.AddDevicePort(deviceid, modelportid, macaddress, vlanConfigs, allowMultipleUntagged)
+		err = service.AddDevicePort(deviceid, modelportid, macaddress, vlanConfigs)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error writing deviceport: %v\n", err)
 			os.Exit(1)
@@ -91,6 +90,4 @@ func init() {
 		String("macaddress", "", "Sets the MAC address (optional)")
 	devicePortModCmd.Flags().
 		StringSlice("vlan-configs", []string{}, "VLAN configurations (format: '100:tagged,200:untagged' or just '100,200' for tagged)")
-	devicePortModCmd.Flags().
-		Bool("allow-multiple-untagged", false, "Allow multiple untagged VLANs per port")
 }

@@ -120,10 +120,10 @@ type repository interface {
 
 	// DevicePort interaction
 	DevicePortExists(deviceId string, modelPortId string) (bool, error)
-	AddDevicePort(deviceId string, modelPortId string, macAddress string, vlanConfigs []e.PortVlanConfig, allowMultipleUntagged bool) error
+	AddDevicePort(deviceId string, modelPortId string, macAddress string, vlanConfigs []e.PortVlanConfig) error
 	GetDevicePorts() ([]e.DevicePort, error)
 	GetDevicePortByIDs(deviceId string, modelPortId string) (*e.DevicePort, error)
-	UpdateDevicePortVLANs(deviceId string, modelPortId string, vlanConfigs []e.PortVlanConfig, allowMultipleUntagged bool) error
+	UpdateDevicePort(deviceId string, modelPortId string, macAddress string, vlanConfigs []e.PortVlanConfig) error
 	DeleteDevicePort(deviceId string, modelPortId string) error
 
 	// ConnectionType interaction

@@ -39,7 +39,7 @@ func (r BasicOpsCloverRepository) DevicePortExists(deviceid string, modelportid 
 }
 
 // AddDevicePort adds a new device port to the database
-func (r BasicOpsCloverRepository) AddDevicePort(deviceid string, modelportid string, macAddress string, vlanConfigs []e.PortVlanConfig, allowMultipleUntagged bool) error {
+func (r BasicOpsCloverRepository) AddDevicePort(deviceid string, modelportid string, macAddress string, vlanConfigs []e.PortVlanConfig) error {
 	// Validate that the model port belongs to the device's model
 	// This check ensures the port is valid for this device
 	deviceDoc, err := r.db.FindById(devicesCollection, deviceid)
@@ -60,6 +60,12 @@ func (r BasicOpsCloverRepository) AddDevicePort(deviceid string, modelportid str
 	portModelID, ok := modelPortDoc.Get("model_id").(string)
 	if !ok || portModelID != modelID {
 		return fmt.Errorf("model port does not belong to device's model")
+	}
+
+	allowMultipleUntagged, ok := modelPortDoc.Get("allow_multiple_connections").(bool)
+	if !ok {
+		// handle the case where the field is not a bool or not found
+		allowMultipleUntagged = false
 	}
 
 	// Validate untagged VLAN restriction (soft restriction)
@@ -186,8 +192,19 @@ func (r BasicOpsCloverRepository) DeleteDevicePort(deviceid string, modelportid 
 	return nil
 }
 
-// UpdateDevicePortVLANs updates the VLAN configurations for a device port
-func (r BasicOpsCloverRepository) UpdateDevicePortVLANs(deviceid string, modelportid string, vlanConfigs []e.PortVlanConfig, allowMultipleUntagged bool) error {
+// UpdateDevicePort updates a device port's fields
+func (r BasicOpsCloverRepository) UpdateDevicePort(deviceid string, modelportid string, macAddress string, vlanConfigs []e.PortVlanConfig) error {
+	// Get the model port to check allowMultipleUntagged
+	modelPortDoc, err := r.db.FindById(modelportsCollection, modelportid)
+	if err != nil {
+		return fmt.Errorf("model port not found: %v", err)
+	}
+
+	allowMultipleUntagged, ok := modelPortDoc.Get("allow_multiple_connections").(bool)
+	if !ok {
+		allowMultipleUntagged = false
+	}
+
 	// Validate untagged VLAN restriction (soft restriction)
 	if !allowMultipleUntagged && len(vlanConfigs) > 0 {
 		untaggedCount := 0
@@ -197,7 +214,7 @@ func (r BasicOpsCloverRepository) UpdateDevicePortVLANs(deviceid string, modelpo
 			}
 		}
 		if untaggedCount > 1 {
-			return fmt.Errorf("multiple untagged VLANs are not allowed per port (found %d). Use allowMultipleUntagged flag to override", untaggedCount)
+			return fmt.Errorf("multiple untagged VLANs are not allowed per port (found %d)", untaggedCount)
 		}
 	}
 
@@ -206,6 +223,11 @@ func (r BasicOpsCloverRepository) UpdateDevicePortVLANs(deviceid string, modelpo
 		Where(q.Field("model_port_id").Eq(modelportid))
 
 	updates := make(map[string]interface{})
+
+	// Update MAC address (allow empty to clear it)
+	updates["mac_address"] = macAddress
+
+	// Update VLAN configs
 	if len(vlanConfigs) > 0 {
 		// Convert vlanConfigs to a format suitable for storage
 		vlanConfigsMap := make([]map[string]interface{}, len(vlanConfigs))
@@ -217,13 +239,13 @@ func (r BasicOpsCloverRepository) UpdateDevicePortVLANs(deviceid string, modelpo
 		}
 		updates["vlan_configs"] = vlanConfigsMap
 	} else {
-		// If empty, remove the field
+		// If empty, clear the field
 		updates["vlan_configs"] = []map[string]interface{}{}
 	}
 
-	err := r.db.Update(query, updates)
+	err = r.db.Update(query, updates)
 	if err != nil {
-		return fmt.Errorf("UpdateDevicePortVLANs failed: %w", err)
+		return fmt.Errorf("UpdateDevicePort failed: %w", err)
 	}
 	return nil
 }
