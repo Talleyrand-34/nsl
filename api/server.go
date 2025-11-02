@@ -178,8 +178,8 @@ func RegisterRoutes(r *mux.Router, service q.NetServiceInt) {
 	r.HandleFunc("/allports/all", getAllPortsAllHandler(service)).Methods("GET")
 	r.HandleFunc("/diagram", getDiagram(service)).Methods("GET")
 	// Plugins
-	r.HandleFunc("/plugins", getPluginsHandler()).Methods("GET")
-	r.HandleFunc("/plugins/active", setActivePluginHandler()).Methods("POST")
+	r.HandleFunc("/plugins", getPluginsHandler()).Methods("GET", "OPTIONS")
+	r.HandleFunc("/plugins/active", setActivePluginHandler()).Methods("POST", "OPTIONS")
 	// Export
 	// r.HandleFunc("/export", exportAllStructsHandler(service)).Methods("GET")
 	// Brand

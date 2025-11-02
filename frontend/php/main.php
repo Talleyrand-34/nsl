@@ -323,6 +323,10 @@ function changePlugin() {
     const select = document.getElementById('pluginSelect');
     const pluginId = select.value;
     const statusElem = document.getElementById('pluginStatus');
+    const endpoint = '<?= PLUGINS_ACTIVE_ENDPOINT ?>';
+
+    console.log('Changing plugin to:', pluginId);
+    console.log('POST endpoint:', endpoint);
 
     // Find selected plugin info
     const plugin = currentPlugins.find(p => p.id === pluginId);
@@ -333,22 +337,29 @@ function changePlugin() {
     statusElem.textContent = '⏳ Changing plugin...';
     statusElem.style.color = '#666';
 
-    fetch('<?= PLUGINS_ACTIVE_ENDPOINT ?>', {
+    const requestBody = { plugin_id: pluginId };
+    console.log('Request body:', requestBody);
+
+    fetch(endpoint, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ plugin_id: pluginId })
+        body: JSON.stringify(requestBody)
     })
     .then(response => {
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers);
         if (!response.ok) {
             return response.text().then(text => {
+                console.error('Error response:', text);
                 throw new Error(text || 'Failed to change plugin');
             });
         }
         return response.json();
     })
     .then(data => {
+        console.log('Success response:', data);
         statusElem.textContent = '✓ Plugin changed successfully';
         statusElem.style.color = 'green';
 
@@ -362,6 +373,8 @@ function changePlugin() {
     })
     .catch(error => {
         console.error('Error changing plugin:', error);
+        console.error('Error type:', error.name);
+        console.error('Error message:', error.message);
         statusElem.textContent = '❌ ' + error.message;
         statusElem.style.color = 'red';
 
