@@ -63,10 +63,8 @@ Example:
 			os.Exit(1)
 		}
 
-		// Get optional IP segment and VLAN parameters
-		fromIPSegment, _ := cmd.Flags().GetString("from-ip-segment")
-		toIPSegment, _ := cmd.Flags().GetString("to-ip-segment")
-		vlanIds, _ := cmd.Flags().GetStringSlice("vlan-ids")
+		// Get optional VLAN union flag
+		allowVLANUnion, _ := cmd.Flags().GetBool("allow-vlan-union")
 
 		// Get service connection
 		service, err := util.ServiceConnection()
@@ -76,7 +74,7 @@ Example:
 		}
 
 		// Create the connection
-		err = service.AddConnection(fromDeviceId, fromModelPortId, fromIPSegment, toDeviceId, toModelPortId, toIPSegment, vlanIds)
+		err = service.AddConnection(fromDeviceId, fromModelPortId, toDeviceId, toModelPortId, allowVLANUnion)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error creating connection: %v\n", err)
 			os.Exit(1)
@@ -92,11 +90,9 @@ func init() {
 
 	connectionModCmd.Flags().String("from-device-id", "", "ID of the source device (required)")
 	connectionModCmd.Flags().String("from-modelport-id", "", "ID of the source device's model port (required)")
-	connectionModCmd.Flags().String("from-ip-segment", "", "IP segment for the source port (optional)")
 	connectionModCmd.Flags().String("to-device-id", "", "ID of the destination device (required)")
 	connectionModCmd.Flags().String("to-modelport-id", "", "ID of the destination device's model port (required)")
-	connectionModCmd.Flags().String("to-ip-segment", "", "IP segment for the destination port (optional)")
-	connectionModCmd.Flags().StringSlice("vlan-ids", []string{}, "VLAN database IDs for this connection (optional, comma-separated)")
+	connectionModCmd.Flags().Bool("allow-vlan-union", false, "Allow connection if VLANs have any overlap (default: strict matching)")
 
 	connectionModCmd.MarkFlagRequired("from-device-id")
 	connectionModCmd.MarkFlagRequired("from-modelport-id")

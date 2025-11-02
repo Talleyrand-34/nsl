@@ -27,16 +27,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $vlanDbId = trim($_POST['vlan_db_id'] ?? '');
         $newVlanID = trim($_POST['new_vlan_id'] ?? '');
         $newVlanName = trim($_POST['new_vlan_name'] ?? '');
-        
+
+        // Collect IP segment IDs from dynamic inputs
+        $ipSegmentIDs = [];
+        if (isset($_POST['ip_segment_ids']) && is_array($_POST['ip_segment_ids'])) {
+            foreach ($_POST['ip_segment_ids'] as $segmentId) {
+                $segmentId = trim($segmentId);
+                if (!empty($segmentId)) {
+                    $ipSegmentIDs[] = $segmentId;
+                }
+            }
+        }
+
         if ($vlanDbId === '') {
             $message = 'Please select a VLAN to update.';
-        } elseif ($newVlanID === '' && $newVlanName === '') {
-            $message = 'Please enter at least one field to update (VLAN ID or VLAN Name).';
+        } elseif ($newVlanID === '' && $newVlanName === '' && empty($ipSegmentIDs)) {
+            $message = 'Please enter at least one field to update.';
         } else {
             $data = json_encode([
                 'id' => $vlanDbId,
                 'vlanID' => $newVlanID,
-                'vlanName' => $newVlanName
+                'vlanName' => $newVlanName,
+                'ipSegmentIDs' => $ipSegmentIDs
             ]);
             $ch = curl_init(VLANS_ENDPOINT);
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PUT');
@@ -79,7 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <select id="vlan_db_id" name="vlan_db_id" required>
             <option value="">-- Select VLAN --</option>
             <?php foreach ($vlans as $vlan): ?>
-                <option value="<?= htmlspecialchars($vlan['id']) ?>" 
+                <option value="<?= htmlspecialchars($vlan['id']) ?>"
                     <?= ($vlan['id'] == ($selectedVlanDbId ?? '')) ? 'selected' : '' ?>>
                     VLAN <?= htmlspecialchars($vlan['vlanid']) ?> - <?= htmlspecialchars($vlan['vlanname']) ?> (DB ID: <?= htmlspecialchars($vlan['id']) ?>)
                 </option>
@@ -87,15 +99,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </select>
         <button type="submit" name="select_vlan">Load VLAN</button>
         <br><br>
-        
+
         <?php if (!empty($selectedVlanDbId)): ?>
             <label for="new_vlan_id">New VLAN ID (current: <?= htmlspecialchars($selectedVlanId) ?>):</label>
             <input type="text" id="new_vlan_id" name="new_vlan_id"><br><br>
-            
+
             <label for="new_vlan_name">New VLAN Name (current: <?= htmlspecialchars($selectedVlanName) ?>):</label>
             <input type="text" id="new_vlan_name" name="new_vlan_name"><br><br>
-            
+
+            <fieldset>
+                <legend>IP Segment IDs (Optional)</legend>
+                <div id="ipSegmentIDsContainer">
+                    <!-- IP segment IDs will be added here dynamically -->
+                </div>
+                <button type="button" onclick="addIPSegmentField()">+ Add IP Segment ID</button>
+                <br><small><em>Add IP segment IDs to associate with this VLAN. Leave empty to keep existing IPs.</em></small>
+            </fieldset>
+            <br>
+
             <button type="submit" name="update_vlan">Update VLAN</button>
         <?php endif; ?>
     </form>
+
+    <script>
+        let ipSegmentIndex = 0;
+
+        function addIPSegmentField() {
+            const container = document.getElementById('ipSegmentIDsContainer');
+            const segmentDiv = document.createElement('div');
+            segmentDiv.id = 'ipSegment_' + ipSegmentIndex;
+            segmentDiv.style.marginBottom = '5px';
+
+            segmentDiv.innerHTML = `
+                <input type="text" name="ip_segment_ids[]" placeholder="e.g., segment-001"
+                       style="width: 250px; margin-right: 5px;">
+                <button type="button" onclick="removeIPSegmentField(${ipSegmentIndex})">Remove</button>
+            `;
+
+            container.appendChild(segmentDiv);
+            ipSegmentIndex++;
+        }
+
+        function removeIPSegmentField(index) {
+            const element = document.getElementById('ipSegment_' + index);
+            if (element) {
+                element.remove();
+            }
+        }
+    </script>
 <?php endif; ?>

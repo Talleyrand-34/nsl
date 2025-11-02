@@ -3,10 +3,9 @@
 require_once __DIR__ . '/../config.php';
 $message = '';
 
-// Fetch devices, model ports, and VLANs
+// Fetch devices and model ports
 $devices = json_decode(@file_get_contents(DEVICES_ENDPOINT), true) ?: [];
 $modelports = json_decode(@file_get_contents(MODELPORTS_ENDPOINT), true) ?: [];
-$vlans = json_decode(@file_get_contents(VLANS_ENDPOINT), true) ?: [];
 
 // Helper: get model for a given device id
 function getDeviceModel($devices, $deviceId)
@@ -33,24 +32,20 @@ function getModelPortsByModel($modelports, $modelName)
 
 $fromDevice = $_POST['fromDevice'] ?? '';
 $fromModelPort = $_POST['fromModelPort'] ?? '';
-$fromIPSegment = $_POST['fromIPSegment'] ?? '';
 $toDevice = $_POST['toDevice'] ?? '';
 $toModelPort = $_POST['toModelPort'] ?? '';
-$toIPSegment = $_POST['toIPSegment'] ?? '';
-$vlanIds = $_POST['vlanIds'] ?? [];
+$allowVLANUnion = isset($_POST['allowVLANUnion']);
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) {
     if ($fromDevice === '' || $fromModelPort === '' || $toDevice === '' || $toModelPort === '') {
         $message = 'Please select all connection parameters.';
     } else {
         $data = json_encode([
             'fromDevice' => $fromDevice,
             'fromModelPort' => $fromModelPort,
-            'fromIPSegment' => $fromIPSegment,
             'toDevice' => $toDevice,
             'toModelPort' => $toModelPort,
-            'toIPSegment' => $toIPSegment,
-            'vlanIds' => $vlanIds
+            'allowVLANUnion' => $allowVLANUnion
         ]);
 
         // Debug: echo the JSON being sent
@@ -114,11 +109,6 @@ $toModelPorts = $toDeviceModel ? getModelPortsByModel($modelports, $toDeviceMode
                 </option>
             <?php endforeach; ?>
         </select>
-
-        <label for="fromIPSegment">IP Segment (optional):</label>
-        <input type="text" id="fromIPSegment" name="fromIPSegment" 
-               value="<?= htmlspecialchars($fromIPSegment) ?>" 
-               placeholder="e.g., 192.168.1.0/24">
     </fieldset>
     <br>
     <fieldset>
@@ -144,26 +134,16 @@ $toModelPorts = $toDeviceModel ? getModelPortsByModel($modelports, $toDeviceMode
                 </option>
             <?php endforeach; ?>
         </select>
-
-        <label for="toIPSegment">IP Segment (optional):</label>
-        <input type="text" id="toIPSegment" name="toIPSegment" 
-               value="<?= htmlspecialchars($toIPSegment) ?>" 
-               placeholder="e.g., 10.0.1.0/24">
     </fieldset>
     <br>
     <fieldset>
-        <legend>VLANs (Optional - select multiple)</legend>
-        <label for="vlanIds">VLANs:</label>
-        <select id="vlanIds" name="vlanIds[]" multiple size="5" style="width: 100%;">
-            <?php foreach ($vlans as $vlan): ?>
-                <option value="<?= htmlspecialchars($vlan['id']) ?>"
-                    <?= in_array($vlan['id'], $vlanIds) ? 'selected' : '' ?>>
-                    VLAN <?= htmlspecialchars($vlan['vlanid']) ?> - <?= htmlspecialchars($vlan['vlanname']) ?>
-                </option>
-            <?php endforeach; ?>
-        </select>
-        <small>Hold Ctrl (or Cmd on Mac) to select multiple VLANs</small>
+        <legend>VLAN Validation Options</legend>
+        <label>
+            <input type="checkbox" name="allowVLANUnion" value="1" <?= $allowVLANUnion ? 'checked' : '' ?>>
+            Allow VLAN Union (Allow connection if VLANs have any overlap)
+        </label>
+        <br><small><em>By default, VLANs must match exactly between ports. Enable this to allow connections if VLANs have any overlap.</em></small>
     </fieldset>
     <br>
-    <button type="submit">Add Connection</button>
+    <button type="submit" name="submit">Add Connection</button>
 </form>

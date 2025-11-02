@@ -20,11 +20,13 @@ package cmd_modify
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
 	cmd "nsl-graph/cmd/root"
 	util "nsl-graph/cmd/utils"
+	e "nsl-graph/internal/repository/entities"
 )
 
 // zoneModCmd represents the port command
@@ -41,11 +43,36 @@ var devicePortModCmd = &cobra.Command{
 		deviceid := vals[0]
 		modelportid := vals[1]
 		macaddress := vals[2]
+
+		// Get optional VLAN configs
+		// Format: "100:tagged,200:untagged" or just "100,200" (defaults to tagged)
+		vlanConfigsStr, _ := cmd.Flags().GetStringSlice("vlan-configs")
+		allowMultipleUntagged, _ := cmd.Flags().GetBool("allow-multiple-untagged")
+
+		// Parse VLAN configs
+		var vlanConfigs []e.PortVlanConfig
+		for _, vcStr := range vlanConfigsStr {
+			if vcStr == "" {
+				continue
+			}
+			// Check if format is "number:tagged" or "number:untagged"
+			parts := strings.Split(vcStr, ":")
+			vlanNum := parts[0]
+			tagged := true // default to tagged
+			if len(parts) == 2 {
+				tagged = strings.ToLower(parts[1]) == "tagged"
+			}
+			vlanConfigs = append(vlanConfigs, e.PortVlanConfig{
+				VlanNumber: vlanNum,
+				Tagged:     tagged,
+			})
+		}
+
 		service, err := util.ServiceConnection()
 		if err != nil {
 			return
 		}
-		err = service.AddDevicePort(deviceid, modelportid, macaddress)
+		err = service.AddDevicePort(deviceid, modelportid, macaddress, vlanConfigs, allowMultipleUntagged)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error writing deviceport: %v\n", err)
 			os.Exit(1)
@@ -62,4 +89,8 @@ func init() {
 		String("modelportid", "", "Sets the model port ID")
 	devicePortModCmd.Flags().
 		String("macaddress", "", "Sets the MAC address (optional)")
+	devicePortModCmd.Flags().
+		StringSlice("vlan-configs", []string{}, "VLAN configurations (format: '100:tagged,200:untagged' or just '100,200' for tagged)")
+	devicePortModCmd.Flags().
+		Bool("allow-multiple-untagged", false, "Allow multiple untagged VLANs per port")
 }

@@ -86,6 +86,7 @@ type repository interface {
 		zoneId string,
 		zoneName string,
 		proprietaryName string,
+		ips []string,
 	) error
 	GetDevices() ([]e.Device, error)
 	UpdateDevice(
@@ -95,6 +96,7 @@ type repository interface {
 		newZoneId string,
 		newProprietaryId string,
 	) error
+	UpdateDeviceIPs(deviceId string, ips []string) error
 	DeleteDevice(deviceId string) error
 
 	// ModelPort interaction
@@ -118,8 +120,10 @@ type repository interface {
 
 	// DevicePort interaction
 	DevicePortExists(deviceId string, modelPortId string) (bool, error)
-	AddDevicePort(deviceId string, modelPortId string, macAddress string) error
+	AddDevicePort(deviceId string, modelPortId string, macAddress string, vlanConfigs []e.PortVlanConfig, allowMultipleUntagged bool) error
 	GetDevicePorts() ([]e.DevicePort, error)
+	GetDevicePortByIDs(deviceId string, modelPortId string) (*e.DevicePort, error)
+	UpdateDevicePortVLANs(deviceId string, modelPortId string, vlanConfigs []e.PortVlanConfig, allowMultipleUntagged bool) error
 	DeleteDevicePort(deviceId string, modelPortId string) error
 
 	// ConnectionType interaction
@@ -132,29 +136,26 @@ type repository interface {
 	AddConnection(
 		fromDeviceId string,
 		fromModelPortId string,
-		fromIPSegment string,
 		toDeviceId string,
 		toModelPortId string,
-		toIPSegment string,
-		vlanIds []string,
+		allowVLANUnion bool,
 	) error
 	GetConnections() ([]e.Connection, error)
 	UpdateConnection(
 		connectionId string,
 		newFromDeviceId string,
 		newFromModelPortId string,
-		newFromIPSegment string,
 		newToDeviceId string,
 		newToModelPortId string,
-		newToIPSegment string,
-		newVlanIds []string,
+		allowVLANUnion bool,
 	) error
 	DeleteConnection(connectionId string) error
 
 	// VLAN interaction
-	AddVlan(vlanID string, vlanName string) error
+	AddVlan(vlanID string, vlanName string, ipSegmentIDs []string) error
 	GetVlans() ([]e.Vlan, error)
 	UpdateVlan(vlanId string, newVlanID string, newVlanName string) error
+	UpdateVlanIPSegments(vlanId string, ipSegmentIDs []string) error
 	DeleteVlan(vlanId string) error
 
 	// get all the ports mapped

@@ -20,7 +20,7 @@ import (
 	"fmt"
 
 	q "nsl-graph/internal/repository/application"
-	infra "nsl-graph/internal/repository/infra/manual_cloverdb/base"
+	infra "nsl-graph/internal/repository/infra/cloverdb/base"
 )
 
 func serviceConnection(path string) (q.NetServiceInt, error) {

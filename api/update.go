@@ -21,6 +21,7 @@ import (
 	"net/http"
 
 	q "nsl-graph/internal/repository/application"
+	e "nsl-graph/internal/repository/entities"
 )
 
 // genericUpdateHandler abstracts common PUT handler logic
@@ -50,14 +51,12 @@ func genericUpdateHandler[T any](
 func updateConnectionHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
-			ID            string   `json:"id"`
-			FromDevice    string   `json:"from_device"`
-			FromPort      string   `json:"from_port"`
-			FromIPSegment string   `json:"from_ip_segment"`
-			ToDevice      string   `json:"to_device"`
-			ToPort        string   `json:"to_port"`
-			ToIPSegment   string   `json:"to_ip_segment"`
-			VlanIds       []string `json:"vlan_ids"`
+			ID             string `json:"id"`
+			FromDevice     string `json:"from_device"`
+			FromPort       string `json:"from_port"`
+			ToDevice       string `json:"to_device"`
+			ToPort         string `json:"to_port"`
+			AllowVLANUnion bool   `json:"allowVLANUnion"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -67,7 +66,7 @@ func updateConnectionHandler(service q.NetServiceInt) http.HandlerFunc {
 			http.Error(w, "id is required", http.StatusBadRequest)
 			return
 		}
-		if err := service.UpdateConnection(req.ID, req.FromDevice, req.FromPort, req.FromIPSegment, req.ToDevice, req.ToPort, req.ToIPSegment, req.VlanIds); err != nil {
+		if err := service.UpdateConnection(req.ID, req.FromDevice, req.FromPort, req.ToDevice, req.ToPort, req.AllowVLANUnion); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -178,21 +177,39 @@ func updateModelHandler(service q.NetServiceInt) http.HandlerFunc {
 
 // Device Update
 type UpdateDeviceRequest struct {
-	ID            string `json:"id"`
-	Label         string `json:"label"`
-	ModelID       string `json:"model_id"`
-	ZoneID        string `json:"zone_id"`
-	ProprietaryID string `json:"proprietary_id"`
+	ID            string   `json:"id"`
+	Label         string   `json:"label"`
+	ModelID       string   `json:"model_id"`
+	ZoneID        string   `json:"zone_id"`
+	ProprietaryID string   `json:"proprietary_id"`
+	IPs           []string `json:"ips"`
 }
 
 func updateDeviceHandler(service q.NetServiceInt) http.HandlerFunc {
-	return genericUpdateHandler[UpdateDeviceRequest](
-		service,
-		[]string{"ID", "Label", "ModelID", "ZoneID", "ProprietaryID"},
-		func(service q.NetServiceInt, req *UpdateDeviceRequest) error {
-			return service.UpdateDevice(req.ID, req.Label, req.ModelID, req.ZoneID, req.ProprietaryID)
-		},
-	)
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req UpdateDeviceRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if req.ID == "" {
+			http.Error(w, "id is required", http.StatusBadRequest)
+			return
+		}
+		// Update basic device fields
+		if err := service.UpdateDevice(req.ID, req.Label, req.ModelID, req.ZoneID, req.ProprietaryID); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		// Update IPs if provided
+		if req.IPs != nil {
+			if err := service.UpdateDeviceIPs(req.ID, req.IPs); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+		w.WriteHeader(http.StatusOK)
+	}
 }
 
 // ModelPort Update
@@ -233,17 +250,66 @@ func updateConnectionTypeHandler(service q.NetServiceInt) http.HandlerFunc {
 
 // VLAN Update
 type UpdateVlanRequest struct {
-	ID       string `json:"id"`
-	VlanID   string `json:"vlanID"`
-	VlanName string `json:"vlanName"`
+	ID           string   `json:"id"`
+	VlanID       string   `json:"vlanID"`
+	VlanName     string   `json:"vlanName"`
+	IPSegmentIDs []string `json:"ipSegmentIDs"`
 }
 
 func updateVlanHandler(service q.NetServiceInt) http.HandlerFunc {
-	return genericUpdateHandler[UpdateVlanRequest](
-		service,
-		[]string{"ID"},
-		func(service q.NetServiceInt, req *UpdateVlanRequest) error {
-			return service.UpdateVlan(req.ID, req.VlanID, req.VlanName)
-		},
-	)
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req UpdateVlanRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if req.ID == "" {
+			http.Error(w, "id is required", http.StatusBadRequest)
+			return
+		}
+		// Update basic VLAN fields
+		if err := service.UpdateVlan(req.ID, req.VlanID, req.VlanName); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		// Update IP segments if provided
+		if req.IPSegmentIDs != nil {
+			if err := service.UpdateVlanIPSegments(req.ID, req.IPSegmentIDs); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+// DevicePort Update
+type UpdateDevicePortRequest struct {
+	DeviceID              string             `json:"deviceid"`
+	ModelPortID           string             `json:"modelportid"`
+	MacAddress            string             `json:"mac_address"`
+	VlanConfigs           []e.PortVlanConfig `json:"vlan_configs"`
+	AllowMultipleUntagged bool               `json:"allow_multiple_untagged"`
+}
+
+func updateDevicePortHandler(service q.NetServiceInt) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req UpdateDevicePortRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if req.DeviceID == "" || req.ModelPortID == "" {
+			http.Error(w, "deviceid and modelportid are required", http.StatusBadRequest)
+			return
+		}
+		// Update VLAN configs if provided
+		if req.VlanConfigs != nil {
+			if err := service.UpdateDevicePortVLANs(req.DeviceID, req.ModelPortID, req.VlanConfigs, req.AllowMultipleUntagged); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+		w.WriteHeader(http.StatusOK)
+	}
 }

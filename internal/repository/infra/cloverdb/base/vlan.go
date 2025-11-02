@@ -23,7 +23,7 @@ import (
 )
 
 // AddVlan adds a new VLAN to the database
-func (r BasicOpsCloverRepository) AddVlan(vlanID string, vlanName string) error {
+func (r BasicOpsCloverRepository) AddVlan(vlanID string, vlanName string, ipSegmentIDs []string) error {
 	// Check if VLAN ID already exists
 	exists, err := r.db.Exists(q.NewQuery(vlansCollection).Where(q.Field("vlan_id").Eq(vlanID)))
 	if err != nil {
@@ -36,6 +36,9 @@ func (r BasicOpsCloverRepository) AddVlan(vlanID string, vlanName string) error 
 	doc := d.NewDocument()
 	doc.Set("vlan_id", vlanID)
 	doc.Set("vlan_name", vlanName)
+	if len(ipSegmentIDs) > 0 {
+		doc.Set("ip_segment_ids", ipSegmentIDs)
+	}
 
 	_, err = r.db.InsertOne(vlansCollection, doc)
 	return err
@@ -59,6 +62,17 @@ func (r BasicOpsCloverRepository) GetVlans() ([]e.Vlan, error) {
 			VlanID:   doc.Get("vlan_id").(string),
 			VlanName: vlanName,
 		}
+
+		// Get IP segment IDs if they exist
+		vlan.IPSegmentIDs = make([]string, 0)
+		if ipSegmentIDs, ok := doc.Get("ip_segment_ids").([]interface{}); ok && len(ipSegmentIDs) > 0 {
+			for _, ipSegIDInterface := range ipSegmentIDs {
+				if ipSegID, ok := ipSegIDInterface.(string); ok && ipSegID != "" {
+					vlan.IPSegmentIDs = append(vlan.IPSegmentIDs, ipSegID)
+				}
+			}
+		}
+
 		result = append(result, vlan)
 	}
 
@@ -90,5 +104,22 @@ func (r BasicOpsCloverRepository) DeleteVlan(vlanId string) error {
 		return err
 	}
 
+	return nil
+}
+
+// UpdateVlanIPSegments updates the IP segment IDs for a VLAN
+func (r BasicOpsCloverRepository) UpdateVlanIPSegments(vlanId string, ipSegmentIDs []string) error {
+	updates := make(map[string]interface{})
+	if len(ipSegmentIDs) > 0 {
+		updates["ip_segment_ids"] = ipSegmentIDs
+	} else {
+		// If empty, remove the field
+		updates["ip_segment_ids"] = []string{}
+	}
+
+	err := r.db.Update(q.NewQuery(vlansCollection).Where(q.Field("_id").Eq(vlanId)), updates)
+	if err != nil {
+		return fmt.Errorf("UpdateVlanIPSegments failed: %w", err)
+	}
 	return nil
 }

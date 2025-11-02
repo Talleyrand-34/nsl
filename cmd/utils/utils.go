@@ -29,7 +29,10 @@ import (
 
 	c "nsl-graph/cmd"
 	q "nsl-graph/internal/repository/application"
-	cloverInfra "nsl-graph/internal/repository/infra/manual_cloverdb/base"
+
+	// infra "nsl-graph/internal/repository/infra/manual_cloverdb/base"
+
+	infra "nsl-graph/internal/repository/infra/cloverdb/base"
 	// sqliteInfra "nsl-graph/internal/repository/infra/sqlc_sqlite/base"
 )
 
@@ -53,7 +56,7 @@ func ServiceConnection() (q.NetServiceInt, error) {
 	case "cloverdb", "clover":
 		// Use CloverDB backend
 		OpenDatabaseConnectionClover()
-		repository, err := cloverInfra.NewCloverRepository(c.Srcdbpath)
+		repository, err := infra.NewCloverRepository(c.Srcdbpath)
 		if err != nil {
 			log.Fatalf("Error connecting to CloverDB: %v", err)
 		}

@@ -66,6 +66,7 @@ func rootHandler() http.HandlerFunc {
 			"DELETE /deviceports",
 			"GET    /deviceports",
 			"POST   /deviceports",
+			"PUT    /deviceports",
 
 			// /devices
 			"DELETE /devices",
@@ -217,6 +218,8 @@ func RegisterRoutes(r *mux.Router, service q.NetServiceInt) {
 	r.HandleFunc("/devices", updateDeviceHandler(service)).Methods("PUT")
 	// ModelPort
 	r.HandleFunc("/modelports", updateModelPortHandler(service)).Methods("PUT")
+	// DevicePort
+	r.HandleFunc("/deviceports", updateDevicePortHandler(service)).Methods("PUT")
 	// ConnectionType
 	r.HandleFunc("/connectiontypes", updateConnectionTypeHandler(service)).Methods("PUT")
 	// VLAN

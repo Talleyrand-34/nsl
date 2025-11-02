@@ -88,21 +88,6 @@ func (r BasicOpsCloverRepository) GetConnections() ([]e.Connection, error) {
 			}
 		}
 
-		// Get VLAN info - array of VLAN IDs
-		connection.VlanCon = make([]string, 0)
-		if vlanIDs, ok := doc.Get("vlan_ids").([]interface{}); ok && len(vlanIDs) > 0 {
-			for _, vlanIDInterface := range vlanIDs {
-				if vlanID, ok := vlanIDInterface.(string); ok && vlanID != "" {
-					vlanDoc, err := r.db.FindById(vlansCollection, vlanID)
-					if err == nil && vlanDoc != nil {
-						if vlanIDStr, ok := vlanDoc.Get("vlan_id").(string); ok {
-							connection.VlanCon = append(connection.VlanCon, vlanIDStr)
-						}
-					}
-				}
-			}
-		}
-
 		result = append(result, connection)
 	}
 
@@ -110,14 +95,14 @@ func (r BasicOpsCloverRepository) GetConnections() ([]e.Connection, error) {
 }
 
 // AddConnection creates a new connection between two device ports
+// Validates that both ports have matching VLANs (strict mode by default)
+// Set allowVLANUnion to true to allow connection if VLANs have any overlap instead of requiring exact match
 func (r BasicOpsCloverRepository) AddConnection(
 	fromDevice string,
 	fromModelPort string,
-	fromIPSegment string,
 	toDevice string,
 	toModelPort string,
-	toIPSegment string,
-	vlanIDs []string,
+	allowVLANUnion bool,
 ) error {
 	// Validate that the ports are not already in use
 	// Check if from port is already used
@@ -146,27 +131,104 @@ func (r BasicOpsCloverRepository) AddConnection(
 		return fmt.Errorf("one or both ports are already in use")
 	}
 
+	// Get VLAN configs from both device ports
+	fromPort, err := r.GetDevicePortByIDs(fromDevice, fromModelPort)
+	if err != nil {
+		return fmt.Errorf("failed to get from device port: %v", err)
+	}
+
+	toPort, err := r.GetDevicePortByIDs(toDevice, toModelPort)
+	if err != nil {
+		return fmt.Errorf("failed to get to device port: %v", err)
+	}
+
+	// Extract VLAN numbers from configs for validation
+	fromVlans := extractVLANNumbers(fromPort.VlanConfigs)
+	toVlans := extractVLANNumbers(toPort.VlanConfigs)
+
+	// Validate VLAN compatibility
+	if len(fromVlans) > 0 || len(toVlans) > 0 {
+		if allowVLANUnion {
+			// Union mode: Check if there's any VLAN overlap
+			if !hasVLANOverlap(fromVlans, toVlans) {
+				return fmt.Errorf("VLAN validation failed: no common VLANs between ports (from: %v, to: %v)",
+					fromVlans, toVlans)
+			}
+		} else {
+			// Strict mode: VLANs must match exactly
+			if !vlanListsEqual(fromVlans, toVlans) {
+				return fmt.Errorf("VLAN validation failed: VLANs must match exactly (from: %v, to: %v). Use allowVLANUnion flag to allow overlapping VLANs",
+					fromVlans, toVlans)
+			}
+		}
+	}
+
 	doc := d.NewDocument()
 	doc.Set("from_device_id", fromDevice)
 	doc.Set("from_model_port_id", fromModelPort)
 	doc.Set("to_device_id", toDevice)
 	doc.Set("to_model_port_id", toModelPort)
 
-	if fromIPSegment != "" {
-		doc.Set("from_ip_segment", fromIPSegment)
-	}
-	if toIPSegment != "" {
-		doc.Set("to_ip_segment", toIPSegment)
-	}
-	if len(vlanIDs) > 0 {
-		doc.Set("vlan_ids", vlanIDs)
-	}
-
 	_, err = r.db.InsertOne(connectionsCollection, doc)
 	if err != nil {
 		return fmt.Errorf("failed to create connection: %v", err)
 	}
 	return nil
+}
+
+// hasVLANOverlap checks if two VLAN lists have any common elements
+func hasVLANOverlap(vlans1, vlans2 []string) bool {
+	// If both lists are empty, consider it valid (no VLAN restriction)
+	if len(vlans1) == 0 && len(vlans2) == 0 {
+		return true
+	}
+	// If one list is empty and the other isn't, no overlap
+	if len(vlans1) == 0 || len(vlans2) == 0 {
+		return false
+	}
+
+	vlanSet := make(map[string]bool)
+	for _, vlan := range vlans1 {
+		vlanSet[vlan] = true
+	}
+	for _, vlan := range vlans2 {
+		if vlanSet[vlan] {
+			return true
+		}
+	}
+	return false
+}
+
+// vlanListsEqual checks if two VLAN lists contain the same elements (order doesn't matter)
+func vlanListsEqual(vlans1, vlans2 []string) bool {
+	if len(vlans1) != len(vlans2) {
+		return false
+	}
+	// If both are empty, they're equal
+	if len(vlans1) == 0 {
+		return true
+	}
+
+	vlanSet := make(map[string]int)
+	for _, vlan := range vlans1 {
+		vlanSet[vlan]++
+	}
+	for _, vlan := range vlans2 {
+		if count, ok := vlanSet[vlan]; !ok || count == 0 {
+			return false
+		}
+		vlanSet[vlan]--
+	}
+	return true
+}
+
+// extractVLANNumbers extracts VLAN numbers from VlanConfigs
+func extractVLANNumbers(configs []e.PortVlanConfig) []string {
+	vlans := make([]string, len(configs))
+	for i, config := range configs {
+		vlans[i] = config.VlanNumber
+	}
+	return vlans
 }
 
 // DeleteConnection deletes a connection from the database by its ID
@@ -179,47 +241,99 @@ func (r BasicOpsCloverRepository) DeleteConnection(id string) error {
 }
 
 // UpdateConnection updates a connection in the database by its ID
+// Validates VLAN compatibility between the new ports
 func (r BasicOpsCloverRepository) UpdateConnection(
 	id string,
 	from_device string,
 	from_port string,
-	from_ip_segment string,
 	to_device string,
 	to_port string,
-	to_ip_segment string,
-	vlan_ids []string,
+	allowVLANUnion bool,
 ) error {
+	// Get VLAN numbers from both device ports
+	fromPortData, err := r.GetDevicePortByIDs(from_device, from_port)
+	if err != nil {
+		return fmt.Errorf("failed to get from device port: %v", err)
+	}
+
+	toPortData, err := r.GetDevicePortByIDs(to_device, to_port)
+	if err != nil {
+		return fmt.Errorf("failed to get to device port: %v", err)
+	}
+
+	// Extract VLAN numbers from configs for validation
+	fromVlans := extractVLANNumbers(fromPortData.VlanConfigs)
+	toVlans := extractVLANNumbers(toPortData.VlanConfigs)
+
+	// Validate VLAN compatibility
+	if len(fromVlans) > 0 || len(toVlans) > 0 {
+		if allowVLANUnion {
+			// Union mode: Check if there's any VLAN overlap
+			if !hasVLANOverlap(fromVlans, toVlans) {
+				return fmt.Errorf("VLAN validation failed: no common VLANs between ports (from: %v, to: %v)",
+					fromVlans, toVlans)
+			}
+		} else {
+			// Strict mode: VLANs must match exactly
+			if !vlanListsEqual(fromVlans, toVlans) {
+				return fmt.Errorf("VLAN validation failed: VLANs must match exactly (from: %v, to: %v). Use allowVLANUnion flag to allow overlapping VLANs",
+					fromVlans, toVlans)
+			}
+		}
+	}
+
 	updates := make(map[string]interface{})
 	updates["from_device_id"] = from_device
 	updates["from_model_port_id"] = from_port
 	updates["to_device_id"] = to_device
 	updates["to_model_port_id"] = to_port
 
-	if from_ip_segment != "" {
-		updates["from_ip_segment"] = from_ip_segment
-	}
-	if to_ip_segment != "" {
-		updates["to_ip_segment"] = to_ip_segment
-	}
-	if len(vlan_ids) > 0 {
-		updates["vlan_ids"] = vlan_ids
-	}
-
-	err := r.db.Update(q.NewQuery(connectionsCollection).Where(q.Field("_id").Eq(id)), updates)
+	err = r.db.Update(q.NewQuery(connectionsCollection).Where(q.Field("_id").Eq(id)), updates)
 	if err != nil {
 		return fmt.Errorf("UpdateConnection failed: %w", err)
 	}
 	return nil
 }
+// AddConnectionSimple creates a connection without port usage validation
+// Still validates VLAN compatibility
 func (r BasicOpsCloverRepository) AddConnectionSimple(
 	fromDevice string,
 	fromModelPort string,
-	fromIPSegment string,
 	toDevice string,
 	toModelPort string,
-	toIPSegment string,
-	vlanIDs []string,
+	allowVLANUnion bool,
 ) error {
+	// Get VLAN configs from both device ports
+	fromPort, err := r.GetDevicePortByIDs(fromDevice, fromModelPort)
+	if err != nil {
+		return fmt.Errorf("failed to get from device port: %v", err)
+	}
+
+	toPort, err := r.GetDevicePortByIDs(toDevice, toModelPort)
+	if err != nil {
+		return fmt.Errorf("failed to get to device port: %v", err)
+	}
+
+	// Extract VLAN numbers from configs for validation
+	fromVlans := extractVLANNumbers(fromPort.VlanConfigs)
+	toVlans := extractVLANNumbers(toPort.VlanConfigs)
+
+	// Validate VLAN compatibility
+	if len(fromVlans) > 0 || len(toVlans) > 0 {
+		if allowVLANUnion {
+			// Union mode: Check if there's any VLAN overlap
+			if !hasVLANOverlap(fromVlans, toVlans) {
+				return fmt.Errorf("VLAN validation failed: no common VLANs between ports (from: %v, to: %v)",
+					fromVlans, toVlans)
+			}
+		} else {
+			// Strict mode: VLANs must match exactly
+			if !vlanListsEqual(fromVlans, toVlans) {
+				return fmt.Errorf("VLAN validation failed: VLANs must match exactly (from: %v, to: %v). Use allowVLANUnion flag to allow overlapping VLANs",
+					fromVlans, toVlans)
+			}
+		}
+	}
 
 	doc := d.NewDocument()
 	doc.Set("from_device_id", fromDevice)
@@ -227,17 +341,7 @@ func (r BasicOpsCloverRepository) AddConnectionSimple(
 	doc.Set("to_device_id", toDevice)
 	doc.Set("to_model_port_id", toModelPort)
 
-	if fromIPSegment != "" {
-		doc.Set("from_ip_segment", fromIPSegment)
-	}
-	if toIPSegment != "" {
-		doc.Set("to_ip_segment", toIPSegment)
-	}
-	if len(vlanIDs) > 0 {
-		doc.Set("vlan_ids", vlanIDs)
-	}
-
-	_, err := r.db.InsertOne(connectionsCollection, doc)
+	_, err = r.db.InsertOne(connectionsCollection, doc)
 	if err != nil {
 		return fmt.Errorf("failed to create connection: %v", err)
 	}

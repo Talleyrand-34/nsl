@@ -5,6 +5,7 @@ $message = '';
 // Fetch data for form options
 $devices = json_decode(@file_get_contents(DEVICES_ENDPOINT), true) ?: [];
 $modelPorts = json_decode(@file_get_contents(MODELPORTS_ENDPOINT), true) ?: [];
+$vlans = json_decode(@file_get_contents(VLANS_ENDPOINT), true) ?: [];
 
 // Helper: get model for a given device id
 function getDeviceModel($devices, $deviceId)
@@ -37,10 +38,25 @@ $macAddress = $_POST['mac_address'] ?? '';
 $deviceModel = getDeviceModel($devices, $deviceId);
 $availableModelPorts = $deviceModel ? getModelPortsByModel($modelPorts, $deviceModel) : [];
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) {
     $deviceId = $_POST['device_id'] ?? '';
     $modelPortId = $_POST['modelport_id'] ?? '';
     $macAddress = trim($_POST['mac_address'] ?? '');
+    $allowMultipleUntagged = isset($_POST['allow_multiple_untagged']);
+
+    // Build VLAN configs array
+    $vlanConfigs = [];
+    if (isset($_POST['vlan_numbers']) && is_array($_POST['vlan_numbers'])) {
+        foreach ($_POST['vlan_numbers'] as $index => $vlanNumber) {
+            if (!empty($vlanNumber)) {
+                $tagged = isset($_POST['vlan_tagged'][$index]) && $_POST['vlan_tagged'][$index] === 'true';
+                $vlanConfigs[] = [
+                    'vlan_number' => $vlanNumber,
+                    'tagged' => $tagged
+                ];
+            }
+        }
+    }
 
     if ($deviceId === '') {
         $message = 'Please select a device.';
@@ -50,7 +66,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $data = json_encode([
             'deviceid' => $deviceId,
             'modelportid' => $modelPortId,
-            'mac_address' => $macAddress
+            'mac_address' => $macAddress,
+            'vlan_configs' => $vlanConfigs,
+            'allow_multiple_untagged' => $allowMultipleUntagged
         ]);
 
         $ch = curl_init(DEVICEPORTS_ENDPOINT);
@@ -85,7 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <?php elseif (empty($modelPorts)): ?>
     <p><em>No model ports available. Please add model ports first.</em></p>
 <?php else: ?>
-    <form method="post">
+    <form method="post" id="devicePortForm">
         <label for="device_id">Select Device:</label>
         <select id="device_id" name="device_id" required onchange="this.form.submit()">
             <option value="">-- Select Device --</option>
@@ -115,6 +133,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                pattern="[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}"
                title="MAC address format: XX:XX:XX:XX:XX:XX"><br><br>
 
-        <button type="submit">Add Device Port</button>
+        <fieldset>
+            <legend>VLAN Configuration (Optional)</legend>
+            <div id="vlanConfigsContainer">
+                <!-- VLAN configs will be added here dynamically -->
+            </div>
+            <button type="button" onclick="addVlanConfig()">+ Add VLAN</button>
+            <br><br>
+            <label>
+                <input type="checkbox" name="allow_multiple_untagged" value="1">
+                Allow multiple untagged VLANs per port
+            </label>
+            <br><small><em>By default, only one untagged VLAN is allowed per port</em></small>
+        </fieldset>
+        <br>
+
+        <button type="submit" name="submit">Add Device Port</button>
     </form>
+
+    <script>
+        let vlanConfigIndex = 0;
+
+        function addVlanConfig() {
+            const container = document.getElementById('vlanConfigsContainer');
+            const vlanConfigDiv = document.createElement('div');
+            vlanConfigDiv.id = 'vlanConfig_' + vlanConfigIndex;
+            vlanConfigDiv.style.marginBottom = '10px';
+            vlanConfigDiv.style.padding = '10px';
+            vlanConfigDiv.style.border = '1px solid #ddd';
+            vlanConfigDiv.style.borderRadius = '4px';
+
+            vlanConfigDiv.innerHTML = `
+                <label>VLAN Number:</label>
+                <select name="vlan_numbers[]" required style="margin-right: 10px;">
+                    <option value="">-- Select VLAN --</option>
+                    <?php foreach ($vlans as $vlan): ?>
+                        <option value="<?= htmlspecialchars($vlan['vlanid']) ?>">
+                            VLAN <?= htmlspecialchars($vlan['vlanid']) ?> - <?= htmlspecialchars($vlan['vlanname']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+
+                <label>Type:</label>
+                <select name="vlan_tagged[]" required style="margin-right: 10px;">
+                    <option value="true">Tagged</option>
+                    <option value="false">Untagged</option>
+                </select>
+
+                <button type="button" onclick="removeVlanConfig(${vlanConfigIndex})">Remove</button>
+            `;
+
+            container.appendChild(vlanConfigDiv);
+            vlanConfigIndex++;
+        }
+
+        function removeVlanConfig(index) {
+            const element = document.getElementById('vlanConfig_' + index);
+            if (element) {
+                element.remove();
+            }
+        }
+    </script>
 <?php endif; ?>

@@ -14,6 +14,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $zoneid = $_POST['zoneid'] ?? '';
     $proprietary = $_POST['proprietary'] ?? '';
 
+    // Collect IPs from dynamic inputs
+    $ips = [];
+    if (isset($_POST['ips']) && is_array($_POST['ips'])) {
+        foreach ($_POST['ips'] as $ip) {
+            $ip = trim($ip);
+            if (!empty($ip)) {
+                $ips[] = $ip;
+            }
+        }
+    }
+
     // Lookup zone name by id
     $zonename = '';
     if ($zoneid !== '') {
@@ -39,7 +50,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'model' => $model,
             'zoneId' => $zoneid,
             'zoneName' => $zonename,
-            'proprietary' => $proprietary
+            'proprietary' => $proprietary,
+            'ips' => $ips
         ]);
 
         $ch = curl_init(DEVICES_ENDPOINT);
@@ -102,5 +114,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php endforeach; ?>
     </select><br><br>
 
+    <fieldset>
+        <legend>IP Addresses (Optional)</legend>
+        <div id="ipsContainer">
+            <!-- IP addresses will be added here dynamically -->
+        </div>
+        <button type="button" onclick="addIPField()">+ Add IP Address</button>
+    </fieldset>
+    <br>
+
     <button type="submit">Add Device</button>
 </form>
+
+<script>
+    let ipIndex = 0;
+
+    function addIPField() {
+        const container = document.getElementById('ipsContainer');
+        const ipDiv = document.createElement('div');
+        ipDiv.id = 'ip_' + ipIndex;
+        ipDiv.style.marginBottom = '5px';
+
+        ipDiv.innerHTML = `
+            <input type="text" name="ips[]" placeholder="e.g., 192.168.1.100"
+                   pattern="^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$"
+                   title="IPv4 format: xxx.xxx.xxx.xxx"
+                   style="width: 200px; margin-right: 5px;">
+            <button type="button" onclick="removeIPField(${ipIndex})">Remove</button>
+        `;
+
+        container.appendChild(ipDiv);
+        ipIndex++;
+    }
+
+    function removeIPField(index) {
+        const element = document.getElementById('ip_' + index);
+        if (element) {
+            element.remove();
+        }
+    }
+</script>

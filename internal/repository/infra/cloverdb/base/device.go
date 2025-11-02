@@ -32,6 +32,7 @@ func (r BasicOpsCloverRepository) AddDevice(
 	zoneId string,
 	zoneName string,
 	proprietary string,
+	ips []string,
 ) error {
 	// Get proprietary ID
 	spropid := r.getProprietaryID(proprietary)
@@ -53,6 +54,9 @@ func (r BasicOpsCloverRepository) AddDevice(
 	}
 	if szoneid != "" {
 		doc.Set("zone_id", szoneid)
+	}
+	if len(ips) > 0 {
+		doc.Set("ips", ips)
 	}
 
 	_, err = r.db.InsertOne(devicesCollection, doc)
@@ -117,6 +121,16 @@ func (r BasicOpsCloverRepository) GetDevices() ([]e.Device, error) {
 			}
 		}
 
+		// Get IPs if they exist
+		device.IPs = make([]string, 0)
+		if ips, ok := doc.Get("ips").([]interface{}); ok && len(ips) > 0 {
+			for _, ipInterface := range ips {
+				if ip, ok := ipInterface.(string); ok && ip != "" {
+					device.IPs = append(device.IPs, ip)
+				}
+			}
+		}
+
 		result = append(result, device)
 	}
 
@@ -158,6 +172,23 @@ func (r BasicOpsCloverRepository) DeleteDevice(id string) error {
 	err := r.db.Delete(q.NewQuery(devicesCollection).Where(q.Field("_id").Eq(id)))
 	if err != nil {
 		return fmt.Errorf("DeleteDevice failed: %w", err)
+	}
+	return nil
+}
+
+// UpdateDeviceIPs updates the IP addresses for a device
+func (r BasicOpsCloverRepository) UpdateDeviceIPs(deviceId string, ips []string) error {
+	updates := make(map[string]interface{})
+	if len(ips) > 0 {
+		updates["ips"] = ips
+	} else {
+		// If empty, remove the field
+		updates["ips"] = []string{}
+	}
+
+	err := r.db.Update(q.NewQuery(devicesCollection).Where(q.Field("_id").Eq(deviceId)), updates)
+	if err != nil {
+		return fmt.Errorf("UpdateDeviceIPs failed: %w", err)
 	}
 	return nil
 }

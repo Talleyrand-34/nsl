@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	q "nsl-graph/internal/repository/application"
+	e "nsl-graph/internal/repository/entities"
 )
 
 // validateRequiredFields checks that all required fields in v are non-empty.
@@ -172,11 +173,12 @@ func addModelHandler(service q.NetServiceInt) http.HandlerFunc {
 
 // Device
 type AddDeviceRequest struct {
-	Label       string `json:"label"`
-	Model       string `json:"model"`
-	ZoneId      string `json:"zoneId"`
-	ZoneName    string `json:"zoneName"`
-	Proprietary string `json:"proprietary"`
+	Label       string   `json:"label"`
+	Model       string   `json:"model"`
+	ZoneId      string   `json:"zoneId"`
+	ZoneName    string   `json:"zoneName"`
+	Proprietary string   `json:"proprietary"`
+	IPs         []string `json:"ips"`
 }
 
 func addDeviceHandler(service q.NetServiceInt) http.HandlerFunc {
@@ -190,6 +192,7 @@ func addDeviceHandler(service q.NetServiceInt) http.HandlerFunc {
 				req.ZoneId,
 				req.ZoneName,
 				req.Proprietary,
+				req.IPs,
 			)
 		},
 	)
@@ -279,9 +282,11 @@ func addBulkModelPortHandler(service q.NetServiceInt) http.HandlerFunc {
 
 // DevicePort
 type AddDevicePortRequest struct {
-	DeviceID    string `json:"deviceid"`
-	ModelPortID string `json:"modelportid"`
-	MacAddress  string `json:"mac_address"`
+	DeviceID              string              `json:"deviceid"`
+	ModelPortID           string              `json:"modelportid"`
+	MacAddress            string              `json:"mac_address"`
+	VlanConfigs           []e.PortVlanConfig  `json:"vlan_configs"`
+	AllowMultipleUntagged bool                `json:"allow_multiple_untagged"`
 }
 
 func addDevicePortHandler(service q.NetServiceInt) http.HandlerFunc {
@@ -289,20 +294,18 @@ func addDevicePortHandler(service q.NetServiceInt) http.HandlerFunc {
 		service,
 		[]string{"DeviceID", "ModelPortID"},
 		func(service q.NetServiceInt, req *AddDevicePortRequest) error {
-			return service.AddDevicePort(req.DeviceID, req.ModelPortID, req.MacAddress)
+			return service.AddDevicePort(req.DeviceID, req.ModelPortID, req.MacAddress, req.VlanConfigs, req.AllowMultipleUntagged)
 		},
 	)
 }
 
 // Connection
 type AddConnectionRequest struct {
-	FromDevice    string   `json:"fromDevice"`
-	FromModelPort string   `json:"fromModelPort"`
-	FromIPSegment string   `json:"fromIPSegment"`
-	ToDevice      string   `json:"toDevice"`
-	ToModelPort   string   `json:"toModelPort"`
-	ToIPSegment   string   `json:"toIPSegment"`
-	VlanIds       []string `json:"vlanIds"`
+	FromDevice     string `json:"fromDevice"`
+	FromModelPort  string `json:"fromModelPort"`
+	ToDevice       string `json:"toDevice"`
+	ToModelPort    string `json:"toModelPort"`
+	AllowVLANUnion bool   `json:"allowVLANUnion"`
 }
 
 func addConnectionHandler(service q.NetServiceInt) http.HandlerFunc {
@@ -313,11 +316,9 @@ func addConnectionHandler(service q.NetServiceInt) http.HandlerFunc {
 			return service.AddConnection(
 				req.FromDevice,
 				req.FromModelPort,
-				req.FromIPSegment,
 				req.ToDevice,
 				req.ToModelPort,
-				req.ToIPSegment,
-				req.VlanIds,
+				req.AllowVLANUnion,
 			)
 		},
 	)
@@ -340,8 +341,9 @@ func addConnectionTypeHandler(service q.NetServiceInt) http.HandlerFunc {
 
 // VLAN
 type AddVlanRequest struct {
-	VlanID   string `json:"vlanID"`
-	VlanName string `json:"vlanName"`
+	VlanID       string   `json:"vlanID"`
+	VlanName     string   `json:"vlanName"`
+	IPSegmentIDs []string `json:"ipSegmentIDs"`
 }
 
 func addVlanHandler(service q.NetServiceInt) http.HandlerFunc {
@@ -349,7 +351,7 @@ func addVlanHandler(service q.NetServiceInt) http.HandlerFunc {
 		service,
 		[]string{"VlanID"}, // VlanName is optional
 		func(service q.NetServiceInt, req *AddVlanRequest) error {
-			return service.AddVlan(req.VlanID, req.VlanName)
+			return service.AddVlan(req.VlanID, req.VlanName, req.IPSegmentIDs)
 		},
 	)
 }

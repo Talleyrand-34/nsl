@@ -59,38 +59,45 @@ type Device struct {
 	ZoneName    string   `json:"zonename"`
 	ZoneFather  string   `json:"zonefathername"`
 	Proprietary string   `json:"proprietary"`
-	IPs         []string `json:"ips"` // List of IPs IDs
+	IPs         []string `json:"ips"` // List of IP addresses (e.g., "192.168.1.1")
+}
+
+// PortVlanConfig represents a VLAN configuration on a port (tagged or untagged)
+type PortVlanConfig struct {
+	VlanNumber string `json:"vlan_number"` // VLAN number (e.g., "100")
+	Tagged     bool   `json:"tagged"`      // true = tagged, false = untagged
 }
 
 // DevicePort This struct contains the info about ports asociated to a device since the information is contained in the model
 type DevicePort struct {
-	DeviceID   string `json:"devid"`
-	ModelID    string `json:"modelid"`
-	MacAddress string `json:"mac_address"`
-	PortName   string `json:"portname"`
-	DevLabel   string `json:"devname"`
-	Positionx  int    `json:"positionx"`
-	Positiony  int    `json:"positiony"`
+	DeviceID    string           `json:"devid"`
+	ModelID     string           `json:"modelid"`
+	MacAddress  string           `json:"mac_address"`
+	PortName    string           `json:"portname"`
+	DevLabel    string           `json:"devname"`
+	Positionx   int              `json:"positionx"`
+	Positiony   int              `json:"positiony"`
+	VlanConfigs []PortVlanConfig `json:"vlan_configs"` // VLAN configurations with tagged/untagged info
 }
 
 // Connection This struct contains the info about a connection
 type Connection struct {
-	ID            string   `json:"id"`
-	FromDevice    string   `json:"fromdevice"` // Name of the FromDevice
-	FromModelPort string   `json:"frommodel"`  // Name of the port on the model
-	FromZoneName  string   `json:"fromzonename"`
-	FromZoneID    string   `json:"fromzoneid"`
-	ToDevice      string   `json:"todevice"` // Name of the ToDevice
-	ToModelPort   string   `json:"tomodel"`  // Name of the port on the model
-	ToZoneName    string   `json:"tozonename"`
-	ToZoneID      string   `json:"tozoneid"`
-	VlanCon       []string `json:"vlanids"` // List of VLAN IDs
+	ID            string `json:"id"`
+	FromDevice    string `json:"fromdevice"` // Name of the FromDevice
+	FromModelPort string `json:"frommodel"`  // Name of the port on the model
+	FromZoneName  string `json:"fromzonename"`
+	FromZoneID    string `json:"fromzoneid"`
+	ToDevice      string `json:"todevice"` // Name of the ToDevice
+	ToModelPort   string `json:"tomodel"`  // Name of the port on the model
+	ToZoneName    string `json:"tozonename"`
+	ToZoneID      string `json:"tozoneid"`
 }
 
 type Vlan struct {
-	ID       string `json:"id"`
-	VlanID   string `json:"vlanid"`
-	VlanName string `json:"vlanname"`
+	ID           string   `json:"id"`
+	VlanID       string   `json:"vlanid"`
+	VlanName     string   `json:"vlanname"`
+	IPSegmentIDs []string `json:"ip_segment_ids"` // List of IP segment IDs associated with this VLAN
 }
 
 // Brand represents a brand

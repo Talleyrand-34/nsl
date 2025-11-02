@@ -51,11 +51,9 @@ Example:
 		// Get connection parameters
 		fromDeviceId, _ := cmd.Flags().GetString("from-device-id")
 		fromModelPortId, _ := cmd.Flags().GetString("from-modelport-id")
-		fromIPSegment, _ := cmd.Flags().GetString("from-ip-segment")
 		toDeviceId, _ := cmd.Flags().GetString("to-device-id")
 		toModelPortId, _ := cmd.Flags().GetString("to-modelport-id")
-		toIPSegment, _ := cmd.Flags().GetString("to-ip-segment")
-		vlanIds, _ := cmd.Flags().GetStringSlice("vlan-ids")
+		allowVLANUnion, _ := cmd.Flags().GetBool("allow-vlan-union")
 
 		// All connection parameters are required
 		if fromDeviceId == "" || fromModelPortId == "" || toDeviceId == "" || toModelPortId == "" {
@@ -71,7 +69,7 @@ Example:
 		}
 
 		// Update the connection
-		err = service.UpdateConnection(connectionId, fromDeviceId, fromModelPortId, fromIPSegment, toDeviceId, toModelPortId, toIPSegment, vlanIds)
+		err = service.UpdateConnection(connectionId, fromDeviceId, fromModelPortId, toDeviceId, toModelPortId, allowVLANUnion)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error updating connection: %v\n", err)
 			os.Exit(1)
@@ -89,11 +87,9 @@ func init() {
 	ConnectionUpdateCmd.Flags().String("id", "", "ID of the connection to update (required)")
 	ConnectionUpdateCmd.Flags().String("from-device-id", "", "Source device ID (required)")
 	ConnectionUpdateCmd.Flags().String("from-modelport-id", "", "Source model port ID (required)")
-	ConnectionUpdateCmd.Flags().String("from-ip-segment", "", "IP segment for the source port (optional)")
 	ConnectionUpdateCmd.Flags().String("to-device-id", "", "Destination device ID (required)")
 	ConnectionUpdateCmd.Flags().String("to-modelport-id", "", "Destination model port ID (required)")
-	ConnectionUpdateCmd.Flags().String("to-ip-segment", "", "IP segment for the destination port (optional)")
-	ConnectionUpdateCmd.Flags().StringSlice("vlan-ids", []string{}, "VLAN database IDs for this connection (optional, comma-separated)")
+	ConnectionUpdateCmd.Flags().Bool("allow-vlan-union", false, "Allow connection if VLANs have any overlap (default: strict matching)")
 	// ConnectionUpdateCmd.MarkFlagRequired("id")
 	// ConnectionUpdateCmd.MarkFlagRequired("from-device-id")
 	// ConnectionUpdateCmd.MarkFlagRequired("from-modelport-id")

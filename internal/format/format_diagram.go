@@ -259,12 +259,13 @@ func generateD2ConnectionStrings(connections []e.Connection, deviceMap map[strin
 		to := fmt.Sprintf("%s.%s", toKey, toPortNum)
 
 		// Add IP addresses as comments if requested and they exist
-		var ipComment string
-		if includeIPs && (c.FromIPSegment != "" || c.ToIPSegment != "") {
-			ipComment = fmt.Sprintf(": %s -- %s", c.FromIPSegment, c.ToIPSegment)
-		}
+		// var ipComment string
+		// if includeIPs && (c.FromIPSegment != "" || c.ToIPSegment != "") {
+		// 	ipComment = fmt.Sprintf(": %s -- %s", c.FromIPSegment, c.ToIPSegment)
+		// }
 
-		d2Connections.WriteString(fmt.Sprintf("%s -- %s%s\n", from, to, ipComment))
+		// d2Connections.WriteString(fmt.Sprintf("%s -- %s%s\n", from, to, ipComment))
+		d2Connections.WriteString(fmt.Sprintf("%s -- %s\n", from, to))
 	}
 
 	return d2Connections.String()
@@ -317,17 +318,18 @@ func generateD2ConnectionStringsWithVlans(connections []e.Connection, deviceMap 
 		to := fmt.Sprintf("%s.%s", toKey, toPortNum)
 
 		// If connection has VLANs, create one colored connection per VLAN
-		if len(c.VlanCon) > 0 {
-			for _, vlanID := range c.VlanCon {
-				color := getVlanColor(vlanID, vlanColorMap)
-				d2Connections.WriteString(fmt.Sprintf("%s -- %s{\n", from, to))
-				d2Connections.WriteString(fmt.Sprintf("    style.stroke: %s\n", color))
-				d2Connections.WriteString("}\n")
-			}
-		} else {
-			// No VLANs - create normal connection
-			d2Connections.WriteString(fmt.Sprintf("%s -- %s\n", from, to))
-		}
+		// if len(c.VlanCon) > 0 {
+		// 	for _, vlanID := range c.VlanCon {
+		// 		color := getVlanColor(vlanID, vlanColorMap)
+		// 		d2Connections.WriteString(fmt.Sprintf("%s -- %s{\n", from, to))
+		// 		d2Connections.WriteString(fmt.Sprintf("    style.stroke: %s\n", color))
+		// 		d2Connections.WriteString("}\n")
+		// 	}
+		// } else {
+		// 	// No VLANs - create normal connection
+		// 	d2Connections.WriteString(fmt.Sprintf("%s -- %s\n", from, to))
+		// }
+		d2Connections.WriteString(fmt.Sprintf("%s -- %s\n", from, to))
 	}
 
 	return d2Connections.String()
