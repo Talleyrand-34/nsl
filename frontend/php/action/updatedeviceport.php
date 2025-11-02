@@ -6,6 +6,18 @@ $message = '';
 $devicePorts = json_decode(@file_get_contents(DEVICEPORTS_ENDPOINT), true) ?: [];
 $vlans = json_decode(@file_get_contents(VLANS_ENDPOINT), true) ?: [];
 
+// Extract unique devices from device ports
+$devices = [];
+foreach ($devicePorts as $devicePort) {
+    $devId = $devicePort['devid'];
+    if (!isset($devices[$devId])) {
+        $devices[$devId] = [
+            'devid' => $devId,
+            'devname' => $devicePort['devname'] ?? 'N/A'
+        ];
+    }
+}
+
 // Variables to hold selected device port data
 $selectedDeviceId = '';
 $selectedModelPortId = '';
@@ -13,10 +25,19 @@ $selectedDeviceLabel = '';
 $selectedPortName = '';
 $selectedMacAddress = '';
 $selectedVlanConfigs = [];
+$filterDeviceId = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Handle device filter
+    if (isset($_POST['filter_device'])) {
+        $filterDeviceId = $_POST['filter_device_id'] ?? '';
+    }
+    
     // Handle device port selection (Load Device Port button)
     if (isset($_POST['select_deviceport']) && !empty($_POST['deviceport_key'])) {
+        // Preserve the filter
+        $filterDeviceId = $_POST['current_filter'] ?? '';
+        
         // The deviceport_key format is "deviceid|modelportid"
         $parts = explode('|', $_POST['deviceport_key']);
         if (count($parts) === 2) {
@@ -40,6 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $deviceId = $_POST['device_id'] ?? '';
         $modelPortId = $_POST['modelport_id'] ?? '';
         $macAddress = trim($_POST['mac_address'] ?? '');
+        $filterDeviceId = $_POST['current_filter'] ?? '';
 
         // Collect VLAN configs
         $vlanConfigs = [];
@@ -97,6 +119,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+// Filter device ports based on selected device
+$filteredDevicePorts = $devicePorts;
+if (!empty($filterDeviceId)) {
+    $filteredDevicePorts = array_filter($devicePorts, function($port) use ($filterDeviceId) {
+        return $port['devid'] == $filterDeviceId;
+    });
+}
 ?>
 
 <h2>Update Device Port</h2>
@@ -107,11 +137,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <?php if (empty($devicePorts)): ?>
     <p><em>No device ports available to update.</em></p>
 <?php else: ?>
+    <!-- Device Filter Form -->
+    <form method="post" style="margin-bottom: 20px; padding: 15px; background-color: #f5f5f5; border-radius: 4px;">
+        <fieldset>
+            <legend><strong>Filter by Device</strong></legend>
+            <label for="filter_device_id">Select Device:</label>
+            <select id="filter_device_id" name="filter_device_id">
+                <option value="">-- All Devices --</option>
+                <?php foreach ($devices as $device): ?>
+                    <option value="<?= htmlspecialchars($device['devid']) ?>" 
+                        <?= ($device['devid'] == $filterDeviceId) ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($device['devname']) ?> (ID: <?= htmlspecialchars($device['devid']) ?>)
+                    </option>
+                <?php endforeach; ?>
+            </select>
+            <button type="submit" name="filter_device">Apply Filter</button>
+            <?php if (!empty($filterDeviceId)): ?>
+                <button type="submit" name="filter_device">Clear Filter</button>
+            <?php endif; ?>
+        </fieldset>
+    </form>
+
+    <!-- Device Port Selection and Update Form -->
     <form method="post">
+        <input type="hidden" name="current_filter" value="<?= htmlspecialchars($filterDeviceId) ?>">
+        
         <label for="deviceport_key">Select Device Port to Update:</label>
         <select id="deviceport_key" name="deviceport_key" required>
             <option value="">-- Select Device Port --</option>
-            <?php foreach ($devicePorts as $devicePort): ?>
+            <?php foreach ($filteredDevicePorts as $devicePort): ?>
                 <?php
                     $key = htmlspecialchars($devicePort['devid']) . '|' . htmlspecialchars($devicePort['modelid']);
                     $isSelected = ($devicePort['devid'] == $selectedDeviceId && $devicePort['modelid'] == $selectedModelPortId);
@@ -123,6 +177,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php endforeach; ?>
         </select>
         <button type="submit" name="select_deviceport">Load Device Port</button>
+        
+        <?php if (!empty($filterDeviceId) && empty($filteredDevicePorts)): ?>
+            <p style="color: #666; font-style: italic;">No ports found for the selected device.</p>
+        <?php endif; ?>
+        
         <br><br>
 
         <?php if (!empty($selectedDeviceId) && !empty($selectedModelPortId)): ?>
