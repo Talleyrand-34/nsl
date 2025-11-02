@@ -104,33 +104,35 @@ func (r BasicOpsCloverRepository) AddConnection(
 	toModelPort string,
 	allowVLANUnion bool,
 ) error {
-	// Validate that the ports are not already in use
-	// Check if from port is already used
+
 	fromQuery := q.NewQuery(connectionsCollection).Where(
-		q.Field("from_device_id").Eq(fromDevice),
-	).Where(
-		q.Field("from_model_port_id").Eq(fromModelPort),
+		q.Field("from_device_id").Eq(fromDevice).And(
+			q.Field("from_model_port_id").Eq(fromModelPort),
+		),
 	)
 	fromExists, err := r.db.Exists(fromQuery)
 	if err != nil {
-		return fmt.Errorf("failed to check port usage: %v", err)
+		return fmt.Errorf("error checking source port (device: %s, port: %s): %w", fromDevice, fromModelPort, err)
 	}
 
-	// Check if to port is already used
 	toQuery := q.NewQuery(connectionsCollection).Where(
-		q.Field("to_device_id").Eq(toDevice),
-	).Where(
-		q.Field("to_model_port_id").Eq(toModelPort),
+		q.Field("to_device_id").Eq(toDevice).And(
+			q.Field("to_model_port_id").Eq(toModelPort),
+		),
 	)
 	toExists, err := r.db.Exists(toQuery)
 	if err != nil {
-		return fmt.Errorf("failed to check port usage: %v", err)
+		return fmt.Errorf("error checking target port (device: %s, port: %s): %w", toDevice, toModelPort, err)
 	}
-
-	if fromExists || toExists {
-		return fmt.Errorf("one or both ports are already in use")
+	if fromExists && toExists {
+		return fmt.Errorf("both ports are already connected (source: %s/%s, target: %s/%s)", fromDevice, fromModelPort, toDevice, toModelPort)
 	}
-
+	if fromExists {
+		return fmt.Errorf("source port already in use (device: %s, port: %s)", fromDevice, fromModelPort)
+	}
+	if toExists {
+		return fmt.Errorf("target port already in use (device: %s, port: %s)", toDevice, toModelPort)
+	}
 	// Get VLAN configs from both device ports
 	fromPort, err := r.GetDevicePortByIDs(fromDevice, fromModelPort)
 	if err != nil {
@@ -294,6 +296,7 @@ func (r BasicOpsCloverRepository) UpdateConnection(
 	}
 	return nil
 }
+
 // AddConnectionSimple creates a connection without port usage validation
 // Still validates VLAN compatibility
 func (r BasicOpsCloverRepository) AddConnectionSimple(
