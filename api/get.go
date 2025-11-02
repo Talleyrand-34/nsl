@@ -108,18 +108,23 @@ func getDiagram(service q.NetServiceInt) http.HandlerFunc {
 			http.Error(w, "Failed to get zones: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
+		devicePorts, err := service.GetDevicePorts()
+		if err != nil {
+			http.Error(w, "Failed to get device ports: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
 
 		var diagramString string
 		switch diagramFormat {
 		case FormatPorts:
 			if includeVlans {
-				diagramString = format.GenerateD2FocusPortsWithVlans(devices, connections, zones)
+				diagramString = format.GenerateD2FocusPortsWithVlans(devices, connections, zones, devicePorts)
 			} else {
 				diagramString = format.GenerateD2FocusPorts(devices, connections, zones)
 			}
 		case FormatConnections:
 			if includeVlans {
-				diagramString = format.GenerateD2FocusConnectionsWithVlans(devices, connections, zones)
+				diagramString = format.GenerateD2FocusConnectionsWithVlans(devices, connections, zones, devicePorts)
 			} else {
 				diagramString = format.GenerateD2FocusConnections(devices, connections, zones)
 			}

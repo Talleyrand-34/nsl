@@ -155,6 +155,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['api_base_url'])) {
     <div class="grid">
         <div class="actions">
             <form method="get" action="">
+                <!-- Hidden inputs to preserve diagram settings -->
+                <?php if (isset($_GET['format'])): ?>
+                    <input type="hidden" name="format" value="<?= htmlspecialchars($_GET['format']) ?>">
+                <?php endif; ?>
+                <?php if (isset($_GET['vlan'])): ?>
+                    <input type="hidden" name="vlan" value="<?= htmlspecialchars($_GET['vlan']) ?>">
+                <?php endif; ?>
+
                 <label for="actionType">Choose action:</label>
                 <select id="actionType" name="actionType" onchange="this.form.submit()">
                     <option value="get" <?= $actionType == 'get' ? 'selected' : '' ?>>Get</option>
@@ -193,6 +201,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['api_base_url'])) {
         </div>
 
             <form method="GET" action="">
+    <!-- Hidden inputs to preserve current state -->
+    <input type="hidden" name="actionType" value="<?= htmlspecialchars($actionType) ?>">
+    <input type="hidden" name="entity" value="<?= htmlspecialchars($entity) ?>">
+
     <div class="diagram-controls">
         <label for="formatSelect" class="format-label">Diagram Format:</label>
         <select id="formatSelect" name="format" onchange="this.form.submit()">
