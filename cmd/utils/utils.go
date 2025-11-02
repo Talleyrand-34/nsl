@@ -86,6 +86,9 @@ func ServiceConnection() (q.NetServiceInt, error) {
 			registry.SetActiveSorter("insertion_order")
 		}
 
+		// Initialize global plugin manager for runtime configuration
+		plugins.InitializeGlobalPluginManager(registry)
+
 		// Wrap repository with plugin decorator
 		pluginRepo := plugins.NewPluginAwareRepository(baseRepo, registry)
 

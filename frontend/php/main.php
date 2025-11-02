@@ -228,6 +228,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['api_base_url'])) {
         </select>
     </div>
 
+    <!-- Plugin Selector -->
+    <div style="margin: 20px 0; padding: 15px; background-color: #f5f5f5; border-radius: 4px;">
+        <strong>Connection Sorting Plugin:</strong>
+        <select id="pluginSelect" style="margin-left: 10px; padding: 5px;" onchange="changePlugin()">
+            <option value="">Loading plugins...</option>
+        </select>
+        <span id="pluginStatus" style="margin-left: 10px; color: #666;"></span>
+        <!-- <button type="button" onclick="refreshDiagram()" style="margin-left: 20px; padding: 5px 15px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;"> -->
+        <!--     🔄 Refresh Diagram -->
+        <!-- </button> -->
+        <p id="pluginDescription" style="margin-top: 10px; font-size: 0.9em; color: #555;"></p>
+    </div>
+
     <div class="diagram">
         <div class="resizable-img-container" style="height:500px;">
             <?php
@@ -240,5 +253,125 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['api_base_url'])) {
         </div>
     </div>
 </form>
+
+<script>
+// Function to refresh diagram (called by button)
+function refreshDiagram() {
+    sessionStorage.setItem('refreshDiagram', 'true');
+    location.reload();
+}
+
+// Plugin management functions
+let currentPlugins = [];
+
+// Load available plugins
+function loadPlugins() {
+    const pluginsUrl = '<?= PLUGINS_ENDPOINT ?>';
+    console.log('Loading plugins from:', pluginsUrl);
+
+    fetch(pluginsUrl)
+        .then(response => {
+            console.log('Response status:', response.status);
+            if (!response.ok) {
+                throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+            }
+            return response.json();
+        })
+        .then(plugins => {
+            console.log('Loaded plugins:', plugins);
+            currentPlugins = plugins;
+            const select = document.getElementById('pluginSelect');
+            select.innerHTML = '';
+
+            plugins.forEach(plugin => {
+                const option = document.createElement('option');
+                option.value = plugin.id;
+                option.textContent = plugin.name;
+                if (plugin.is_active) {
+                    option.selected = true;
+                    updatePluginDescription(plugin);
+                }
+                select.appendChild(option);
+            });
+
+            document.getElementById('pluginStatus').textContent = '';
+        })
+        .catch(error => {
+            console.error('Error loading plugins:', error);
+            const statusElem = document.getElementById('pluginStatus');
+            statusElem.textContent = '❌ Failed to load plugins: ' + error.message;
+            statusElem.style.color = 'red';
+
+            const descElem = document.getElementById('pluginDescription');
+            descElem.textContent = 'Endpoint: ' + pluginsUrl + ' - Check browser console for details';
+            descElem.style.color = 'red';
+        });
+}
+
+// Update plugin description display
+function updatePluginDescription(plugin) {
+    const descElem = document.getElementById('pluginDescription');
+    if (plugin) {
+        descElem.textContent = '📝 ' + plugin.description;
+    } else {
+        descElem.textContent = '';
+    }
+}
+
+// Change active plugin
+function changePlugin() {
+    const select = document.getElementById('pluginSelect');
+    const pluginId = select.value;
+    const statusElem = document.getElementById('pluginStatus');
+
+    // Find selected plugin info
+    const plugin = currentPlugins.find(p => p.id === pluginId);
+    if (plugin) {
+        updatePluginDescription(plugin);
+    }
+
+    statusElem.textContent = '⏳ Changing plugin...';
+    statusElem.style.color = '#666';
+
+    fetch('<?= PLUGINS_ACTIVE_ENDPOINT ?>', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ plugin_id: pluginId })
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.text().then(text => {
+                throw new Error(text || 'Failed to change plugin');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        statusElem.textContent = '✓ Plugin changed successfully';
+        statusElem.style.color = 'green';
+
+        // Clear status after 3 seconds
+        setTimeout(() => {
+            statusElem.textContent = '';
+        }, 3000);
+
+        // Note: No need to reload - next connection fetch will use new plugin
+        // User can click refresh button if they want to see changes immediately
+    })
+    .catch(error => {
+        console.error('Error changing plugin:', error);
+        statusElem.textContent = '❌ ' + error.message;
+        statusElem.style.color = 'red';
+
+        // Reload plugins to restore correct selection
+        loadPlugins();
+    });
+}
+
+// Load plugins on page load
+document.addEventListener('DOMContentLoaded', loadPlugins);
+</script>
 </body>
 </html>

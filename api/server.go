@@ -113,6 +113,10 @@ func rootHandler() http.HandlerFunc {
 
 			// /diagram
 			"GET    /diagram",
+
+			// /plugins
+			"GET    /plugins",
+			"POST   /plugins/active",
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(endpoints)
@@ -173,6 +177,9 @@ func RegisterRoutes(r *mux.Router, service q.NetServiceInt) {
 	// All Ports (All Devices)
 	r.HandleFunc("/allports/all", getAllPortsAllHandler(service)).Methods("GET")
 	r.HandleFunc("/diagram", getDiagram(service)).Methods("GET")
+	// Plugins
+	r.HandleFunc("/plugins", getPluginsHandler()).Methods("GET")
+	r.HandleFunc("/plugins/active", setActivePluginHandler()).Methods("POST")
 	// Export
 	// r.HandleFunc("/export", exportAllStructsHandler(service)).Methods("GET")
 	// Brand

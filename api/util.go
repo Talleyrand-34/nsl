@@ -18,16 +18,50 @@ package api
 
 import (
 	"fmt"
+	"log"
 
 	q "nsl-graph/internal/repository/application"
 	infra "nsl-graph/internal/repository/infra/cloverdb/base"
+	"nsl-graph/internal/repository/plugins"
+	"nsl-graph/internal/repository/plugins/builtin"
 )
 
 func serviceConnection(path string) (q.NetServiceInt, error) {
-	repository, err := infra.NewCloverRepository(path)
+	baseRepo, err := infra.NewCloverRepository(path)
 	if err != nil {
 		return nil, fmt.Errorf("Error creating repository: %w", err)
 	}
-	service := q.NewNetService(repository)
+
+	// Load plugin configuration
+	pluginConfig, err := plugins.LoadConfig("plugins.yaml")
+	if err != nil {
+		log.Printf("Warning: Failed to load plugin config: %v. Using defaults.", err)
+		pluginConfig, _ = plugins.LoadConfig("") // Get default config
+	}
+
+	// Create and configure plugin registry
+	registry := plugins.NewRegistry()
+
+	// Register all built-in plugins
+	registry.RegisterSorter(builtin.NewInsertionOrderSorter())
+	registry.RegisterSorter(builtin.NewZoneNameSorter())
+	registry.RegisterSorter(builtin.NewDeviceNameSorter())
+	registry.RegisterSorter(builtin.NewReverseIDSorter())
+
+	// Set active sorter from configuration
+	if err := registry.SetActiveSorter(pluginConfig.Plugins.ConnectionSorters.Active); err != nil {
+		log.Printf("Warning: Failed to set active sorter '%s': %v. Using insertion_order.",
+			pluginConfig.Plugins.ConnectionSorters.Active, err)
+		registry.SetActiveSorter("insertion_order")
+	}
+
+	// Initialize global plugin manager for runtime configuration
+	plugins.InitializeGlobalPluginManager(registry)
+
+	// Wrap repository with plugin decorator
+	pluginRepo := plugins.NewPluginAwareRepository(baseRepo, registry)
+
+	// Create service with plugin-aware repository
+	service := q.NewNetService(pluginRepo)
 	return service, nil
 }
