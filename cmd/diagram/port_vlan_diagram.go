@@ -49,7 +49,7 @@ var DiagramPortVlanCmd = &cobra.Command{
 		if err != nil {
 			return
 		}
-		d2diagram := format.GenerateD2FocusPortsWithVlans(devices, connections, zones, devicePorts)
+		d2diagram := format.GenerateD2FocusPortsWithVlans(devices, connections, zones, devicePorts, false)
 		format.WriteDiagram(d2diagram, op, of, oi)
 	},
 }

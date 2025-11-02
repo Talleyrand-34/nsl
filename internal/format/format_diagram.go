@@ -61,19 +61,25 @@ func GenerateD2FromJSON(devicesJSON, connectionsJSON []byte) string {
 	return d2Connections + "\n" + d2Devices
 }
 
-func GenerateD2FocusPorts(devices []e.Device, connections []e.Connection, zones []e.Zone) string {
+func GenerateD2FocusPorts(devices []e.Device, connections []e.Connection, zones []e.Zone, devicePorts []e.DevicePort, colorPorts bool) string {
 	zoneFullName := buildZoneFullNameMap(zones)
 	deviceMap := buildDeviceMap(devices, zoneFullName)
 	collectPortsFromConnections(connections, deviceMap, zoneFullName)
 	assignPortNumbers(deviceMap)
 
 	d2Connections := generateD2ConnectionStrings(connections, deviceMap, zoneFullName, false)
-	d2Devices := generateD2DeviceBlocks(deviceMap)
+
+	var d2Devices string
+	if colorPorts {
+		d2Devices = generateD2DeviceBlocksWithPortColors(deviceMap, devicePorts)
+	} else {
+		d2Devices = generateD2DeviceBlocks(deviceMap)
+	}
 
 	return d2Connections + "\n" + d2Devices
 }
 
-func GenerateD2FocusConnections(devices []e.Device, connections []e.Connection, zones []e.Zone) string {
+func GenerateD2FocusConnections(devices []e.Device, connections []e.Connection, zones []e.Zone, devicePorts []e.DevicePort, colorPorts bool) string {
 	zoneFullName := buildZoneFullNameMap(zones)
 	deviceMap := buildDeviceMap(devices, zoneFullName)
 	collectPortsFromConnections(connections, deviceMap, zoneFullName)
@@ -101,14 +107,20 @@ func GenerateD2FocusConnections(devices []e.Device, connections []e.Connection, 
 	})
 
 	d2Connections := generateD2ConnectionStrings(sortedConnections, deviceMap, zoneFullName, true)
-	d2Devices := generateD2DeviceBlocks(deviceMap)
+
+	var d2Devices string
+	if colorPorts {
+		d2Devices = generateD2DeviceBlocksWithPortColors(deviceMap, devicePorts)
+	} else {
+		d2Devices = generateD2DeviceBlocks(deviceMap)
+	}
 
 	return d2Connections + "\n" + d2Devices
 }
 
 // GenerateD2FocusPortsWithVlans generates a D2 diagram with VLAN support
 // Creates multiple colored connections per VLAN, with a legend
-func GenerateD2FocusPortsWithVlans(devices []e.Device, connections []e.Connection, zones []e.Zone, devicePorts []e.DevicePort) string {
+func GenerateD2FocusPortsWithVlans(devices []e.Device, connections []e.Connection, zones []e.Zone, devicePorts []e.DevicePort, colorPorts bool) string {
 	zoneFullName := buildZoneFullNameMap(zones)
 	deviceMap := buildDeviceMap(devices, zoneFullName)
 	collectPortsFromConnections(connections, deviceMap, zoneFullName)
@@ -116,7 +128,14 @@ func GenerateD2FocusPortsWithVlans(devices []e.Device, connections []e.Connectio
 
 	vlanColorMap := make(map[string]string)
 	d2Connections := generateD2ConnectionStringsWithVlans(connections, deviceMap, zoneFullName, vlanColorMap, devicePorts)
-	d2Devices := generateD2DeviceBlocks(deviceMap)
+
+	var d2Devices string
+	if colorPorts {
+		d2Devices = generateD2DeviceBlocksWithPortColors(deviceMap, devicePorts)
+	} else {
+		d2Devices = generateD2DeviceBlocks(deviceMap)
+	}
+
 	d2Legend := generateVlanLegend(vlanColorMap)
 
 	return d2Connections + "\n" + d2Devices + d2Legend
@@ -124,7 +143,7 @@ func GenerateD2FocusPortsWithVlans(devices []e.Device, connections []e.Connectio
 
 // GenerateD2FocusConnectionsWithVlans generates a D2 diagram with sorted connections and VLAN support
 // Creates multiple colored connections per VLAN, with a legend
-func GenerateD2FocusConnectionsWithVlans(devices []e.Device, connections []e.Connection, zones []e.Zone, devicePorts []e.DevicePort) string {
+func GenerateD2FocusConnectionsWithVlans(devices []e.Device, connections []e.Connection, zones []e.Zone, devicePorts []e.DevicePort, colorPorts bool) string {
 	zoneFullName := buildZoneFullNameMap(zones)
 	deviceMap := buildDeviceMap(devices, zoneFullName)
 	collectPortsFromConnections(connections, deviceMap, zoneFullName)
@@ -153,7 +172,14 @@ func GenerateD2FocusConnectionsWithVlans(devices []e.Device, connections []e.Con
 
 	vlanColorMap := make(map[string]string)
 	d2Connections := generateD2ConnectionStringsWithVlans(sortedConnections, deviceMap, zoneFullName, vlanColorMap, devicePorts)
-	d2Devices := generateD2DeviceBlocks(deviceMap)
+
+	var d2Devices string
+	if colorPorts {
+		d2Devices = generateD2DeviceBlocksWithPortColors(deviceMap, devicePorts)
+	} else {
+		d2Devices = generateD2DeviceBlocks(deviceMap)
+	}
+
 	d2Legend := generateVlanLegend(vlanColorMap)
 
 	return d2Connections + "\n" + d2Devices + d2Legend
@@ -282,6 +308,42 @@ func generateD2DeviceBlocks(deviceMap map[string]*DeviceD2) string {
 		for _, portName := range dev.PortOrder {
 			num := dev.PortNumMap[portName]
 			d2Devices.WriteString(fmt.Sprintf("  %s: \"%s\"\n", num, portName))
+		}
+		d2Devices.WriteString("}\n")
+	}
+
+	return d2Devices.String()
+}
+
+// hasPortVlans checks if a specific device port has VLAN configurations
+func hasPortVlans(deviceLabel string, portName string, devicePorts []e.DevicePort) bool {
+	for _, dp := range devicePorts {
+		if dp.DevLabel == deviceLabel && dp.PortName == portName {
+			return len(dp.VlanConfigs) > 0
+		}
+	}
+	return false
+}
+
+// generateD2DeviceBlocksWithPortColors generates D2 device block definitions with colored ports
+// Ports with VLAN configurations are colored red
+func generateD2DeviceBlocksWithPortColors(deviceMap map[string]*DeviceD2, devicePorts []e.DevicePort) string {
+	var d2Devices strings.Builder
+
+	for key, dev := range deviceMap {
+		d2Devices.WriteString(fmt.Sprintf("%s: {\n", key))
+		d2Devices.WriteString(fmt.Sprintf("  shape: %s\n", dev.Shape))
+		d2Devices.WriteString(fmt.Sprintf("  label: \"%s\"\n", dev.Label))
+		for _, portName := range dev.PortOrder {
+			num := dev.PortNumMap[portName]
+			// Check if this port has VLANs configured
+			if hasPortVlans(dev.Label, portName, devicePorts) {
+				d2Devices.WriteString(fmt.Sprintf("  %s: \"%s\" {\n", num, portName))
+				d2Devices.WriteString("    style.stroke: red\n")
+				d2Devices.WriteString("  }\n")
+			} else {
+				d2Devices.WriteString(fmt.Sprintf("  %s: \"%s\"\n", num, portName))
+			}
 		}
 		d2Devices.WriteString("}\n")
 	}

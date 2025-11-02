@@ -74,10 +74,12 @@ func getDiagram(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Get format from query parameter, default to connections
 		formatParam := r.URL.Query().Get("format")
-		vlanParam := r.URL.Query().Get("vlan") // "true" or "false"
+		vlanParam := r.URL.Query().Get("vlan")       // "true" or "false"
+		colorPortsParam := r.URL.Query().Get("colorports") // "true" or "false"
 
 		var diagramFormat DiagramFormat
 		includeVlans := vlanParam == "true"
+		colorPorts := colorPortsParam == "true"
 
 		switch formatParam {
 		case "ports":
@@ -118,15 +120,15 @@ func getDiagram(service q.NetServiceInt) http.HandlerFunc {
 		switch diagramFormat {
 		case FormatPorts:
 			if includeVlans {
-				diagramString = format.GenerateD2FocusPortsWithVlans(devices, connections, zones, devicePorts)
+				diagramString = format.GenerateD2FocusPortsWithVlans(devices, connections, zones, devicePorts, colorPorts)
 			} else {
-				diagramString = format.GenerateD2FocusPorts(devices, connections, zones)
+				diagramString = format.GenerateD2FocusPorts(devices, connections, zones, devicePorts, colorPorts)
 			}
 		case FormatConnections:
 			if includeVlans {
-				diagramString = format.GenerateD2FocusConnectionsWithVlans(devices, connections, zones, devicePorts)
+				diagramString = format.GenerateD2FocusConnectionsWithVlans(devices, connections, zones, devicePorts, colorPorts)
 			} else {
-				diagramString = format.GenerateD2FocusConnections(devices, connections, zones)
+				diagramString = format.GenerateD2FocusConnections(devices, connections, zones, devicePorts, colorPorts)
 			}
 		}
 

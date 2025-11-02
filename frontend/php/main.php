@@ -162,6 +162,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['api_base_url'])) {
                 <?php if (isset($_GET['vlan'])): ?>
                     <input type="hidden" name="vlan" value="<?= htmlspecialchars($_GET['vlan']) ?>">
                 <?php endif; ?>
+                <?php if (isset($_GET['colorports'])): ?>
+                    <input type="hidden" name="colorports" value="<?= htmlspecialchars($_GET['colorports']) ?>">
+                <?php endif; ?>
 
                 <label for="actionType">Choose action:</label>
                 <select id="actionType" name="actionType" onchange="this.form.submit()">
@@ -217,6 +220,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['api_base_url'])) {
             <option value="false" <?= (!isset($_GET['vlan']) || $_GET['vlan'] === 'false') ? 'selected' : '' ?>>No VLAN</option>
             <option value="true" <?= (isset($_GET['vlan']) && $_GET['vlan'] === 'true') ? 'selected' : '' ?>>With VLANs</option>
         </select>
+
+        <label for="colorPortsSelect" class="format-label" style="margin-left: 20px;">Color Ports with VLANs:</label>
+        <select id="colorPortsSelect" name="colorports" onchange="this.form.submit()">
+            <option value="false" <?= (!isset($_GET['colorports']) || $_GET['colorports'] === 'false') ? 'selected' : '' ?>>No</option>
+            <option value="true" <?= (isset($_GET['colorports']) && $_GET['colorports'] === 'true') ? 'selected' : '' ?>>Yes</option>
+        </select>
     </div>
 
     <div class="diagram">
@@ -224,7 +233,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['api_base_url'])) {
             <?php
                 $format = isset($_GET['format']) ? htmlspecialchars($_GET['format']) : 'connections';
                 $vlan = isset($_GET['vlan']) ? htmlspecialchars($_GET['vlan']) : 'false';
-                $diagramUrl = API_BASE_URL . "/diagram?format=" . $format . "&vlan=" . $vlan;
+                $colorports = isset($_GET['colorports']) ? htmlspecialchars($_GET['colorports']) : 'false';
+                $diagramUrl = API_BASE_URL . "/diagram?format=" . $format . "&vlan=" . $vlan . "&colorports=" . $colorports;
             ?>
             <img id="diagramImg" src="<?= $diagramUrl ?>" alt="Diagram">
         </div>
