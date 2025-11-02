@@ -32,10 +32,12 @@ var (
 	// Srcdbpath  Path to the db
 	Srcdbpath string
 	// Backend  Database backend type (sqlite or cloverdb)
-	Backend   string
-	outpath   string
-	outFile   string
-	outImage  string
+	Backend      string
+	outpath      string
+	outFile      string
+	outImage     string
+	// PluginConfig  Path to plugin configuration file
+	PluginConfig string
 	// Verbose verbose
 	Verbose bool
 	// Debug debug
@@ -75,6 +77,9 @@ func init() {
 	RootCmd.PersistentFlags().
 		StringVarP(&Backend, "backend", "b", "cloverdb", "database backend type (sqlite or cloverdb)")
 	viper.BindPFlag("backend", RootCmd.PersistentFlags().Lookup("backend"))
+	RootCmd.PersistentFlags().
+		StringVar(&PluginConfig, "plugin-config", "plugins.yaml", "path to plugin configuration file")
+	viper.BindPFlag("plugin-config", RootCmd.PersistentFlags().Lookup("plugin-config"))
 	RootCmd.PersistentFlags().
 		StringVar(&outpath, "outPath", "out/", "output path for files")
 	viper.BindPFlag("outPath", RootCmd.PersistentFlags().Lookup("outPath"))
