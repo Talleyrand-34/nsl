@@ -15,6 +15,7 @@ if (is_array($devices) && count($devices) > 0):
             <ul>
                 <li>ID: <?= htmlspecialchars($device['id']) ?></li>
                 <li>Model: <?= htmlspecialchars($device['model']) ?></li>
+                <li>Name: <strong><?= htmlspecialchars($device['label']) ?></strong></li>
                 <li>Brand: <?= htmlspecialchars($device['brand']) ?></li>
                 <li>Zone ID: <?= htmlspecialchars($device['zoneid']) ?></li>
                 <li>Zone Name: <?= htmlspecialchars($device['zonename']) ?></li>

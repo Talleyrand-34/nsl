@@ -38,7 +38,17 @@ $macAddress = $_POST['mac_address'] ?? '';
 $deviceModel = getDeviceModel($devices, $deviceId);
 $availableModelPorts = $deviceModel ? getModelPortsByModel($modelPorts, $deviceModel) : [];
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) {
+// Debug output
+if ($deviceId && !isset($_POST['add_deviceport'])) {
+    error_log("DEBUG adddeviceport: deviceId=$deviceId, deviceModel=$deviceModel");
+    error_log("DEBUG adddeviceport: total modelPorts=" . count($modelPorts));
+    error_log("DEBUG adddeviceport: available modelPorts=" . count($availableModelPorts));
+    if ($deviceModel) {
+        error_log("DEBUG adddeviceport: filtering for model=$deviceModel");
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_deviceport'])) {
     $deviceId = $_POST['device_id'] ?? '';
     $modelPortId = $_POST['modelport_id'] ?? '';
     $macAddress = trim($_POST['mac_address'] ?? '');
@@ -96,6 +106,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) {
     <p><strong><?= htmlspecialchars($message) ?></strong></p>
 <?php endif; ?>
 
+<!-- DEBUG INFO -->
+<?php if ($deviceId && !isset($_POST['add_deviceport'])): ?>
+    <div style="background: #ffe; padding: 10px; border: 1px solid #cc0; margin-bottom: 10px;">
+        <strong>Debug Info:</strong><br>
+        Selected Device ID: <?= htmlspecialchars($deviceId) ?><br>
+        Device Model: <?= htmlspecialchars($deviceModel ?: 'NULL') ?><br>
+        Total Model Ports: <?= count($modelPorts) ?><br>
+        Available Model Ports for this device: <?= count($availableModelPorts) ?><br>
+        <?php if ($deviceModel && count($availableModelPorts) == 0): ?>
+            <span style="color: red;">No model ports found for model "<?= htmlspecialchars($deviceModel) ?>"</span><br>
+            Available models in modelPorts:
+            <?php
+            $uniqueModels = array_unique(array_column($modelPorts, 'model'));
+            echo implode(', ', array_map('htmlspecialchars', $uniqueModels));
+            ?>
+        <?php endif; ?>
+    </div>
+<?php endif; ?>
+
 <?php if (empty($devices)): ?>
     <p><em>No devices available. Please add devices first.</em></p>
 <?php elseif (empty($modelPorts)): ?>
@@ -141,7 +170,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) {
         </fieldset>
         <br>
 
-        <button type="submit" name="submit">Add Device Port</button>
+        <button type="submit" name="add_deviceport">Add Device Port</button>
     </form>
 
     <script>

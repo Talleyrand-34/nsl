@@ -36,7 +36,7 @@ $toDevice = $_POST['toDevice'] ?? '';
 $toModelPort = $_POST['toModelPort'] ?? '';
 $allowVLANUnion = isset($_POST['allowVLANUnion']);
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_connection'])) {
     if ($fromDevice === '' || $fromModelPort === '' || $toDevice === '' || $toModelPort === '') {
         $message = 'Please select all connection parameters.';
     } else {
@@ -145,5 +145,5 @@ $toModelPorts = $toDeviceModel ? getModelPortsByModel($modelports, $toDeviceMode
         <br><small><em>By default, VLANs must match exactly between ports. Enable this to allow connections if VLANs have any overlap.</em></small>
     </fieldset>
     <br>
-    <button type="submit" name="submit">Add Connection</button>
+    <button type="submit" name="add_connection">Add Connection</button>
 </form>
