@@ -218,9 +218,11 @@ func (r BasicOpsCloverRepository) UpdateDevicePort(deviceid string, modelportid 
 		}
 	}
 
-	query := q.NewQuery(deviceportsCollection).
-		Where(q.Field("device_id").Eq(deviceid)).
-		Where(q.Field("model_port_id").Eq(modelportid))
+	query := q.NewQuery(deviceportsCollection).Where(
+		q.Field("device_id").Eq(deviceid).And(
+			q.Field("model_port_id").Eq(modelportid),
+		),
+	)
 
 	updates := make(map[string]interface{})
 
