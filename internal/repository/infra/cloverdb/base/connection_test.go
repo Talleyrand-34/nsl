@@ -23,16 +23,16 @@ func TestConnection_AddAndGet(t *testing.T) {
 	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
-	if err := repo.AddModelPort("Gi1/0/1", "0", "0", "Catalyst 9300"); err != nil {
+	if err := repo.AddModelPort("Gi1/0/1", "0", "0", "Catalyst 9300", false); err != nil {
 		t.Fatalf("failed to add model port 1: %v", err)
 	}
-	if err := repo.AddModelPort("Gi1/0/2", "1", "0", "Catalyst 9300"); err != nil {
+	if err := repo.AddModelPort("Gi1/0/2", "1", "0", "Catalyst 9300", false); err != nil {
 		t.Fatalf("failed to add model port 2: %v", err)
 	}
-	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", ""); err != nil {
+	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", "", []string{}); err != nil {
 		t.Fatalf("failed to add device 1: %v", err)
 	}
-	if err := repo.AddDevice("SW-02", "Catalyst 9300", "", "", ""); err != nil {
+	if err := repo.AddDevice("SW-02", "Catalyst 9300", "", "", "", []string{}); err != nil {
 		t.Fatalf("failed to add device 2: %v", err)
 	}
 
@@ -58,7 +58,7 @@ func TestConnection_AddAndGet(t *testing.T) {
 	}
 
 	// Add connection
-	if err := repo.AddConnection(device1Id, port1Id, "192.168.1.1/24", device2Id, port2Id, "192.168.1.2/24"); err != nil {
+	if err := repo.AddConnection(device1Id, port1Id, device2Id, port2Id, false); err != nil {
 		t.Errorf("failed to add connection: %v", err)
 	}
 
@@ -90,22 +90,22 @@ func TestConnection_AddDuplicatePort(t *testing.T) {
 	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
-	if err := repo.AddModelPort("Gi1/0/1", "0", "0", "Catalyst 9300"); err != nil {
+	if err := repo.AddModelPort("Gi1/0/1", "0", "0", "Catalyst 9300", false); err != nil {
 		t.Fatalf("failed to add model port 1: %v", err)
 	}
-	if err := repo.AddModelPort("Gi1/0/2", "1", "0", "Catalyst 9300"); err != nil {
+	if err := repo.AddModelPort("Gi1/0/2", "1", "0", "Catalyst 9300", false); err != nil {
 		t.Fatalf("failed to add model port 2: %v", err)
 	}
-	if err := repo.AddModelPort("Gi1/0/3", "2", "0", "Catalyst 9300"); err != nil {
+	if err := repo.AddModelPort("Gi1/0/3", "2", "0", "Catalyst 9300", false); err != nil {
 		t.Fatalf("failed to add model port 3: %v", err)
 	}
-	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", ""); err != nil {
+	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", "", []string{}); err != nil {
 		t.Fatalf("failed to add device 1: %v", err)
 	}
-	if err := repo.AddDevice("SW-02", "Catalyst 9300", "", "", ""); err != nil {
+	if err := repo.AddDevice("SW-02", "Catalyst 9300", "", "", "", []string{}); err != nil {
 		t.Fatalf("failed to add device 2: %v", err)
 	}
-	if err := repo.AddDevice("SW-03", "Catalyst 9300", "", "", ""); err != nil {
+	if err := repo.AddDevice("SW-03", "Catalyst 9300", "", "", "", []string{}); err != nil {
 		t.Fatalf("failed to add device 3: %v", err)
 	}
 
@@ -135,12 +135,12 @@ func TestConnection_AddDuplicatePort(t *testing.T) {
 	}
 
 	// Add first connection
-	if err := repo.AddConnection(device1Id, port1Id, "", device2Id, port2Id, ""); err != nil {
+	if err := repo.AddConnection(device1Id, port1Id, device2Id, port2Id, false); err != nil {
 		t.Fatalf("failed to add first connection: %v", err)
 	}
 
 	// Try to add second connection using same port - should fail
-	if err := repo.AddConnection(device1Id, port1Id, "", device3Id, port3Id, ""); err == nil {
+	if err := repo.AddConnection(device1Id, port1Id, device3Id, port3Id, false); err == nil {
 		t.Errorf("expected error when reusing port, got nil")
 	}
 }
@@ -162,16 +162,16 @@ func TestConnection_Delete(t *testing.T) {
 	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
-	if err := repo.AddModelPort("Gi1/0/1", "0", "0", "Catalyst 9300"); err != nil {
+	if err := repo.AddModelPort("Gi1/0/1", "0", "0", "Catalyst 9300", false); err != nil {
 		t.Fatalf("failed to add model port 1: %v", err)
 	}
-	if err := repo.AddModelPort("Gi1/0/2", "1", "0", "Catalyst 9300"); err != nil {
+	if err := repo.AddModelPort("Gi1/0/2", "1", "0", "Catalyst 9300", false); err != nil {
 		t.Fatalf("failed to add model port 2: %v", err)
 	}
-	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", ""); err != nil {
+	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", "", []string{}); err != nil {
 		t.Fatalf("failed to add device 1: %v", err)
 	}
-	if err := repo.AddDevice("SW-02", "Catalyst 9300", "", "", ""); err != nil {
+	if err := repo.AddDevice("SW-02", "Catalyst 9300", "", "", "", []string{}); err != nil {
 		t.Fatalf("failed to add device 2: %v", err)
 	}
 
@@ -197,7 +197,7 @@ func TestConnection_Delete(t *testing.T) {
 	}
 
 	// Add connection
-	if err := repo.AddConnection(device1Id, port1Id, "", device2Id, port2Id, ""); err != nil {
+	if err := repo.AddConnection(device1Id, port1Id, device2Id, port2Id, false); err != nil {
 		t.Fatalf("failed to add connection: %v", err)
 	}
 

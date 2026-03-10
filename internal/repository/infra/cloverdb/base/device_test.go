@@ -27,7 +27,7 @@ func TestDevice_AddAndGet(t *testing.T) {
 	}
 
 	// Add device
-	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", ""); err != nil {
+	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", "", []string{}); err != nil {
 		t.Errorf("failed to add device: %v", err)
 	}
 
@@ -69,7 +69,7 @@ func TestDevice_AddWithZone(t *testing.T) {
 	}
 
 	// Add device with zone
-	if err := repo.AddDevice("SW-02", "Catalyst 9300", "", "Server Room", "Company A"); err != nil {
+	if err := repo.AddDevice("SW-02", "Catalyst 9300", "", "Server Room", "Company A", []string{}); err != nil {
 		t.Errorf("failed to add device: %v", err)
 	}
 
@@ -113,7 +113,7 @@ func TestDevice_CreateAndDelete(t *testing.T) {
 	}
 
 	// Add device
-	if err := repo.AddDevice("RTR-01", "ISR 4000", "", "", ""); err != nil {
+	if err := repo.AddDevice("RTR-01", "ISR 4000", "", "", "", []string{}); err != nil {
 		t.Errorf("failed to add device: %v", err)
 	}
 

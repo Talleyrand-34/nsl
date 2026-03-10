@@ -1,0 +1,26 @@
+# NSL-Graph Plugin Configuration
+# This file controls which plugins are active and how they behave
+
+plugins:
+  connection_sorters:
+    # Active sorter plugin (only one can be active at a time)
+    # Available options: insertion_order, zone_name, device_name, reverse_id
+    active: "insertion_order"
+
+    # List of available connection sorter plugins with descriptions
+    available:
+      - id: "insertion_order"
+        name: "Database Insertion Order (Default)"
+        description: "Maintains the original CloverDB insertion order without any sorting. This is the default behavior."
+
+      - id: "zone_name"
+        name: "Sort by Zone Name"
+        description: "Sorts connections by: FromZoneName (primary), ToZoneName (secondary), FromDevice (tertiary)"
+
+      - id: "device_name"
+        name: "Sort by Device Name"
+        description: "Sorts connections by: FromDevice (primary), ToDevice (secondary), FromModelPort (tertiary)"
+
+      - id: "reverse_id"
+        name: "Reverse ID Order"
+        description: "Reverses the connection order to show newest connections first"
