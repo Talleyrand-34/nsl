@@ -14,11 +14,12 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-package api
+package connections
 
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -28,24 +29,10 @@ import (
 	"github.com/gorilla/mux"
 
 	q "nsl-graph/internal/repository/application"
-	"nsl-graph/internal/api/core"
-	"nsl-graph/internal/api/devices"
-	"nsl-graph/internal/api/connections"
-	"nsl-graph/internal/api/vlans"
-	"nsl-graph/internal/api/plugins"
+	infra "nsl-graph/internal/repository/infra/cloverdb/base"
+	"nsl-graph/internal/repository/plugins"
+	"nsl-graph/internal/repository/plugins/builtin"
 )
-
-// Legacy comment - handlers now organized by domain in internal/api/
-
-// RegisterRoutes registers all API routes organized by domain
-func RegisterRoutes(r *mux.Router, service q.NetServiceInt) {
-	// Register domain-specific routes
-	core.RegisterRoutes(r, service)
-	devices.RegisterRoutes(r, service)
-	connections.RegisterRoutes(r, service)
-	vlans.RegisterRoutes(r, service)
-	plugins.RegisterRoutes(r)
-}
 
 func StartServer(dbPath string, port int) {
 	// Open DB connection ONCE
@@ -85,4 +72,44 @@ func StartServer(dbPath string, port int) {
 	} else {
 		fmt.Println("HTTP server gracefully stopped.")
 	}
+}
+
+func serviceConnection(path string) (q.NetServiceInt, error) {
+	baseRepo, err := infra.NewCloverRepository(path)
+	if err != nil {
+		return nil, fmt.Errorf("Error creating repository: %w", err)
+	}
+
+	// Load plugin configuration
+	pluginConfig, err := plugins.LoadConfig("plugins.yaml")
+	if err != nil {
+		log.Printf("Warning: Failed to load plugin config: %v. Using defaults.", err)
+		pluginConfig, _ = plugins.LoadConfig("") // Get default config
+	}
+
+	// Create and configure plugin registry
+	registry := plugins.NewRegistry()
+
+	// Register all built-in plugins
+	registry.RegisterSorter(builtin.NewInsertionOrderSorter())
+	registry.RegisterSorter(builtin.NewZoneNameSorter())
+	registry.RegisterSorter(builtin.NewDeviceNameSorter())
+	registry.RegisterSorter(builtin.NewReverseIDSorter())
+
+	// Set active sorter from configuration
+	if err := registry.SetActiveSorter(pluginConfig.Plugins.ConnectionSorters.Active); err != nil {
+		log.Printf("Warning: Failed to set active sorter '%s': %v. Using insertion_order.",
+			pluginConfig.Plugins.ConnectionSorters.Active, err)
+		registry.SetActiveSorter("insertion_order")
+	}
+
+	// Initialize global plugin manager for runtime configuration
+	plugins.InitializeGlobalPluginManager(registry)
+
+	// Wrap repository with plugin decorator
+	pluginRepo := plugins.NewPluginAwareRepository(baseRepo, registry)
+
+	// Create service with plugin-aware repository
+	service := q.NewNetService(pluginRepo)
+	return service, nil
 }

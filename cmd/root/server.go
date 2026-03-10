@@ -21,11 +21,12 @@ package cmd_root
 
 import (
 	"fmt"
+
 	"nsl-graph/cmd"
 
 	"github.com/spf13/cobra"
 
-	srv "nsl-graph/api"
+	srv "nsl-graph/internal/api/connections"
 
 	c "nsl-graph/cmd"
 )
