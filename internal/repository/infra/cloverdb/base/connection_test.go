@@ -2,6 +2,8 @@ package basicops
 
 import (
 	"testing"
+
+	e "nsl-graph/internal/repository/entities"
 )
 
 // --- Connection Tests --- //
@@ -55,6 +57,14 @@ func TestConnection_AddAndGet(t *testing.T) {
 		} else if mp.Name == "Gi1/0/2" {
 			port2Id = mp.ID
 		}
+	}
+
+	// Add device ports (required for connections)
+	if err := repo.AddDevicePort(device1Id, port1Id, "", []e.PortVlanConfig{}); err != nil {
+		t.Fatalf("failed to add device port 1: %v", err)
+	}
+	if err := repo.AddDevicePort(device2Id, port2Id, "", []e.PortVlanConfig{}); err != nil {
+		t.Fatalf("failed to add device port 2: %v", err)
 	}
 
 	// Add connection
@@ -134,6 +144,17 @@ func TestConnection_AddDuplicatePort(t *testing.T) {
 		}
 	}
 
+	// Add device ports (required for connections)
+	if err := repo.AddDevicePort(device1Id, port1Id, "", []e.PortVlanConfig{}); err != nil {
+		t.Fatalf("failed to add device port 1: %v", err)
+	}
+	if err := repo.AddDevicePort(device2Id, port2Id, "", []e.PortVlanConfig{}); err != nil {
+		t.Fatalf("failed to add device port 2: %v", err)
+	}
+	if err := repo.AddDevicePort(device3Id, port3Id, "", []e.PortVlanConfig{}); err != nil {
+		t.Fatalf("failed to add device port 3: %v", err)
+	}
+
 	// Add first connection
 	if err := repo.AddConnection(device1Id, port1Id, device2Id, port2Id, false); err != nil {
 		t.Fatalf("failed to add first connection: %v", err)
@@ -194,6 +215,14 @@ func TestConnection_Delete(t *testing.T) {
 		} else if mp.Name == "Gi1/0/2" {
 			port2Id = mp.ID
 		}
+	}
+
+	// Add device ports (required for connections)
+	if err := repo.AddDevicePort(device1Id, port1Id, "", []e.PortVlanConfig{}); err != nil {
+		t.Fatalf("failed to add device port 1: %v", err)
+	}
+	if err := repo.AddDevicePort(device2Id, port2Id, "", []e.PortVlanConfig{}); err != nil {
+		t.Fatalf("failed to add device port 2: %v", err)
 	}
 
 	// Add connection

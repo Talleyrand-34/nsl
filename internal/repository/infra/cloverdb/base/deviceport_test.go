@@ -90,7 +90,7 @@ func TestDevicePort_AddWithInvalidModel(t *testing.T) {
 	if err := repo.AddModelPort("Gi1/0/1", "0", "0", "Catalyst 9300", false); err != nil {
 		t.Fatalf("failed to add model port: %v", err)
 	}
-	if err := repo.AddDevice("SW-01", "Catalyst 3850", "", "", ""); err != nil {
+	if err := repo.AddDevice("SW-01", "Catalyst 3850", "", "", "", []string{}); err != nil {
 		t.Fatalf("failed to add device: %v", err)
 	}
 
@@ -114,7 +114,7 @@ func TestDevicePort_AddWithInvalidModel(t *testing.T) {
 	}
 
 	// Try to add device port with wrong model - should fail
-	if err := repo.AddDevicePort(deviceId, modelPortId, ""); err == nil {
+	if err := repo.AddDevicePort(deviceId, modelPortId, "", []e.PortVlanConfig{}); err == nil {
 		t.Errorf("expected error when adding device port with wrong model, got nil")
 	}
 }
@@ -163,7 +163,7 @@ func TestDevicePort_Delete(t *testing.T) {
 	}
 
 	// Add device port
-	if err := repo.AddDevicePort(deviceId, modelPortId, ""); err != nil {
+	if err := repo.AddDevicePort(deviceId, modelPortId, "", []e.PortVlanConfig{}); err != nil {
 		t.Fatalf("failed to add device port: %v", err)
 	}
 

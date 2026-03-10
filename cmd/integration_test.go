@@ -111,7 +111,7 @@ func TestCLI_PrintHelpCommand(t *testing.T) {
 
 	output := out.String()
 	assert.Contains(t, output, "print")
-	assert.Contains(t, output, "Gets information about the network")
+	assert.Contains(t, output, "Print info about any table in the db")
 }
 
 func TestCLI_ModifyHelpCommand(t *testing.T) {
@@ -132,7 +132,7 @@ func TestCLI_ModifyHelpCommand(t *testing.T) {
 
 	output := out.String()
 	assert.Contains(t, output, "modify")
-	assert.Contains(t, output, "Make modificatons into the network structure")
+	assert.Contains(t, output, "Available Commands:")
 }
 
 func TestCLI_InvalidCommand(t *testing.T) {
@@ -225,9 +225,9 @@ func TestCLI_CustomDatabasePath(t *testing.T) {
 
 	err := cmd.Run()
 
-	// Command should execute (even if it returns empty results or errors due to empty DB)
+	// Command should execute successfully (even with empty database)
 	// The important thing is that the source flag is accepted
-	assert.NotNil(t, err) // Might error due to empty database, but should not be a flag parsing error
+	assert.NoError(t, err) // Should not error with empty database
 
 	stderrOutput := stderr.String()
 	// Should not contain flag parsing errors

@@ -50,15 +50,20 @@ func OpenDatabaseConnectionClover() {
 	os.Mkdir(c.Srcdbpath, 0755)
 }
 
-// Return repositoryDB connection
+// Return repositoryDB connection using global config
 func ServiceConnection() (q.NetServiceInt, error) {
+	return GetServiceConnection(c.Srcdbpath)
+}
+
+// Return repositoryDB connection with custom database path
+func GetServiceConnection(dbPath string) (q.NetServiceInt, error) {
 	backend := strings.ToLower(c.Backend)
 
 	switch backend {
 	case "cloverdb", "clover":
 		// Use CloverDB backend
-		OpenDatabaseConnectionClover()
-		baseRepo, err := infra.NewCloverRepository(c.Srcdbpath)
+		os.Mkdir(dbPath, 0755)
+		baseRepo, err := infra.NewCloverRepository(dbPath)
 		if err != nil {
 			log.Fatalf("Error connecting to CloverDB: %v", err)
 		}

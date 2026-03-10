@@ -22,6 +22,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	cmd_pkg "nsl-graph/cmd"
 	cmd_root "nsl-graph/cmd/root"
 	util "nsl-graph/cmd/utils"
 )
@@ -35,7 +36,7 @@ var brandDelCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		brandName := args[0]
 
-		service, err := util.GetServiceConnection(cmd_root.GetSrcDB())
+		service, err := util.GetServiceConnection(cmd_pkg.Srcdbpath)
 		if err != nil {
 			fmt.Printf("Error connecting to database: %v\n", err)
 			os.Exit(1)
