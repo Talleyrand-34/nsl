@@ -19,9 +19,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($vlanID !== '') {
         $data = json_encode([
-            'vlanID' => $vlanID,
-            'vlanName' => $vlanName,
-            'ipSegmentIDs' => $ipSegmentIDs
+            'vlan_id' => $vlanID,
+            'vlan_name' => $vlanName,
+            'ip_segment_ids' => $ipSegmentIDs
         ]);
 
         $ch = curl_init(VLANS_ENDPOINT);

@@ -120,12 +120,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $message = 'Please select a destination model port.';
         } else {
             $data = json_encode([
-                'id' => $connectionId,
-                'from_device' => $fromDeviceId,
-                'from_port' => $fromModelPortId,
-                'to_device' => $toDeviceId,
-                'to_port' => $toModelPortId,
-                'allowVLANUnion' => $allowVLANUnion
+                'connection_id' => $connectionId,
+                'new_from_device_id' => $fromDeviceId,
+                'new_from_model_port_id' => $fromModelPortId,
+                'new_to_device_id' => $toDeviceId,
+                'new_to_model_port_id' => $toModelPortId,
+                'allow_vlan_union' => $allowVLANUnion
             ]);
 
             $ch = curl_init(CONNECTIONS_ENDPOINT);

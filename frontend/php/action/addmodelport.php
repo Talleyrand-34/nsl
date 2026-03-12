@@ -164,10 +164,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $message = 'Please select a model.';
         } else {
             $data = json_encode([
-                'name' => $name,
-                'posx' => $posx,
-                'posy' => $posy,
-                'modelName' => $modelName,
+                'port_name' => $name,
+                'position_x' => $posx,
+                'position_y' => $posy,
+                'model_name' => $modelName,
                 'allow_multiple_connections' => $allowMultiple
             ]);
 

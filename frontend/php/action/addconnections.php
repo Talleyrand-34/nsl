@@ -41,11 +41,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_connection'])) {
         $message = 'Please select all connection parameters.';
     } else {
         $data = json_encode([
-            'fromDevice' => $fromDevice,
-            'fromModelPort' => $fromModelPort,
-            'toDevice' => $toDevice,
-            'toModelPort' => $toModelPort,
-            'allowVLANUnion' => $allowVLANUnion
+            'from_device_id' => $fromDevice,
+            'from_model_port_id' => $fromModelPort,
+            'to_device_id' => $toDevice,
+            'to_model_port_id' => $toModelPort,
+            'allow_vlan_union' => $allowVLANUnion
         ]);
 
         // Debug: echo the JSON being sent

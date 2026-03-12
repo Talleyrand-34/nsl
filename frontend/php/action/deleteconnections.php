@@ -10,7 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = trim($_POST['id'] ?? '');
 
     if ($id !== '') {
-        $data = json_encode(['id' => $id]);
+        $data = json_encode(['connection_id' => $id]);
 
         $ch = curl_init(CONNECTIONS_ENDPOINT);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "DELETE");

@@ -20,9 +20,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $message = 'Please select a device class.';
     } else {
         $data = json_encode([
-            'model' => $model,
-            'brand' => $brand,
-            'class' => $class
+            'model_name' => $model,
+            'brand_name' => $brand,
+            'device_class_name' => $class
         ]);
 
         $ch = curl_init(MODELS_ENDPOINT);

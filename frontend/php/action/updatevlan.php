@@ -45,10 +45,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $message = 'Please enter at least one field to update.';
         } else {
             $data = json_encode([
-                'id' => $vlanDbId,
-                'vlanID' => $newVlanID,
-                'vlanName' => $newVlanName,
-                'ipSegmentIDs' => $ipSegmentIDs
+                'vlan_internal_id' => $vlanDbId,
+                'new_vlan_id' => $newVlanID,
+                'new_vlan_name' => $newVlanName,
+                'ip_segment_ids' => $ipSegmentIDs
             ]);
             $ch = curl_init(VLANS_ENDPOINT);
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PUT');

@@ -7,7 +7,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $brand = trim($_POST['brand'] ?? '');
 
     if ($brand !== '') {
-        $data = json_encode(['brand' => $brand]);
+        $data = json_encode(['name' => $brand]);
 
         $ch = curl_init(BRANDS_ENDPOINT);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");

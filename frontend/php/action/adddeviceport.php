@@ -73,8 +73,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_deviceport'])) {
         $message = 'Please select a model port.';
     } else {
         $data = json_encode([
-            'deviceid' => $deviceId,
-            'modelportid' => $modelPortId,
+            'device_id' => $deviceId,
+            'model_port_id' => $modelPortId,
             'mac_address' => $macAddress,
             'vlan_configs' => $vlanConfigs
         ]);

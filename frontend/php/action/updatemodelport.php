@@ -59,12 +59,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $message = 'Please select a model.';
         } else {
             $data = json_encode([
-                'id' => $modelPortId,
-                'name' => $newPortName,
-                'position_x' => $positionX,
-                'position_y' => $positionY,
-                'model_id' => $modelId,
-                'allow_multiple_connections' => $allowMultiple
+                'model_port_id' => $modelPortId,
+                'new_port_name' => $newPortName,
+                'new_position_x' => $positionX,
+                'new_position_y' => $positionY,
+                'new_model_id' => $modelId,
+                'new_allow_multiple_connections' => $allowMultiple
             ]);
 
             $ch = curl_init(MODELPORTS_ENDPOINT);

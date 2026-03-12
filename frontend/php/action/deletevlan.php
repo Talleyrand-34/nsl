@@ -10,7 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $vlanDbId = trim($_POST['vlan_db_id'] ?? '');
 
     if ($vlanDbId !== '') {
-        $data = json_encode(['vlanId' => $vlanDbId]);
+        $data = json_encode(['vlan_internal_id' => $vlanDbId]);
 
         $ch = curl_init(VLANS_ENDPOINT);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "DELETE");

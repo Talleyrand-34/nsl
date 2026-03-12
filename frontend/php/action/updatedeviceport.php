@@ -83,8 +83,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $message = 'Please select a device port to update.';
         } else {
             $data = json_encode([
-                'deviceid' => $deviceId,
-                'modelportid' => $modelPortId,
+                'device_id' => $deviceId,
+                'model_port_id' => $modelPortId,
                 'mac_address' => $macAddress,
                 'vlan_configs' => $vlanConfigs
             ]);
