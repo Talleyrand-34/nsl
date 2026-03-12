@@ -117,6 +117,13 @@ func RootHandler() http.HandlerFunc {
 			// /plugins
 			"GET    /plugins",
 			"POST   /plugins/active",
+
+			// Network scanning
+			"POST   /scan/network",
+			"POST   /scan/host",
+			"POST   /scan/import",
+			"GET    /scan/status?scan_id=<id>",
+			"GET    /scan/validate?subnet=<subnet>",
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(endpoints)

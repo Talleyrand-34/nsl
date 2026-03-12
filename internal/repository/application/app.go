@@ -21,9 +21,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 
 	d "nsl-graph/internal/repository/domain"
 	e "nsl-graph/internal/repository/entities"
+	s "nsl-graph/internal/scanner"
 )
 
 type NetService struct {
@@ -169,6 +171,13 @@ type NetServiceInt interface {
 	GetAllPortsDevice(deviceId string) ([]e.DevicePort, error)
 	GetAllPortsAll() ([]e.DevicePort, error)
 	ExportAllStructs() []byte
+
+	// Network scanning operations
+	ScanNetwork(subnet string, options s.ScanOptions) (*s.ScanResult, error)
+	ScanDevice(ip string, options s.ScanOptions) (*s.SNMPDevice, error)
+	DiscoverDevices(scanResult *s.ScanResult) ([]s.DiscoveredDevice, error)
+	ImportScanResults(devices []s.DiscoveredDevice, options s.ImportOptions) error
+	ImportDiscoveredDevices(devices []s.DiscoveredDevice, options s.ImportOptions) error
 }
 
 func NewNetService(netRepository d.NetRepository) NetServiceInt {
@@ -513,4 +522,297 @@ func (ns *NetService) UpdateVlan(vlanId string, newVlanID string, newVlanName st
 
 func (ns *NetService) DeleteVlan(vlanId string) error {
 	return ns.netRepo.DeleteVlan(vlanId)
+}
+
+// Network scanning method implementations
+
+func (ns *NetService) ScanNetwork(subnet string, options s.ScanOptions) (*s.ScanResult, error) {
+	scanner := s.NewSNMPScanner()
+
+	options.Subnet = subnet
+	if options.SNMP.Community == "" {
+		options.SNMP.Community = "public"
+	}
+	if options.SNMP.Version == "" {
+		options.SNMP.Version = "v2c"
+	}
+
+	result, err := scanner.Scan(options)
+	if err != nil {
+		return nil, fmt.Errorf("network scan failed: %w", err)
+	}
+
+	return result, nil
+}
+
+func (ns *NetService) ScanDevice(ip string, options s.ScanOptions) (*s.SNMPDevice, error) {
+	scanner := s.NewSNMPScanner()
+
+	if options.SNMP.Community == "" {
+		options.SNMP.Community = "public"
+	}
+	if options.SNMP.Version == "" {
+		options.SNMP.Version = "v2c"
+	}
+
+	device, err := scanner.ScanDevice(ip, options)
+	if err != nil {
+		return nil, fmt.Errorf("device scan failed: %w", err)
+	}
+
+	return device, nil
+}
+
+func (ns *NetService) DiscoverDevices(scanResult *s.ScanResult) ([]s.DiscoveredDevice, error) {
+	discoverer := s.NewDeviceDiscoverer()
+
+	var devices []s.DiscoveredDevice
+	for _, dev := range scanResult.Devices {
+		if !dev.Reachable {
+			continue
+		}
+		brand, model, class := discoverer.ClassifyDevice(dev)
+		devices = append(devices, s.DiscoveredDevice{
+			Device:        dev,
+			Brand:         brand,
+			Model:         model,
+			DeviceClass:   class,
+			SuggestedName: discoverer.GenerateDeviceName(dev, class),
+			SuggestedZone: discoverer.SuggestZone(dev),
+		})
+	}
+
+	log.Printf("Discovered %d devices via SNMP", len(devices))
+	return devices, nil
+}
+
+func (ns *NetService) ImportScanResults(devices []s.DiscoveredDevice, options s.ImportOptions) error {
+	return ns.ImportDiscoveredDevices(devices, options)
+}
+
+func (ns *NetService) ImportDiscoveredDevices(devices []s.DiscoveredDevice, options s.ImportOptions) error {
+	if err := ns.ensureRequiredEntities(options); err != nil {
+		return fmt.Errorf("failed to setup required entities: %w", err)
+	}
+
+	for _, device := range devices {
+		if options.SkipExisting && ns.deviceExists(device.Device.IP) {
+			continue
+		}
+
+		if err := ns.importSingleDevice(device, options); err != nil {
+			log.Printf("Failed to import device %s: %v", device.SuggestedName, err)
+			if !options.ReviewMode {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (ns *NetService) ensureRequiredEntities(options s.ImportOptions) error {
+	brands, _ := ns.GetBrands()
+	brandExists := func(name string) bool {
+		for _, b := range brands {
+			if b.Name == name {
+				return true
+			}
+		}
+		return false
+	}
+
+	if !brandExists("Generic") {
+		ns.AddBrand("Generic")
+	}
+	if !brandExists("Discovered") {
+		ns.AddBrand("Discovered")
+	}
+	if !brandExists("Linux") {
+		ns.AddBrand("Linux")
+	}
+	if !brandExists("Cisco") {
+		ns.AddBrand("Cisco")
+	}
+
+	classes, _ := ns.GetDeviceClasses()
+	classExists := func(name string) bool {
+		for _, c := range classes {
+			if c.Name == name {
+				return true
+			}
+		}
+		return false
+	}
+
+	requiredClasses := []string{"Switch", "Router", "Server", "Workstation", "Printer", "Generic", "Access Point", "Firewall"}
+	for _, className := range requiredClasses {
+		if !classExists(className) {
+			ns.AddDeviceClass(className)
+		}
+	}
+
+	proprietaries, _ := ns.GetProperties()
+	proprietaryExists := func(name string) bool {
+		for _, p := range proprietaries {
+			if p.Name == name {
+				return true
+			}
+		}
+		return false
+	}
+
+	if !proprietaryExists("Discovered") {
+		ns.AddProprietary("Discovered")
+	}
+
+	if options.CreateZones {
+		zones, _ := ns.GetZones()
+		zoneExists := func(name string) bool {
+			for _, z := range zones {
+				if z.Name == name {
+					return true
+				}
+			}
+			return false
+		}
+
+		requiredZones := []string{"Discovered", "LAN", "Internal", "External", "Private"}
+		for _, zoneName := range requiredZones {
+			if !zoneExists(zoneName) {
+				ns.AddZone(zoneName, "", "", "Discovered", "Office")
+			}
+		}
+	}
+
+	return nil
+}
+
+func (ns *NetService) deviceExists(ip string) bool {
+	devices, err := ns.GetDevices()
+	if err != nil {
+		return false
+	}
+
+	for _, device := range devices {
+		for _, deviceIP := range device.IPs {
+			if deviceIP == ip {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func (ns *NetService) importSingleDevice(discovered s.DiscoveredDevice, options s.ImportOptions) error {
+	zoneName := discovered.SuggestedZone
+	if options.DefaultZone != "" {
+		zoneName = options.DefaultZone
+	}
+
+	brandName := discovered.Brand
+	if options.DefaultBrand != "" {
+		brandName = options.DefaultBrand
+	}
+	_ = brandName
+
+	err := ns.AddDevice(
+		discovered.SuggestedName,
+		discovered.Model,
+		"",
+		zoneName,
+		"Discovered",
+		[]string{discovered.Device.IP},
+	)
+	if err != nil {
+		return fmt.Errorf("failed to add device: %w", err)
+	}
+
+	if len(discovered.Device.Interfaces) > 0 {
+		devices, _ := ns.GetDevices()
+		var deviceID string
+		for _, device := range devices {
+			if device.Name == discovered.SuggestedName {
+				deviceID = device.ID
+				break
+			}
+		}
+
+		if deviceID != "" {
+			if err := ns.createDevicePortsForDevice(deviceID, discovered); err != nil {
+				log.Printf("Failed to create ports for device %s: %v", discovered.SuggestedName, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (ns *NetService) createDevicePortsForDevice(deviceID string, discovered s.DiscoveredDevice) error {
+	models, err := ns.GetModels()
+	if err != nil {
+		return err
+	}
+
+	var modelName string
+	for _, model := range models {
+		if model.Model == discovered.Model {
+			modelName = model.Model
+			break
+		}
+	}
+
+	if modelName == "" {
+		modelName = discovered.Model
+		if modelName == "" {
+			modelName = "Generic Model"
+		}
+		if err := ns.AddModel(modelName, discovered.Brand, discovered.DeviceClass); err != nil {
+			return err
+		}
+	}
+
+	for i, iface := range discovered.Device.Interfaces {
+		portName := iface.Name
+		if portName == "" {
+			portName = fmt.Sprintf("eth%d", i)
+		}
+
+		if err := ns.AddModelPort(portName, fmt.Sprintf("%d", i), "0", modelName, false); err != nil {
+			if !strings.Contains(err.Error(), "already exists") {
+				return err
+			}
+		}
+
+		modelPorts, _ := ns.GetModelPorts()
+		var modelPortID string
+		for _, mp := range modelPorts {
+			if mp.Name == portName && mp.Model == modelName {
+				modelPortID = mp.ID
+				break
+			}
+		}
+
+		if modelPortID == "" {
+			continue
+		}
+
+		// Build VLAN configs from SNMP data
+		vlanConfigs := make([]e.PortVlanConfig, 0, len(iface.VLANs))
+		for _, v := range iface.VLANs {
+			vlanConfigs = append(vlanConfigs, e.PortVlanConfig{
+				VlanNumber: v.VLANNumber,
+				Tagged:     v.Tagged,
+			})
+		}
+
+		if err := ns.AddDevicePort(deviceID, modelPortID, iface.MAC, vlanConfigs); err != nil {
+			if !strings.Contains(err.Error(), "already exists") {
+				return err
+			}
+		}
+	}
+
+	return nil
 }

@@ -14,7 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-package connections
+package api
 
 import (
 	"context"
@@ -32,6 +32,13 @@ import (
 	infra "nsl-graph/internal/repository/infra/cloverdb/base"
 	"nsl-graph/internal/repository/plugins"
 	"nsl-graph/internal/repository/plugins/builtin"
+
+	"nsl-graph/internal/api/core"
+	"nsl-graph/internal/api/devices"
+	"nsl-graph/internal/api/connections"
+	"nsl-graph/internal/api/vlans"
+	apiplugins "nsl-graph/internal/api/plugins"
+	"nsl-graph/internal/api/scanning"
 )
 
 func StartServer(dbPath string, port int) {
@@ -42,7 +49,7 @@ func StartServer(dbPath string, port int) {
 	}
 
 	r := mux.NewRouter()
-	RegisterRoutes(r, service)
+	registerAllRoutes(r, service)
 
 	addr := fmt.Sprintf(":%d", port)
 	server := &http.Server{
@@ -112,4 +119,35 @@ func serviceConnection(path string) (q.NetServiceInt, error) {
 	// Create service with plugin-aware repository
 	service := q.NewNetService(pluginRepo)
 	return service, nil
+}
+
+// registerAllRoutes registers all API routes from different packages
+func registerAllRoutes(r *mux.Router, service q.NetServiceInt) {
+	// Core routes (root, diagram)
+	core.RegisterRoutes(r, service)
+
+	// Device-related routes (brands, models, devices, etc.)
+	devices.RegisterRoutes(r, service)
+
+	// Connection-related routes
+	connections.RegisterRoutes(r, service)
+
+	// VLAN-related routes
+	vlans.RegisterRoutes(r, service)
+
+	// Plugin management routes
+	apiplugins.RegisterRoutes(r)
+
+	// Network scanning routes
+	registerScanningRoutes(r, service)
+}
+
+// registerScanningRoutes registers network scanning endpoints
+func registerScanningRoutes(r *mux.Router, service q.NetServiceInt) {
+	// Network scanning endpoints
+	r.HandleFunc("/scan/network", scanning.ScanNetworkHandler(service)).Methods("POST", "OPTIONS")
+	r.HandleFunc("/scan/host", scanning.ScanHostHandler(service)).Methods("POST", "OPTIONS")
+	r.HandleFunc("/scan/import", scanning.ImportDevicesHandler(service)).Methods("POST", "OPTIONS")
+	r.HandleFunc("/scan/status", scanning.GetScanStatusHandler()).Methods("GET", "OPTIONS")
+	r.HandleFunc("/scan/validate", scanning.ValidateSubnetHandler()).Methods("GET", "OPTIONS")
 }

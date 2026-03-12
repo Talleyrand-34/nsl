@@ -23,6 +23,7 @@ import (
 	_ "nsl-graph/cmd/modify"
 	_ "nsl-graph/cmd/print"
 	_ "nsl-graph/cmd/root"
+	_ "nsl-graph/cmd/scan"
 	_ "nsl-graph/cmd/update"
 )
 

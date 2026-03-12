@@ -147,6 +147,39 @@ install-tools: ## Install development tools
 		go install github.com/cosmtrek/air@latest; \
 	fi
 
+install-nmap: ## Install nmap for network scanning
+	@echo "Installing nmap..."
+	@if command -v apt-get > /dev/null; then \
+		echo "Installing nmap via apt-get..."; \
+		sudo apt-get update && sudo apt-get install -y nmap; \
+	elif command -v yum > /dev/null; then \
+		echo "Installing nmap via yum..."; \
+		sudo yum install -y nmap; \
+	elif command -v dnf > /dev/null; then \
+		echo "Installing nmap via dnf..."; \
+		sudo dnf install -y nmap; \
+	elif command -v brew > /dev/null; then \
+		echo "Installing nmap via brew..."; \
+		brew install nmap; \
+	elif command -v pacman > /dev/null; then \
+		echo "Installing nmap via pacman..."; \
+		sudo pacman -S nmap; \
+	else \
+		echo "Unable to detect package manager. Please install nmap manually."; \
+		echo "Visit: https://nmap.org/download.html"; \
+	fi
+
+check-nmap: ## Check if nmap is installed and working
+	@if command -v nmap > /dev/null; then \
+		echo "✓ nmap is installed"; \
+		echo "Version: $$(nmap --version | head -1)"; \
+		echo "Testing scan capability..."; \
+		nmap -sn 127.0.0.1 > /dev/null && echo "✓ nmap is working correctly" || echo "✗ nmap test failed"; \
+	else \
+		echo "✗ nmap is not installed"; \
+		echo "Run 'make install-nmap' to install it"; \
+	fi
+
 ## Cleaning targets
 clean: ## Clean build artifacts
 	@echo "Cleaning build artifacts..."
@@ -206,6 +239,33 @@ cli-diagram: build ## Generate connection diagram
 cli-vlan-diagram: build ## Generate VLAN diagram
 	./$(BUILD_DIR)/$(BINARY_NAME) diagram connections --vlan true
 
+## Network scanning targets
+scan-help: build ## Show scanning help
+	./$(BUILD_DIR)/$(BINARY_NAME) scan --help
+
+scan-network: build ## Scan local network (192.168.1.0/24)
+	@echo "Scanning local network (this requires nmap to be installed)..."
+	./$(BUILD_DIR)/$(BINARY_NAME) scan network 192.168.1.0/24 --review
+
+scan-host: build ## Scan specific host (requires HOST variable)
+	@if [ -z "$(HOST)" ]; then \
+		echo "Usage: make scan-host HOST=192.168.1.1"; \
+		exit 1; \
+	fi
+	./$(BUILD_DIR)/$(BINARY_NAME) scan host $(HOST) --auto-import
+
+scan-demo: build ## Demo scan with mock data
+	@echo "Running network scan demo..."
+	@echo "Note: This requires nmap to be installed and a test network"
+	./$(BUILD_DIR)/$(BINARY_NAME) scan network 127.0.0.1 --auto-import --timeout 5
+
+scan-import: build ## Import scan results from file (requires FILE variable)
+	@if [ -z "$(FILE)" ]; then \
+		echo "Usage: make scan-import FILE=scan_results.json"; \
+		exit 1; \
+	fi
+	./$(BUILD_DIR)/$(BINARY_NAME) scan import $(FILE) --review
+
 ## Database management
 db-init: build ## Initialize database with sample data
 	@if [ -f init.sh ]; then \
@@ -254,12 +314,20 @@ release: clean test build-release ## Create a release build
 	@ls -lh $(BUILD_DIR)/$(BINARY_NAME)
 
 ## Example workflows
-example-setup: deps-update install-tools generate build db-init ## Complete setup for new developers
+example-setup: deps-update install-tools generate build db-init check-nmap ## Complete setup for new developers
 	@echo ""
 	@echo "✅ Setup complete! Try these commands:"
 	@echo "  make run-fullstack  # Start full application"
 	@echo "  make test           # Run tests"
 	@echo "  make cli-help       # See CLI options"
+	@echo "  make scan-help      # See scanning options"
+
+example-scan-setup: install-nmap check-nmap build ## Setup for network scanning
+	@echo ""
+	@echo "✅ Scanning setup complete! Try these commands:"
+	@echo "  make scan-demo      # Run demo scan"
+	@echo "  make scan-network   # Scan local network"
+	@echo "  make scan-host HOST=<ip>  # Scan specific host"
 
 example-dev-workflow: fmt vet test build ## Typical development workflow
 	@echo "✅ Development workflow complete!"
