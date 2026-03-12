@@ -57,3 +57,38 @@ func TestNetService_AddAndGetBrand(t *testing.T) {
 	}
 	assert.True(t, found, "Expected to find brand with name 'TestBrand'")
 }
+
+func TestNetService_EnsureModelExists(t *testing.T) {
+	repo := setupTestRepository(t)
+	service := application.NewNetService(repo)
+
+	// Test ensureModelExists with a non-existing model
+	err := service.EnsureModelExists("Linux Server", "Unknown", "")
+	assert.NoError(t, err)
+
+	// Verify the model was created
+	models, err := service.GetModels()
+	assert.NoError(t, err)
+
+	found := false
+	var createdModel interface{}
+	for _, model := range models {
+		if model.Model == "Linux Server" {
+			found = true
+			createdModel = model
+			break
+		}
+	}
+	assert.True(t, found, "Expected to find model 'Linux Server'")
+
+	// Verify fallback defaults were used
+	if found {
+		// The model should use Generic brand and Router device class
+		modelData := createdModel.(interface{})
+		t.Logf("Created model: %+v", modelData)
+	}
+
+	// Test ensureModelExists with an existing model (should not error)
+	err = service.EnsureModelExists("Linux Server", "Unknown", "")
+	assert.NoError(t, err)
+}

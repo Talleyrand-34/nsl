@@ -196,6 +196,9 @@ type NetServiceInt interface {
 	// New interactive VLAN mapping methods
 	AnalyzeDeviceForImport(discovered s.DiscoveredDevice) (s.DeviceImportPlan, error)
 	ExecuteApprovedImportPlan(plan s.DeviceImportPlan, options s.ImportOptions) error
+
+	// Model management
+	EnsureModelExists(modelName, brandName, defaultBrand string) error
 }
 
 func NewNetService(netRepository d.NetRepository) NetServiceInt {
@@ -829,9 +832,13 @@ func (ns *NetService) importSingleDevice(discovered s.DiscoveredDevice, options 
 		zoneName = options.DefaultZone
 	}
 
-	_ = discovered.Brand // Brand is used for model classification during discovery
+	// Ensure model exists before adding device
+	err := ns.EnsureModelExists(discovered.Model, discovered.Brand, options.DefaultBrand)
+	if err != nil {
+		return fmt.Errorf("failed to ensure model exists: %w", err)
+	}
 
-	err := ns.AddDevice(
+	err = ns.AddDevice(
 		discovered.SuggestedName,
 		discovered.Model,
 		"",
@@ -1147,6 +1154,56 @@ func (ns *NetService) ipBelongsToSegment(ip, segment string) bool {
 	return false
 }
 
+// EnsureModelExists checks if a model exists and creates it with fallback defaults if not
+func (ns *NetService) EnsureModelExists(modelName, brandName, defaultBrand string) error {
+	// Check if model already exists
+	models, err := ns.GetModels()
+	if err != nil {
+		return fmt.Errorf("failed to get models: %w", err)
+	}
+
+	// Look for existing model
+	for _, model := range models {
+		if model.Model == modelName {
+			return nil // Model already exists
+		}
+	}
+
+	// Model doesn't exist, create it with fallback defaults
+
+	// Determine brand to use - prioritize detected brand, then default, then "Generic"
+	finalBrand := brandName
+	if finalBrand == "" || finalBrand == "Unknown" {
+		if defaultBrand != "" {
+			finalBrand = defaultBrand
+		} else {
+			finalBrand = "Generic"
+		}
+	}
+
+	// Ensure brand exists
+	err = ns.AddBrand(finalBrand)
+	if err != nil {
+		// Brand might already exist, that's ok
+		// Continue with device class creation
+	}
+
+	// Ensure "Router" device class exists (fallback device class)
+	err = ns.AddDeviceClass("Router")
+	if err != nil {
+		// Device class might already exist, that's ok
+		// Continue with model creation
+	}
+
+	// Create the model with fallback defaults
+	err = ns.AddModel(modelName, finalBrand, "Router")
+	if err != nil {
+		return fmt.Errorf("failed to create model %s: %w", modelName, err)
+	}
+
+	return nil
+}
+
 // generateVLANPlans creates VLAN creation/update plans based on IP mappings
 func (ns *NetService) generateVLANPlans(plan *s.InterfaceImportPlan, existingVLANMap map[string]e.Vlan) {
 	vlanUpdates := make(map[string][]string) // VLAN ID -> new IP segments
@@ -1270,9 +1327,13 @@ func (ns *NetService) importSingleDeviceWithPlan(discovered s.DiscoveredDevice, 
 		zoneName = options.DefaultZone
 	}
 
-	_ = discovered.Brand // Brand is used for model classification during discovery
+	// Ensure model exists before adding device
+	err := ns.EnsureModelExists(discovered.Model, discovered.Brand, options.DefaultBrand)
+	if err != nil {
+		return fmt.Errorf("failed to ensure model exists: %w", err)
+	}
 
-	err := ns.AddDevice(
+	err = ns.AddDevice(
 		discovered.SuggestedName,
 		discovered.Model,
 		"",
