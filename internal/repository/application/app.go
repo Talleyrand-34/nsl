@@ -622,17 +622,11 @@ func (ns *NetService) ensureRequiredEntities(options s.ImportOptions) error {
 		return false
 	}
 
-	if !brandExists("Generic") {
-		ns.AddBrand("Generic")
-	}
-	if !brandExists("Discovered") {
-		ns.AddBrand("Discovered")
-	}
-	if !brandExists("Linux") {
-		ns.AddBrand("Linux")
-	}
-	if !brandExists("Cisco") {
-		ns.AddBrand("Cisco")
+	requiredBrands := []string{"Generic", "Discovered", "Linux", "Cisco", "Juniper", "Aruba", "Ubiquiti", "Fortinet", "Palo Alto", "MikroTik", "HP", "Microsoft", "BSD"}
+	for _, brandName := range requiredBrands {
+		if !brandExists(brandName) {
+			ns.AddBrand(brandName)
+		}
 	}
 
 	classes, _ := ns.GetDeviceClasses()
@@ -649,6 +643,67 @@ func (ns *NetService) ensureRequiredEntities(options s.ImportOptions) error {
 	for _, className := range requiredClasses {
 		if !classExists(className) {
 			ns.AddDeviceClass(className)
+		}
+	}
+
+	// Create all possible models from device discovery
+	models, _ := ns.GetModels()
+	modelExists := func(name string) bool {
+		for _, m := range models {
+			if m.Model == name {
+				return true
+			}
+		}
+		return false
+	}
+
+	requiredModels := []string{
+		"IOS XE Device", "IOS XR Device", "NX-OS Device", "IOS Device", "Cisco Device",
+		"Juniper Device", "Aruba Device", "UniFi Device", "FortiGate", "PAN Device",
+		"RouterOS Device", "ProCurve Switch", "Linux Server", "Windows Server",
+		"BSD Server", "Network Printer", "Network Device",
+	}
+	for _, modelName := range requiredModels {
+		if !modelExists(modelName) {
+			// Determine brand and device class for each model
+			var brandName, deviceClassName string
+			switch modelName {
+			case "IOS XE Device", "IOS XR Device", "NX-OS Device", "IOS Device", "Cisco Device":
+				brandName = "Cisco"
+				if modelName == "NX-OS Device" || modelName == "Cisco Device" {
+					deviceClassName = "Switch"
+				} else {
+					deviceClassName = "Router"
+				}
+			case "Juniper Device":
+				brandName, deviceClassName = "Juniper", "Router"
+			case "Aruba Device":
+				brandName, deviceClassName = "Aruba", "Access Point"
+			case "UniFi Device":
+				brandName, deviceClassName = "Ubiquiti", "Access Point"
+			case "FortiGate":
+				brandName, deviceClassName = "Fortinet", "Firewall"
+			case "PAN Device":
+				brandName, deviceClassName = "Palo Alto", "Firewall"
+			case "RouterOS Device":
+				brandName, deviceClassName = "MikroTik", "Router"
+			case "ProCurve Switch":
+				brandName, deviceClassName = "HP", "Switch"
+			case "Linux Server":
+				brandName, deviceClassName = "Linux", "Server"
+			case "Windows Server":
+				brandName, deviceClassName = "Microsoft", "Server"
+			case "BSD Server":
+				brandName, deviceClassName = "BSD", "Server"
+			case "Network Printer":
+				brandName, deviceClassName = "Generic", "Printer"
+			case "Network Device":
+				brandName, deviceClassName = "Generic", "Generic"
+			}
+
+			if err := ns.AddModel(modelName, brandName, deviceClassName); err != nil {
+				log.Printf("Warning: failed to create model %s: %v", modelName, err)
+			}
 		}
 	}
 
