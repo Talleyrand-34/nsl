@@ -17,6 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 package connections
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -41,48 +42,332 @@ func RegisterRoutes(r *mux.Router, service q.NetServiceInt) {
 // Placeholder handlers - these will be moved from the original files
 func AddConnectionHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotImplemented)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		if r.Method != "POST" {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			json.NewEncoder(w).Encode(map[string]string{"error": "method_not_allowed", "message": "Only POST method is allowed"})
+			return
+		}
+
+		var req struct {
+			FromDeviceID    string `json:"from_device_id"`
+			FromModelPortID string `json:"from_model_port_id"`
+			ToDeviceID      string `json:"to_device_id"`
+			ToModelPortID   string `json:"to_model_port_id"`
+			AllowVLANUnion  bool   `json:"allow_vlan_union"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid_json", "message": err.Error()})
+			return
+		}
+
+		if req.FromDeviceID == "" || req.FromModelPortID == "" || req.ToDeviceID == "" || req.ToModelPortID == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "missing_fields", "message": "All device and port fields are required"})
+			return
+		}
+
+		err := service.AddConnection(req.FromDeviceID, req.FromModelPortID, req.ToDeviceID, req.ToModelPortID, req.AllowVLANUnion)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"error": "creation_failed", "message": err.Error()})
+			return
+		}
+
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Connection created successfully"})
 	}
 }
 
 func GetConnectionsHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotImplemented)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		connections, err := service.GetConnections()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(connections)
 	}
 }
 
 func UpdateConnectionHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotImplemented)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "PUT, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		if r.Method != "PUT" {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			json.NewEncoder(w).Encode(map[string]string{"error": "method_not_allowed", "message": "Only PUT method is allowed"})
+			return
+		}
+
+		var req struct {
+			ConnectionID      string `json:"connection_id"`
+			NewFromDeviceID   string `json:"new_from_device_id"`
+			NewFromModelPortID string `json:"new_from_model_port_id"`
+			NewToDeviceID     string `json:"new_to_device_id"`
+			NewToModelPortID  string `json:"new_to_model_port_id"`
+			AllowVLANUnion    bool   `json:"allow_vlan_union"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid_json", "message": err.Error()})
+			return
+		}
+
+		if req.ConnectionID == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "missing_connection_id", "message": "connection_id is required"})
+			return
+		}
+
+		err := service.UpdateConnection(req.ConnectionID, req.NewFromDeviceID, req.NewFromModelPortID, req.NewToDeviceID, req.NewToModelPortID, req.AllowVLANUnion)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"error": "update_failed", "message": err.Error()})
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Connection updated successfully", "connection_id": req.ConnectionID})
 	}
 }
 
 func DeleteConnectionHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotImplemented)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		if r.Method != "DELETE" {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			json.NewEncoder(w).Encode(map[string]string{"error": "method_not_allowed", "message": "Only DELETE method is allowed"})
+			return
+		}
+
+		var req struct {
+			ConnectionID string `json:"connection_id"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid_json", "message": err.Error()})
+			return
+		}
+
+		if req.ConnectionID == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "missing_connection_id", "message": "connection_id is required"})
+			return
+		}
+
+		err := service.DeleteConnection(req.ConnectionID)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"error": "delete_failed", "message": err.Error()})
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Connection deleted successfully", "connection_id": req.ConnectionID})
 	}
 }
 
 func AddConnectionTypeHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotImplemented)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		if r.Method != "POST" {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			json.NewEncoder(w).Encode(map[string]string{"error": "method_not_allowed", "message": "Only POST method is allowed"})
+			return
+		}
+
+		var req struct {
+			Name string `json:"name"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid_json", "message": err.Error()})
+			return
+		}
+
+		if req.Name == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "missing_name", "message": "name is required"})
+			return
+		}
+
+		err := service.AddConnectionType(req.Name)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"error": "creation_failed", "message": err.Error()})
+			return
+		}
+
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Connection type created successfully", "name": req.Name})
 	}
 }
 
 func GetConnectionTypesHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotImplemented)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		connectionTypes, err := service.GetConnectionTypes()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(connectionTypes)
 	}
 }
 
 func UpdateConnectionTypeHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotImplemented)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "PUT, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		if r.Method != "PUT" {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			json.NewEncoder(w).Encode(map[string]string{"error": "method_not_allowed", "message": "Only PUT method is allowed"})
+			return
+		}
+
+		var req struct {
+			ConnectionTypeID string `json:"connection_type_id"`
+			NewName          string `json:"new_name"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid_json", "message": err.Error()})
+			return
+		}
+
+		if req.ConnectionTypeID == "" || req.NewName == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "missing_fields", "message": "connection_type_id and new_name are required"})
+			return
+		}
+
+		err := service.UpdateConnectionType(req.ConnectionTypeID, req.NewName)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"error": "update_failed", "message": err.Error()})
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Connection type updated successfully", "connection_type_id": req.ConnectionTypeID})
 	}
 }
 
 func DeleteConnectionTypeHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotImplemented)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		if r.Method != "DELETE" {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			json.NewEncoder(w).Encode(map[string]string{"error": "method_not_allowed", "message": "Only DELETE method is allowed"})
+			return
+		}
+
+		var req struct {
+			ConnectionTypeName string `json:"connection_type_name"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid_json", "message": err.Error()})
+			return
+		}
+
+		if req.ConnectionTypeName == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "missing_connection_type_name", "message": "connection_type_name is required"})
+			return
+		}
+
+		err := service.DeleteConnectionType(req.ConnectionTypeName)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"error": "delete_failed", "message": err.Error()})
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Connection type deleted successfully", "connection_type_name": req.ConnectionTypeName})
 	}
 }

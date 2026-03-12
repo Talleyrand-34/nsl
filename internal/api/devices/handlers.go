@@ -18,10 +18,12 @@ package devices
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/gorilla/mux"
 	q "nsl-graph/internal/repository/application"
+	e "nsl-graph/internal/repository/entities"
 )
 
 // RegisterRoutes registers all device-related routes
@@ -1024,66 +1026,473 @@ func DeleteDeviceHandler(service q.NetServiceInt) http.HandlerFunc {
 
 func AddModelPortHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotImplemented)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		if r.Method != "POST" {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			json.NewEncoder(w).Encode(map[string]string{"error": "method_not_allowed", "message": "Only POST method is allowed"})
+			return
+		}
+
+		var req struct {
+			PortName                 string `json:"port_name"`
+			PositionX                string `json:"position_x"`
+			PositionY                string `json:"position_y"`
+			ModelName                string `json:"model_name"`
+			AllowMultipleConnections bool   `json:"allow_multiple_connections"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid_json", "message": err.Error()})
+			return
+		}
+
+		if req.PortName == "" || req.ModelName == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "missing_fields", "message": "port_name and model_name are required"})
+			return
+		}
+
+		err := service.AddModelPort(req.PortName, req.PositionX, req.PositionY, req.ModelName, req.AllowMultipleConnections)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"error": "creation_failed", "message": err.Error()})
+			return
+		}
+
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Model port created successfully", "port_name": req.PortName, "model_name": req.ModelName})
 	}
 }
 
 func AddBulkModelPortHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotImplemented)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		if r.Method != "POST" {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			json.NewEncoder(w).Encode(map[string]string{"error": "method_not_allowed", "message": "Only POST method is allowed"})
+			return
+		}
+
+		var req struct {
+			Ports []struct {
+				Name                     string `json:"name"`
+				PosX                     string `json:"posx"`
+				PosY                     string `json:"posy"`
+				ModelName                string `json:"modelName"`
+				AllowMultipleConnections bool   `json:"allow_multiple_connections"`
+			} `json:"ports"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid_json", "message": err.Error()})
+			return
+		}
+
+		if len(req.Ports) == 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "empty_ports", "message": "No ports provided"})
+			return
+		}
+
+		var errors []string
+		successCount := 0
+		failureCount := 0
+
+		for i, port := range req.Ports {
+			if port.Name == "" || port.ModelName == "" {
+				errors = append(errors, fmt.Sprintf("Port %d: name and modelName are required", i+1))
+				failureCount++
+				continue
+			}
+
+			err := service.AddModelPort(port.Name, port.PosX, port.PosY, port.ModelName, port.AllowMultipleConnections)
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("Port %d (%s): %s", i+1, port.Name, err.Error()))
+				failureCount++
+			} else {
+				successCount++
+			}
+		}
+
+		response := map[string]interface{}{
+			"successCount": successCount,
+			"failureCount": failureCount,
+		}
+
+		if len(errors) > 0 {
+			response["errors"] = errors
+		}
+
+		if failureCount > 0 && successCount == 0 {
+			w.WriteHeader(http.StatusBadRequest)
+		} else if failureCount > 0 {
+			w.WriteHeader(207) // 207 Multi-Status for partial success
+		} else {
+			w.WriteHeader(http.StatusCreated)
+		}
+
+		response["message"] = fmt.Sprintf("Bulk operation completed: %d succeeded, %d failed", successCount, failureCount)
+		json.NewEncoder(w).Encode(response)
 	}
 }
 
 func GetModelPortsHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotImplemented)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		modelPorts, err := service.GetModelPorts()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(modelPorts)
 	}
 }
 
 func UpdateModelPortHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotImplemented)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "PUT, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		if r.Method != "PUT" {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			json.NewEncoder(w).Encode(map[string]string{"error": "method_not_allowed", "message": "Only PUT method is allowed"})
+			return
+		}
+
+		var req struct {
+			ModelPortID              string `json:"model_port_id"`
+			NewPortName              string `json:"new_port_name"`
+			NewPositionX             string `json:"new_position_x"`
+			NewPositionY             string `json:"new_position_y"`
+			NewModelID               string `json:"new_model_id"`
+			NewAllowMultipleConnections bool `json:"new_allow_multiple_connections"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid_json", "message": err.Error()})
+			return
+		}
+
+		if req.ModelPortID == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "missing_model_port_id", "message": "model_port_id is required"})
+			return
+		}
+
+		err := service.UpdateModelPort(req.ModelPortID, req.NewPortName, req.NewPositionX, req.NewPositionY, req.NewModelID, req.NewAllowMultipleConnections)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"error": "update_failed", "message": err.Error()})
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Model port updated successfully", "model_port_id": req.ModelPortID})
 	}
 }
 
 func DeleteModelPortHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotImplemented)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		if r.Method != "DELETE" {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			json.NewEncoder(w).Encode(map[string]string{"error": "method_not_allowed", "message": "Only DELETE method is allowed"})
+			return
+		}
+
+		var req struct {
+			ModelPortID string `json:"model_port_id"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid_json", "message": err.Error()})
+			return
+		}
+
+		if req.ModelPortID == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "missing_model_port_id", "message": "model_port_id is required"})
+			return
+		}
+
+		err := service.DeleteModelPort(req.ModelPortID)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"error": "delete_failed", "message": err.Error()})
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Model port deleted successfully", "model_port_id": req.ModelPortID})
 	}
 }
 
 func AddDevicePortHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotImplemented)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		if r.Method != "POST" {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			json.NewEncoder(w).Encode(map[string]string{"error": "method_not_allowed", "message": "Only POST method is allowed"})
+			return
+		}
+
+		var req struct {
+			DeviceID    string                     `json:"device_id"`
+			ModelPortID string                     `json:"model_port_id"`
+			MacAddress  string                     `json:"mac_address"`
+			VlanConfigs []e.PortVlanConfig `json:"vlan_configs"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid_json", "message": err.Error()})
+			return
+		}
+
+		if req.DeviceID == "" || req.ModelPortID == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "missing_fields", "message": "device_id and model_port_id are required"})
+			return
+		}
+
+		err := service.AddDevicePort(req.DeviceID, req.ModelPortID, req.MacAddress, req.VlanConfigs)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"error": "creation_failed", "message": err.Error()})
+			return
+		}
+
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Device port created successfully", "device_id": req.DeviceID, "model_port_id": req.ModelPortID})
 	}
 }
 
 func GetDevicePortsHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotImplemented)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		devicePorts, err := service.GetDevicePorts()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(devicePorts)
 	}
 }
 
 func UpdateDevicePortHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotImplemented)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "PUT, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		if r.Method != "PUT" {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			json.NewEncoder(w).Encode(map[string]string{"error": "method_not_allowed", "message": "Only PUT method is allowed"})
+			return
+		}
+
+		var req struct {
+			DeviceID    string                     `json:"device_id"`
+			ModelPortID string                     `json:"model_port_id"`
+			MacAddress  string                     `json:"mac_address"`
+			VlanConfigs []e.PortVlanConfig `json:"vlan_configs"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid_json", "message": err.Error()})
+			return
+		}
+
+		if req.DeviceID == "" || req.ModelPortID == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "missing_fields", "message": "device_id and model_port_id are required"})
+			return
+		}
+
+		err := service.UpdateDevicePort(req.DeviceID, req.ModelPortID, req.MacAddress, req.VlanConfigs)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"error": "update_failed", "message": err.Error()})
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Device port updated successfully", "device_id": req.DeviceID, "model_port_id": req.ModelPortID})
 	}
 }
 
 func DeleteDevicePortHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotImplemented)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		if r.Method != "DELETE" {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			json.NewEncoder(w).Encode(map[string]string{"error": "method_not_allowed", "message": "Only DELETE method is allowed"})
+			return
+		}
+
+		var req struct {
+			DeviceID    string `json:"device_id"`
+			ModelPortID string `json:"model_port_id"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid_json", "message": err.Error()})
+			return
+		}
+
+		if req.DeviceID == "" || req.ModelPortID == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "missing_fields", "message": "device_id and model_port_id are required"})
+			return
+		}
+
+		err := service.DeleteDevicePort(req.DeviceID, req.ModelPortID)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"error": "delete_failed", "message": err.Error()})
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Device port deleted successfully", "device_id": req.DeviceID, "model_port_id": req.ModelPortID})
 	}
 }
 
 func GetAllPortsDeviceHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotImplemented)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		deviceID := r.URL.Query().Get("deviceid")
+		if deviceID == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "missing_deviceid", "message": "deviceid query parameter is required"})
+			return
+		}
+
+		devicePorts, err := service.GetAllPortsDevice(deviceID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(devicePorts)
 	}
 }
 
 func GetAllPortsAllHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotImplemented)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		devicePorts, err := service.GetAllPortsAll()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(devicePorts)
 	}
 }
