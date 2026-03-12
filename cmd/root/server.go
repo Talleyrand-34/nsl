@@ -26,7 +26,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	srv "nsl-graph/internal/api/connections"
+	srv "nsl-graph/internal/api"
 
 	c "nsl-graph/cmd"
 )
