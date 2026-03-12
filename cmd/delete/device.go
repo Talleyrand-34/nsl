@@ -18,7 +18,6 @@ package cmd_delete
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 
@@ -31,27 +30,37 @@ import (
 var deviceDelCmd = &cobra.Command{
 	Use:   "device [device_id]",
 	Short: "Delete a device",
-	Long:  `Delete a device from the database by ID.`,
+	Long:  `Delete a device from the database by ID. Use --cascade to also delete all dependent device ports and connections.`,
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		deviceId := args[0]
-		
+		cascade, _ := cmd.Flags().GetBool("cascade")
+
 		service, err := util.GetServiceConnection(cmd_pkg.Srcdbpath)
 		if err != nil {
-			fmt.Printf("Error connecting to database: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error connecting to database: %w", err)
 		}
 
-		err = service.DeleteDevice(deviceId)
+		if cascade {
+			err = service.DeleteDeviceCascade(deviceId)
+			if err == nil {
+				fmt.Printf("Device with ID '%s' and all dependencies deleted successfully\n", deviceId)
+			}
+		} else {
+			err = service.DeleteDevice(deviceId)
+			if err == nil {
+				fmt.Printf("Device with ID '%s' deleted successfully\n", deviceId)
+			}
+		}
+
 		if err != nil {
-			fmt.Printf("Error deleting device: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error deleting device: %w", err)
 		}
-
-		fmt.Printf("Device with ID '%s' deleted successfully\n", deviceId)
+		return nil
 	},
 }
 
 func init() {
 	cmd_root.DeleteCmd.AddCommand(deviceDelCmd)
+	deviceDelCmd.Flags().Bool("cascade", false, "Delete device and all dependent objects (device ports, connections)")
 }

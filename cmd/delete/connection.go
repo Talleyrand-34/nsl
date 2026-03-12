@@ -26,14 +26,14 @@ import (
 	util "nsl-graph/cmd/utils"
 )
 
-// brandDelCmd represents the brand delete command
-var brandDelCmd = &cobra.Command{
-	Use:   "brand [brand_name]",
-	Short: "Delete a brand",
-	Long:  `Delete a brand from the database by name. Use --cascade to also delete all dependent models and devices.`,
+// connectionDelCmd represents the connection delete command
+var connectionDelCmd = &cobra.Command{
+	Use:   "connection [connection_id]",
+	Short: "Delete a connection",
+	Long:  `Delete a connection from the database by ID. Connections have no dependencies, so --cascade has no effect.`,
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		brandName := args[0]
+		connectionId := args[0]
 		cascade, _ := cmd.Flags().GetBool("cascade")
 
 		service, err := util.GetServiceConnection(cmd_pkg.Srcdbpath)
@@ -42,26 +42,21 @@ var brandDelCmd = &cobra.Command{
 		}
 
 		if cascade {
-			err = service.DeleteBrandCascade(brandName)
-			if err == nil {
-				fmt.Printf("Brand '%s' and all dependencies deleted successfully\n", brandName)
-			}
+			err = service.DeleteConnectionCascade(connectionId)
 		} else {
-			err = service.DeleteBrand(brandName)
-			if err == nil {
-				fmt.Printf("Brand '%s' deleted successfully\n", brandName)
-			}
+			err = service.DeleteConnection(connectionId)
 		}
 
 		if err != nil {
-			return fmt.Errorf("error deleting brand: %w", err)
+			return fmt.Errorf("error deleting connection: %w", err)
 		}
+
+		fmt.Printf("Connection with ID '%s' deleted successfully\n", connectionId)
 		return nil
 	},
 }
 
 func init() {
-	cmd_root.DeleteCmd.AddCommand(brandDelCmd)
-	brandDelCmd.Flags().
-		Bool("cascade", false, "Delete brand and all dependent objects (models, devices)")
+	cmd_root.DeleteCmd.AddCommand(connectionDelCmd)
+	connectionDelCmd.Flags().Bool("cascade", false, "No effect for connections (they have no dependencies)")
 }

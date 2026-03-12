@@ -18,7 +18,6 @@ package cmd_delete
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 
@@ -30,42 +29,52 @@ import (
 var vlanDeleteCmd = &cobra.Command{
 	Use:   "vlan",
 	Short: "Delete a VLAN",
-	Long: `Delete a VLAN by its database ID.
+	Long: `Delete a VLAN by its database ID. Use --cascade to also remove VLAN configurations from all device ports.
 
 Example:
-  nsl-graph delete vlan --id 1`,
-	Run: func(cmd *cobra.Command, args []string) {
+  nsl-graph delete vlan --id 1
+  nsl-graph delete vlan --id 1 --cascade`,
+	RunE: func(cmd *cobra.Command, args []string) error {
 		// Get the required VLAN database ID
 		vlanDbId, err := cmd.Flags().GetString("id")
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error reading flag 'id': %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error reading flag 'id': %w", err)
 		}
 		if vlanDbId == "" {
-			fmt.Fprintf(os.Stderr, "VLAN database ID is required. Use --id flag.\n")
-			os.Exit(1)
+			return fmt.Errorf("VLAN database ID is required. Use --id flag")
 		}
+
+		cascade, _ := cmd.Flags().GetBool("cascade")
 
 		// Get service connection
 		service, err := util.ServiceConnection()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error connecting to service: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error connecting to service: %w", err)
 		}
 
 		// Delete the VLAN
-		err = service.DeleteVlan(vlanDbId)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error deleting VLAN: %v\n", err)
-			os.Exit(1)
+		if cascade {
+			err = service.DeleteVlanCascade(vlanDbId)
+			if err == nil {
+				fmt.Printf("Successfully deleted VLAN with database ID %s and all port configurations\n", vlanDbId)
+			}
+		} else {
+			err = service.DeleteVlan(vlanDbId)
+			if err == nil {
+				fmt.Printf("Successfully deleted VLAN with database ID %s\n", vlanDbId)
+			}
 		}
 
-		fmt.Printf("Successfully deleted VLAN with database ID %s\n", vlanDbId)
+		if err != nil {
+			return fmt.Errorf("error deleting VLAN: %w", err)
+		}
+		return nil
 	},
 }
 
 func init() {
 	cmd.DeleteCmd.AddCommand(vlanDeleteCmd)
+	vlanDeleteCmd.Flags().Bool("cascade", false, "Remove VLAN configurations from all device ports")
 
 	vlanDeleteCmd.Flags().String("id", "", "Database ID of the VLAN to delete (required)")
 	vlanDeleteCmd.MarkFlagRequired("id")

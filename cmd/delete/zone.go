@@ -26,14 +26,14 @@ import (
 	util "nsl-graph/cmd/utils"
 )
 
-// brandDelCmd represents the brand delete command
-var brandDelCmd = &cobra.Command{
-	Use:   "brand [brand_name]",
-	Short: "Delete a brand",
-	Long:  `Delete a brand from the database by name. Use --cascade to also delete all dependent models and devices.`,
+// zoneDelCmd represents the zone delete command
+var zoneDelCmd = &cobra.Command{
+	Use:   "zone [zone_id]",
+	Short: "Delete a zone",
+	Long:  `Delete a zone from the database by ID. Use --cascade to also delete all dependent devices and connections.`,
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		brandName := args[0]
+		zoneId := args[0]
 		cascade, _ := cmd.Flags().GetBool("cascade")
 
 		service, err := util.GetServiceConnection(cmd_pkg.Srcdbpath)
@@ -42,26 +42,25 @@ var brandDelCmd = &cobra.Command{
 		}
 
 		if cascade {
-			err = service.DeleteBrandCascade(brandName)
+			err = service.DeleteZoneCascade(zoneId)
 			if err == nil {
-				fmt.Printf("Brand '%s' and all dependencies deleted successfully\n", brandName)
+				fmt.Printf("Zone with ID '%s' and all dependencies deleted successfully\n", zoneId)
 			}
 		} else {
-			err = service.DeleteBrand(brandName)
+			err = service.DeleteZone(zoneId)
 			if err == nil {
-				fmt.Printf("Brand '%s' deleted successfully\n", brandName)
+				fmt.Printf("Zone with ID '%s' deleted successfully\n", zoneId)
 			}
 		}
 
 		if err != nil {
-			return fmt.Errorf("error deleting brand: %w", err)
+			return fmt.Errorf("error deleting zone: %w", err)
 		}
 		return nil
 	},
 }
 
 func init() {
-	cmd_root.DeleteCmd.AddCommand(brandDelCmd)
-	brandDelCmd.Flags().
-		Bool("cascade", false, "Delete brand and all dependent objects (models, devices)")
+	cmd_root.DeleteCmd.AddCommand(zoneDelCmd)
+	zoneDelCmd.Flags().Bool("cascade", false, "Delete zone and all dependent objects (devices, connections)")
 }

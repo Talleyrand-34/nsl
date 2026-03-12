@@ -167,6 +167,19 @@ type NetServiceInt interface {
 	UpdateVlanIPSegments(vlanId string, ipSegmentIDs []string) error
 	DeleteVlan(vlanId string) error
 
+	// Cascade deletion operations
+	DeleteBrandCascade(brandName string) error
+	DeleteDeviceClassCascade(deviceClassName string) error
+	DeleteZoneTypeCascade(zoneTypeName string) error
+	DeleteProprietaryCascade(proprietaryName string) error
+	DeleteZoneCascade(zoneId string) error
+	DeleteModelCascade(modelId string) error
+	DeleteDeviceCascade(deviceId string) error
+	DeleteModelPortCascade(modelPortId string) error
+	DeleteDevicePortCascade(deviceId string, modelPortId string) error
+	DeleteConnectionCascade(connectionId string) error
+	DeleteVlanCascade(vlanId string) error
+
 	// Special operations
 	GetAllPortsDevice(deviceId string) ([]e.DevicePort, error)
 	GetAllPortsAll() ([]e.DevicePort, error)
@@ -522,6 +535,51 @@ func (ns *NetService) UpdateVlan(vlanId string, newVlanID string, newVlanName st
 
 func (ns *NetService) DeleteVlan(vlanId string) error {
 	return ns.netRepo.DeleteVlan(vlanId)
+}
+
+// Cascade deletion method implementations
+func (ns *NetService) DeleteBrandCascade(brandName string) error {
+	return ns.netRepo.DeleteBrandCascade(brandName)
+}
+
+func (ns *NetService) DeleteDeviceClassCascade(deviceClassName string) error {
+	return ns.netRepo.DeleteDeviceClassCascade(deviceClassName)
+}
+
+func (ns *NetService) DeleteZoneTypeCascade(zoneTypeName string) error {
+	return ns.netRepo.DeleteZoneTypeCascade(zoneTypeName)
+}
+
+func (ns *NetService) DeleteProprietaryCascade(proprietaryName string) error {
+	return ns.netRepo.DeleteProprietaryCascade(proprietaryName)
+}
+
+func (ns *NetService) DeleteZoneCascade(zoneId string) error {
+	return ns.netRepo.DeleteZoneCascade(zoneId)
+}
+
+func (ns *NetService) DeleteModelCascade(modelId string) error {
+	return ns.netRepo.DeleteModelCascade(modelId)
+}
+
+func (ns *NetService) DeleteDeviceCascade(deviceId string) error {
+	return ns.netRepo.DeleteDeviceCascade(deviceId)
+}
+
+func (ns *NetService) DeleteModelPortCascade(modelPortId string) error {
+	return ns.netRepo.DeleteModelPortCascade(modelPortId)
+}
+
+func (ns *NetService) DeleteDevicePortCascade(deviceId string, modelPortId string) error {
+	return ns.netRepo.DeleteDevicePortCascade(deviceId, modelPortId)
+}
+
+func (ns *NetService) DeleteConnectionCascade(connectionId string) error {
+	return ns.netRepo.DeleteConnectionCascade(connectionId)
+}
+
+func (ns *NetService) DeleteVlanCascade(vlanId string) error {
+	return ns.netRepo.DeleteVlanCascade(vlanId)
 }
 
 // Network scanning method implementations

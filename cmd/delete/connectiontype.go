@@ -18,7 +18,6 @@ package cmd_delete
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 
@@ -31,27 +30,27 @@ import (
 var connectionTypeDelCmd = &cobra.Command{
 	Use:   "connectiontype [connection_type_name]",
 	Short: "Delete a connection type",
-	Long:  `Delete a connection type from the database by name.`,
+	Long:  `Delete a connection type from the database by name. Connection types have no dependencies, so --cascade has no effect.`,
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		connectionTypeName := args[0]
 		
 		service, err := util.GetServiceConnection(cmd_pkg.Srcdbpath)
 		if err != nil {
-			fmt.Printf("Error connecting to database: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error connecting to database: %w", err)
 		}
 
 		err = service.DeleteConnectionType(connectionTypeName)
 		if err != nil {
-			fmt.Printf("Error deleting connection type: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error deleting connection type: %w", err)
 		}
 
 		fmt.Printf("Connection type '%s' deleted successfully\n", connectionTypeName)
+		return nil
 	},
 }
 
 func init() {
 	cmd_root.DeleteCmd.AddCommand(connectionTypeDelCmd)
+	connectionTypeDelCmd.Flags().Bool("cascade", false, "No effect for connection types (they have no dependencies)")
 }

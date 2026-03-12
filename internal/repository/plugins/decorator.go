@@ -280,6 +280,51 @@ func (p *PluginAwareRepository) GetAllPortsDevice(deviceid string) ([]e.DevicePo
 	return p.baseRepo.GetAllPortsDevice(deviceid)
 }
 
+// Cascade deletion methods
+func (p *PluginAwareRepository) DeleteBrandCascade(brandName string) error {
+	return p.baseRepo.DeleteBrandCascade(brandName)
+}
+
+func (p *PluginAwareRepository) DeleteDeviceClassCascade(deviceClassName string) error {
+	return p.baseRepo.DeleteDeviceClassCascade(deviceClassName)
+}
+
+func (p *PluginAwareRepository) DeleteZoneTypeCascade(zoneTypeName string) error {
+	return p.baseRepo.DeleteZoneTypeCascade(zoneTypeName)
+}
+
+func (p *PluginAwareRepository) DeleteProprietaryCascade(proprietaryName string) error {
+	return p.baseRepo.DeleteProprietaryCascade(proprietaryName)
+}
+
+func (p *PluginAwareRepository) DeleteZoneCascade(zoneId string) error {
+	return p.baseRepo.DeleteZoneCascade(zoneId)
+}
+
+func (p *PluginAwareRepository) DeleteModelCascade(modelId string) error {
+	return p.baseRepo.DeleteModelCascade(modelId)
+}
+
+func (p *PluginAwareRepository) DeleteDeviceCascade(deviceId string) error {
+	return p.baseRepo.DeleteDeviceCascade(deviceId)
+}
+
+func (p *PluginAwareRepository) DeleteModelPortCascade(modelPortId string) error {
+	return p.baseRepo.DeleteModelPortCascade(modelPortId)
+}
+
+func (p *PluginAwareRepository) DeleteDevicePortCascade(deviceId string, modelPortId string) error {
+	return p.baseRepo.DeleteDevicePortCascade(deviceId, modelPortId)
+}
+
+func (p *PluginAwareRepository) DeleteConnectionCascade(connectionId string) error {
+	return p.baseRepo.DeleteConnectionCascade(connectionId)
+}
+
+func (p *PluginAwareRepository) DeleteVlanCascade(vlanId string) error {
+	return p.baseRepo.DeleteVlanCascade(vlanId)
+}
+
 // Export info
 func (p *PluginAwareRepository) ExportAllStructs() (e.All, error) {
 	return p.baseRepo.ExportAllStructs()

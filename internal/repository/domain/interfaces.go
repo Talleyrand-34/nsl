@@ -158,6 +158,19 @@ type repository interface {
 	UpdateVlanIPSegments(vlanId string, ipSegmentIDs []string) error
 	DeleteVlan(vlanId string) error
 
+	// Cascade deletion methods
+	DeleteBrandCascade(brandName string) error
+	DeleteDeviceClassCascade(deviceClassName string) error
+	DeleteZoneTypeCascade(zoneTypeName string) error
+	DeleteProprietaryCascade(proprietaryName string) error
+	DeleteZoneCascade(zoneId string) error
+	DeleteModelCascade(modelId string) error
+	DeleteDeviceCascade(deviceId string) error
+	DeleteModelPortCascade(modelPortId string) error
+	DeleteDevicePortCascade(deviceId string, modelPortId string) error
+	DeleteConnectionCascade(connectionId string) error
+	DeleteVlanCascade(vlanId string) error
+
 	// get all the ports mapped
 	GetAllPortsAll() ([]e.DevicePort, error)
 	// get all the ports mapped for a device
