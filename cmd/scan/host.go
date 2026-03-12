@@ -267,6 +267,6 @@ func init() {
 	hostScanCmd.Flags().StringVarP(&hostOutputFile, "output", "o", "", "Save scan results to JSON file")
 
 	hostScanCmd.Flags().BoolVar(&hostAutoImport, "auto-import", false, "Automatically import discovered device")
-	hostScanCmd.Flags().StringVar(&hostDefaultZone, "default-zone", "Discovered", "Default zone for the device")
+	hostScanCmd.Flags().StringVar(&hostDefaultZone, "default-zone", "", "Default zone for the device (defaults to Generic)")
 	hostScanCmd.Flags().StringVar(&hostDefaultBrand, "default-brand", "", "Default brand for unidentified device")
 }

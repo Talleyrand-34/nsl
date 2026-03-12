@@ -787,6 +787,24 @@ func (ns *NetService) ensureRequiredEntities(options s.ImportOptions) error {
 		ns.AddProprietary("Discovered")
 	}
 
+	// Ensure required zone types exist
+	zoneTypes, _ := ns.GetZonetypes()
+	zoneTypeExists := func(name string) bool {
+		for _, zt := range zoneTypes {
+			if zt.Name == name {
+				return true
+			}
+		}
+		return false
+	}
+
+	requiredZoneTypes := []string{"Unknown", "Office", "Data Center", "Remote", "Cloud"}
+	for _, zoneTypeName := range requiredZoneTypes {
+		if !zoneTypeExists(zoneTypeName) {
+			ns.AddZoneType(zoneTypeName)
+		}
+	}
+
 	if options.CreateZones {
 		zones, _ := ns.GetZones()
 		zoneExists := func(name string) bool {
@@ -798,10 +816,15 @@ func (ns *NetService) ensureRequiredEntities(options s.ImportOptions) error {
 			return false
 		}
 
-		requiredZones := []string{"Discovered", "LAN", "Internal", "External", "Private"}
+		requiredZones := []string{"Generic", "Discovered", "LAN", "Internal", "External", "Private"}
 		for _, zoneName := range requiredZones {
 			if !zoneExists(zoneName) {
-				ns.AddZone(zoneName, "", "", "Discovered", "Office")
+				// Use "Unknown" zone type for Generic zone, "Office" for others
+				zoneType := "Office"
+				if zoneName == "Generic" {
+					zoneType = "Unknown"
+				}
+				ns.AddZone(zoneName, "", "", "Discovered", zoneType)
 			}
 		}
 	}
@@ -830,6 +853,10 @@ func (ns *NetService) importSingleDevice(discovered s.DiscoveredDevice, options 
 	zoneName := discovered.SuggestedZone
 	if options.DefaultZone != "" {
 		zoneName = options.DefaultZone
+	}
+	// Default to "Generic" zone if no zone is specified
+	if zoneName == "" {
+		zoneName = "Generic"
 	}
 
 	// Ensure model exists before adding device
@@ -1284,7 +1311,12 @@ func (ns *NetService) generateImportSummary(plan s.DeviceImportPlan) string {
 
 // ExecuteApprovedImportPlan executes an approved import plan
 func (ns *NetService) ExecuteApprovedImportPlan(plan s.DeviceImportPlan, options s.ImportOptions) error {
-	// First create/update VLANs
+	// First ensure required entities exist (zone types, zones, brands, etc.)
+	if err := ns.ensureRequiredEntities(options); err != nil {
+		return fmt.Errorf("failed to ensure required entities: %w", err)
+	}
+
+	// Create/update VLANs
 	if err := ns.executeVLANPlans(plan); err != nil {
 		return fmt.Errorf("failed to execute VLAN plans: %w", err)
 	}
@@ -1325,6 +1357,10 @@ func (ns *NetService) importSingleDeviceWithPlan(discovered s.DiscoveredDevice, 
 	zoneName := discovered.SuggestedZone
 	if options.DefaultZone != "" {
 		zoneName = options.DefaultZone
+	}
+	// Default to "Generic" zone if no zone is specified
+	if zoneName == "" {
+		zoneName = "Generic"
 	}
 
 	// Ensure model exists before adding device
