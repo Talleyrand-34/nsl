@@ -73,15 +73,74 @@ type DiscoveredDevice struct {
 	SuggestedZone string     `json:"suggested_zone"`
 }
 
+// IPVLANMapping represents a proposed mapping between an IP address and a VLAN
+type IPVLANMapping struct {
+	IP           string `json:"ip"`
+	VLANNumber   string `json:"vlan_number"`   // VLAN ID (can be negative for special cases)
+	Confidence   string `json:"confidence"`    // "exact", "heuristic", "suggested", "unknown"
+	Reason       string `json:"reason"`        // Human-readable explanation for the mapping
+	IsNewVLAN    bool   `json:"is_new_vlan"`   // true if this mapping would create a new VLAN
+	OriginalVLAN string `json:"original_vlan"` // Original VLAN from interface if any
+}
+
+// InterfaceImportPlan represents the planned import actions for a single interface
+type InterfaceImportPlan struct {
+	Interface     DeviceInterface `json:"interface"`
+	IPMappings    []IPVLANMapping `json:"ip_mappings"`
+	VLANsToCreate []VLANPlan      `json:"vlans_to_create"`
+	VLANsToUpdate []VLANPlan      `json:"vlans_to_update"`
+}
+
+// VLANPlan represents a VLAN that will be created or updated
+type VLANPlan struct {
+	VLANNumber     string   `json:"vlan_number"`
+	VLANName       string   `json:"vlan_name"`
+	IPSegmentIDs   []string `json:"ip_segment_ids"`
+	Action         string   `json:"action"` // "create" or "update"
+	ExistingSegments []string `json:"existing_segments,omitempty"`
+}
+
+// DeviceImportPlan represents the complete import plan for a device
+type DeviceImportPlan struct {
+	Device         DiscoveredDevice      `json:"device"`
+	InterfacePlans []InterfaceImportPlan `json:"interface_plans"`
+	HasConflicts   bool                  `json:"has_conflicts"`
+	RequiresInput  bool                  `json:"requires_input"`
+	Summary        string                `json:"summary"`
+}
+
+// MappingAction represents user choices for import plans
+type MappingAction int
+
+const (
+	ActionApprove MappingAction = iota
+	ActionEdit
+	ActionSkip
+	ActionSkipDevice
+	ActionQuit
+)
+
 // ImportOptions controls device import behaviour.
 type ImportOptions struct {
-	AutoImport   bool   `json:"auto_import"`
-	MergeIPs     bool   `json:"merge_ips"`
-	CreateZones  bool   `json:"create_zones"`
-	DefaultZone  string `json:"default_zone"`
-	DefaultBrand string `json:"default_brand"`
-	SkipExisting bool   `json:"skip_existing"`
-	ReviewMode   bool   `json:"review_mode"`
+	AutoImport           bool   `json:"auto_import"`
+	MergeIPs             bool   `json:"merge_ips"`
+	CreateZones          bool   `json:"create_zones"`
+	DefaultZone          string `json:"default_zone"`
+	DefaultBrand         string `json:"default_brand"`
+	SkipExisting         bool   `json:"skip_existing"`
+	ReviewMode           bool   `json:"review_mode"`
+	InteractiveVLANs     bool   `json:"interactive_vlans"`     // New: Always confirm VLAN mappings
+	AutoApproveHeuristic bool   `json:"auto_approve_heuristic"` // New: Auto-approve high-confidence mappings
+}
+
+// RequiresUserInput checks if an interface plan needs user input
+func (plan *InterfaceImportPlan) RequiresUserInput() bool {
+	for _, mapping := range plan.IPMappings {
+		if mapping.Confidence == "unknown" || mapping.Confidence == "suggested" {
+			return true
+		}
+	}
+	return false
 }
 
 // NetworkScanner is the interface implemented by SNMPScanner.

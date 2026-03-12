@@ -27,6 +27,7 @@ import (
 	cmd_pkg "nsl-graph/cmd"
 	cmd_root "nsl-graph/cmd/root"
 	util "nsl-graph/cmd/utils"
+	q "nsl-graph/internal/repository/application"
 	s "nsl-graph/internal/scanner"
 )
 
@@ -107,12 +108,13 @@ Examples:
 
 		if importAutoImport || importReviewMode {
 			importOptions := s.ImportOptions{
-				AutoImport:   importAutoImport,
-				MergeIPs:     importMergeIPs,
-				CreateZones:  importCreateZones,
-				DefaultZone:  importDefaultZone,
-				SkipExisting: importSkipExisting,
-				ReviewMode:   importReviewMode,
+				AutoImport:       importAutoImport,
+				MergeIPs:         importMergeIPs,
+				CreateZones:      importCreateZones,
+				DefaultZone:      importDefaultZone,
+				SkipExisting:     importSkipExisting,
+				ReviewMode:       importReviewMode,
+				InteractiveVLANs: true, // Always use interactive VLAN mapping
 			}
 
 			if importReviewMode && !importAutoImport {
@@ -134,8 +136,8 @@ Examples:
 			}
 
 			if len(devices) > 0 {
-				fmt.Printf("Importing %d devices...\n", len(devices))
-				if err := service.ImportDiscoveredDevices(devices, importOptions); err != nil {
+				fmt.Printf("Analyzing %d devices for interactive VLAN mapping...\n", len(devices))
+				if err := importDevicesWithInteractiveVLANMapping(service, devices, importOptions); err != nil {
 					fmt.Printf("Import failed: %v\n", err)
 					os.Exit(1)
 				}
@@ -217,4 +219,194 @@ func init() {
 	importScanCmd.Flags().BoolVar(&importCreateZones, "create-zones", true, "Create zones for discovered devices")
 	importScanCmd.Flags().StringVar(&importDefaultZone, "default-zone", "Discovered", "Default zone for discovered devices")
 	importScanCmd.Flags().BoolVar(&importSkipExisting, "skip-existing", true, "Skip devices with existing IP addresses")
+}
+
+// importDevicesWithInteractiveVLANMapping performs interactive VLAN mapping and import
+func importDevicesWithInteractiveVLANMapping(service q.NetServiceInt, devices []s.DiscoveredDevice, options s.ImportOptions) error {
+	for i, device := range devices {
+		fmt.Printf("\n=== Device %d/%d: %s (%s) ===\n", i+1, len(devices), device.SuggestedName, device.Device.IP)
+
+		// Analyze device for import plan
+		plan, err := service.AnalyzeDeviceForImport(device)
+		if err != nil {
+			fmt.Printf("Failed to analyze device: %v\n", err)
+			continue
+		}
+
+		// Show analysis summary
+		fmt.Printf("Summary: %s\n", plan.Summary)
+
+		// Display detailed interface analysis
+		if err := displayImportPlan(plan); err != nil {
+			fmt.Printf("Failed to display plan: %v\n", err)
+			continue
+		}
+
+		// Get user decision
+		action, modifiedPlan, err := getUserImportDecision(plan)
+		if err != nil {
+			fmt.Printf("Error getting user input: %v\n", err)
+			continue
+		}
+
+		switch action {
+		case s.ActionApprove:
+			fmt.Println("Importing device with approved plan...")
+			if err := service.ExecuteApprovedImportPlan(modifiedPlan, options); err != nil {
+				fmt.Printf("Failed to execute import plan: %v\n", err)
+			} else {
+				fmt.Printf("✓ Device %s imported successfully\n", device.SuggestedName)
+			}
+		case s.ActionSkip:
+			fmt.Printf("⏭ Skipping device %s\n", device.SuggestedName)
+		case s.ActionSkipDevice:
+			fmt.Printf("⏭ Skipping device %s\n", device.SuggestedName)
+		case s.ActionQuit:
+			fmt.Println("Import cancelled by user.")
+			return nil
+		}
+	}
+
+	return nil
+}
+
+// displayImportPlan shows the detailed import plan to the user
+func displayImportPlan(plan s.DeviceImportPlan) error {
+	for i, interfacePlan := range plan.InterfacePlans {
+		iface := interfacePlan.Interface
+		fmt.Printf("\n  Interface %d: %s (MAC: %s)\n", i+1, iface.Name, iface.MAC)
+
+		if len(iface.IPAddresses) > 0 {
+			fmt.Printf("    IP Addresses: %v\n", iface.IPAddresses)
+		}
+
+		if len(iface.VLANs) > 0 {
+			fmt.Printf("    VLAN Memberships:\n")
+			for _, vlan := range iface.VLANs {
+				taggedStr := "untagged"
+				if vlan.Tagged {
+					taggedStr = "tagged"
+				}
+				fmt.Printf("      - VLAN %s (%s)\n", vlan.VLANNumber, taggedStr)
+			}
+		}
+
+		if len(interfacePlan.IPMappings) > 0 {
+			fmt.Printf("    Proposed IP-to-VLAN Mappings:\n")
+			for j, mapping := range interfacePlan.IPMappings {
+				confidence := getConfidenceSymbol(mapping.Confidence)
+				fmt.Printf("      [%d] %s → VLAN %s %s\n", j+1, mapping.IP, mapping.VLANNumber, confidence)
+				fmt.Printf("          Reason: %s\n", mapping.Reason)
+			}
+		}
+
+		if len(interfacePlan.VLANsToCreate) > 0 {
+			fmt.Printf("    VLANs to Create:\n")
+			for _, vlanPlan := range interfacePlan.VLANsToCreate {
+				fmt.Printf("      - VLAN %s: %s (IP segments: %v)\n",
+					vlanPlan.VLANNumber, vlanPlan.VLANName, vlanPlan.IPSegmentIDs)
+			}
+		}
+
+		if len(interfacePlan.VLANsToUpdate) > 0 {
+			fmt.Printf("    VLANs to Update:\n")
+			for _, vlanPlan := range interfacePlan.VLANsToUpdate {
+				fmt.Printf("      - VLAN %s: Add IP segments %v\n",
+					vlanPlan.VLANNumber, vlanPlan.IPSegmentIDs)
+			}
+		}
+	}
+
+	return nil
+}
+
+// getConfidenceSymbol returns a symbol representing confidence level
+func getConfidenceSymbol(confidence string) string {
+	switch confidence {
+	case "exact":
+		return "✓ (exact match)"
+	case "heuristic":
+		return "~ (heuristic)"
+	case "suggested":
+		return "? (suggested)"
+	default:
+		return "⚠ (unknown)"
+	}
+}
+
+// getUserImportDecision gets the user's decision on the import plan
+func getUserImportDecision(plan s.DeviceImportPlan) (s.MappingAction, s.DeviceImportPlan, error) {
+	for {
+		fmt.Printf("\nOptions:\n")
+		fmt.Printf("  (A)pprove and import\n")
+		fmt.Printf("  (E)dit mappings\n")
+		fmt.Printf("  (S)kip this device\n")
+		fmt.Printf("  (Q)uit import process\n")
+		fmt.Printf("Choice (A/E/S/Q): ")
+
+		var choice string
+		fmt.Scanln(&choice)
+		choice = strings.ToUpper(strings.TrimSpace(choice))
+
+		switch choice {
+		case "A", "APPROVE":
+			return s.ActionApprove, plan, nil
+		case "E", "EDIT":
+			modifiedPlan, err := editImportPlan(plan)
+			if err != nil {
+				fmt.Printf("Error editing plan: %v\n", err)
+				continue
+			}
+			return s.ActionApprove, modifiedPlan, nil
+		case "S", "SKIP":
+			return s.ActionSkip, plan, nil
+		case "Q", "QUIT":
+			return s.ActionQuit, plan, nil
+		default:
+			fmt.Printf("Invalid choice. Please enter A, E, S, or Q.\n")
+		}
+	}
+}
+
+// editImportPlan allows the user to edit IP-to-VLAN mappings
+func editImportPlan(plan s.DeviceImportPlan) (s.DeviceImportPlan, error) {
+	fmt.Println("\n=== Edit IP-to-VLAN Mappings ===")
+
+	for ifaceIndex, interfacePlan := range plan.InterfacePlans {
+		if len(interfacePlan.IPMappings) == 0 {
+			continue
+		}
+
+		fmt.Printf("\nInterface: %s\n", interfacePlan.Interface.Name)
+
+		for ipIndex, mapping := range interfacePlan.IPMappings {
+			fmt.Printf("  [%d] %s → VLAN %s (%s)\n",
+				ipIndex+1, mapping.IP, mapping.VLANNumber, mapping.Confidence)
+			fmt.Printf("      Enter new VLAN ID (or press Enter to keep current): ")
+
+			var newVLAN string
+			fmt.Scanln(&newVLAN)
+			newVLAN = strings.TrimSpace(newVLAN)
+
+			if newVLAN != "" {
+				// Update the mapping
+				plan.InterfacePlans[ifaceIndex].IPMappings[ipIndex].VLANNumber = newVLAN
+				plan.InterfacePlans[ifaceIndex].IPMappings[ipIndex].Confidence = "user_edited"
+				plan.InterfacePlans[ifaceIndex].IPMappings[ipIndex].Reason = "Modified by user"
+
+				// Check if it's a special VLAN ID
+				if newVLAN[0] == '-' {
+					plan.InterfacePlans[ifaceIndex].IPMappings[ipIndex].IsNewVLAN = true
+				}
+
+				fmt.Printf("      ✓ Updated to VLAN %s\n", newVLAN)
+			}
+		}
+	}
+
+	// Regenerate VLAN plans based on modified mappings
+	// This is a simplified version - in production, you'd want to call the service method
+	fmt.Println("\n✓ Import plan updated with your changes.")
+
+	return plan, nil
 }

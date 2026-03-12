@@ -17,8 +17,10 @@
 package cmd_scan
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -26,6 +28,7 @@ import (
 	cmd_pkg "nsl-graph/cmd"
 	cmd_root "nsl-graph/cmd/root"
 	util "nsl-graph/cmd/utils"
+	q "nsl-graph/internal/repository/application"
 	s "nsl-graph/internal/scanner"
 )
 
@@ -37,6 +40,7 @@ var (
 	hostAutoImport   bool
 	hostDefaultZone  string
 	hostDefaultBrand string
+	hostOutputFile   string
 )
 
 var hostScanCmd = &cobra.Command{
@@ -47,6 +51,7 @@ var hostScanCmd = &cobra.Command{
 Examples:
   nsl-graph scan host 192.168.1.1
   nsl-graph scan host 10.0.0.1 --community private
+  nsl-graph scan host 192.168.1.1 --output device_scan.json
   nsl-graph scan host 172.16.1.10 --auto-import
   nsl-graph scan host 192.168.1.254 --community public --snmp-version v2c`,
 	Args: cobra.ExactArgs(1),
@@ -135,6 +140,24 @@ Examples:
 			}
 		}
 
+		// Save to JSON file if requested
+		if hostOutputFile != "" {
+			scanResult := &s.ScanResult{
+				ID:        fmt.Sprintf("host_%s_%d", ip, time.Now().Unix()),
+				Subnet:    ip + "/32", // Single host as /32
+				StartTime: time.Now(),
+				EndTime:   time.Now(),
+				Devices:   []s.SNMPDevice{*device},
+			}
+
+			if err := saveHostScanResults(scanResult, hostOutputFile); err != nil {
+				fmt.Printf("Failed to save results: %v\n", err)
+				os.Exit(1)
+			}
+
+			fmt.Printf("Results saved to %s\n", hostOutputFile)
+		}
+
 		if hostAutoImport {
 			fmt.Println("\nImporting device...")
 
@@ -143,35 +166,94 @@ Examples:
 
 			fmt.Printf("Classification: %s %s [%s]\n", brand, model, class)
 
-			devices := []s.DiscoveredDevice{
-				{
-					Device:        *device,
-					Brand:         brand,
-					Model:         model,
-					DeviceClass:   class,
-					SuggestedName: discoverer.GenerateDeviceName(*device, class),
-					SuggestedZone: hostDefaultZone,
-				},
+			discoveredDevice := s.DiscoveredDevice{
+				Device:        *device,
+				Brand:         brand,
+				Model:         model,
+				DeviceClass:   class,
+				SuggestedName: discoverer.GenerateDeviceName(*device, class),
+				SuggestedZone: hostDefaultZone,
 			}
 
 			importOptions := s.ImportOptions{
-				AutoImport:   true,
-				CreateZones:  true,
-				DefaultZone:  hostDefaultZone,
-				DefaultBrand: hostDefaultBrand,
-				SkipExisting: true,
+				AutoImport:       true,
+				CreateZones:      true,
+				DefaultZone:      hostDefaultZone,
+				DefaultBrand:     hostDefaultBrand,
+				SkipExisting:     true,
+				InteractiveVLANs: true, // Enable interactive VLAN mapping
 			}
 
-			if err := service.ImportDiscoveredDevices(devices, importOptions); err != nil {
+			if err := importSingleDeviceWithVLANMapping(service, discoveredDevice, importOptions); err != nil {
 				fmt.Printf("Failed to import device: %v\n", err)
 				os.Exit(1)
 			}
 
-			fmt.Printf("Device '%s' imported successfully!\n", devices[0].SuggestedName)
+			fmt.Printf("Device '%s' imported successfully!\n", discoveredDevice.SuggestedName)
 		} else {
 			fmt.Println("\nUse --auto-import to add this device to the database")
 		}
 	},
+}
+
+func saveHostScanResults(result *s.ScanResult, filename string) error {
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal results: %w", err)
+	}
+
+	if err := os.WriteFile(filename, data, 0644); err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
+	return nil
+}
+
+// importSingleDeviceWithVLANMapping imports a device with interactive VLAN mapping
+func importSingleDeviceWithVLANMapping(service q.NetServiceInt, device s.DiscoveredDevice, options s.ImportOptions) error {
+	// Analyze device for import plan
+	plan, err := service.AnalyzeDeviceForImport(device)
+	if err != nil {
+		return fmt.Errorf("failed to analyze device: %w", err)
+	}
+
+	fmt.Printf("Analysis: %s\n", plan.Summary)
+
+	// Show interface details with IP-VLAN mappings if any
+	for i, interfacePlan := range plan.InterfacePlans {
+		iface := interfacePlan.Interface
+		fmt.Printf("  Interface %d: %s", i+1, iface.Name)
+
+		if len(iface.IPAddresses) > 0 {
+			fmt.Printf(" (IPs: %v)", iface.IPAddresses)
+		}
+
+		if len(interfacePlan.IPMappings) > 0 {
+			fmt.Printf("\n    Proposed VLAN mappings:")
+			for _, mapping := range interfacePlan.IPMappings {
+				fmt.Printf("\n      %s → VLAN %s (%s)", mapping.IP, mapping.VLANNumber, mapping.Confidence)
+			}
+		}
+		fmt.Println()
+	}
+
+	if plan.RequiresInput {
+		fmt.Printf("\nApprove this VLAN mapping? (y/n): ")
+		var response string
+		fmt.Scanln(&response)
+
+		if strings.ToLower(strings.TrimSpace(response)) != "y" && strings.ToLower(strings.TrimSpace(response)) != "yes" {
+			fmt.Println("Import cancelled by user.")
+			return nil
+		}
+	}
+
+	// Execute the approved plan
+	if err := service.ExecuteApprovedImportPlan(plan, options); err != nil {
+		return fmt.Errorf("failed to execute import plan: %w", err)
+	}
+
+	return nil
 }
 
 func init() {
@@ -181,6 +263,8 @@ func init() {
 	hostScanCmd.Flags().StringVar(&hostCommunity, "community", "public", "SNMP community string")
 	hostScanCmd.Flags().StringVar(&hostSNMPVersion, "snmp-version", "v2c", "SNMP version (v1, v2c)")
 	hostScanCmd.Flags().Uint16Var(&hostSNMPPort, "snmp-port", 161, "SNMP UDP port")
+
+	hostScanCmd.Flags().StringVarP(&hostOutputFile, "output", "o", "", "Save scan results to JSON file")
 
 	hostScanCmd.Flags().BoolVar(&hostAutoImport, "auto-import", false, "Automatically import discovered device")
 	hostScanCmd.Flags().StringVar(&hostDefaultZone, "default-zone", "Discovered", "Default zone for the device")

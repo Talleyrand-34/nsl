@@ -28,6 +28,7 @@ import (
 	cmd_pkg "nsl-graph/cmd"
 	cmd_root "nsl-graph/cmd/root"
 	util "nsl-graph/cmd/utils"
+	q "nsl-graph/internal/repository/application"
 	s "nsl-graph/internal/scanner"
 )
 
@@ -133,13 +134,14 @@ Examples:
 
 		if scanAutoImport || scanReviewMode {
 			importOptions := s.ImportOptions{
-				AutoImport:   scanAutoImport,
-				MergeIPs:     scanMergeIPs,
-				CreateZones:  scanCreateZones,
-				DefaultZone:  scanDefaultZone,
-				DefaultBrand: scanDefaultBrand,
-				SkipExisting: scanSkipExisting,
-				ReviewMode:   scanReviewMode,
+				AutoImport:       scanAutoImport,
+				MergeIPs:         scanMergeIPs,
+				CreateZones:      scanCreateZones,
+				DefaultZone:      scanDefaultZone,
+				DefaultBrand:     scanDefaultBrand,
+				SkipExisting:     scanSkipExisting,
+				ReviewMode:       scanReviewMode,
+				InteractiveVLANs: true, // Enable interactive VLAN mapping
 			}
 
 			if scanReviewMode && !scanAutoImport {
@@ -153,8 +155,8 @@ Examples:
 				importOptions.AutoImport = true
 			}
 
-			fmt.Printf("Importing %d discovered devices...\n", len(devices))
-			if err := service.ImportDiscoveredDevices(devices, importOptions); err != nil {
+			fmt.Printf("Importing %d discovered devices with interactive VLAN mapping...\n", len(devices))
+			if err := importDevicesWithVLANMapping(service, devices, importOptions); err != nil {
 				fmt.Printf("Import failed: %v\n", err)
 				os.Exit(1)
 			}
@@ -180,10 +182,29 @@ func saveScanResults(result *s.ScanResult, filename string) error {
 	return nil
 }
 
+// importDevicesWithVLANMapping imports devices using interactive VLAN mapping
+func importDevicesWithVLANMapping(service q.NetServiceInt, devices []s.DiscoveredDevice, options s.ImportOptions) error {
+	for i, device := range devices {
+		fmt.Printf("\n=== Device %d/%d: %s (%s) ===\n", i+1, len(devices), device.SuggestedName, device.Device.IP)
+
+		// Use the same logic as scan host for consistency
+		if err := importSingleDeviceWithVLANMapping(service, device, options); err != nil {
+			fmt.Printf("Failed to import device %s: %v\n", device.SuggestedName, err)
+			if !options.ReviewMode {
+				return err
+			}
+		} else {
+			fmt.Printf("✓ Device %s imported successfully\n", device.SuggestedName)
+		}
+	}
+	return nil
+}
+
+
 func init() {
 	cmd_root.ScanCmd.AddCommand(networkScanCmd)
 
-	networkScanCmd.Flags().StringVarP(&scanSubnet, "subnet", "s", "", "Network subnet to scan (alternative to positional arg)")
+	networkScanCmd.Flags().StringVar(&scanSubnet, "subnet", "", "Network subnet to scan (alternative to positional arg)")
 	networkScanCmd.Flags().IntVarP(&scanTimeout, "timeout", "t", 30, "Timeout in seconds for the scan")
 	networkScanCmd.Flags().StringVar(&scanCommunity, "community", "public", "SNMP community string")
 	networkScanCmd.Flags().StringVar(&scanSNMPVersion, "snmp-version", "v2c", "SNMP version (v1, v2c)")
