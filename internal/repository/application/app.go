@@ -162,11 +162,22 @@ type NetServiceInt interface {
 	DeleteConnection(connectionId string) error
 
 	// VLAN operations
-	AddVlan(vlanID string, vlanName string, ipSegmentIDs []string) error
+	AddVlan(vlanID string, vlanName string, ipSegment string) error
 	GetVlans() ([]e.Vlan, error)
 	UpdateVlan(vlanId string, newVlanID string, newVlanName string) error
-	UpdateVlanIPSegments(vlanId string, ipSegmentIDs []string) error
+	UpdateVlanIPSegment(vlanId string, ipSegment string) error
 	DeleteVlan(vlanId string) error
+
+	// Local VLAN operations
+	AddLocalVlan(vlanID string, deviceID string, vlanName string) error
+	GetLocalVlans() ([]e.LocalVlan, error)
+	GetLocalVlansByDevice(deviceID string) ([]e.LocalVlan, error)
+	GetLocalVlansByVlanID(vlanID string) ([]e.LocalVlan, error)
+	UpdateLocalVlan(localVlanId string, newVlanID string, newDeviceID string, newVlanName string) error
+	UpdateLocalVlanByMapping(vlanID string, deviceID string, newVlanName string) error
+	DeleteLocalVlan(localVlanId string) error
+	DeleteLocalVlansByDevice(deviceID string) error
+	DeleteLocalVlansByVlanID(vlanID string) error
 
 	// Cascade deletion operations
 	DeleteBrandCascade(brandName string) error
@@ -525,12 +536,12 @@ func (ns *NetService) UpdateConnection(
 	return ns.netRepo.UpdateConnection(connectionId, newFromDeviceId, newFromModelPortId, newToDeviceId, newToModelPortId, allowVLANUnion)
 }
 
-func (ns *NetService) AddVlan(vlanID string, vlanName string, ipSegmentIDs []string) error {
-	return ns.netRepo.AddVlan(vlanID, vlanName, ipSegmentIDs)
+func (ns *NetService) AddVlan(vlanID string, vlanName string, ipSegment string) error {
+	return ns.netRepo.AddVlan(vlanID, vlanName, ipSegment)
 }
 
-func (ns *NetService) UpdateVlanIPSegments(vlanId string, ipSegmentIDs []string) error {
-	return ns.netRepo.UpdateVlanIPSegments(vlanId, ipSegmentIDs)
+func (ns *NetService) UpdateVlanIPSegment(vlanId string, ipSegment string) error {
+	return ns.netRepo.UpdateVlanIPSegment(vlanId, ipSegment)
 }
 
 func (ns *NetService) GetVlans() ([]e.Vlan, error) {
@@ -543,6 +554,43 @@ func (ns *NetService) UpdateVlan(vlanId string, newVlanID string, newVlanName st
 
 func (ns *NetService) DeleteVlan(vlanId string) error {
 	return ns.netRepo.DeleteVlan(vlanId)
+}
+
+// Local VLAN method implementations
+func (ns *NetService) AddLocalVlan(vlanID string, deviceID string, vlanName string) error {
+	return ns.netRepo.AddLocalVlan(vlanID, deviceID, vlanName)
+}
+
+func (ns *NetService) GetLocalVlans() ([]e.LocalVlan, error) {
+	return ns.netRepo.GetLocalVlans()
+}
+
+func (ns *NetService) GetLocalVlansByDevice(deviceID string) ([]e.LocalVlan, error) {
+	return ns.netRepo.GetLocalVlansByDevice(deviceID)
+}
+
+func (ns *NetService) GetLocalVlansByVlanID(vlanID string) ([]e.LocalVlan, error) {
+	return ns.netRepo.GetLocalVlansByVlanID(vlanID)
+}
+
+func (ns *NetService) UpdateLocalVlan(localVlanId string, newVlanID string, newDeviceID string, newVlanName string) error {
+	return ns.netRepo.UpdateLocalVlan(localVlanId, newVlanID, newDeviceID, newVlanName)
+}
+
+func (ns *NetService) UpdateLocalVlanByMapping(vlanID string, deviceID string, newVlanName string) error {
+	return ns.netRepo.UpdateLocalVlanByMapping(vlanID, deviceID, newVlanName)
+}
+
+func (ns *NetService) DeleteLocalVlan(localVlanId string) error {
+	return ns.netRepo.DeleteLocalVlan(localVlanId)
+}
+
+func (ns *NetService) DeleteLocalVlansByDevice(deviceID string) error {
+	return ns.netRepo.DeleteLocalVlansByDevice(deviceID)
+}
+
+func (ns *NetService) DeleteLocalVlansByVlanID(vlanID string) error {
+	return ns.netRepo.DeleteLocalVlansByVlanID(vlanID)
 }
 
 // Cascade deletion method implementations
@@ -960,6 +1008,18 @@ func (ns *NetService) createDevicePortsForDevice(deviceID string, discovered s.D
 				return err
 			}
 		}
+
+		// Create local VLAN entries for this device
+		for _, v := range iface.VLANs {
+			// Generate a local VLAN name (in real implementation this would come from SNMP)
+			localVlanName := fmt.Sprintf("VLAN_%s", v.VLANNumber)
+			if err := ns.AddLocalVlan(v.VLANNumber, deviceID, localVlanName); err != nil {
+				if !strings.Contains(err.Error(), "already exists") {
+					// Log error but don't fail the import
+					fmt.Printf("Warning: failed to create local VLAN mapping %s for device %s: %v\n", v.VLANNumber, deviceID, err)
+				}
+			}
+		}
 	}
 
 	return nil
@@ -1047,15 +1107,13 @@ func (ns *NetService) suggestIPVLANMapping(ip string, vlanMemberships []s.VLANMe
 // findExactVLANMatch checks if IP belongs to existing VLAN IP segments
 func (ns *NetService) findExactVLANMatch(ip string, existingVLANs []e.Vlan) s.IPVLANMapping {
 	for _, vlan := range existingVLANs {
-		for _, segmentID := range vlan.IPSegmentIDs {
-			if ns.ipBelongsToSegment(ip, segmentID) {
-				return s.IPVLANMapping{
-					IP:         ip,
-					VLANNumber: vlan.VlanID,
-					Confidence: "exact",
-					Reason:     fmt.Sprintf("IP belongs to existing VLAN %s segment %s", vlan.VlanID, segmentID),
-					IsNewVLAN:  false,
-				}
+		if vlan.IPSegment != "" && ns.ipBelongsToSegment(ip, vlan.IPSegment) {
+			return s.IPVLANMapping{
+				IP:         ip,
+				VLANNumber: vlan.VlanID,
+				Confidence: "exact",
+				Reason:     fmt.Sprintf("IP belongs to existing VLAN %s segment %s", vlan.VlanID, vlan.IPSegment),
+				IsNewVLAN:  false,
 			}
 		}
 	}
@@ -1266,9 +1324,9 @@ func (ns *NetService) generateVLANPlans(plan *s.InterfaceImportPlan, existingVLA
 			plan.VLANsToUpdate = append(plan.VLANsToUpdate, s.VLANPlan{
 				VLANNumber:       vlanID,
 				VLANName:         existingVLAN.VlanName,
-				IPSegmentIDs:     append(existingVLAN.IPSegmentIDs, newSegments...),
+				IPSegmentIDs:     newSegments,
 				Action:           "update",
-				ExistingSegments: existingVLAN.IPSegmentIDs,
+				ExistingSegments: []string{existingVLAN.IPSegment},
 			})
 		}
 	}
@@ -1334,7 +1392,12 @@ func (ns *NetService) executeVLANPlans(plan s.DeviceImportPlan) error {
 	// Create new VLANs
 	for _, interfacePlan := range plan.InterfacePlans {
 		for _, vlanPlan := range interfacePlan.VLANsToCreate {
-			if err := ns.AddVlan(vlanPlan.VLANNumber, vlanPlan.VLANName, vlanPlan.IPSegmentIDs); err != nil {
+			// Use first IP segment if available, otherwise empty string
+			ipSegment := ""
+			if len(vlanPlan.IPSegmentIDs) > 0 {
+				ipSegment = vlanPlan.IPSegmentIDs[0]
+			}
+			if err := ns.AddVlan(vlanPlan.VLANNumber, vlanPlan.VLANName, ipSegment); err != nil {
 				if !strings.Contains(err.Error(), "already exists") {
 					return fmt.Errorf("failed to create VLAN %s: %w", vlanPlan.VLANNumber, err)
 				}
@@ -1343,7 +1406,12 @@ func (ns *NetService) executeVLANPlans(plan s.DeviceImportPlan) error {
 
 		// Update existing VLANs
 		for _, vlanPlan := range interfacePlan.VLANsToUpdate {
-			if err := ns.UpdateVlanIPSegments(vlanPlan.VLANNumber, vlanPlan.IPSegmentIDs); err != nil {
+			// Use first IP segment if available, otherwise empty string
+			ipSegment := ""
+			if len(vlanPlan.IPSegmentIDs) > 0 {
+				ipSegment = vlanPlan.IPSegmentIDs[0]
+			}
+			if err := ns.UpdateVlanIPSegment(vlanPlan.VLANNumber, ipSegment); err != nil {
 				return fmt.Errorf("failed to update VLAN %s: %w", vlanPlan.VLANNumber, err)
 			}
 		}
@@ -1463,6 +1531,18 @@ func (ns *NetService) createDevicePortsWithPlan(deviceID string, discovered s.Di
 		if err := ns.AddDevicePort(deviceID, modelPortID, iface.MAC, vlanConfigs); err != nil {
 			if !strings.Contains(err.Error(), "already exists") {
 				return err
+			}
+		}
+
+		// Create local VLAN entries for this device
+		for _, v := range iface.VLANs {
+			// Generate a local VLAN name (in real implementation this would come from SNMP)
+			localVlanName := fmt.Sprintf("VLAN_%s", v.VLANNumber)
+			if err := ns.AddLocalVlan(v.VLANNumber, deviceID, localVlanName); err != nil {
+				if !strings.Contains(err.Error(), "already exists") {
+					// Log error but don't fail the import
+					fmt.Printf("Warning: failed to create local VLAN mapping %s for device %s: %v\n", v.VLANNumber, deviceID, err)
+				}
 			}
 		}
 	}

@@ -31,6 +31,7 @@ const (
 	connectionsCollection     = "connections"
 	connectiontypesCollection = "connectiontypes"
 	vlansCollection           = "vlans"
+	localvlansCollection      = "localvlans"
 )
 
 type BasicOpsCloverRepository struct {
@@ -53,6 +54,7 @@ func NewCloverRepositoryFromDB(db *c.DB) (BasicOpsCloverRepository, error) {
 		connectionsCollection,
 		connectiontypesCollection,
 		vlansCollection,
+		localvlansCollection,
 	}
 
 	// Create each collection if it doesn't exist

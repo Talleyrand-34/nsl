@@ -51,8 +51,8 @@ Example:
 			os.Exit(1)
 		}
 
-		// Get optional IP segment IDs
-		ipSegmentIDs, _ := cmd.Flags().GetStringSlice("ip-segment-ids")
+		// Get optional IP segment
+		ipSegment, _ := cmd.Flags().GetString("ip-segment")
 
 		// Get service connection
 		service, err := util.ServiceConnection()
@@ -62,7 +62,7 @@ Example:
 		}
 
 		// Create the VLAN
-		err = service.AddVlan(vlanID, vlanName, ipSegmentIDs)
+		err = service.AddVlan(vlanID, vlanName, ipSegment)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error creating VLAN: %v\n", err)
 			os.Exit(1)
@@ -77,7 +77,7 @@ func init() {
 
 	vlanModCmd.Flags().String("vlan-id", "", "VLAN ID (required, e.g., 100)")
 	vlanModCmd.Flags().String("name", "", "VLAN name (required, e.g., 'Management VLAN')")
-	vlanModCmd.Flags().StringSlice("ip-segment-ids", []string{}, "IP segment IDs associated with this VLAN (comma-separated)")
+	vlanModCmd.Flags().String("ip-segment", "", "IP segment associated with this VLAN (e.g., '192.168.1.0/24')")
 
 	vlanModCmd.MarkFlagRequired("vlan-id")
 	vlanModCmd.MarkFlagRequired("name")

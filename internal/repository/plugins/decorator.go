@@ -251,8 +251,8 @@ func (p *PluginAwareRepository) DeleteConnection(connectionId string) error {
 }
 
 // VLAN interaction
-func (p *PluginAwareRepository) AddVlan(vlanID string, vlanName string, ipSegmentIDs []string) error {
-	return p.baseRepo.AddVlan(vlanID, vlanName, ipSegmentIDs)
+func (p *PluginAwareRepository) AddVlan(vlanID string, vlanName string, ipSegment string) error {
+	return p.baseRepo.AddVlan(vlanID, vlanName, ipSegment)
 }
 
 func (p *PluginAwareRepository) GetVlans() ([]e.Vlan, error) {
@@ -263,12 +263,49 @@ func (p *PluginAwareRepository) UpdateVlan(vlanId string, newVlanID string, newV
 	return p.baseRepo.UpdateVlan(vlanId, newVlanID, newVlanName)
 }
 
-func (p *PluginAwareRepository) UpdateVlanIPSegments(vlanId string, ipSegmentIDs []string) error {
-	return p.baseRepo.UpdateVlanIPSegments(vlanId, ipSegmentIDs)
+func (p *PluginAwareRepository) UpdateVlanIPSegment(vlanId string, ipSegment string) error {
+	return p.baseRepo.UpdateVlanIPSegment(vlanId, ipSegment)
 }
 
 func (p *PluginAwareRepository) DeleteVlan(vlanId string) error {
 	return p.baseRepo.DeleteVlan(vlanId)
+}
+
+// Local VLAN interaction
+func (p *PluginAwareRepository) AddLocalVlan(vlanID string, deviceID string, vlanName string) error {
+	return p.baseRepo.AddLocalVlan(vlanID, deviceID, vlanName)
+}
+
+func (p *PluginAwareRepository) GetLocalVlans() ([]e.LocalVlan, error) {
+	return p.baseRepo.GetLocalVlans()
+}
+
+func (p *PluginAwareRepository) GetLocalVlansByDevice(deviceID string) ([]e.LocalVlan, error) {
+	return p.baseRepo.GetLocalVlansByDevice(deviceID)
+}
+
+func (p *PluginAwareRepository) GetLocalVlansByVlanID(vlanID string) ([]e.LocalVlan, error) {
+	return p.baseRepo.GetLocalVlansByVlanID(vlanID)
+}
+
+func (p *PluginAwareRepository) UpdateLocalVlan(localVlanId string, newVlanID string, newDeviceID string, newVlanName string) error {
+	return p.baseRepo.UpdateLocalVlan(localVlanId, newVlanID, newDeviceID, newVlanName)
+}
+
+func (p *PluginAwareRepository) UpdateLocalVlanByMapping(vlanID string, deviceID string, newVlanName string) error {
+	return p.baseRepo.UpdateLocalVlanByMapping(vlanID, deviceID, newVlanName)
+}
+
+func (p *PluginAwareRepository) DeleteLocalVlan(localVlanId string) error {
+	return p.baseRepo.DeleteLocalVlan(localVlanId)
+}
+
+func (p *PluginAwareRepository) DeleteLocalVlansByDevice(deviceID string) error {
+	return p.baseRepo.DeleteLocalVlansByDevice(deviceID)
+}
+
+func (p *PluginAwareRepository) DeleteLocalVlansByVlanID(vlanID string) error {
+	return p.baseRepo.DeleteLocalVlansByVlanID(vlanID)
 }
 
 // Get all ports methods

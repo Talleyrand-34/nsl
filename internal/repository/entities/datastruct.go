@@ -94,10 +94,18 @@ type Connection struct {
 }
 
 type Vlan struct {
-	ID           string   `json:"id"`
-	VlanID       string   `json:"vlanid"`
-	VlanName     string   `json:"vlanname"`
-	IPSegmentIDs []string `json:"ip_segment_ids"` // List of IP segment IDs associated with this VLAN
+	ID        string `json:"id"`
+	VlanID    string `json:"vlanid"`
+	VlanName  string `json:"vlanname"`
+	IPSegment string `json:"ip_segment"` // Single IP segment associated with this VLAN
+}
+
+// LocalVlan represents a device-specific VLAN name mapping
+type LocalVlan struct {
+	ID       string `json:"id"`
+	VlanID   string `json:"vlanid"`   // VLAN number (e.g., "100")
+	DeviceID string `json:"deviceid"` // Device database ID
+	VlanName string `json:"vlanname"` // Local VLAN name on this specific device
 }
 
 // Brand represents a brand
