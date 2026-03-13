@@ -946,6 +946,7 @@ func (ns *NetService) importSingleDevice(discovered s.DiscoveredDevice, options 
 }
 
 func (ns *NetService) createDevicePortsForDevice(deviceID string, discovered s.DiscoveredDevice) error {
+
 	models, err := ns.GetModels()
 	if err != nil {
 		return err
@@ -1519,7 +1520,35 @@ func (ns *NetService) createDevicePortsWithPlan(deviceID string, discovered s.Di
 			continue
 		}
 
-		// Use original VLAN configurations (interface memberships are preserved)
+		// Find matching interface plan to convert IP mappings to VLAN data
+		var interfacePlan *s.InterfaceImportPlan
+		for _, iPlan := range plan.InterfacePlans {
+			if iPlan.Interface.Name == iface.Name {
+				interfacePlan = &iPlan
+				break
+			}
+		}
+
+		// Convert IP mappings to VLAN memberships if plan exists
+		if interfacePlan != nil && len(iface.VLANs) == 0 {
+			vlanMap := make(map[string]bool)
+			for _, mapping := range interfacePlan.IPMappings {
+				// Only process valid VLAN numbers (skip -1 and empty)
+				if mapping.VLANNumber != "" && mapping.VLANNumber != "-1" {
+					vlanMap[mapping.VLANNumber] = true
+				}
+			}
+
+			// Populate interface VLANs array from plan mappings
+			for vlanNum := range vlanMap {
+				iface.VLANs = append(iface.VLANs, s.VLANMembership{
+					VLANNumber: vlanNum,
+					Tagged:     true, // Default to tagged - can be enhanced with better logic
+				})
+			}
+		}
+
+		// Use VLAN configurations (now populated from plan if needed)
 		vlanConfigs := make([]e.PortVlanConfig, 0, len(iface.VLANs))
 		for _, v := range iface.VLANs {
 			vlanConfigs = append(vlanConfigs, e.PortVlanConfig{
