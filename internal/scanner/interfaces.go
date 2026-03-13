@@ -131,6 +131,7 @@ type ImportOptions struct {
 	ReviewMode           bool   `json:"review_mode"`
 	InteractiveVLANs     bool   `json:"interactive_vlans"`     // New: Always confirm VLAN mappings
 	AutoApproveHeuristic bool   `json:"auto_approve_heuristic"` // New: Auto-approve high-confidence mappings
+	VLANAccuracyLevel    int    `json:"vlan_accuracy_level"`   // New: VLAN detection accuracy level (1=interface names only, 2=include IP heuristics)
 }
 
 // RequiresUserInput checks if an interface plan needs user input

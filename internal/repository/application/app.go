@@ -1072,9 +1072,12 @@ func (ns *NetService) analyzeInterfaceForImport(iface s.DeviceInterface, existin
 		existingVLANMap[vlan.VlanID] = vlan
 	}
 
-	// Analyze each IP address
+	// PRIORITY 1: Use VLAN inference from interface names (accuracy 1)
+	vlanInference := s.InferVLANFromInterface(iface.Name, iface.IPAddresses)
+
+	// Analyze each IP address using VLAN inference first
 	for _, ip := range iface.IPAddresses {
-		mapping := ns.suggestIPVLANMapping(ip, iface.VLANs, existingVLANs)
+		mapping := ns.suggestIPVLANMappingWithInference(ip, iface.VLANs, existingVLANs, vlanInference)
 		plan.IPMappings = append(plan.IPMappings, mapping)
 	}
 
@@ -1218,6 +1221,64 @@ func (ns *NetService) getDefaultMapping(ip string, vlanMemberships []s.VLANMembe
 		Reason:     "No specific VLAN detected, suggest generic preservation",
 		IsNewVLAN:  true,
 	}
+}
+
+// suggestIPVLANMappingWithInference suggests a VLAN mapping using VLAN inference as the primary method
+func (ns *NetService) suggestIPVLANMappingWithInference(ip string, vlanMemberships []s.VLANMembership, existingVLANs []e.Vlan, vlanInference s.VLANInference) s.IPVLANMapping {
+	// METHOD 1: Use VLAN inference from interface name (highest accuracy)
+	if len(vlanInference.VLANNumbers) > 0 && vlanInference.Accuracy == 1 {
+		// Use the first VLAN number from inference (highest confidence)
+		vlanNum := vlanInference.VLANNumbers[0]
+		reason := fmt.Sprintf("Interface name %s suggests VLAN %s", vlanInference.Method, vlanNum)
+		if vlanInference.Notes != "" {
+			reason += " (" + vlanInference.Notes + ")"
+		}
+
+		return s.IPVLANMapping{
+			IP:           ip,
+			VLANNumber:   vlanNum,
+			Confidence:   "exact",
+			Reason:       reason,
+			IsNewVLAN:    !ns.vlanExists(vlanNum, existingVLANs),
+			OriginalVLAN: vlanNum,
+		}
+	}
+
+	// METHOD 2: Check if IP belongs to existing VLAN IP segments
+	if exactMapping := ns.findExactVLANMatch(ip, existingVLANs); exactMapping.VLANNumber != "" {
+		return exactMapping
+	}
+
+	// METHOD 3: Use interface VLAN memberships (prefer untagged)
+	if interfaceMapping := ns.mapToInterfaceVLAN(ip, vlanMemberships); interfaceMapping.VLANNumber != "" {
+		return interfaceMapping
+	}
+
+	// METHOD 4: Use VLAN inference with lower accuracy (if accuracy level permits)
+	if len(vlanInference.VLANNumbers) > 0 && vlanInference.Accuracy == 2 {
+		vlanNum := vlanInference.VLANNumbers[0]
+		reason := fmt.Sprintf("IP pattern suggests VLAN %s", vlanNum)
+		if vlanInference.Notes != "" {
+			reason += " (" + vlanInference.Notes + ")"
+		}
+
+		return s.IPVLANMapping{
+			IP:           ip,
+			VLANNumber:   vlanNum,
+			Confidence:   "heuristic",
+			Reason:       reason,
+			IsNewVLAN:    !ns.vlanExists(vlanNum, existingVLANs),
+			OriginalVLAN: vlanNum,
+		}
+	}
+
+	// METHOD 5: Apply RFC1918 heuristics (if no interface inference available)
+	if heuristicMapping := ns.applyRFC1918Heuristic(ip, existingVLANs); heuristicMapping.VLANNumber != "" {
+		return heuristicMapping
+	}
+
+	// METHOD 6: Default suggestion
+	return ns.getDefaultMapping(ip, vlanMemberships)
 }
 
 // ipBelongsToSegment checks if an IP belongs to a given segment (IP or CIDR)
@@ -1577,4 +1638,14 @@ func (ns *NetService) createDevicePortsWithPlan(deviceID string, discovered s.Di
 	}
 
 	return nil
+}
+
+// vlanExists checks if a VLAN number exists in the provided slice of existing VLANs
+func (ns *NetService) vlanExists(vlanNumber string, existingVLANs []e.Vlan) bool {
+	for _, vlan := range existingVLANs {
+		if vlan.VlanID == vlanNumber {
+			return true
+		}
+	}
+	return false
 }

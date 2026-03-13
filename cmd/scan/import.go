@@ -39,6 +39,10 @@ var (
 	importCreateZones  bool
 	importDefaultZone  string
 	importSkipExisting bool
+	importApproveAll   bool
+	importSkipAll      bool
+	importQuitOnFirst  bool
+	importVLANAccuracy int
 )
 
 var importScanCmd = &cobra.Command{
@@ -108,13 +112,14 @@ Examples:
 
 		if importAutoImport || importReviewMode {
 			importOptions := s.ImportOptions{
-				AutoImport:       importAutoImport,
-				MergeIPs:         importMergeIPs,
-				CreateZones:      importCreateZones,
-				DefaultZone:      importDefaultZone,
-				SkipExisting:     importSkipExisting,
-				ReviewMode:       importReviewMode,
-				InteractiveVLANs: true, // Always use interactive VLAN mapping
+				AutoImport:        importAutoImport,
+				MergeIPs:          importMergeIPs,
+				CreateZones:       importCreateZones,
+				DefaultZone:       importDefaultZone,
+				SkipExisting:      importSkipExisting,
+				ReviewMode:        importReviewMode,
+				InteractiveVLANs:  true, // Always use interactive VLAN mapping
+				VLANAccuracyLevel: importVLANAccuracy,
 			}
 
 			if importReviewMode && !importAutoImport {
@@ -219,6 +224,12 @@ func init() {
 	importScanCmd.Flags().BoolVar(&importCreateZones, "create-zones", true, "Create zones for discovered devices")
 	importScanCmd.Flags().StringVar(&importDefaultZone, "default-zone", "Discovered", "Default zone for discovered devices")
 	importScanCmd.Flags().BoolVar(&importSkipExisting, "skip-existing", true, "Skip devices with existing IP addresses")
+
+	// Non-interactive flags for automated import decisions
+	importScanCmd.Flags().BoolVar(&importApproveAll, "approve-all", false, "Automatically approve all VLAN mappings without prompting")
+	importScanCmd.Flags().BoolVar(&importSkipAll, "skip-all", false, "Automatically skip all devices without prompting")
+	importScanCmd.Flags().BoolVar(&importQuitOnFirst, "quit-on-first", false, "Quit import process on first device without prompting")
+	importScanCmd.Flags().IntVar(&importVLANAccuracy, "vlan-accuracy", 1, "VLAN detection accuracy level (1=interface names only, 2=include IP heuristics)")
 }
 
 // importDevicesWithInteractiveVLANMapping performs interactive VLAN mapping and import
@@ -242,7 +253,7 @@ func importDevicesWithInteractiveVLANMapping(service q.NetServiceInt, devices []
 			continue
 		}
 
-		// Get user decision
+		// Get user decision (respecting non-interactive flags)
 		action, modifiedPlan, err := getUserImportDecision(plan)
 		if err != nil {
 			fmt.Printf("Error getting user input: %v\n", err)
@@ -336,6 +347,23 @@ func getConfidenceSymbol(confidence string) string {
 
 // getUserImportDecision gets the user's decision on the import plan
 func getUserImportDecision(plan s.DeviceImportPlan) (s.MappingAction, s.DeviceImportPlan, error) {
+	// Check for non-interactive flags first
+	if importApproveAll {
+		fmt.Printf("Auto-approving import (--approve-all flag)\n")
+		return s.ActionApprove, plan, nil
+	}
+
+	if importSkipAll {
+		fmt.Printf("Auto-skipping device (--skip-all flag)\n")
+		return s.ActionSkip, plan, nil
+	}
+
+	if importQuitOnFirst {
+		fmt.Printf("Auto-quitting on first device (--quit-on-first flag)\n")
+		return s.ActionQuit, plan, nil
+	}
+
+	// Interactive mode
 	for {
 		fmt.Printf("\nOptions:\n")
 		fmt.Printf("  (A)pprove and import\n")

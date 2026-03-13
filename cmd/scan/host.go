@@ -41,6 +41,8 @@ var (
 	hostDefaultZone  string
 	hostDefaultBrand string
 	hostOutputFile   string
+	hostApproveAll   bool
+	hostVLANAccuracy int
 )
 
 var hostScanCmd = &cobra.Command{
@@ -106,17 +108,41 @@ Examples:
 
 		if len(device.Interfaces) > 0 {
 			fmt.Printf("\nInterfaces (%d):\n", len(device.Interfaces))
+			// Print header for columnar display
+			fmt.Printf("  %-30s %-17s %-6s %-20s %-8s %-8s\n", "Interface", "MAC", "Status", "IPs", "VLAN", "Accuracy")
+			fmt.Printf("  %-30s %-17s %-6s %-20s %-8s %-8s\n", strings.Repeat("-", 30), strings.Repeat("-", 17), strings.Repeat("-", 6), strings.Repeat("-", 20), strings.Repeat("-", 8), strings.Repeat("-", 8))
+
 			for _, iface := range device.Interfaces {
 				status := "down"
 				if iface.OperStatus == 1 {
 					status = "up"
 				}
-				fmt.Printf("  %-30s  MAC: %-17s  Status: %s", iface.Name, iface.MAC, status)
+
+				// Infer VLAN information
+				vlanInference := s.InferVLANFromInterface(iface.Name, iface.IPAddresses)
+
+				// Format IP addresses for display
+				ipsDisplay := "[]"
 				if len(iface.IPAddresses) > 0 {
-					fmt.Printf("  IPs: %v", iface.IPAddresses)
+					ipsDisplay = fmt.Sprintf("%v", iface.IPAddresses)
+					// Truncate if too long
+					if len(ipsDisplay) > 18 {
+						ipsDisplay = ipsDisplay[:15] + "..."
+					}
 				}
+
+				// Display the interface row
+				fmt.Printf("  %-30s %-17s %-6s %-20s %-8s %-8s\n",
+					iface.Name,
+					iface.MAC,
+					status,
+					ipsDisplay,
+					vlanInference.FormatVLANDisplay(),
+					vlanInference.FormatAccuracyDisplay())
+
+				// Show additional VLAN details if explicitly detected
 				if len(iface.VLANs) > 0 {
-					fmt.Printf("  VLANs:")
+					fmt.Printf("  %30s   SNMP VLANs:", "")
 					for _, v := range iface.VLANs {
 						t := "untagged"
 						if v.Tagged {
@@ -124,8 +150,13 @@ Examples:
 						}
 						fmt.Printf(" %s(%s)", v.VLANNumber, t)
 					}
+					fmt.Println()
 				}
-				fmt.Println()
+
+				// Show inference notes if any
+				if vlanInference.Notes != "" {
+					fmt.Printf("  %30s   Note: %s\n", "", vlanInference.Notes)
+				}
 			}
 		}
 
@@ -161,27 +192,45 @@ Examples:
 		if hostAutoImport {
 			fmt.Println("\nImporting device...")
 
-			discoverer := s.NewDeviceDiscoverer()
-			brand, model, class := discoverer.ClassifyDevice(*device)
-
-			fmt.Printf("Classification: %s %s [%s]\n", brand, model, class)
-
-			discoveredDevice := s.DiscoveredDevice{
-				Device:        *device,
-				Brand:         brand,
-				Model:         model,
-				DeviceClass:   class,
-				SuggestedName: discoverer.GenerateDeviceName(*device, class),
-				SuggestedZone: hostDefaultZone,
+			// Create a ScanResult to match the file-based import workflow
+			scanResult := &s.ScanResult{
+				ID:        fmt.Sprintf("host_%s_%d", ip, time.Now().Unix()),
+				Subnet:    ip + "/32", // Single host as /32
+				StartTime: time.Now(),
+				EndTime:   time.Now(),
+				Devices:   []s.SNMPDevice{*device},
 			}
 
+			// Use the same discovery pipeline as file-based import
+			devices, err := service.DiscoverDevices(scanResult)
+			if err != nil {
+				fmt.Printf("Device discovery failed: %v\n", err)
+				os.Exit(1)
+			}
+
+			if len(devices) == 0 {
+				fmt.Println("No devices discovered from scan result.")
+				return
+			}
+
+			// Get the first (and only) discovered device
+			discoveredDevice := devices[0]
+
+			// Override zone if specified
+			if hostDefaultZone != "" {
+				discoveredDevice.SuggestedZone = hostDefaultZone
+			}
+
+			fmt.Printf("Classification: %s %s [%s]\n", discoveredDevice.Brand, discoveredDevice.Model, discoveredDevice.DeviceClass)
+
 			importOptions := s.ImportOptions{
-				AutoImport:       true,
-				CreateZones:      true,
-				DefaultZone:      hostDefaultZone,
-				DefaultBrand:     hostDefaultBrand,
-				SkipExisting:     true,
-				InteractiveVLANs: true, // Enable interactive VLAN mapping
+				AutoImport:        true,
+				CreateZones:       true,
+				DefaultZone:       hostDefaultZone,
+				DefaultBrand:      hostDefaultBrand,
+				SkipExisting:      true,
+				InteractiveVLANs:  true, // Enable interactive VLAN mapping
+				VLANAccuracyLevel: hostVLANAccuracy,
 			}
 
 			if err := importSingleDeviceWithVLANMapping(service, discoveredDevice, importOptions); err != nil {
@@ -238,13 +287,17 @@ func importSingleDeviceWithVLANMapping(service q.NetServiceInt, device s.Discove
 	}
 
 	if plan.RequiresInput {
-		fmt.Printf("\nApprove this VLAN mapping? (y/n): ")
-		var response string
-		fmt.Scanln(&response)
+		if hostApproveAll {
+			fmt.Printf("Auto-approving VLAN mapping (--approve-all flag)\n")
+		} else {
+			fmt.Printf("\nApprove this VLAN mapping? (y/n): ")
+			var response string
+			fmt.Scanln(&response)
 
-		if strings.ToLower(strings.TrimSpace(response)) != "y" && strings.ToLower(strings.TrimSpace(response)) != "yes" {
-			fmt.Println("Import cancelled by user.")
-			return nil
+			if strings.ToLower(strings.TrimSpace(response)) != "y" && strings.ToLower(strings.TrimSpace(response)) != "yes" {
+				fmt.Println("Import cancelled by user.")
+				return nil
+			}
 		}
 	}
 
@@ -269,4 +322,6 @@ func init() {
 	hostScanCmd.Flags().BoolVar(&hostAutoImport, "auto-import", false, "Automatically import discovered device")
 	hostScanCmd.Flags().StringVar(&hostDefaultZone, "default-zone", "", "Default zone for the device (defaults to Generic)")
 	hostScanCmd.Flags().StringVar(&hostDefaultBrand, "default-brand", "", "Default brand for unidentified device")
+	hostScanCmd.Flags().BoolVar(&hostApproveAll, "approve-all", false, "Automatically approve all VLAN mappings without prompting (only with --auto-import)")
+	hostScanCmd.Flags().IntVar(&hostVLANAccuracy, "vlan-accuracy", 1, "VLAN detection accuracy level (1=interface names only, 2=include IP heuristics)")
 }
