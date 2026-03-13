@@ -53,8 +53,8 @@ func TestDevices_BrandsEndpoint(t *testing.T) {
 
 	router.ServeHTTP(w, req)
 
-	// Since handlers are placeholder implementations returning 501
-	assert.Equal(t, http.StatusNotImplemented, w.Code)
+	// Should return 200 OK with empty brands list
+	assert.Equal(t, http.StatusOK, w.Code)
 }
 
 func TestDevices_DeviceClassesEndpoint(t *testing.T) {
@@ -66,7 +66,8 @@ func TestDevices_DeviceClassesEndpoint(t *testing.T) {
 
 	router.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusNotImplemented, w.Code)
+	// Should return 200 OK with empty device classes list
+	assert.Equal(t, http.StatusOK, w.Code)
 }
 
 func TestDevices_ModelsEndpoint(t *testing.T) {
@@ -78,7 +79,8 @@ func TestDevices_ModelsEndpoint(t *testing.T) {
 
 	router.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusNotImplemented, w.Code)
+	// Should return 200 OK with empty models list
+	assert.Equal(t, http.StatusOK, w.Code)
 }
 
 func TestDevices_DevicesEndpoint(t *testing.T) {
@@ -90,7 +92,8 @@ func TestDevices_DevicesEndpoint(t *testing.T) {
 
 	router.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusNotImplemented, w.Code)
+	// Should return 200 OK with empty devices list
+	assert.Equal(t, http.StatusOK, w.Code)
 }
 
 func TestDevices_ModelPortsEndpoint(t *testing.T) {
@@ -102,7 +105,8 @@ func TestDevices_ModelPortsEndpoint(t *testing.T) {
 
 	router.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusNotImplemented, w.Code)
+	// Should return 200 OK with empty model ports list
+	assert.Equal(t, http.StatusOK, w.Code)
 }
 
 func TestDevices_DevicePortsEndpoint(t *testing.T) {
@@ -114,7 +118,8 @@ func TestDevices_DevicePortsEndpoint(t *testing.T) {
 
 	router.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusNotImplemented, w.Code)
+	// Should return 200 OK with empty device ports list
+	assert.Equal(t, http.StatusOK, w.Code)
 }
 
 func TestDevices_RoutesRegistration(t *testing.T) {
