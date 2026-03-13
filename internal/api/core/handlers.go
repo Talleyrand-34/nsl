@@ -21,6 +21,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	fmtd2 "nsl-graph/internal/format"
 	q "nsl-graph/internal/repository/application"
 )
 
@@ -133,7 +134,87 @@ func RootHandler() http.HandlerFunc {
 // GetDiagramHandler generates and returns network diagrams
 func GetDiagramHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Implementation to be moved from api/get.go
-		w.WriteHeader(http.StatusNotImplemented)
+		w.Header().Set("Content-Type", "image/svg+xml")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// Get query parameters
+		format := r.URL.Query().Get("format")
+		if format == "" {
+			format = "connections" // default
+		}
+
+		vlan := r.URL.Query().Get("vlan") == "true"
+		colorports := r.URL.Query().Get("colorports") == "true"
+
+		// Validate format parameter
+		if format != "ports" && format != "connections" {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("Invalid format parameter. Use 'ports' or 'connections'"))
+			return
+		}
+
+		// Get data from service
+		devices, err := service.GetDevices()
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Failed to get devices: " + err.Error()))
+			return
+		}
+
+		connections, err := service.GetConnections()
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Failed to get connections: " + err.Error()))
+			return
+		}
+
+		zones, err := service.GetZones()
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Failed to get zones: " + err.Error()))
+			return
+		}
+
+		devicePorts, err := service.GetDevicePorts()
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Failed to get device ports: " + err.Error()))
+			return
+		}
+
+		// Generate D2 diagram based on parameters
+		var d2Script string
+
+		if vlan {
+			if format == "ports" {
+				d2Script = fmtd2.GenerateD2FocusPortsWithVlans(devices, connections, zones, devicePorts, colorports)
+			} else {
+				d2Script = fmtd2.GenerateD2FocusConnectionsWithVlans(devices, connections, zones, devicePorts, colorports)
+			}
+		} else {
+			if format == "ports" {
+				d2Script = fmtd2.GenerateD2FocusPorts(devices, connections, zones, devicePorts, colorports)
+			} else {
+				d2Script = fmtd2.GenerateD2FocusConnections(devices, connections, zones, devicePorts, colorports)
+			}
+		}
+
+		// Generate SVG from D2 script
+		svgBytes, err := fmtd2.GenerateDiagramSVG(d2Script)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Failed to generate SVG: " + err.Error()))
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write(svgBytes)
 	}
 }
