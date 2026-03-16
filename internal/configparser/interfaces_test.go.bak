@@ -1,0 +1,259 @@
+/*
+Copyright © 2025 Tecdesoft (rodrigo-gonzalez@tecdesoft.es, t34@t34.dev)
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+*/
+package configparser_test
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+
+	"nsl-graph/internal/configparser"
+	s "nsl-graph/internal/scanner"
+)
+
+// MockConfigParser implements ConfigParser for testing
+type MockConfigParser struct {
+	mock.Mock
+	deviceType string
+}
+
+func NewMockConfigParser(deviceType string) *MockConfigParser {
+	return &MockConfigParser{deviceType: deviceType}
+}
+
+func (m *MockConfigParser) GetDeviceType() string {
+	args := m.Called()
+	if args.Get(0) != nil {
+		return args.String(0)
+	}
+	return m.deviceType
+}
+
+func (m *MockConfigParser) SupportsDevice(device s.SNMPDevice) bool {
+	args := m.Called(device)
+	return args.Bool(0)
+}
+
+func (m *MockConfigParser) ParseConfig(rawConfig string, deviceInfo s.SNMPDevice) (*configparser.ConfigData, error) {
+	args := m.Called(rawConfig, deviceInfo)
+	return args.Get(0).(*configparser.ConfigData), args.Error(1)
+}
+
+func (m *MockConfigParser) GetConfigViaSSH(ip string, creds configparser.SSHCredentials) (string, error) {
+	args := m.Called(ip, creds)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockConfigParser) ValidateConfig(config *configparser.ConfigData) []error {
+	args := m.Called(config)
+	return args.Get(0).([]error)
+}
+
+func createTestSNMPDevice(sysDescr, sysName string) s.SNMPDevice {
+	return s.SNMPDevice{
+		IP:       "192.168.1.1",
+		SysName:  sysName,
+		SysDescr: sysDescr,
+		Reachable: true,
+	}
+}
+
+func TestConfigParserRegistry_RegisterParser(t *testing.T) {
+	registry := configparser.NewConfigParserRegistry()
+	parser := NewMockConfigParser("testdevice")
+
+	_ = registry.RegisterParser(parser)
+
+	// Test that parser is registered
+	retrievedParser, exists := registry.GetParser("testdevice")
+	assert.True(t, exists)
+	assert.Equal(t, parser, retrievedParser)
+}
+
+func TestConfigParserRegistry_RegisterParser_Duplicate(t *testing.T) {
+	registry := configparser.NewConfigParserRegistry()
+	parser1 := NewMockConfigParser("testdevice")
+	parser2 := NewMockConfigParser("testdevice")
+
+	_ = registry.RegisterParser(parser1)
+
+	_ = registry.RegisterParser(parser2)
+	// Note: RegisterParser doesn't return errors in current implementation
+}
+
+func TestConfigParserRegistry_GetParser(t *testing.T) {
+	registry := configparser.NewConfigParserRegistry()
+	parser := NewMockConfigParser("opnsense")
+
+	_ = registry.RegisterParser(parser)
+
+	// Test existing parser
+	retrievedParser, exists := registry.GetParser("opnsense")
+	assert.True(t, exists)
+	assert.Equal(t, parser, retrievedParser)
+
+	// Test non-existing parser
+	_, exists = registry.GetParser("nonexistent")
+	assert.False(t, exists)
+}
+
+func TestConfigParserRegistry_GetParserForDevice_AutoDetection(t *testing.T) {
+	registry := configparser.NewConfigParserRegistry()
+
+	// Create mock parsers
+	opnsenseParser := NewMockConfigParser("opnsense")
+	openwrtParser := NewMockConfigParser("openwrt")
+
+	_ = registry.RegisterParser(opnsenseParser)
+	_ = registry.RegisterParser(openwrtParser)
+
+	// Test OPNsense device detection
+	opnsenseDevice := createTestSNMPDevice("FreeBSD OPNsense", "OPNsense.example.com")
+
+	// Set expectations for OPNsense parser to match
+	opnsenseParser.On("SupportsDevice", opnsenseDevice).Return(true)
+
+	parser, exists := registry.GetParserForDevice(opnsenseDevice)
+	assert.True(t, exists)
+	assert.Equal(t, opnsenseParser, parser)
+
+	opnsenseParser.AssertExpectations(t)
+}
+
+func TestConfigParserRegistry_GetParserForDevice_NoMatch(t *testing.T) {
+	registry := configparser.NewConfigParserRegistry()
+
+	opnsenseParser := NewMockConfigParser("opnsense")
+	_ = registry.RegisterParser(opnsenseParser)
+
+	unknownDevice := createTestSNMPDevice("Unknown Device", "unknown")
+
+	// Set expectation that parser doesn't support this device
+	opnsenseParser.On("SupportsDevice", unknownDevice).Return(false)
+
+	parser, exists := registry.GetParserForDevice(unknownDevice)
+	assert.False(t, exists)
+	assert.Nil(t, parser)
+
+	opnsenseParser.AssertExpectations(t)
+}
+
+func TestConfigParserRegistry_GetParserForDeviceWithType_ManualType(t *testing.T) {
+	registry := configparser.NewConfigParserRegistry()
+
+	// Create parsers
+	opnsenseParser := NewMockConfigParser("opnsense")
+	openwrtParser := NewMockConfigParser("openwrt")
+
+	_ = registry.RegisterParser(opnsenseParser)
+	_ = registry.RegisterParser(openwrtParser)
+
+	// Test device that would normally match OPNsense
+	device := createTestSNMPDevice("FreeBSD OPNsense", "OPNsense.example.com")
+
+	// But manually specify OpenWrt type - should return OpenWrt parser
+	parser, exists := registry.GetParserForDeviceWithType(device, "openwrt")
+	assert.True(t, exists)
+	assert.Equal(t, openwrtParser, parser)
+
+	// No mock expectations needed as manual type bypasses SupportsDevice check
+}
+
+func TestConfigParserRegistry_GetParserForDeviceWithType_InvalidManualType(t *testing.T) {
+	registry := configparser.NewConfigParserRegistry()
+
+	opnsenseParser := NewMockConfigParser("opnsense")
+	_ = registry.RegisterParser(opnsenseParser)
+
+	device := createTestSNMPDevice("FreeBSD OPNsense", "OPNsense.example.com")
+
+	// Specify invalid type, should fallback to auto-detection
+	opnsenseParser.On("SupportsDevice", device).Return(true)
+
+	parser, exists := registry.GetParserForDeviceWithType(device, "invalidtype")
+	assert.True(t, exists)
+	assert.Equal(t, opnsenseParser, parser)
+
+	opnsenseParser.AssertExpectations(t)
+}
+
+func TestConfigParserRegistry_GetParserForDeviceWithType_EmptyType(t *testing.T) {
+	registry := configparser.NewConfigParserRegistry()
+
+	opnsenseParser := NewMockConfigParser("opnsense")
+	_ = registry.RegisterParser(opnsenseParser)
+
+	device := createTestSNMPDevice("FreeBSD OPNsense", "OPNsense.example.com")
+
+	// Empty type should fallback to auto-detection
+	opnsenseParser.On("SupportsDevice", device).Return(true)
+
+	parser, exists := registry.GetParserForDeviceWithType(device, "")
+	assert.True(t, exists)
+	assert.Equal(t, opnsenseParser, parser)
+
+	opnsenseParser.AssertExpectations(t)
+}
+
+func TestConfigParserRegistry_ListParsers(t *testing.T) {
+	registry := configparser.NewConfigParserRegistry()
+
+	parser1 := NewMockConfigParser("opnsense")
+	parser2 := NewMockConfigParser("openwrt")
+	parser3 := NewMockConfigParser("fortinet")
+
+	_ = registry.RegisterParser(parser1)
+	_ = registry.RegisterParser(parser2)
+	_ = registry.RegisterParser(parser3)
+
+	parsers := registry.ListParsers()
+	assert.Len(t, parsers, 3)
+	assert.Contains(t, parsers, "opnsense")
+	assert.Contains(t, parsers, "openwrt")
+	assert.Contains(t, parsers, "fortinet")
+}
+
+func TestConfigParserRegistry_GetParserForDeviceWithType_PriorityOrder(t *testing.T) {
+	registry := configparser.NewConfigParserRegistry()
+
+	// Create competing parsers
+	parser1 := NewMockConfigParser("parser1")
+	parser2 := NewMockConfigParser("parser2")
+
+	_ = registry.RegisterParser(parser1)
+	_ = registry.RegisterParser(parser2)
+
+	device := createTestSNMPDevice("Compatible Device", "device")
+
+	// Both parsers support the device
+	parser1.On("SupportsDevice", device).Return(true)
+	parser2.On("SupportsDevice", device).Return(true)
+
+	// Manual type should override auto-detection
+	parser, exists := registry.GetParserForDeviceWithType(device, "parser2")
+	assert.True(t, exists)
+	assert.Equal(t, parser2, parser)
+
+	// Auto-detection should return first matching parser
+	parser1.On("SupportsDevice", device).Return(true)
+	parser, exists = registry.GetParserForDeviceWithType(device, "")
+	assert.True(t, exists)
+	assert.Equal(t, parser1, parser) // First registered parser wins
+
+	parser1.AssertExpectations(t)
+}

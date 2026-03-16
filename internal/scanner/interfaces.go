@@ -132,6 +132,18 @@ type ImportOptions struct {
 	InteractiveVLANs     bool   `json:"interactive_vlans"`     // New: Always confirm VLAN mappings
 	AutoApproveHeuristic bool   `json:"auto_approve_heuristic"` // New: Auto-approve high-confidence mappings
 	VLANAccuracyLevel    int    `json:"vlan_accuracy_level"`   // New: VLAN detection accuracy level (1=interface names only, 2=include IP heuristics)
+
+	// Configuration parsing options
+	ConfigSource         string `json:"config_source"`          // "none", "ssh", "file", "manual"
+	ConfigFile           string `json:"config_file,omitempty"`  // Path to config file when using file source
+	DeviceType           string `json:"device_type,omitempty"`  // Device OS type override (opnsense, openwrt, fortinet, cisco)
+	SSHUsername          string `json:"ssh_username,omitempty"` // SSH username for config retrieval
+	SSHPassword          string `json:"ssh_password,omitempty"` // SSH password for config retrieval
+	SSHKeyFile           string `json:"ssh_key_file,omitempty"` // SSH private key file path
+	SSHPort              int    `json:"ssh_port,omitempty"`     // SSH port (default: 22)
+	DiscrepancyAction    string `json:"discrepancy_action"`     // "fail", "prefer-snmp", "prefer-config"
+	MergeWithConfig      bool   `json:"merge_with_config"`      // Merge SNMP data with config data
+	ParseConfigTimeout   int    `json:"parse_config_timeout"`   // Timeout for config parsing in seconds
 }
 
 // RequiresUserInput checks if an interface plan needs user input

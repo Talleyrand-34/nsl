@@ -33,29 +33,51 @@ import (
 )
 
 var (
-	hostTimeout      int
-	hostCommunity    string
-	hostSNMPVersion  string
-	hostSNMPPort     uint16
-	hostAutoImport   bool
-	hostDefaultZone  string
-	hostDefaultBrand string
-	hostOutputFile   string
-	hostApproveAll   bool
-	hostVLANAccuracy int
+	hostTimeout          int
+	hostCommunity        string
+	hostSNMPVersion      string
+	hostSNMPPort         uint16
+	hostAutoImport       bool
+	hostDefaultZone      string
+	hostDefaultBrand     string
+	hostOutputFile       string
+	hostApproveAll       bool
+	hostVLANAccuracy     int
+
+	// Configuration parsing options
+	hostConfigSource     string
+	hostConfigFile       string
+	hostDeviceType       string
+	hostSSHUsername      string
+	hostSSHPassword      string
+	hostSSHKeyFile       string
+	hostSSHPort          int
+	hostDiscrepancyAction string
+	hostMergeConfig      bool
+	hostConfigTimeout    int
 )
 
 var hostScanCmd = &cobra.Command{
 	Use:   "host [ip_address]",
 	Short: "Query a specific host via SNMP to collect inventory",
 	Long: `Query a specific device using SNMP to collect interfaces, MAC addresses, and VLAN assignments.
+Optionally enhance with configuration data from SSH, file, or manual sources.
 
 Examples:
+  # Basic SNMP scanning
   nsl-graph scan host 192.168.1.1
   nsl-graph scan host 10.0.0.1 --community private
   nsl-graph scan host 192.168.1.1 --output device_scan.json
   nsl-graph scan host 172.16.1.10 --auto-import
-  nsl-graph scan host 192.168.1.254 --community public --snmp-version v2c`,
+
+  # Enhanced scanning with configuration integration
+  nsl-graph scan host 10.0.0.1 --config-source ssh --ssh-user admin --merge-configs
+  nsl-graph scan host 10.0.0.132 --config-source ssh --ssh-user admin --discrepancy-action prefer-config
+  nsl-graph scan host 10.0.0.245 --config-source file --config-file openwrt.conf --auto-import
+
+  # Manual device type specification (bypasses auto-detection)
+  nsl-graph scan host 10.0.0.245 --config-source ssh --ssh-user root --device-type openwrt
+  nsl-graph scan host 10.0.0.1 --config-source ssh --ssh-user admin --device-type opnsense --auto-import`,
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		ip := args[0]
@@ -231,6 +253,18 @@ Examples:
 				SkipExisting:      true,
 				InteractiveVLANs:  true, // Enable interactive VLAN mapping
 				VLANAccuracyLevel: hostVLANAccuracy,
+
+				// Configuration parsing options
+				ConfigSource:         hostConfigSource,
+				ConfigFile:           hostConfigFile,
+				DeviceType:           hostDeviceType,
+				SSHUsername:          hostSSHUsername,
+				SSHPassword:          hostSSHPassword,
+				SSHKeyFile:           hostSSHKeyFile,
+				SSHPort:              hostSSHPort,
+				DiscrepancyAction:    hostDiscrepancyAction,
+				MergeWithConfig:      hostMergeConfig,
+				ParseConfigTimeout:   hostConfigTimeout,
 			}
 
 			if err := importSingleDeviceWithVLANMapping(service, discoveredDevice, importOptions); err != nil {
@@ -324,4 +358,16 @@ func init() {
 	hostScanCmd.Flags().StringVar(&hostDefaultBrand, "default-brand", "", "Default brand for unidentified device")
 	hostScanCmd.Flags().BoolVar(&hostApproveAll, "approve-all", false, "Automatically approve all VLAN mappings without prompting (only with --auto-import)")
 	hostScanCmd.Flags().IntVar(&hostVLANAccuracy, "vlan-accuracy", 1, "VLAN detection accuracy level (1=interface names only, 2=include IP heuristics)")
+
+	// Configuration parsing flags
+	hostScanCmd.Flags().StringVar(&hostConfigSource, "config-source", "none", "Configuration source (none, ssh, file, manual)")
+	hostScanCmd.Flags().StringVar(&hostConfigFile, "config-file", "", "Path to device configuration file (when using file source)")
+	hostScanCmd.Flags().StringVar(&hostDeviceType, "device-type", "", "Device OS type (opnsense, openwrt, fortinet, cisco) - auto-detected if not specified")
+	hostScanCmd.Flags().StringVar(&hostSSHUsername, "ssh-user", "", "SSH username for configuration retrieval")
+	hostScanCmd.Flags().StringVar(&hostSSHPassword, "ssh-password", "", "SSH password for configuration retrieval")
+	hostScanCmd.Flags().StringVar(&hostSSHKeyFile, "ssh-key", "", "Path to SSH private key file")
+	hostScanCmd.Flags().IntVar(&hostSSHPort, "ssh-port", 22, "SSH port for configuration retrieval")
+	hostScanCmd.Flags().StringVar(&hostDiscrepancyAction, "discrepancy-action", "prefer-snmp", "Action when SNMP and config data conflict (fail, prefer-snmp, prefer-config)")
+	hostScanCmd.Flags().BoolVar(&hostMergeConfig, "merge-configs", false, "Merge SNMP data with configuration data")
+	hostScanCmd.Flags().IntVar(&hostConfigTimeout, "config-timeout", 60, "Configuration parsing timeout in seconds")
 }
