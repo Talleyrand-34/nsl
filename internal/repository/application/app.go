@@ -1078,6 +1078,12 @@ func (ns *NetService) analyzeInterfaceForImport(iface s.DeviceInterface, existin
 	// Analyze each IP address using VLAN inference first
 	for _, ip := range iface.IPAddresses {
 		mapping := ns.suggestIPVLANMappingWithInference(ip, iface.VLANs, existingVLANs, vlanInference)
+		// Populate subnet CIDR from SNMP netmask if available
+		if iface.IPNetmasks != nil {
+			if mask, ok := iface.IPNetmasks[ip]; ok {
+				mapping.Subnet = s.NetmaskToCIDR(ip, mask)
+			}
+		}
 		plan.IPMappings = append(plan.IPMappings, mapping)
 	}
 
@@ -1357,14 +1363,19 @@ func (ns *NetService) generateVLANPlans(plan *s.InterfaceImportPlan, existingVLA
 	vlanCreations := make(map[string][]string) // VLAN ID -> IP segments
 
 	for _, mapping := range plan.IPMappings {
+		// Use the subnet CIDR as the segment when available, otherwise fall back to bare IP
+		segment := mapping.IP
+		if mapping.Subnet != "" {
+			segment = mapping.Subnet
+		}
 		if mapping.IsNewVLAN {
-			vlanCreations[mapping.VLANNumber] = append(vlanCreations[mapping.VLANNumber], mapping.IP)
+			vlanCreations[mapping.VLANNumber] = append(vlanCreations[mapping.VLANNumber], segment)
 		} else {
 			if _, exists := existingVLANMap[mapping.VLANNumber]; exists {
-				vlanUpdates[mapping.VLANNumber] = append(vlanUpdates[mapping.VLANNumber], mapping.IP)
+				vlanUpdates[mapping.VLANNumber] = append(vlanUpdates[mapping.VLANNumber], segment)
 			} else {
 				// VLAN doesn't exist, need to create it
-				vlanCreations[mapping.VLANNumber] = append(vlanCreations[mapping.VLANNumber], mapping.IP)
+				vlanCreations[mapping.VLANNumber] = append(vlanCreations[mapping.VLANNumber], segment)
 			}
 		}
 	}

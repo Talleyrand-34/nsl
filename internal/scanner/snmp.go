@@ -28,6 +28,7 @@ const (
 	// ipAddrTable
 	oidIpAdEntAddr    = "1.3.6.1.2.1.4.20.1.1"
 	oidIpAdEntIfIndex = "1.3.6.1.2.1.4.20.1.2"
+	oidIpAdEntNetMask = "1.3.6.1.2.1.4.20.1.3"
 
 	// dot1q VLAN MIB
 	oidDot1qVlanStaticEgressPorts   = "1.3.6.1.2.1.17.7.1.4.3.1.2"
@@ -275,18 +276,26 @@ func (ss *SNMPScanner) queryInterfaceTable(client *gosnmp.GoSNMP) []DeviceInterf
 	return ifaces
 }
 
-// queryIPAddressTable populates IPAddresses on each DeviceInterface.
+// queryIPAddressTable populates IPAddresses and IPNetmasks on each DeviceInterface.
 func (ss *SNMPScanner) queryIPAddressTable(client *gosnmp.GoSNMP, ifaces []DeviceInterface) {
 	// ip → ifIndex
 	ipToIfIndex := make(map[string]int)
-
 	_ = client.BulkWalk(oidIpAdEntIfIndex, func(pdu gosnmp.SnmpPDU) error {
-		// OID suffix is the IP address
 		ip := oidSuffix(pdu.Name, oidIpAdEntIfIndex)
 		if ip != "" {
 			if v, ok := pdu.Value.(int); ok {
 				ipToIfIndex[ip] = v
 			}
+		}
+		return nil
+	})
+
+	// ip → netmask
+	ipToNetmask := make(map[string]string)
+	_ = client.BulkWalk(oidIpAdEntNetMask, func(pdu gosnmp.SnmpPDU) error {
+		ip := oidSuffix(pdu.Name, oidIpAdEntNetMask)
+		if ip != "" {
+			ipToNetmask[ip] = snmpString(pdu)
 		}
 		return nil
 	})
@@ -298,8 +307,16 @@ func (ss *SNMPScanner) queryIPAddressTable(client *gosnmp.GoSNMP, ifaces []Devic
 	}
 
 	for ip, ifIdx := range ipToIfIndex {
-		if i, ok := idxMap[ifIdx]; ok {
-			ifaces[i].IPAddresses = append(ifaces[i].IPAddresses, ip)
+		i, ok := idxMap[ifIdx]
+		if !ok {
+			continue
+		}
+		ifaces[i].IPAddresses = append(ifaces[i].IPAddresses, ip)
+		if mask, hasMask := ipToNetmask[ip]; hasMask && mask != "" {
+			if ifaces[i].IPNetmasks == nil {
+				ifaces[i].IPNetmasks = make(map[string]string)
+			}
+			ifaces[i].IPNetmasks[ip] = mask
 		}
 	}
 }
@@ -496,6 +513,20 @@ func (ss *SNMPScanner) queryCDPNeighbors(client *gosnmp.GoSNMP, ifaces []DeviceI
 }
 
 // --- helpers ---
+
+// NetmaskToCIDR converts an IP address and its dotted-decimal netmask into
+// the network prefix in CIDR notation (e.g. "192.168.1.1"+"255.255.255.0" → "192.168.1.0/24").
+// Returns empty string if parsing fails.
+func NetmaskToCIDR(ip, netmask string) string {
+	parsedIP := net.ParseIP(ip)
+	parsedMask := net.ParseIP(netmask)
+	if parsedIP == nil || parsedMask == nil {
+		return ""
+	}
+	mask := net.IPMask(parsedMask.To4())
+	network := &net.IPNet{IP: parsedIP.To4().Mask(mask), Mask: mask}
+	return network.String()
+}
 
 func enumerateSubnet(subnet string) ([]string, error) {
 	ip, ipNet, err := net.ParseCIDR(subnet)

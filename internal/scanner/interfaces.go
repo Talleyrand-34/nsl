@@ -16,13 +16,14 @@ type ScanOptions struct {
 
 // DeviceInterface represents one physical or logical interface as reported by the device's ifTable.
 type DeviceInterface struct {
-	Index       int              `json:"index"`
-	Name        string           `json:"name"`        // ifDescr
-	MAC         string           `json:"mac"`         // ifPhysAddress
-	AdminStatus int              `json:"admin_status"` // 1=up 2=down
-	OperStatus  int              `json:"oper_status"`
-	IPAddresses []string         `json:"ip_addresses"`
-	VLANs       []VLANMembership `json:"vlans"`
+	Index       int               `json:"index"`
+	Name        string            `json:"name"`         // ifDescr
+	MAC         string            `json:"mac"`          // ifPhysAddress
+	AdminStatus int               `json:"admin_status"` // 1=up 2=down
+	OperStatus  int               `json:"oper_status"`
+	IPAddresses []string          `json:"ip_addresses"`
+	IPNetmasks  map[string]string `json:"ip_netmasks"`  // ip -> netmask (e.g. "255.255.255.0")
+	VLANs       []VLANMembership  `json:"vlans"`
 }
 
 // VLANMembership describes a VLAN assignment on an interface.
@@ -76,6 +77,7 @@ type DiscoveredDevice struct {
 // IPVLANMapping represents a proposed mapping between an IP address and a VLAN
 type IPVLANMapping struct {
 	IP           string `json:"ip"`
+	Subnet       string `json:"subnet"`        // network CIDR derived from SNMP netmask (e.g. "192.168.1.0/24")
 	VLANNumber   string `json:"vlan_number"`   // VLAN ID (can be negative for special cases)
 	Confidence   string `json:"confidence"`    // "exact", "heuristic", "suggested", "unknown"
 	Reason       string `json:"reason"`        // Human-readable explanation for the mapping
