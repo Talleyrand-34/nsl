@@ -191,6 +191,26 @@ func (r BasicOpsCloverRepository) DeleteDevice(id string) error {
 		return fmt.Errorf("cannot delete device: referenced by connections; use --cascade to delete all dependents")
 	}
 
+	// Cascade-delete DeviceInterfaces (which in turn delete their InterfacePorts)
+	ifaceDocs, err := r.db.FindAll(q.NewQuery(deviceInterfacesCollection).Where(q.Field("device_id").Eq(id)))
+	if err != nil {
+		return fmt.Errorf("DeleteDevice: failed to query device interfaces: %w", err)
+	}
+	for _, ifaceDoc := range ifaceDocs {
+		ifaceID := ifaceDoc.ObjectId()
+		if v, ok := ifaceDoc.Get("_id").(string); ok {
+			ifaceID = v
+		}
+		if err := r.DeleteDeviceInterface(ifaceID); err != nil {
+			return fmt.Errorf("DeleteDevice: failed to delete interface %s: %w", ifaceID, err)
+		}
+	}
+
+	// Also delete any orphaned InterfacePort entries referencing this device
+	if err := r.db.Delete(q.NewQuery(interfacePortsCollection).Where(q.Field("device_id").Eq(id))); err != nil {
+		return fmt.Errorf("DeleteDevice: failed to delete interface ports for device %s: %w", id, err)
+	}
+
 	err = r.db.Delete(q.NewQuery(devicesCollection).Where(q.Field("_id").Eq(id)))
 	if err != nil {
 		return fmt.Errorf("DeleteDevice failed: %w", err)

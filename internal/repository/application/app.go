@@ -192,6 +192,19 @@ type NetServiceInt interface {
 	DeleteConnectionCascade(connectionId string) error
 	DeleteVlanCascade(vlanId string) error
 
+	// DeviceInterface operations
+	AddDeviceInterface(deviceID, name, description string, vlanConfigs []e.PortVlanConfig, ips []string) error
+	GetDeviceInterfaces(deviceID string) ([]e.DeviceInterface, error)
+	GetAllDeviceInterfaces() ([]e.DeviceInterface, error)
+	DeleteDeviceInterface(id string) error
+
+	// InterfacePort operations
+	AddInterfacePort(interfaceID, deviceID, modelPortID string) error
+	GetInterfacesForPort(deviceID, modelPortID string) ([]e.DeviceInterface, error)
+	GetPortsForInterface(interfaceID string) ([]e.DevicePort, error)
+	GetAllInterfacePorts() ([]e.InterfacePort, error)
+	DeleteInterfacePort(interfaceID, deviceID, modelPortID string) error
+
 	// Special operations
 	GetAllPortsDevice(deviceId string) ([]e.DevicePort, error)
 	GetAllPortsAll() ([]e.DevicePort, error)
@@ -379,6 +392,77 @@ func (ns *NetService) AddConnection(
 
 func (ns *NetService) GetAllPortsAll() ([]e.DevicePort, error) {
 	return ns.netRepo.GetAllPortsAll()
+}
+
+// DeviceInterface method implementations
+
+func (ns *NetService) AddDeviceInterface(deviceID, name, description string, vlanConfigs []e.PortVlanConfig, ips []string) error {
+	return ns.netRepo.AddDeviceInterface(deviceID, name, description, vlanConfigs, ips)
+}
+
+func (ns *NetService) GetDeviceInterfaces(deviceID string) ([]e.DeviceInterface, error) {
+	return ns.netRepo.GetDeviceInterfaces(deviceID)
+}
+
+func (ns *NetService) GetAllDeviceInterfaces() ([]e.DeviceInterface, error) {
+	return ns.netRepo.GetAllDeviceInterfaces()
+}
+
+func (ns *NetService) DeleteDeviceInterface(id string) error {
+	return ns.netRepo.DeleteDeviceInterface(id)
+}
+
+func (ns *NetService) AddInterfacePort(interfaceID, deviceID, modelPortID string) error {
+	return ns.netRepo.AddInterfacePort(interfaceID, deviceID, modelPortID)
+}
+
+func (ns *NetService) GetAllInterfacePorts() ([]e.InterfacePort, error) {
+	return ns.netRepo.GetAllInterfacePorts()
+}
+
+func (ns *NetService) DeleteInterfacePort(interfaceID, deviceID, modelPortID string) error {
+	return ns.netRepo.DeleteInterfacePort(interfaceID, deviceID, modelPortID)
+}
+
+// GetInterfacesForPort returns all DeviceInterfaces that are linked to the given physical port
+func (ns *NetService) GetInterfacesForPort(deviceID, modelPortID string) ([]e.DeviceInterface, error) {
+	ifacePorts, err := ns.netRepo.GetInterfacePortsByPort(deviceID, modelPortID)
+	if err != nil {
+		return nil, fmt.Errorf("GetInterfacesForPort: %w", err)
+	}
+
+	result := make([]e.DeviceInterface, 0, len(ifacePorts))
+	for _, ip := range ifacePorts {
+		ifaceList, err := ns.netRepo.GetDeviceInterfaces(ip.DeviceID)
+		if err != nil {
+			continue
+		}
+		for _, iface := range ifaceList {
+			if iface.ID == ip.InterfaceID {
+				result = append(result, iface)
+				break
+			}
+		}
+	}
+	return result, nil
+}
+
+// GetPortsForInterface returns all DevicePorts that are linked to the given logical interface
+func (ns *NetService) GetPortsForInterface(interfaceID string) ([]e.DevicePort, error) {
+	ifacePorts, err := ns.netRepo.GetInterfacePortsByInterface(interfaceID)
+	if err != nil {
+		return nil, fmt.Errorf("GetPortsForInterface: %w", err)
+	}
+
+	result := make([]e.DevicePort, 0, len(ifacePorts))
+	for _, ip := range ifacePorts {
+		dp, err := ns.netRepo.GetDevicePortByIDs(ip.DeviceID, ip.ModelPortID)
+		if err != nil {
+			continue
+		}
+		result = append(result, *dp)
+	}
+	return result, nil
 }
 
 func (ns *NetService) GetAllPortsDevice(deviceid string) ([]e.DevicePort, error) {
@@ -1001,6 +1085,13 @@ func (ns *NetService) createDevicePortsForDevice(deviceID string, discovered s.D
 			continue
 		}
 
+		// Create the physical port (no VLAN configs on the port itself)
+		if err := ns.AddDevicePort(deviceID, modelPortID, iface.MAC, nil); err != nil {
+			if !strings.Contains(err.Error(), "already exists") {
+				return err
+			}
+		}
+
 		// Build VLAN configs from SNMP data
 		vlanConfigs := make([]e.PortVlanConfig, 0, len(iface.VLANs))
 		for _, v := range iface.VLANs {
@@ -1010,9 +1101,23 @@ func (ns *NetService) createDevicePortsForDevice(deviceID string, discovered s.D
 			})
 		}
 
-		if err := ns.AddDevicePort(deviceID, modelPortID, iface.MAC, vlanConfigs); err != nil {
-			if !strings.Contains(err.Error(), "already exists") {
-				return err
+		// Create a DeviceInterface for this logical interface and link it to the physical port
+		if len(vlanConfigs) > 0 {
+			if err := ns.AddDeviceInterface(deviceID, iface.Name, "", vlanConfigs, iface.IPAddresses); err != nil {
+				log.Printf("Warning: failed to create device interface %s for device %s: %v", iface.Name, deviceID, err)
+			} else {
+				// Look up the newly created interface by name so we can link it
+				ifaceList, err := ns.GetDeviceInterfaces(deviceID)
+				if err == nil {
+					for _, di := range ifaceList {
+						if di.Name == iface.Name && di.DeviceID == deviceID {
+							if err := ns.AddInterfacePort(di.ID, deviceID, modelPortID); err != nil {
+								log.Printf("Warning: failed to link interface %s to port %s: %v", di.ID, modelPortID, err)
+							}
+							break
+						}
+					}
+				}
 			}
 		}
 

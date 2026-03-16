@@ -182,6 +182,20 @@ type repository interface {
 	DeleteConnectionCascade(connectionId string) error
 	DeleteVlanCascade(vlanId string) error
 
+	// DeviceInterface interaction
+	AddDeviceInterface(deviceID, name, description string, vlanConfigs []e.PortVlanConfig, ips []string) error
+	GetDeviceInterfaces(deviceID string) ([]e.DeviceInterface, error)
+	GetAllDeviceInterfaces() ([]e.DeviceInterface, error)
+	UpdateDeviceInterface(id string, vlanConfigs []e.PortVlanConfig) error
+	DeleteDeviceInterface(id string) error
+
+	// InterfacePort interaction
+	AddInterfacePort(interfaceID, deviceID, modelPortID string) error
+	GetInterfacePortsByInterface(interfaceID string) ([]e.InterfacePort, error)
+	GetInterfacePortsByPort(deviceID, modelPortID string) ([]e.InterfacePort, error)
+	GetAllInterfacePorts() ([]e.InterfacePort, error)
+	DeleteInterfacePort(interfaceID, deviceID, modelPortID string) error
+
 	// get all the ports mapped
 	GetAllPortsAll() ([]e.DevicePort, error)
 	// get all the ports mapped for a device

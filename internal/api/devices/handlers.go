@@ -86,6 +86,16 @@ func RegisterRoutes(r *mux.Router, service q.NetServiceInt) {
 	// All Ports
 	r.HandleFunc("/allports/device", GetAllPortsDeviceHandler(service)).Methods("GET")
 	r.HandleFunc("/allports/all", GetAllPortsAllHandler(service)).Methods("GET")
+
+	// Device Interfaces
+	r.HandleFunc("/deviceinterfaces", AddDeviceInterfaceHandler(service)).Methods("POST", "OPTIONS")
+	r.HandleFunc("/deviceinterfaces", GetDeviceInterfacesHandler(service)).Methods("GET", "OPTIONS")
+	r.HandleFunc("/deviceinterfaces", DeleteDeviceInterfaceHandler(service)).Methods("DELETE", "OPTIONS")
+
+	// Interface Ports
+	r.HandleFunc("/interfaceports", AddInterfacePortHandler(service)).Methods("POST", "OPTIONS")
+	r.HandleFunc("/interfaceports", GetInterfacePortsHandler(service)).Methods("GET", "OPTIONS")
+	r.HandleFunc("/interfaceports", DeleteInterfacePortHandler(service)).Methods("DELETE", "OPTIONS")
 }
 
 // Placeholder handlers - these will be moved from the original files
@@ -1494,5 +1504,244 @@ func GetAllPortsAllHandler(service q.NetServiceInt) http.HandlerFunc {
 
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(devicePorts)
+	}
+}
+
+// --- Device Interface handlers ---
+
+func AddDeviceInterfaceHandler(service q.NetServiceInt) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		var req struct {
+			DeviceID    string             `json:"device_id"`
+			Name        string             `json:"name"`
+			Description string             `json:"description"`
+			VlanConfigs []e.PortVlanConfig `json:"vlan_configs"`
+			IPAddresses []string           `json:"ip_addresses"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid_json", "message": err.Error()})
+			return
+		}
+
+		if req.DeviceID == "" || req.Name == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "missing_fields", "message": "device_id and name are required"})
+			return
+		}
+
+		err := service.AddDeviceInterface(req.DeviceID, req.Name, req.Description, req.VlanConfigs, req.IPAddresses)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"error": "creation_failed", "message": err.Error()})
+			return
+		}
+
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Device interface created successfully"})
+	}
+}
+
+func GetDeviceInterfacesHandler(service q.NetServiceInt) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		deviceID := r.URL.Query().Get("device_id")
+
+		var result interface{}
+		var err error
+		if deviceID != "" {
+			result, err = service.GetDeviceInterfaces(deviceID)
+		} else {
+			result, err = service.GetAllDeviceInterfaces()
+		}
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(result)
+	}
+}
+
+func DeleteDeviceInterfaceHandler(service q.NetServiceInt) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		var req struct {
+			ID string `json:"id"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid_json", "message": err.Error()})
+			return
+		}
+
+		if req.ID == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "missing_fields", "message": "id is required"})
+			return
+		}
+
+		err := service.DeleteDeviceInterface(req.ID)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"error": "delete_failed", "message": err.Error()})
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Device interface deleted successfully", "id": req.ID})
+	}
+}
+
+// --- Interface Port handlers ---
+
+func AddInterfacePortHandler(service q.NetServiceInt) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		var req struct {
+			InterfaceID string `json:"interface_id"`
+			DeviceID    string `json:"device_id"`
+			ModelPortID string `json:"model_port_id"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid_json", "message": err.Error()})
+			return
+		}
+
+		if req.InterfaceID == "" || req.DeviceID == "" || req.ModelPortID == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "missing_fields", "message": "interface_id, device_id, and model_port_id are required"})
+			return
+		}
+
+		err := service.AddInterfacePort(req.InterfaceID, req.DeviceID, req.ModelPortID)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"error": "creation_failed", "message": err.Error()})
+			return
+		}
+
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Interface-port link created successfully"})
+	}
+}
+
+func GetInterfacePortsHandler(service q.NetServiceInt) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		interfaceID := r.URL.Query().Get("interface_id")
+		deviceID := r.URL.Query().Get("device_id")
+		modelPortID := r.URL.Query().Get("model_port_id")
+
+		var result interface{}
+		var err error
+		switch {
+		case interfaceID != "":
+			result, err = service.GetPortsForInterface(interfaceID)
+		case deviceID != "" && modelPortID != "":
+			result, err = service.GetInterfacesForPort(deviceID, modelPortID)
+		default:
+			result, err = service.GetAllInterfacePorts()
+		}
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(result)
+	}
+}
+
+func DeleteInterfacePortHandler(service q.NetServiceInt) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		var req struct {
+			InterfaceID string `json:"interface_id"`
+			DeviceID    string `json:"device_id"`
+			ModelPortID string `json:"model_port_id"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid_json", "message": err.Error()})
+			return
+		}
+
+		if req.InterfaceID == "" || req.DeviceID == "" || req.ModelPortID == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "missing_fields", "message": "interface_id, device_id, and model_port_id are required"})
+			return
+		}
+
+		err := service.DeleteInterfacePort(req.InterfaceID, req.DeviceID, req.ModelPortID)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"error": "delete_failed", "message": err.Error()})
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Interface-port link deleted successfully"})
 	}
 }

@@ -209,18 +209,6 @@ func printLevel3Summary(connections []e.Connection, devicePorts []e.DevicePort) 
 				}
 
 				fmt.Printf("    %-15s MAC: %-17s", port.PortName, macAddr)
-
-				if len(port.VlanConfigs) > 0 {
-					var vlanStrs []string
-					for _, vlan := range port.VlanConfigs {
-						tagStr := "untagged"
-						if vlan.Tagged {
-							tagStr = "tagged"
-						}
-						vlanStrs = append(vlanStrs, fmt.Sprintf("%s(%s)", vlan.VlanNumber, tagStr))
-					}
-					fmt.Printf(" VLANs: %s", strings.Join(vlanStrs, ", "))
-				}
 				fmt.Println()
 			}
 		}

@@ -48,10 +48,12 @@ var DiagramPortVlanCmd = &cobra.Command{
 		devices, err := service.GetDevices()
 		zones, err := service.GetZones()
 		devicePorts, err := service.GetDevicePorts()
+		allInterfaces, err := service.GetAllDeviceInterfaces()
+		ifacePorts, err := service.GetAllInterfacePorts()
 		if err != nil {
 			return
 		}
-		d2diagram := format.GenerateD2FocusPortsWithVlans(devices, connections, zones, devicePorts, false, diagramPortVlanAllPorts)
+		d2diagram := format.GenerateD2FocusPortsWithVlans(devices, connections, zones, devicePorts, allInterfaces, ifacePorts, false, diagramPortVlanAllPorts)
 		format.WriteDiagram(d2diagram, op, of, oi)
 	},
 }

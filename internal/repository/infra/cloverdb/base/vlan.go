@@ -120,15 +120,15 @@ func (r BasicOpsCloverRepository) DeleteVlan(vlanId string) error {
 		return fmt.Errorf("cannot delete VLAN '%s': referenced by local VLANs; use --cascade to delete all dependents", vlanNumber)
 	}
 
-	// Auto-clean: remove this VLAN from device port vlan_configs (set-null behaviour)
-	devicePorts, err := r.GetDevicePorts()
+	// Auto-clean: remove this VLAN from DeviceInterface vlan_configs (set-null behaviour)
+	allInterfaces, err := r.GetAllDeviceInterfaces()
 	if err != nil {
-		return fmt.Errorf("DeleteVlan: failed to get device ports: %w", err)
+		return fmt.Errorf("DeleteVlan: failed to get device interfaces: %w", err)
 	}
-	for _, devicePort := range devicePorts {
+	for _, iface := range allInterfaces {
 		var updatedVlanConfigs []e.PortVlanConfig
 		modified := false
-		for _, vlanConfig := range devicePort.VlanConfigs {
+		for _, vlanConfig := range iface.VlanConfigs {
 			if vlanConfig.VlanNumber != vlanNumber {
 				updatedVlanConfigs = append(updatedVlanConfigs, vlanConfig)
 			} else {
@@ -136,8 +136,8 @@ func (r BasicOpsCloverRepository) DeleteVlan(vlanId string) error {
 			}
 		}
 		if modified {
-			if err := r.UpdateDevicePort(devicePort.DeviceID, devicePort.ModelID, devicePort.MacAddress, updatedVlanConfigs); err != nil {
-				return fmt.Errorf("DeleteVlan: failed to update device port: %w", err)
+			if err := r.UpdateDeviceInterface(iface.ID, updatedVlanConfigs); err != nil {
+				return fmt.Errorf("DeleteVlan: failed to update device interface: %w", err)
 			}
 		}
 	}

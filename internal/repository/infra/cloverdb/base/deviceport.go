@@ -38,10 +38,10 @@ func (r BasicOpsCloverRepository) DevicePortExists(deviceid string, modelportid 
 	return exists, nil
 }
 
-// AddDevicePort adds a new device port to the database
+// AddDevicePort adds a new device port to the database.
+// vlanConfigs is accepted but ignored — VLAN data is now stored on DeviceInterface.
 func (r BasicOpsCloverRepository) AddDevicePort(deviceid string, modelportid string, macAddress string, vlanConfigs []e.PortVlanConfig) error {
 	// Validate that the model port belongs to the device's model
-	// This check ensures the port is valid for this device
 	deviceDoc, err := r.db.FindById(devicesCollection, deviceid)
 	if err != nil {
 		return fmt.Errorf("device not found: %v", err)
@@ -62,41 +62,11 @@ func (r BasicOpsCloverRepository) AddDevicePort(deviceid string, modelportid str
 		return fmt.Errorf("model port does not belong to device's model")
 	}
 
-	allowMultipleUntagged, ok := modelPortDoc.Get("allow_multiple_connections").(bool)
-	if !ok {
-		// handle the case where the field is not a bool or not found
-		allowMultipleUntagged = false
-	}
-
-	// Validate untagged VLAN restriction (soft restriction)
-	if !allowMultipleUntagged && len(vlanConfigs) > 0 {
-		untaggedCount := 0
-		for _, vc := range vlanConfigs {
-			if !vc.Tagged {
-				untaggedCount++
-			}
-		}
-		if untaggedCount > 1 {
-			return fmt.Errorf("multiple untagged VLANs are not allowed per port (found %d). Use allowMultipleUntagged flag to override", untaggedCount)
-		}
-	}
-
 	doc := d.NewDocument()
 	doc.Set("device_id", deviceid)
 	doc.Set("model_port_id", modelportid)
 	if macAddress != "" {
 		doc.Set("mac_address", macAddress)
-	}
-	if len(vlanConfigs) > 0 {
-		// Convert vlanConfigs to a format suitable for storage
-		vlanConfigsMap := make([]map[string]interface{}, len(vlanConfigs))
-		for i, vc := range vlanConfigs {
-			vlanConfigsMap[i] = map[string]interface{}{
-				"vlan_number": vc.VlanNumber,
-				"tagged":      vc.Tagged,
-			}
-		}
-		doc.Set("vlan_configs", vlanConfigsMap)
 	}
 
 	_, err = r.db.InsertOne(deviceportsCollection, doc)
@@ -156,23 +126,6 @@ func (r BasicOpsCloverRepository) GetDevicePorts() ([]e.DevicePort, error) {
 			devicePort.MacAddress = macAddr
 		}
 
-		// Get VLAN configs if they exist
-		devicePort.VlanConfigs = make([]e.PortVlanConfig, 0)
-		if vlanConfigs, ok := doc.Get("vlan_configs").([]interface{}); ok && len(vlanConfigs) > 0 {
-			for _, vcInterface := range vlanConfigs {
-				if vcMap, ok := vcInterface.(map[string]interface{}); ok {
-					vlanConfig := e.PortVlanConfig{}
-					if vlanNum, ok := vcMap["vlan_number"].(string); ok {
-						vlanConfig.VlanNumber = vlanNum
-					}
-					if tagged, ok := vcMap["tagged"].(bool); ok {
-						vlanConfig.Tagged = tagged
-					}
-					devicePort.VlanConfigs = append(devicePort.VlanConfigs, vlanConfig)
-				}
-			}
-		}
-
 		result = append(result, devicePort)
 	}
 
@@ -197,6 +150,13 @@ func (r BasicOpsCloverRepository) DeleteDevicePort(deviceid string, modelportid 
 		return fmt.Errorf("cannot delete device port: referenced by connections; use --cascade to delete all dependents")
 	}
 
+	// Cascade-delete InterfacePort entries for this physical port
+	if err := r.db.Delete(q.NewQuery(interfacePortsCollection).
+		Where(q.Field("device_id").Eq(deviceid)).
+		Where(q.Field("model_port_id").Eq(modelportid))); err != nil {
+		return fmt.Errorf("DeleteDevicePort: failed to delete interface ports: %w", err)
+	}
+
 	query := q.NewQuery(deviceportsCollection).
 		Where(q.Field("device_id").Eq(deviceid)).
 		Where(q.Field("model_port_id").Eq(modelportid))
@@ -208,60 +168,21 @@ func (r BasicOpsCloverRepository) DeleteDevicePort(deviceid string, modelportid 
 	return nil
 }
 
-// UpdateDevicePort updates a device port's fields
+// UpdateDevicePort updates a device port's MAC address.
+// vlanConfigs is accepted for interface compatibility but ignored — VLAN data
+// is now managed via DeviceInterface.
 func (r BasicOpsCloverRepository) UpdateDevicePort(deviceid string, modelportid string, macAddress string, vlanConfigs []e.PortVlanConfig) error {
-	// Get the model port to check allowMultipleUntagged
-	modelPortDoc, err := r.db.FindById(modelportsCollection, modelportid)
-	if err != nil {
-		return fmt.Errorf("model port not found: %v", err)
-	}
-
-	allowMultipleUntagged, ok := modelPortDoc.Get("allow_multiple_connections").(bool)
-	if !ok {
-		allowMultipleUntagged = false
-	}
-
-	// Validate untagged VLAN restriction (soft restriction)
-	if !allowMultipleUntagged && len(vlanConfigs) > 0 {
-		untaggedCount := 0
-		for _, vc := range vlanConfigs {
-			if !vc.Tagged {
-				untaggedCount++
-			}
-		}
-		if untaggedCount > 1 {
-			return fmt.Errorf("multiple untagged VLANs are not allowed per port (found %d)", untaggedCount)
-		}
-	}
-
 	query := q.NewQuery(deviceportsCollection).Where(
 		q.Field("device_id").Eq(deviceid).And(
 			q.Field("model_port_id").Eq(modelportid),
 		),
 	)
 
-	updates := make(map[string]interface{})
-
-	// Update MAC address (allow empty to clear it)
-	updates["mac_address"] = macAddress
-
-	// Update VLAN configs
-	if len(vlanConfigs) > 0 {
-		// Convert vlanConfigs to a format suitable for storage
-		vlanConfigsMap := make([]map[string]interface{}, len(vlanConfigs))
-		for i, vc := range vlanConfigs {
-			vlanConfigsMap[i] = map[string]interface{}{
-				"vlan_number": vc.VlanNumber,
-				"tagged":      vc.Tagged,
-			}
-		}
-		updates["vlan_configs"] = vlanConfigsMap
-	} else {
-		// If empty, clear the field
-		updates["vlan_configs"] = []map[string]interface{}{}
+	updates := map[string]interface{}{
+		"mac_address": macAddress,
 	}
 
-	err = r.db.Update(query, updates)
+	err := r.db.Update(query, updates)
 	if err != nil {
 		return fmt.Errorf("UpdateDevicePort failed: %w", err)
 	}
@@ -290,23 +211,6 @@ func (r BasicOpsCloverRepository) GetDevicePortByIDs(deviceid string, modelporti
 	// Get MAC address if it exists
 	if macAddr, ok := doc.Get("mac_address").(string); ok {
 		devicePort.MacAddress = macAddr
-	}
-
-	// Get VLAN configs if they exist
-	devicePort.VlanConfigs = make([]e.PortVlanConfig, 0)
-	if vlanConfigs, ok := doc.Get("vlan_configs").([]interface{}); ok && len(vlanConfigs) > 0 {
-		for _, vcInterface := range vlanConfigs {
-			if vcMap, ok := vcInterface.(map[string]interface{}); ok {
-				vlanConfig := e.PortVlanConfig{}
-				if vlanNum, ok := vcMap["vlan_number"].(string); ok {
-					vlanConfig.VlanNumber = vlanNum
-				}
-				if tagged, ok := vcMap["tagged"].(bool); ok {
-					vlanConfig.Tagged = tagged
-				}
-				devicePort.VlanConfigs = append(devicePort.VlanConfigs, vlanConfig)
-			}
-		}
 	}
 
 	// Get device label

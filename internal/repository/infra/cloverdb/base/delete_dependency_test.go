@@ -751,7 +751,7 @@ func TestDeleteVlan_BlocksWithDependentLocalVlan(t *testing.T) {
 	}
 }
 
-func TestDeleteVlan_CleansDevicePortVlanConfigs(t *testing.T) {
+func TestDeleteVlan_CleansDeviceInterfaceVlanConfigs(t *testing.T) {
 	repo, cleanup, err := setupTestCloverRepository(t)
 	if err != nil {
 		t.Fatalf("failed to setup repository: %v", err)
@@ -766,9 +766,6 @@ func TestDeleteVlan_CleansDevicePortVlanConfigs(t *testing.T) {
 	}
 	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
 		t.Fatalf("failed to add model: %v", err)
-	}
-	if err := repo.AddModelPort("Gi1/0/1", "0", "0", "Catalyst 9300", false); err != nil {
-		t.Fatalf("failed to add model port: %v", err)
 	}
 	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", "", []string{}); err != nil {
 		t.Fatalf("failed to add device: %v", err)
@@ -786,18 +783,9 @@ func TestDeleteVlan_CleansDevicePortVlanConfigs(t *testing.T) {
 		}
 	}
 
-	modelPorts, _ := repo.GetModelPorts()
-	var modelPortID string
-	for _, mp := range modelPorts {
-		if mp.Name == "Gi1/0/1" {
-			modelPortID = mp.ID
-			break
-		}
-	}
-
 	vlanConfigs := []e.PortVlanConfig{{VlanNumber: "20", Tagged: false}}
-	if err := repo.AddDevicePort(deviceID, modelPortID, "", vlanConfigs); err != nil {
-		t.Fatalf("failed to add device port with VLAN config: %v", err)
+	if err := repo.AddDeviceInterface(deviceID, "Gi1/0/1.20", "", vlanConfigs, []string{}); err != nil {
+		t.Fatalf("failed to add device interface with VLAN config: %v", err)
 	}
 
 	vlans, _ := repo.GetVlans()
@@ -813,14 +801,16 @@ func TestDeleteVlan_CleansDevicePortVlanConfigs(t *testing.T) {
 		t.Fatalf("expected VLAN delete to succeed (no local VLANs), got: %v", err)
 	}
 
-	// Verify the device port's vlan_configs no longer references VLAN 20
-	dp, err := repo.GetDevicePortByIDs(deviceID, modelPortID)
+	// Verify the device interface's vlan_configs no longer references VLAN 20
+	ifaces, err := repo.GetDeviceInterfaces(deviceID)
 	if err != nil {
-		t.Fatalf("failed to get device port: %v", err)
+		t.Fatalf("failed to get device interfaces: %v", err)
 	}
-	for _, vc := range dp.VlanConfigs {
-		if vc.VlanNumber == "20" {
-			t.Errorf("expected VLAN 20 to be removed from device port vlan_configs, but it still exists")
+	for _, iface := range ifaces {
+		for _, vc := range iface.VlanConfigs {
+			if vc.VlanNumber == "20" {
+				t.Errorf("expected VLAN 20 to be removed from device interface vlan_configs, but it still exists")
+			}
 		}
 	}
 }

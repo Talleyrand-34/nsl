@@ -55,6 +55,8 @@ func NewCloverRepositoryFromDB(db *c.DB) (BasicOpsCloverRepository, error) {
 		connectiontypesCollection,
 		vlansCollection,
 		localvlansCollection,
+		deviceInterfacesCollection,
+		interfacePortsCollection,
 	}
 
 	// Create each collection if it doesn't exist

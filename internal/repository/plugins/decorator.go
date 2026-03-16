@@ -362,6 +362,48 @@ func (p *PluginAwareRepository) DeleteVlanCascade(vlanId string) error {
 	return p.baseRepo.DeleteVlanCascade(vlanId)
 }
 
+// DeviceInterface interaction
+func (p *PluginAwareRepository) AddDeviceInterface(deviceID, name, description string, vlanConfigs []e.PortVlanConfig, ips []string) error {
+	return p.baseRepo.AddDeviceInterface(deviceID, name, description, vlanConfigs, ips)
+}
+
+func (p *PluginAwareRepository) GetDeviceInterfaces(deviceID string) ([]e.DeviceInterface, error) {
+	return p.baseRepo.GetDeviceInterfaces(deviceID)
+}
+
+func (p *PluginAwareRepository) GetAllDeviceInterfaces() ([]e.DeviceInterface, error) {
+	return p.baseRepo.GetAllDeviceInterfaces()
+}
+
+func (p *PluginAwareRepository) UpdateDeviceInterface(id string, vlanConfigs []e.PortVlanConfig) error {
+	return p.baseRepo.UpdateDeviceInterface(id, vlanConfigs)
+}
+
+func (p *PluginAwareRepository) DeleteDeviceInterface(id string) error {
+	return p.baseRepo.DeleteDeviceInterface(id)
+}
+
+// InterfacePort interaction
+func (p *PluginAwareRepository) AddInterfacePort(interfaceID, deviceID, modelPortID string) error {
+	return p.baseRepo.AddInterfacePort(interfaceID, deviceID, modelPortID)
+}
+
+func (p *PluginAwareRepository) GetInterfacePortsByInterface(interfaceID string) ([]e.InterfacePort, error) {
+	return p.baseRepo.GetInterfacePortsByInterface(interfaceID)
+}
+
+func (p *PluginAwareRepository) GetInterfacePortsByPort(deviceID, modelPortID string) ([]e.InterfacePort, error) {
+	return p.baseRepo.GetInterfacePortsByPort(deviceID, modelPortID)
+}
+
+func (p *PluginAwareRepository) GetAllInterfacePorts() ([]e.InterfacePort, error) {
+	return p.baseRepo.GetAllInterfacePorts()
+}
+
+func (p *PluginAwareRepository) DeleteInterfacePort(interfaceID, deviceID, modelPortID string) error {
+	return p.baseRepo.DeleteInterfacePort(interfaceID, deviceID, modelPortID)
+}
+
 // Export info
 func (p *PluginAwareRepository) ExportAllStructs() (e.All, error) {
 	return p.baseRepo.ExportAllStructs()

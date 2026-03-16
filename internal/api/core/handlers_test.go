@@ -81,8 +81,8 @@ func TestCore_DiagramEndpoint(t *testing.T) {
 
 	router.ServeHTTP(w, req)
 
-	// Currently placeholder implementation returning 501
-	assert.Equal(t, http.StatusNotImplemented, w.Code)
+	// Diagram endpoint returns 200 with D2 content
+	assert.Equal(t, http.StatusOK, w.Code)
 }
 
 func TestCore_RootEndpointContentStructure(t *testing.T) {

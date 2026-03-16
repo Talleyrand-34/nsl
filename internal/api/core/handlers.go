@@ -190,20 +190,34 @@ func GetDiagramHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
+		allInterfaces, err := service.GetAllDeviceInterfaces()
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Failed to get device interfaces: " + err.Error()))
+			return
+		}
+
+		ifacePorts, err := service.GetAllInterfacePorts()
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Failed to get interface ports: " + err.Error()))
+			return
+		}
+
 		// Generate D2 diagram based on parameters
 		var d2Script string
 
 		if vlan {
 			if format == "ports" {
-				d2Script = fmtd2.GenerateD2FocusPortsWithVlans(devices, connections, zones, devicePorts, colorports, allports)
+				d2Script = fmtd2.GenerateD2FocusPortsWithVlans(devices, connections, zones, devicePorts, allInterfaces, ifacePorts, colorports, allports)
 			} else {
-				d2Script = fmtd2.GenerateD2FocusConnectionsWithVlans(devices, connections, zones, devicePorts, colorports, allports)
+				d2Script = fmtd2.GenerateD2FocusConnectionsWithVlans(devices, connections, zones, devicePorts, allInterfaces, ifacePorts, colorports, allports)
 			}
 		} else {
 			if format == "ports" {
-				d2Script = fmtd2.GenerateD2FocusPorts(devices, connections, zones, devicePorts, colorports, allports)
+				d2Script = fmtd2.GenerateD2FocusPorts(devices, connections, zones, devicePorts, allInterfaces, ifacePorts, colorports, allports)
 			} else {
-				d2Script = fmtd2.GenerateD2FocusConnections(devices, connections, zones, devicePorts, colorports, allports)
+				d2Script = fmtd2.GenerateD2FocusConnections(devices, connections, zones, devicePorts, allInterfaces, ifacePorts, colorports, allports)
 			}
 		}
 

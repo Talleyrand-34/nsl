@@ -49,10 +49,12 @@ var DiagramSimpleCmd = &cobra.Command{
 		devices, err := service.GetDevices()
 		zones, err := service.GetZones()
 		devicePorts, err := service.GetDevicePorts()
+		allInterfaces, err := service.GetAllDeviceInterfaces()
+		ifacePorts, err := service.GetAllInterfacePorts()
 		if err != nil {
 			return
 		}
-		d2diagram := format.GenerateD2FocusPorts(devices, connections, zones, devicePorts, false, diagramSimpleAllPorts)
+		d2diagram := format.GenerateD2FocusPorts(devices, connections, zones, devicePorts, allInterfaces, ifacePorts, false, diagramSimpleAllPorts)
 		format.WriteDiagram(d2diagram, op, of, oi)
 	},
 }

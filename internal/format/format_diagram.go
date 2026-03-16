@@ -61,7 +61,7 @@ func GenerateD2FromJSON(devicesJSON, connectionsJSON []byte) string {
 	return d2Connections + "\n" + d2Devices
 }
 
-func GenerateD2FocusPorts(devices []e.Device, connections []e.Connection, zones []e.Zone, devicePorts []e.DevicePort, colorPorts bool, showUnusedPorts bool) string {
+func GenerateD2FocusPorts(devices []e.Device, connections []e.Connection, zones []e.Zone, devicePorts []e.DevicePort, allInterfaces []e.DeviceInterface, ifacePorts []e.InterfacePort, colorPorts bool, showUnusedPorts bool) string {
 	zoneFullName := buildZoneFullNameMap(zones)
 	deviceMap := buildDeviceMap(devices, zoneFullName)
 	collectPortsFromConnections(connections, deviceMap, zoneFullName)
@@ -75,7 +75,7 @@ func GenerateD2FocusPorts(devices []e.Device, connections []e.Connection, zones 
 	var d2Devices string
 	if colorPorts {
 		vlanColorMap := make(map[string]string)
-		d2Devices = generateD2DeviceBlocksWithPortColors(deviceMap, devicePorts, vlanColorMap)
+		d2Devices = generateD2DeviceBlocksWithPortColors(deviceMap, devicePorts, allInterfaces, ifacePorts, vlanColorMap)
 	} else {
 		d2Devices = generateD2DeviceBlocks(deviceMap)
 	}
@@ -83,7 +83,7 @@ func GenerateD2FocusPorts(devices []e.Device, connections []e.Connection, zones 
 	return d2Connections + "\n" + d2Devices
 }
 
-func GenerateD2FocusConnections(devices []e.Device, connections []e.Connection, zones []e.Zone, devicePorts []e.DevicePort, colorPorts bool, showUnusedPorts bool) string {
+func GenerateD2FocusConnections(devices []e.Device, connections []e.Connection, zones []e.Zone, devicePorts []e.DevicePort, allInterfaces []e.DeviceInterface, ifacePorts []e.InterfacePort, colorPorts bool, showUnusedPorts bool) string {
 	zoneFullName := buildZoneFullNameMap(zones)
 	deviceMap := buildDeviceMap(devices, zoneFullName)
 	collectPortsFromConnections(connections, deviceMap, zoneFullName)
@@ -118,7 +118,7 @@ func GenerateD2FocusConnections(devices []e.Device, connections []e.Connection, 
 	var d2Devices string
 	if colorPorts {
 		vlanColorMap := make(map[string]string)
-		d2Devices = generateD2DeviceBlocksWithPortColors(deviceMap, devicePorts, vlanColorMap)
+		d2Devices = generateD2DeviceBlocksWithPortColors(deviceMap, devicePorts, allInterfaces, ifacePorts, vlanColorMap)
 	} else {
 		d2Devices = generateD2DeviceBlocks(deviceMap)
 	}
@@ -128,7 +128,7 @@ func GenerateD2FocusConnections(devices []e.Device, connections []e.Connection, 
 
 // GenerateD2FocusPortsWithVlans generates a D2 diagram with VLAN support
 // Creates multiple colored connections per VLAN, with a legend
-func GenerateD2FocusPortsWithVlans(devices []e.Device, connections []e.Connection, zones []e.Zone, devicePorts []e.DevicePort, colorPorts bool, showUnusedPorts bool) string {
+func GenerateD2FocusPortsWithVlans(devices []e.Device, connections []e.Connection, zones []e.Zone, devicePorts []e.DevicePort, allInterfaces []e.DeviceInterface, ifacePorts []e.InterfacePort, colorPorts bool, showUnusedPorts bool) string {
 	zoneFullName := buildZoneFullNameMap(zones)
 	deviceMap := buildDeviceMap(devices, zoneFullName)
 	collectPortsFromConnections(connections, deviceMap, zoneFullName)
@@ -138,11 +138,11 @@ func GenerateD2FocusPortsWithVlans(devices []e.Device, connections []e.Connectio
 	assignPortNumbers(deviceMap)
 
 	vlanColorMap := make(map[string]string)
-	d2Connections := generateD2ConnectionStringsWithVlans(connections, deviceMap, zoneFullName, vlanColorMap, devicePorts)
+	d2Connections := generateD2ConnectionStringsWithVlans(connections, deviceMap, zoneFullName, vlanColorMap, devicePorts, allInterfaces, ifacePorts)
 
 	var d2Devices string
 	if colorPorts {
-		d2Devices = generateD2DeviceBlocksWithPortColors(deviceMap, devicePorts, vlanColorMap)
+		d2Devices = generateD2DeviceBlocksWithPortColors(deviceMap, devicePorts, allInterfaces, ifacePorts, vlanColorMap)
 	} else {
 		d2Devices = generateD2DeviceBlocks(deviceMap)
 	}
@@ -154,7 +154,7 @@ func GenerateD2FocusPortsWithVlans(devices []e.Device, connections []e.Connectio
 
 // GenerateD2FocusConnectionsWithVlans generates a D2 diagram with sorted connections and VLAN support
 // Creates multiple colored connections per VLAN, with a legend
-func GenerateD2FocusConnectionsWithVlans(devices []e.Device, connections []e.Connection, zones []e.Zone, devicePorts []e.DevicePort, colorPorts bool, showUnusedPorts bool) string {
+func GenerateD2FocusConnectionsWithVlans(devices []e.Device, connections []e.Connection, zones []e.Zone, devicePorts []e.DevicePort, allInterfaces []e.DeviceInterface, ifacePorts []e.InterfacePort, colorPorts bool, showUnusedPorts bool) string {
 	zoneFullName := buildZoneFullNameMap(zones)
 	deviceMap := buildDeviceMap(devices, zoneFullName)
 	collectPortsFromConnections(connections, deviceMap, zoneFullName)
@@ -185,11 +185,11 @@ func GenerateD2FocusConnectionsWithVlans(devices []e.Device, connections []e.Con
 	})
 
 	vlanColorMap := make(map[string]string)
-	d2Connections := generateD2ConnectionStringsWithVlans(sortedConnections, deviceMap, zoneFullName, vlanColorMap, devicePorts)
+	d2Connections := generateD2ConnectionStringsWithVlans(sortedConnections, deviceMap, zoneFullName, vlanColorMap, devicePorts, allInterfaces, ifacePorts)
 
 	var d2Devices string
 	if colorPorts {
-		d2Devices = generateD2DeviceBlocksWithPortColors(deviceMap, devicePorts, vlanColorMap)
+		d2Devices = generateD2DeviceBlocksWithPortColors(deviceMap, devicePorts, allInterfaces, ifacePorts, vlanColorMap)
 	} else {
 		d2Devices = generateD2DeviceBlocks(deviceMap)
 	}
@@ -373,24 +373,49 @@ func generateD2DeviceBlocks(deviceMap map[string]*DeviceD2) string {
 	return d2Devices.String()
 }
 
-// hasPortVlans checks if a specific device port has VLAN configurations
-func hasPortVlans(deviceLabel string, portName string, devicePorts []e.DevicePort) bool {
+// getPortUntaggedVlan returns the untagged VLAN number for a specific port via the
+// DeviceInterface layer. It accepts the full allInterfaces and ifacePorts slices so
+// callers can fetch them once and reuse across many calls.
+//
+// Logic:
+//  1. Find DevicePort matching deviceLabel+portName to get DeviceID+ModelPortID.
+//  2. Find all InterfacePort entries where DeviceID+ModelPortID match.
+//  3. For each matched DeviceInterface, scan VlanConfigs for an untagged VLAN.
+func getPortUntaggedVlan(
+	deviceLabel, portName string,
+	devicePorts []e.DevicePort,
+	allInterfaces []e.DeviceInterface,
+	ifacePorts []e.InterfacePort,
+) string {
+	// Step 1: identify the DevicePort
+	var deviceID, modelPortID string
 	for _, dp := range devicePorts {
 		if dp.DevLabel == deviceLabel && dp.PortName == portName {
-			return len(dp.VlanConfigs) > 0
+			deviceID = dp.DeviceID
+			modelPortID = dp.ModelID
+			break
 		}
 	}
-	return false
-}
+	if deviceID == "" {
+		return ""
+	}
 
-// getPortUntaggedVlan returns the untagged VLAN number for a specific port, or empty string if none
-func getPortUntaggedVlan(deviceLabel string, portName string, devicePorts []e.DevicePort) string {
-	for _, dp := range devicePorts {
-		if dp.DevLabel == deviceLabel && dp.PortName == portName {
-			for _, vlanConfig := range dp.VlanConfigs {
-				if !vlanConfig.Tagged {
-					return vlanConfig.VlanNumber
-				}
+	// Step 2: collect interface IDs linked to this physical port
+	ifaceIDSet := make(map[string]struct{})
+	for _, ip := range ifacePorts {
+		if ip.DeviceID == deviceID && ip.ModelPortID == modelPortID {
+			ifaceIDSet[ip.InterfaceID] = struct{}{}
+		}
+	}
+
+	// Step 3: scan the matched interfaces for an untagged VLAN
+	for _, iface := range allInterfaces {
+		if _, ok := ifaceIDSet[iface.ID]; !ok {
+			continue
+		}
+		for _, vc := range iface.VlanConfigs {
+			if !vc.Tagged {
+				return vc.VlanNumber
 			}
 		}
 	}
@@ -398,8 +423,8 @@ func getPortUntaggedVlan(deviceLabel string, portName string, devicePorts []e.De
 }
 
 // generateD2DeviceBlocksWithPortColors generates D2 device block definitions with colored ports
-// Ports are colored by their untagged VLAN color
-func generateD2DeviceBlocksWithPortColors(deviceMap map[string]*DeviceD2, devicePorts []e.DevicePort, vlanColorMap map[string]string) string {
+// Ports are colored by their untagged VLAN color via the DeviceInterface layer.
+func generateD2DeviceBlocksWithPortColors(deviceMap map[string]*DeviceD2, devicePorts []e.DevicePort, allInterfaces []e.DeviceInterface, ifacePorts []e.InterfacePort, vlanColorMap map[string]string) string {
 	var d2Devices strings.Builder
 
 	for _, dev := range deviceMap {
@@ -410,8 +435,8 @@ func generateD2DeviceBlocksWithPortColors(deviceMap map[string]*DeviceD2, device
 		d2Devices.WriteString(fmt.Sprintf("  label: \"%s\"\n", dev.Label))
 		for _, portName := range dev.PortOrder {
 			num := dev.PortNumMap[portName]
-			// Check if this port has an untagged VLAN
-			untaggedVlan := getPortUntaggedVlan(dev.Label, portName, devicePorts)
+			// Check if this port has an untagged VLAN via the interface layer
+			untaggedVlan := getPortUntaggedVlan(dev.Label, portName, devicePorts, allInterfaces, ifacePorts)
 			if untaggedVlan != "" {
 				color := getVlanColor(untaggedVlan, vlanColorMap)
 				d2Devices.WriteString(fmt.Sprintf("  %s: \"%s\" {\n", num, portName))
@@ -428,24 +453,48 @@ func generateD2DeviceBlocksWithPortColors(deviceMap map[string]*DeviceD2, device
 }
 
 // getConnectionVlans returns the union of VLANs from both device ports in a connection
-// It looks up the device ports by device label and port name, then extracts VLANs
-func getConnectionVlans(conn e.Connection, devicePorts []e.DevicePort) []string {
+// via the DeviceInterface layer.
+func getConnectionVlans(
+	conn e.Connection,
+	devicePorts []e.DevicePort,
+	allInterfaces []e.DeviceInterface,
+	ifacePorts []e.InterfacePort,
+) []string {
 	vlanSet := make(map[string]bool)
 
-	// Find the "from" device port and collect its VLANs
-	for _, dp := range devicePorts {
-		if dp.DevLabel == conn.FromDevice && dp.PortName == conn.FromModelPort {
-			for _, vlanConfig := range dp.VlanConfigs {
-				vlanSet[vlanConfig.VlanNumber] = true
+	collectVlans := func(deviceLabel, portName string) {
+		// Find the DevicePort
+		var deviceID, modelPortID string
+		for _, dp := range devicePorts {
+			if dp.DevLabel == deviceLabel && dp.PortName == portName {
+				deviceID = dp.DeviceID
+				modelPortID = dp.ModelID
+				break
 			}
 		}
-		// Find the "to" device port and collect its VLANs
-		if dp.DevLabel == conn.ToDevice && dp.PortName == conn.ToModelPort {
-			for _, vlanConfig := range dp.VlanConfigs {
-				vlanSet[vlanConfig.VlanNumber] = true
+		if deviceID == "" {
+			return
+		}
+		// Collect interface IDs for this port
+		ifaceIDSet := make(map[string]struct{})
+		for _, ip := range ifacePorts {
+			if ip.DeviceID == deviceID && ip.ModelPortID == modelPortID {
+				ifaceIDSet[ip.InterfaceID] = struct{}{}
+			}
+		}
+		// Collect VLANs from matched interfaces
+		for _, iface := range allInterfaces {
+			if _, ok := ifaceIDSet[iface.ID]; !ok {
+				continue
+			}
+			for _, vc := range iface.VlanConfigs {
+				vlanSet[vc.VlanNumber] = true
 			}
 		}
 	}
+
+	collectVlans(conn.FromDevice, conn.FromModelPort)
+	collectVlans(conn.ToDevice, conn.ToModelPort)
 
 	// Convert set to sorted slice for consistent output
 	vlans := make([]string, 0, len(vlanSet))
@@ -470,9 +519,9 @@ func getVlanColor(vlanID string, vlanColorMap map[string]string) string {
 	return color
 }
 
-// generateD2ConnectionStringsWithVlans generates D2 connection strings with VLAN support
-// Colors each connection by its untagged VLAN (from the source port)
-func generateD2ConnectionStringsWithVlans(connections []e.Connection, deviceMap map[string]*DeviceD2, zoneFullName map[string]string, vlanColorMap map[string]string, devicePorts []e.DevicePort) string {
+// generateD2ConnectionStringsWithVlans generates D2 connection strings with VLAN support.
+// Colors each connection by the untagged VLAN of the source port via the DeviceInterface layer.
+func generateD2ConnectionStringsWithVlans(connections []e.Connection, deviceMap map[string]*DeviceD2, zoneFullName map[string]string, vlanColorMap map[string]string, devicePorts []e.DevicePort, allInterfaces []e.DeviceInterface, ifacePorts []e.InterfacePort) string {
 	var d2Connections strings.Builder
 
 	for _, c := range connections {
@@ -487,8 +536,8 @@ func generateD2ConnectionStringsWithVlans(connections []e.Connection, deviceMap 
 		from := fmt.Sprintf("%s.%s", fromPath, fromPortNum)
 		to := fmt.Sprintf("%s.%s", toPath, toPortNum)
 
-		// Get the untagged VLAN from the source port
-		untaggedVlan := getPortUntaggedVlan(c.FromDevice, c.FromModelPort, devicePorts)
+		// Get the untagged VLAN from the source port via the interface layer
+		untaggedVlan := getPortUntaggedVlan(c.FromDevice, c.FromModelPort, devicePorts, allInterfaces, ifacePorts)
 
 		// If there's an untagged VLAN, color the connection by it
 		if untaggedVlan != "" {
