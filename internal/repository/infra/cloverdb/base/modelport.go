@@ -160,7 +160,16 @@ func (r BasicOpsCloverRepository) UpdateModelPort(
 
 // DeleteModelPort deletes a model port from the database by its ID
 func (r BasicOpsCloverRepository) DeleteModelPort(id string) error {
-	err := r.db.Delete(q.NewQuery(modelportsCollection).Where(q.Field("_id").Eq(id)))
+	// Check for dependent device ports
+	exists, err := r.db.Exists(q.NewQuery(deviceportsCollection).Where(q.Field("model_port_id").Eq(id)))
+	if err != nil {
+		return err
+	}
+	if exists {
+		return fmt.Errorf("cannot delete model port: referenced by device ports; use --cascade to delete all dependents")
+	}
+
+	err = r.db.Delete(q.NewQuery(modelportsCollection).Where(q.Field("_id").Eq(id)))
 	if err != nil {
 		return fmt.Errorf("DeleteModelPort failed: %w", err)
 	}

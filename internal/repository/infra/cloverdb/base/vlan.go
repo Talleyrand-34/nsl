@@ -94,9 +94,55 @@ func (r BasicOpsCloverRepository) UpdateVlan(vlanId string, newVlanID string, ne
 	return nil
 }
 
-// DeleteVlan deletes a VLAN from the database by its ID
+// DeleteVlan deletes a VLAN from the database by its ID.
+// Blocks if local VLAN entries exist (use --cascade).
+// Automatically removes this VLAN from device port vlan_configs.
 func (r BasicOpsCloverRepository) DeleteVlan(vlanId string) error {
-	err := r.db.Delete(q.NewQuery(vlansCollection).Where(q.Field("_id").Eq(vlanId)))
+	// Get the VLAN's vlan_id (VLAN number) to check dependents
+	vlanDoc, err := r.db.FindById(vlansCollection, vlanId)
+	if err != nil {
+		return fmt.Errorf("DeleteVlan: failed to find VLAN: %w", err)
+	}
+	if vlanDoc == nil {
+		return fmt.Errorf("DeleteVlan: VLAN with ID %s not found", vlanId)
+	}
+	vlanNumber, ok := vlanDoc.Get("vlan_id").(string)
+	if !ok {
+		return fmt.Errorf("DeleteVlan: invalid VLAN number")
+	}
+
+	// Block if local VLAN entries reference this VLAN
+	localVlanExists, err := r.db.Exists(q.NewQuery(localvlansCollection).Where(q.Field("vlan_id").Eq(vlanNumber)))
+	if err != nil {
+		return err
+	}
+	if localVlanExists {
+		return fmt.Errorf("cannot delete VLAN '%s': referenced by local VLANs; use --cascade to delete all dependents", vlanNumber)
+	}
+
+	// Auto-clean: remove this VLAN from device port vlan_configs (set-null behaviour)
+	devicePorts, err := r.GetDevicePorts()
+	if err != nil {
+		return fmt.Errorf("DeleteVlan: failed to get device ports: %w", err)
+	}
+	for _, devicePort := range devicePorts {
+		var updatedVlanConfigs []e.PortVlanConfig
+		modified := false
+		for _, vlanConfig := range devicePort.VlanConfigs {
+			if vlanConfig.VlanNumber != vlanNumber {
+				updatedVlanConfigs = append(updatedVlanConfigs, vlanConfig)
+			} else {
+				modified = true
+			}
+		}
+		if modified {
+			if err := r.UpdateDevicePort(devicePort.DeviceID, devicePort.ModelID, devicePort.MacAddress, updatedVlanConfigs); err != nil {
+				return fmt.Errorf("DeleteVlan: failed to update device port: %w", err)
+			}
+		}
+	}
+
+	err = r.db.Delete(q.NewQuery(vlansCollection).Where(q.Field("_id").Eq(vlanId)))
 	if err != nil {
 		return err
 	}

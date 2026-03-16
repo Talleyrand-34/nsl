@@ -74,7 +74,23 @@ func (r BasicOpsCloverRepository) UpdateDeviceClass(deviceClassId string, newDev
 
 // DeleteDeviceClass deletes a device class from the database by its name
 func (r BasicOpsCloverRepository) DeleteDeviceClass(devClassName string) error {
-	err := r.db.Delete(q.NewQuery(devclassesCollection).Where(q.Field("name").Eq(devClassName)))
+	// Check for dependent models before deleting
+	classDoc, err := r.db.FindFirst(q.NewQuery(devclassesCollection).Where(q.Field("name").Eq(devClassName)))
+	if err != nil {
+		return err
+	}
+	if classDoc != nil {
+		classID := classDoc.ObjectId()
+		exists, err := r.db.Exists(q.NewQuery(modelsCollection).Where(q.Field("class_id").Eq(classID)))
+		if err != nil {
+			return err
+		}
+		if exists {
+			return fmt.Errorf("cannot delete device class '%s': referenced by models; use --cascade to delete all dependents", devClassName)
+		}
+	}
+
+	err = r.db.Delete(q.NewQuery(devclassesCollection).Where(q.Field("name").Eq(devClassName)))
 	if err != nil {
 		return err
 	}

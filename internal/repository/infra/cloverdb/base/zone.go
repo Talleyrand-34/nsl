@@ -138,7 +138,25 @@ func (r BasicOpsCloverRepository) UpdateZone(
 
 // DeleteZone deletes a zone from the database by its ID
 func (r BasicOpsCloverRepository) DeleteZone(id string) error {
-	err := r.db.Delete(q.NewQuery(zonesCollection).Where(q.Field("_id").Eq(id)))
+	// Check for child zones
+	childZoneExists, err := r.db.Exists(q.NewQuery(zonesCollection).Where(q.Field("father").Eq(id)))
+	if err != nil {
+		return err
+	}
+	if childZoneExists {
+		return fmt.Errorf("cannot delete zone: has child zones; use --cascade to delete all dependents")
+	}
+
+	// Check for devices in this zone
+	deviceExists, err := r.db.Exists(q.NewQuery(devicesCollection).Where(q.Field("zone_id").Eq(id)))
+	if err != nil {
+		return err
+	}
+	if deviceExists {
+		return fmt.Errorf("cannot delete zone: has devices; use --cascade to delete all dependents")
+	}
+
+	err = r.db.Delete(q.NewQuery(zonesCollection).Where(q.Field("_id").Eq(id)))
 	if err != nil {
 		return fmt.Errorf("DeleteZone failed: %w", err)
 	}

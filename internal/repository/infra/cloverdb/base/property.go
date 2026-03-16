@@ -72,9 +72,33 @@ func (r BasicOpsCloverRepository) UpdateProprietary(proprietaryId string, newPro
 	return nil
 }
 
-// DeleteProprietary deletes a proprietary entry from the database by its name
+// DeleteProprietary deletes a proprietary entry from the database by its name.
+// Before deleting, it sets the proprietary field to empty on all referencing zones and devices.
 func (r BasicOpsCloverRepository) DeleteProprietary(proprietary string) error {
-	err := r.db.Delete(q.NewQuery(proprietariesCollection).Where(q.Field("proprietary").Eq(proprietary)))
+	// Find the proprietary ID to clear references
+	proprietaryDoc, err := r.db.FindFirst(q.NewQuery(proprietariesCollection).Where(q.Field("proprietary").Eq(proprietary)))
+	if err != nil {
+		return fmt.Errorf("DeleteProprietary failed: %w", err)
+	}
+	if proprietaryDoc != nil {
+		proprietaryID := proprietaryDoc.ObjectId()
+		// Set null on zones referencing this proprietary
+		if err := r.db.Update(
+			q.NewQuery(zonesCollection).Where(q.Field("proprietary").Eq(proprietaryID)),
+			map[string]interface{}{"proprietary": ""},
+		); err != nil {
+			return fmt.Errorf("DeleteProprietary: failed to clear proprietary from zones: %w", err)
+		}
+		// Set null on devices referencing this proprietary
+		if err := r.db.Update(
+			q.NewQuery(devicesCollection).Where(q.Field("proprietary").Eq(proprietaryID)),
+			map[string]interface{}{"proprietary": ""},
+		); err != nil {
+			return fmt.Errorf("DeleteProprietary: failed to clear proprietary from devices: %w", err)
+		}
+	}
+
+	err = r.db.Delete(q.NewQuery(proprietariesCollection).Where(q.Field("proprietary").Eq(proprietary)))
 	if err != nil {
 		return fmt.Errorf("DeleteProprietary failed: %w", err)
 	}

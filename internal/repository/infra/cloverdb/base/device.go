@@ -169,7 +169,29 @@ func (r BasicOpsCloverRepository) UpdateDevice(
 
 // DeleteDevice deletes a device from the database by its ID
 func (r BasicOpsCloverRepository) DeleteDevice(id string) error {
-	err := r.db.Delete(q.NewQuery(devicesCollection).Where(q.Field("_id").Eq(id)))
+	// Check for dependent device ports
+	devicePortExists, err := r.db.Exists(q.NewQuery(deviceportsCollection).Where(q.Field("device_id").Eq(id)))
+	if err != nil {
+		return err
+	}
+	if devicePortExists {
+		return fmt.Errorf("cannot delete device: referenced by device ports; use --cascade to delete all dependents")
+	}
+
+	// Check for dependent connections
+	fromConnExists, err := r.db.Exists(q.NewQuery(connectionsCollection).Where(q.Field("from_device_id").Eq(id)))
+	if err != nil {
+		return err
+	}
+	toConnExists, err := r.db.Exists(q.NewQuery(connectionsCollection).Where(q.Field("to_device_id").Eq(id)))
+	if err != nil {
+		return err
+	}
+	if fromConnExists || toConnExists {
+		return fmt.Errorf("cannot delete device: referenced by connections; use --cascade to delete all dependents")
+	}
+
+	err = r.db.Delete(q.NewQuery(devicesCollection).Where(q.Field("_id").Eq(id)))
 	if err != nil {
 		return fmt.Errorf("DeleteDevice failed: %w", err)
 	}

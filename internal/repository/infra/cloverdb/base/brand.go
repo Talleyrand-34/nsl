@@ -74,7 +74,23 @@ func (r BasicOpsCloverRepository) UpdateBrand(brandId string, newBrandName strin
 
 // DeleteBrand deletes a brand from the database by its name
 func (r BasicOpsCloverRepository) DeleteBrand(brand string) error {
-	err := r.db.Delete(q.NewQuery(brandsCollection).Where(q.Field("brand").Eq(brand)))
+	// Check for dependent models before deleting
+	brandDoc, err := r.db.FindFirst(q.NewQuery(brandsCollection).Where(q.Field("brand").Eq(brand)))
+	if err != nil {
+		return err
+	}
+	if brandDoc != nil {
+		brandID := brandDoc.ObjectId()
+		exists, err := r.db.Exists(q.NewQuery(modelsCollection).Where(q.Field("brand").Eq(brandID)))
+		if err != nil {
+			return err
+		}
+		if exists {
+			return fmt.Errorf("cannot delete brand '%s': referenced by models; use --cascade to delete all dependents", brand)
+		}
+	}
+
+	err = r.db.Delete(q.NewQuery(brandsCollection).Where(q.Field("brand").Eq(brand)))
 	if err != nil {
 		return err
 	}

@@ -181,11 +181,27 @@ func (r BasicOpsCloverRepository) GetDevicePorts() ([]e.DevicePort, error) {
 
 // DeleteDevicePort deletes a device port from the database by device and model port IDs
 func (r BasicOpsCloverRepository) DeleteDevicePort(deviceid string, modelportid string) error {
+	// Check for dependent connections (from side)
+	fromExists, err := r.db.Exists(q.NewQuery(connectionsCollection).Where(
+		q.Field("from_device_id").Eq(deviceid).And(q.Field("from_model_port_id").Eq(modelportid))))
+	if err != nil {
+		return err
+	}
+	// Check for dependent connections (to side)
+	toExists, err := r.db.Exists(q.NewQuery(connectionsCollection).Where(
+		q.Field("to_device_id").Eq(deviceid).And(q.Field("to_model_port_id").Eq(modelportid))))
+	if err != nil {
+		return err
+	}
+	if fromExists || toExists {
+		return fmt.Errorf("cannot delete device port: referenced by connections; use --cascade to delete all dependents")
+	}
+
 	query := q.NewQuery(deviceportsCollection).
 		Where(q.Field("device_id").Eq(deviceid)).
 		Where(q.Field("model_port_id").Eq(modelportid))
 
-	err := r.db.Delete(query)
+	err = r.db.Delete(query)
 	if err != nil {
 		return fmt.Errorf("DeleteDevicePort failed: %w", err)
 	}

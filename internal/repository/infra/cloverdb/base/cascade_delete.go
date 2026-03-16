@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"log"
 
+	q "github.com/ostafen/clover/v2/query"
+
 	e "nsl-graph/internal/repository/entities"
 )
 
@@ -92,26 +94,11 @@ func (r BasicOpsCloverRepository) DeleteZoneTypeCascade(zoneTypeName string) err
 	return r.DeleteZoneType(zoneTypeName)
 }
 
-// DeleteProprietaryCascade deletes a proprietary and all dependent zones, models, and devices
+// DeleteProprietaryCascade deletes a proprietary, setting the proprietary field to empty
+// on all referencing zones and devices (set-null, not cascade-delete).
 func (r BasicOpsCloverRepository) DeleteProprietaryCascade(proprietaryName string) error {
 	log.Printf("Cascade deleting proprietary: %s", proprietaryName)
-
-	// Get all zones with this proprietary
-	zones, err := r.GetZones()
-	if err != nil {
-		return fmt.Errorf("failed to get zones: %w", err)
-	}
-
-	for _, zone := range zones {
-		if zone.Proprietary == proprietaryName {
-			// Cascade delete each zone
-			if err := r.DeleteZoneCascade(zone.ID); err != nil {
-				return fmt.Errorf("failed to cascade delete zone %s: %w", zone.ID, err)
-			}
-		}
-	}
-
-	// Finally delete the proprietary itself
+	// DeleteProprietary already handles set-null on zones and devices before deleting
 	return r.DeleteProprietary(proprietaryName)
 }
 
@@ -269,7 +256,7 @@ func (r BasicOpsCloverRepository) DeleteConnectionCascade(connectionId string) e
 	return r.DeleteConnection(connectionId)
 }
 
-// DeleteVlanCascade deletes a VLAN and removes it from all device port configurations
+// DeleteVlanCascade deletes a VLAN, its local VLAN entries, and removes it from all device port configurations
 func (r BasicOpsCloverRepository) DeleteVlanCascade(vlanId string) error {
 	log.Printf("Cascade deleting VLAN: %s", vlanId)
 
@@ -289,6 +276,11 @@ func (r BasicOpsCloverRepository) DeleteVlanCascade(vlanId string) error {
 
 	if vlanNumber == "" {
 		return fmt.Errorf("VLAN with ID %s not found", vlanId)
+	}
+
+	// Delete all local VLAN entries referencing this VLAN number
+	if err := r.db.Delete(q.NewQuery(localvlansCollection).Where(q.Field("vlan_id").Eq(vlanNumber))); err != nil {
+		return fmt.Errorf("failed to delete local VLANs for vlan %s: %w", vlanNumber, err)
 	}
 
 	// Get all device ports and remove VLAN configurations
@@ -318,6 +310,6 @@ func (r BasicOpsCloverRepository) DeleteVlanCascade(vlanId string) error {
 		}
 	}
 
-	// Finally delete the VLAN itself
+	// Finally delete the VLAN itself (local vlans already deleted, so check passes)
 	return r.DeleteVlan(vlanId)
 }

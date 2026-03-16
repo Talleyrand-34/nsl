@@ -116,7 +116,25 @@ func (r BasicOpsCloverRepository) UpdateModel(
 
 // DeleteModel deletes a model from the database by its ID
 func (r BasicOpsCloverRepository) DeleteModel(id string) error {
-	err := r.db.Delete(q.NewQuery(modelsCollection).Where(q.Field("_id").Eq(id)))
+	// Check for dependent devices
+	deviceExists, err := r.db.Exists(q.NewQuery(devicesCollection).Where(q.Field("model_id").Eq(id)))
+	if err != nil {
+		return err
+	}
+	if deviceExists {
+		return fmt.Errorf("cannot delete model: referenced by devices; use --cascade to delete all dependents")
+	}
+
+	// Check for dependent model ports
+	modelPortExists, err := r.db.Exists(q.NewQuery(modelportsCollection).Where(q.Field("model_id").Eq(id)))
+	if err != nil {
+		return err
+	}
+	if modelPortExists {
+		return fmt.Errorf("cannot delete model: referenced by model ports; use --cascade to delete all dependents")
+	}
+
+	err = r.db.Delete(q.NewQuery(modelsCollection).Where(q.Field("_id").Eq(id)))
 	if err != nil {
 		return fmt.Errorf("DeleteModel failed: %w", err)
 	}

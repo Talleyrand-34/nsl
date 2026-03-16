@@ -74,7 +74,23 @@ func (r BasicOpsCloverRepository) UpdateZoneType(zoneTypeId string, newZoneTypeN
 
 // DeleteZoneType deletes a zone type from the database by its name
 func (r BasicOpsCloverRepository) DeleteZoneType(zonetype string) error {
-	err := r.db.Delete(q.NewQuery(zonetypesCollection).Where(q.Field("location_type").Eq(zonetype)))
+	// Check for dependent zones before deleting
+	zonetypeDoc, err := r.db.FindFirst(q.NewQuery(zonetypesCollection).Where(q.Field("location_type").Eq(zonetype)))
+	if err != nil {
+		return err
+	}
+	if zonetypeDoc != nil {
+		zonetypeID := zonetypeDoc.ObjectId()
+		exists, err := r.db.Exists(q.NewQuery(zonesCollection).Where(q.Field("location_type").Eq(zonetypeID)))
+		if err != nil {
+			return err
+		}
+		if exists {
+			return fmt.Errorf("cannot delete zone type '%s': referenced by zones; use --cascade to delete all dependents", zonetype)
+		}
+	}
+
+	err = r.db.Delete(q.NewQuery(zonetypesCollection).Where(q.Field("location_type").Eq(zonetype)))
 	if err != nil {
 		return fmt.Errorf("DeleteZoneType failed: %w", err)
 	}
