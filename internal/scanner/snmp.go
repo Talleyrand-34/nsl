@@ -209,14 +209,15 @@ func (ss *SNMPScanner) queryInterfaceTable(client *gosnmp.GoSNMP) []DeviceInterf
 		return nil
 	})
 
-	// ifType (24 = softwareLoopback, skip)
+	// ifType — store the type and skip loopbacks
 	_ = client.BulkWalk(oidIfType, func(pdu gosnmp.SnmpPDU) error {
 		idx := lastOIDInt(pdu.Name)
 		if idx > 0 {
 			iface := getOrCreate(ifaceMap, idx)
 			iface.Index = idx
 			if v, ok := pdu.Value.(int); ok {
-				if v == 24 { // loopback
+				iface.IfType = v
+				if v == IfTypeLoopback {
 					iface.Index = -1
 				}
 			}

@@ -24,6 +24,8 @@ import (
 	"nsl-graph/internal/format"
 )
 
+var diagramPortVlanAllPorts bool
+
 // DiagramPortVlanCmd represents the port-vlan diagram command
 var DiagramPortVlanCmd = &cobra.Command{
 	Use:   "port-vlan",
@@ -49,11 +51,12 @@ var DiagramPortVlanCmd = &cobra.Command{
 		if err != nil {
 			return
 		}
-		d2diagram := format.GenerateD2FocusPortsWithVlans(devices, connections, zones, devicePorts, false)
+		d2diagram := format.GenerateD2FocusPortsWithVlans(devices, connections, zones, devicePorts, false, diagramPortVlanAllPorts)
 		format.WriteDiagram(d2diagram, op, of, oi)
 	},
 }
 
 func init() {
 	cmd.DiagramCmd.AddCommand(DiagramPortVlanCmd)
+	DiagramPortVlanCmd.Flags().BoolVar(&diagramPortVlanAllPorts, "all-ports", false, "Include ports with no connections in the diagram")
 }

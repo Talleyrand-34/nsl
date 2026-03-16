@@ -24,13 +24,13 @@ import (
 	"nsl-graph/internal/format"
 )
 
+var diagramSimple2AllPorts bool
+
 // rootCmd represents the base command when called without any subcommands
 var DiagramSimple2Cmd = &cobra.Command{
 	Use:   "connection",
 	Short: "Generates a diagram from an nsl especification with the focus on connections",
 	Long:  `.`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
 		flagNames := []string{"outPath", "outFile", "outImage"}
 		vals := util.Flagproc(
@@ -51,19 +51,12 @@ var DiagramSimple2Cmd = &cobra.Command{
 		if err != nil {
 			return
 		}
-		d2diagram := format.GenerateD2FocusConnections(devices, connections, zones, devicePorts, false)
+		d2diagram := format.GenerateD2FocusConnections(devices, connections, zones, devicePorts, false, diagramSimple2AllPorts)
 		format.WriteDiagram(d2diagram, op, of, oi)
 	},
 }
 
 func init() {
 	cmd.DiagramCmd.AddCommand(DiagramSimple2Cmd)
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
-
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.modtest.yaml)")
-
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
+	DiagramSimple2Cmd.Flags().BoolVar(&diagramSimple2AllPorts, "all-ports", false, "Include ports with no connections in the diagram")
 }

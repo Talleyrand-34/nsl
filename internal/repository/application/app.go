@@ -970,17 +970,23 @@ func (ns *NetService) createDevicePortsForDevice(deviceID string, discovered s.D
 		}
 	}
 
-	for i, iface := range discovered.Device.Interfaces {
-		portName := iface.Name
-		if portName == "" {
-			portName = fmt.Sprintf("eth%d", i)
+	portIdx := 0
+	for _, iface := range discovered.Device.Interfaces {
+		if !iface.IsPhysicalPort() {
+			continue
 		}
 
-		if err := ns.AddModelPort(portName, fmt.Sprintf("%d", i), "0", modelName, false); err != nil {
+		portName := iface.Name
+		if portName == "" {
+			portName = fmt.Sprintf("eth%d", portIdx)
+		}
+
+		if err := ns.AddModelPort(portName, fmt.Sprintf("%d", portIdx), "0", modelName, false); err != nil {
 			if !strings.Contains(err.Error(), "already exists") {
 				return err
 			}
 		}
+		portIdx++
 
 		modelPorts, _ := ns.GetModelPorts()
 		var modelPortID string
@@ -1012,11 +1018,9 @@ func (ns *NetService) createDevicePortsForDevice(deviceID string, discovered s.D
 
 		// Create local VLAN entries for this device
 		for _, v := range iface.VLANs {
-			// Generate a local VLAN name (in real implementation this would come from SNMP)
 			localVlanName := fmt.Sprintf("VLAN_%s", v.VLANNumber)
 			if err := ns.AddLocalVlan(v.VLANNumber, deviceID, localVlanName); err != nil {
 				if !strings.Contains(err.Error(), "already exists") {
-					// Log error but don't fail the import
 					fmt.Printf("Warning: failed to create local VLAN mapping %s for device %s: %v\n", v.VLANNumber, deviceID, err)
 				}
 			}
@@ -1567,17 +1571,23 @@ func (ns *NetService) createDevicePortsWithPlan(deviceID string, discovered s.Di
 		}
 	}
 
-	for i, iface := range discovered.Device.Interfaces {
-		portName := iface.Name
-		if portName == "" {
-			portName = fmt.Sprintf("eth%d", i)
+	portIdx := 0
+	for _, iface := range discovered.Device.Interfaces {
+		if !iface.IsPhysicalPort() {
+			continue
 		}
 
-		if err := ns.AddModelPort(portName, fmt.Sprintf("%d", i), "0", modelName, false); err != nil {
+		portName := iface.Name
+		if portName == "" {
+			portName = fmt.Sprintf("eth%d", portIdx)
+		}
+
+		if err := ns.AddModelPort(portName, fmt.Sprintf("%d", portIdx), "0", modelName, false); err != nil {
 			if !strings.Contains(err.Error(), "already exists") {
 				return err
 			}
 		}
+		portIdx++
 
 		modelPorts, _ := ns.GetModelPorts()
 		var modelPortID string

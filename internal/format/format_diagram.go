@@ -61,10 +61,13 @@ func GenerateD2FromJSON(devicesJSON, connectionsJSON []byte) string {
 	return d2Connections + "\n" + d2Devices
 }
 
-func GenerateD2FocusPorts(devices []e.Device, connections []e.Connection, zones []e.Zone, devicePorts []e.DevicePort, colorPorts bool) string {
+func GenerateD2FocusPorts(devices []e.Device, connections []e.Connection, zones []e.Zone, devicePorts []e.DevicePort, colorPorts bool, showUnusedPorts bool) string {
 	zoneFullName := buildZoneFullNameMap(zones)
 	deviceMap := buildDeviceMap(devices, zoneFullName)
 	collectPortsFromConnections(connections, deviceMap, zoneFullName)
+	if showUnusedPorts {
+		collectPortsFromDevicePorts(devicePorts, deviceMap)
+	}
 	assignPortNumbers(deviceMap)
 
 	d2Connections := generateD2ConnectionStrings(connections, deviceMap, zoneFullName, false)
@@ -80,10 +83,13 @@ func GenerateD2FocusPorts(devices []e.Device, connections []e.Connection, zones 
 	return d2Connections + "\n" + d2Devices
 }
 
-func GenerateD2FocusConnections(devices []e.Device, connections []e.Connection, zones []e.Zone, devicePorts []e.DevicePort, colorPorts bool) string {
+func GenerateD2FocusConnections(devices []e.Device, connections []e.Connection, zones []e.Zone, devicePorts []e.DevicePort, colorPorts bool, showUnusedPorts bool) string {
 	zoneFullName := buildZoneFullNameMap(zones)
 	deviceMap := buildDeviceMap(devices, zoneFullName)
 	collectPortsFromConnections(connections, deviceMap, zoneFullName)
+	if showUnusedPorts {
+		collectPortsFromDevicePorts(devicePorts, deviceMap)
+	}
 	assignPortNumbers(deviceMap)
 
 	// Sort connections for better D2 diagram flow
@@ -122,10 +128,13 @@ func GenerateD2FocusConnections(devices []e.Device, connections []e.Connection, 
 
 // GenerateD2FocusPortsWithVlans generates a D2 diagram with VLAN support
 // Creates multiple colored connections per VLAN, with a legend
-func GenerateD2FocusPortsWithVlans(devices []e.Device, connections []e.Connection, zones []e.Zone, devicePorts []e.DevicePort, colorPorts bool) string {
+func GenerateD2FocusPortsWithVlans(devices []e.Device, connections []e.Connection, zones []e.Zone, devicePorts []e.DevicePort, colorPorts bool, showUnusedPorts bool) string {
 	zoneFullName := buildZoneFullNameMap(zones)
 	deviceMap := buildDeviceMap(devices, zoneFullName)
 	collectPortsFromConnections(connections, deviceMap, zoneFullName)
+	if showUnusedPorts {
+		collectPortsFromDevicePorts(devicePorts, deviceMap)
+	}
 	assignPortNumbers(deviceMap)
 
 	vlanColorMap := make(map[string]string)
@@ -145,10 +154,13 @@ func GenerateD2FocusPortsWithVlans(devices []e.Device, connections []e.Connectio
 
 // GenerateD2FocusConnectionsWithVlans generates a D2 diagram with sorted connections and VLAN support
 // Creates multiple colored connections per VLAN, with a legend
-func GenerateD2FocusConnectionsWithVlans(devices []e.Device, connections []e.Connection, zones []e.Zone, devicePorts []e.DevicePort, colorPorts bool) string {
+func GenerateD2FocusConnectionsWithVlans(devices []e.Device, connections []e.Connection, zones []e.Zone, devicePorts []e.DevicePort, colorPorts bool, showUnusedPorts bool) string {
 	zoneFullName := buildZoneFullNameMap(zones)
 	deviceMap := buildDeviceMap(devices, zoneFullName)
 	collectPortsFromConnections(connections, deviceMap, zoneFullName)
+	if showUnusedPorts {
+		collectPortsFromDevicePorts(devicePorts, deviceMap)
+	}
 	assignPortNumbers(deviceMap)
 
 	// Sort connections for better D2 diagram flow
@@ -257,6 +269,27 @@ func collectPortsFromConnections(connections []e.Connection, deviceMap map[strin
 				dev.Ports[c.ToModelPort] = DevicePort{Name: c.ToModelPort}
 				dev.PortOrder = append(dev.PortOrder, c.ToModelPort)
 			}
+		}
+	}
+}
+
+// collectPortsFromDevicePorts populates device ports from the DevicePort slice,
+// adding ports that are not already present (e.g. ports with no connections).
+func collectPortsFromDevicePorts(devicePorts []e.DevicePort, deviceMap map[string]*DeviceD2) {
+	// Build reverse lookup: device label -> map key
+	labelToKey := make(map[string]string)
+	for key, dev := range deviceMap {
+		labelToKey[dev.Label] = key
+	}
+	for _, dp := range devicePorts {
+		key, ok := labelToKey[dp.DevLabel]
+		if !ok {
+			continue
+		}
+		dev := deviceMap[key]
+		if _, exists := dev.Ports[dp.PortName]; !exists {
+			dev.Ports[dp.PortName] = DevicePort{Name: dp.PortName}
+			dev.PortOrder = append(dev.PortOrder, dp.PortName)
 		}
 	}
 }

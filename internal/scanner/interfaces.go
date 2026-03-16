@@ -14,9 +14,19 @@ type ScanOptions struct {
 	SNMP    SNMPOptions   `json:"snmp"`
 }
 
+// SNMP ifType values for interface classification
+const (
+	IfTypeEthernetCsmacd = 6   // physical Ethernet port
+	IfTypeLoopback       = 24  // software loopback
+	IfTypePropVirtual    = 53  // VLAN sub-interfaces and other virtual interfaces
+	IfTypeTunnel         = 131 // tunnel interfaces
+	IfTypeLag            = 161 // IEEE 802.3ad Link Aggregation (bond)
+)
+
 // DeviceInterface represents one physical or logical interface as reported by the device's ifTable.
 type DeviceInterface struct {
 	Index       int               `json:"index"`
+	IfType      int               `json:"if_type"`      // SNMP ifType value
 	Name        string            `json:"name"`         // ifDescr
 	MAC         string            `json:"mac"`          // ifPhysAddress
 	AdminStatus int               `json:"admin_status"` // 1=up 2=down
@@ -24,6 +34,11 @@ type DeviceInterface struct {
 	IPAddresses []string          `json:"ip_addresses"`
 	IPNetmasks  map[string]string `json:"ip_netmasks"`  // ip -> netmask (e.g. "255.255.255.0")
 	VLANs       []VLANMembership  `json:"vlans"`
+}
+
+// IsPhysicalPort returns true if the interface represents a physical port.
+func (d *DeviceInterface) IsPhysicalPort() bool {
+	return d.IfType == IfTypeEthernetCsmacd || d.IfType == IfTypeLag
 }
 
 // VLANMembership describes a VLAN assignment on an interface.
