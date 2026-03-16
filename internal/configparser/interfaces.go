@@ -225,3 +225,6 @@ func (r *ConfigParserRegistry) ListParsers() []string {
 	}
 	return types
 }
+
+// DefaultRegistry is the global parser registry. Parsers self-register via init().
+var DefaultRegistry = NewConfigParserRegistry()

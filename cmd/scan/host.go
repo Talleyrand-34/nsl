@@ -29,6 +29,10 @@ import (
 	cmd_pkg "nsl-graph/cmd"
 	cmd_root "nsl-graph/cmd/root"
 	util "nsl-graph/cmd/utils"
+	"golang.org/x/term"
+
+	configparser "nsl-graph/internal/configparser"
+	_ "nsl-graph/internal/configparser/parsers" // side-effect: registers all parsers
 	q "nsl-graph/internal/repository/application"
 	s "nsl-graph/internal/scanner"
 )
@@ -133,23 +137,61 @@ Examples:
 
 		switch hostScanSource {
 		case "ssh":
-			// SSH-only mode: skip SNMP, use SSH config as primary source
 			if hostSSHUsername == "" {
 				fmt.Println("Error: --ssh-user is required when using --scan-source ssh")
 				os.Exit(1)
 			}
+			if hostDeviceType == "" {
+				fmt.Printf("Error: --device-type is required with --scan-source ssh\n")
+				fmt.Printf("  Supported: %s\n", strings.Join(configparser.DefaultRegistry.ListParsers(), ", "))
+				os.Exit(1)
+			}
+			parser, found := configparser.DefaultRegistry.GetParser(hostDeviceType)
+			if !found {
+				fmt.Printf("Error: unknown device type %q\n  Supported: %s\n",
+					hostDeviceType, strings.Join(configparser.DefaultRegistry.ListParsers(), ", "))
+				os.Exit(1)
+			}
+			if hostSSHKeyFile == "" && hostSSHPassword == "" {
+				fmt.Printf("Password for %s@%s: ", hostSSHUsername, ip)
+				raw, err := term.ReadPassword(int(os.Stdin.Fd()))
+				fmt.Println()
+				if err != nil {
+					fmt.Printf("Failed to read password: %v\n", err)
+					os.Exit(1)
+				}
+				hostSSHPassword = string(raw)
+			}
+
+			creds := configparser.SSHCredentials{
+				Username: hostSSHUsername,
+				Password: hostSSHPassword,
+				KeyFile:  hostSSHKeyFile,
+				Port:     hostSSHPort,
+				Timeout:  time.Duration(hostConfigTimeout) * time.Second,
+			}
+			fmt.Printf("Scanning %s via SSH (user=%s, type=%s)...\n", ip, hostSSHUsername, hostDeviceType)
+			rawConfig, err := parser.GetConfigViaSSH(ip, creds)
+			if err != nil {
+				fmt.Printf("SSH connection failed: %v\n", err)
+				os.Exit(1)
+			}
+			stub := s.SNMPDevice{IP: ip, Reachable: true, SysName: ip}
+			configData, err := parser.ParseConfig(rawConfig, stub)
+			if err != nil {
+				fmt.Printf("Config parsing failed: %v\n", err)
+				os.Exit(1)
+			}
+			device = configparser.ConfigDataToSNMPDevice(configData, ip)
 			// Implicitly enable SSH config source if not already set
 			if hostConfigSource == "none" {
 				hostConfigSource = "ssh"
 			}
-			fmt.Printf("Scanning %s via SSH (user=%s)...\n", ip, hostSSHUsername)
-			// Create a minimal device record; SSH config will populate port/interface
-			// details during import via ExecuteApprovedImportPlan
-			device = &s.SNMPDevice{
-				IP:        ip,
-				Reachable: true,
-				SysName:   ip,
+			fmt.Printf("\nSSH Results for %s:\n", ip)
+			if device.SysName != ip {
+				fmt.Printf("Name:     %s\n", device.SysName)
 			}
+			printDeviceInfo(device)
 
 		default: // "snmp"
 			options := s.ScanOptions{
@@ -192,61 +234,7 @@ Examples:
 			if device.SysContact != "" {
 				fmt.Printf("Contact:  %s\n", device.SysContact)
 			}
-
-			if len(device.Interfaces) > 0 {
-				fmt.Printf("\nInterfaces (%d):\n", len(device.Interfaces))
-				fmt.Printf(
-					"  %-30s %-17s %-6s %-20s %-8s %-8s\n",
-					"Interface", "MAC", "Status", "IPs", "VLAN", "Accuracy",
-				)
-				fmt.Printf(
-					"  %-30s %-17s %-6s %-20s %-8s %-8s\n",
-					strings.Repeat("-", 30),
-					strings.Repeat("-", 17),
-					strings.Repeat("-", 6),
-					strings.Repeat("-", 20),
-					strings.Repeat("-", 8),
-					strings.Repeat("-", 8),
-				)
-
-				for _, iface := range device.Interfaces {
-					status := "down"
-					if iface.OperStatus == 1 {
-						status = "up"
-					}
-
-					vlanInference := s.InferVLANFromInterface(iface.Name, iface.IPAddresses)
-
-					ipsDisplay := "[]"
-					if len(iface.IPAddresses) > 0 {
-						ipsDisplay = fmt.Sprintf("%v", iface.IPAddresses)
-						if len(ipsDisplay) > 18 {
-							ipsDisplay = ipsDisplay[:15] + "..."
-						}
-					}
-
-					fmt.Printf("  %-30s %-17s %-6s %-20s %-8s %-8s\n",
-						iface.Name, iface.MAC, status, ipsDisplay,
-						vlanInference.FormatVLANDisplay(),
-						vlanInference.FormatAccuracyDisplay())
-
-					if len(iface.VLANs) > 0 {
-						fmt.Printf("  %30s   SNMP VLANs:", "")
-						for _, v := range iface.VLANs {
-							t := "untagged"
-							if v.Tagged {
-								t = "tagged"
-							}
-							fmt.Printf(" %s(%s)", v.VLANNumber, t)
-						}
-						fmt.Println()
-					}
-
-					if vlanInference.Notes != "" {
-						fmt.Printf("  %30s   Note: %s\n", "", vlanInference.Notes)
-					}
-				}
-			}
+			printDeviceInfo(device)
 
 			if len(device.Neighbors) > 0 {
 				fmt.Printf("\nNeighbors (%d):\n", len(device.Neighbors))
@@ -352,6 +340,98 @@ Examples:
 			fmt.Println("\nUse --auto-import to add this device to the database")
 		}
 	},
+}
+
+func printDeviceInfo(device *s.SNMPDevice) {
+	if len(device.Interfaces) == 0 {
+		return
+	}
+
+	// Build MAC → physical port name map (non-VLAN interfaces only).
+	// When multiple physical interfaces share the same MAC (e.g. lagg members),
+	// prefer the one that has IP addresses assigned.
+	macToPort := make(map[string]string)
+	for _, iface := range device.Interfaces {
+		if iface.MAC == "" || len(iface.VLANs) > 0 {
+			continue
+		}
+		existing, seen := macToPort[iface.MAC]
+		if !seen {
+			macToPort[iface.MAC] = iface.Name
+		} else if len(iface.IPAddresses) > 0 && existing != iface.Name {
+			macToPort[iface.MAC] = iface.Name
+		}
+	}
+
+	fmt.Printf("\nInterfaces (%d):\n", len(device.Interfaces))
+	fmt.Printf(
+		"  %-35s %-17s %-6s %-35s %-8s %-8s %-10s\n",
+		"Interface", "MAC", "Status", "IPs", "VLAN", "Accuracy", "Port",
+	)
+	fmt.Printf(
+		"  %-35s %-17s %-6s %-35s %-8s %-8s %-10s\n",
+		strings.Repeat("-", 35),
+		strings.Repeat("-", 17),
+		strings.Repeat("-", 6),
+		strings.Repeat("-", 35),
+		strings.Repeat("-", 8),
+		strings.Repeat("-", 8),
+		strings.Repeat("-", 10),
+	)
+
+	for _, iface := range device.Interfaces {
+		status := "down"
+		if iface.OperStatus == 1 {
+			status = "up"
+		}
+
+		vlanInference := s.InferVLANFromInterface(iface.Name, iface.IPAddresses)
+
+		ipsDisplay := "[]"
+		if len(iface.IPAddresses) > 0 {
+			ipsDisplay = fmt.Sprintf("%v", iface.IPAddresses)
+			if len(ipsDisplay) > 33 {
+				ipsDisplay = ipsDisplay[:30] + "..."
+			}
+		}
+
+		// Resolve physical port for VLAN interfaces.
+		// Prefer explicit Parent field (set by Fortinet/OpenWrt parsers);
+		// fall back to MAC-based lookup (FreeBSD/OPNsense VLAN interfaces
+		// inherit the parent MAC).
+		portDisplay := ""
+		if len(iface.VLANs) > 0 {
+			if iface.Parent != "" {
+				portDisplay = iface.Parent
+			} else if iface.MAC != "" {
+				if port, ok := macToPort[iface.MAC]; ok {
+					portDisplay = port
+				}
+			}
+		}
+
+		fmt.Printf("  %-35s %-17s %-6s %-35s %-8s %-8s %-10s\n",
+			iface.Name, iface.MAC, status, ipsDisplay,
+			vlanInference.FormatVLANDisplay(),
+			vlanInference.FormatAccuracyDisplay(),
+			portDisplay)
+
+		if len(iface.VLANs) > 0 {
+			fmt.Printf("  %35s   VLANs:", "")
+			for _, v := range iface.VLANs {
+				t := "untagged"
+				if v.Tagged {
+					t = "tagged"
+				}
+				fmt.Printf(" %s(%s)", v.VLANNumber, t)
+			}
+			fmt.Println()
+		}
+
+		if vlanInference.Notes != "" {
+			fmt.Printf("  %35s   Note: %s\n", "", vlanInference.Notes)
+		}
+	}
 }
 
 func saveHostScanResults(result *s.ScanResult, filename string) error {

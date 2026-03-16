@@ -19,6 +19,8 @@ func NewFortinetParser() *FortinetParser {
 	return &FortinetParser{}
 }
 
+func init() { configparser.DefaultRegistry.RegisterParser(NewFortinetParser()) }
+
 // GetDeviceType returns the device type this parser handles
 func (p *FortinetParser) GetDeviceType() string {
 	return "fortinet"
@@ -31,8 +33,32 @@ func (p *FortinetParser) SupportsDevice(device s.SNMPDevice) bool {
 		strings.Contains(device.SysName, "FortiGate") || strings.Contains(device.SysName, "FG")
 }
 
+// cleanFortinetCLIOutput removes CLI prompt prefixes and pager markers from
+// FortiGate SSH output. FortiGate prepends the prompt ("HOSTNAME # ") to the
+// first line of each command's output, and may inject "--More--" pager markers
+// in the middle of long output.
+func cleanFortinetCLIOutput(raw string) string {
+	lines := strings.Split(raw, "\n")
+	cleaned := make([]string, 0, len(lines))
+	for _, line := range lines {
+		// Strip CLI prompt: anything up to and including " # "
+		// e.g. "FGT30D3X15012871 # config system global" → "config system global"
+		if idx := strings.Index(line, " # "); idx >= 0 {
+			line = line[idx+3:]
+		}
+		// Handle --More-- pager: recover any content that follows the marker
+		if idx := strings.Index(line, "--More--"); idx >= 0 {
+			after := strings.TrimLeft(line[idx+len("--More--"):], " ")
+			line = after // may be empty — filtered by TrimSpace in parseFortiConfig
+		}
+		cleaned = append(cleaned, line)
+	}
+	return strings.Join(cleaned, "\n")
+}
+
 // ParseConfig parses raw Fortinet CLI configuration and returns structured ConfigData
 func (p *FortinetParser) ParseConfig(rawConfig string, deviceInfo s.SNMPDevice) (*configparser.ConfigData, error) {
+	rawConfig = cleanFortinetCLIOutput(rawConfig)
 	fortiConfig, err := p.parseFortiConfig(rawConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse FortiGate config: %w", err)
@@ -87,17 +113,25 @@ func (p *FortinetParser) GetConfigViaSSH(ip string, creds configparser.SSHCreden
 	}
 	defer client.Close()
 
-	// FortiGate command to show full configuration
-	output, err := client.Execute("show full-configuration")
-	if err != nil {
-		// Fallback to basic config show
-		output, err = client.Execute("show")
+	// Use targeted commands to avoid nested config blocks in show full-configuration.
+	// show system interface output is clean (no nested config...end blocks).
+	sysInterface, ifErr := client.Execute("show system interface")
+	if ifErr != nil {
+		// Fallback: full configuration (handled by depth-tracking parser)
+		output, err := client.Execute("show full-configuration")
 		if err != nil {
-			return "", fmt.Errorf("failed to retrieve FortiGate configuration: %w", err)
+			return "", fmt.Errorf("failed to retrieve FortiGate configuration: %w", ifErr)
 		}
+		return output, nil
 	}
 
-	return output, nil
+	// Also fetch system global for hostname extraction
+	var parts []string
+	if sysGlobal, err := client.Execute("show system global"); err == nil {
+		parts = append(parts, sysGlobal)
+	}
+	parts = append(parts, sysInterface)
+	return strings.Join(parts, "\n"), nil
 }
 
 // ValidateConfig performs basic validation on parsed Fortinet configuration
@@ -142,7 +176,8 @@ type FortinetConfig struct {
 	Raw      string
 }
 
-// parseFortiConfig parses FortiGate CLI configuration format
+// parseFortiConfig parses FortiGate CLI configuration format.
+// It correctly handles nested config...end blocks by tracking nesting depth.
 func (p *FortinetParser) parseFortiConfig(rawConfig string) (*FortinetConfig, error) {
 	config := &FortinetConfig{
 		Sections: make(map[string]interface{}),
@@ -150,46 +185,43 @@ func (p *FortinetParser) parseFortiConfig(rawConfig string) (*FortinetConfig, er
 	}
 
 	lines := strings.Split(rawConfig, "\n")
-	var currentSection []string
+	var sectionKey string
 	var sectionContent strings.Builder
+	depth := 0
 
 	for _, line := range lines {
-		line = strings.TrimSpace(line)
+		trimmed := strings.TrimSpace(line)
 
 		// Skip empty lines and comments
-		if line == "" || strings.HasPrefix(line, "#") {
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
 		}
 
-		// Start of a configuration section
-		if strings.HasPrefix(line, "config ") {
-			// Save previous section if exists
-			if len(currentSection) > 0 {
-				sectionKey := strings.Join(currentSection, " ")
-				config.Sections[sectionKey] = sectionContent.String()
+		if strings.HasPrefix(trimmed, "config ") {
+			if depth == 0 {
+				// Top-level section start
+				sectionKey = strings.Join(strings.Fields(trimmed)[1:], " ")
 				sectionContent.Reset()
+			} else {
+				// Nested config block: capture as content
+				sectionContent.WriteString(trimmed + "\n")
 			}
-
-			// Start new section
-			currentSection = strings.Fields(line)[1:] // Remove "config"
-			continue
-		}
-
-		// End of a section
-		if line == "end" {
-			if len(currentSection) > 0 {
-				sectionKey := strings.Join(currentSection, " ")
-				config.Sections[sectionKey] = sectionContent.String()
-				sectionContent.Reset()
-				currentSection = nil
+			depth++
+		} else if trimmed == "end" {
+			depth--
+			if depth == 0 {
+				// Close the top-level section
+				if sectionKey != "" {
+					config.Sections[sectionKey] = sectionContent.String()
+					sectionKey = ""
+					sectionContent.Reset()
+				}
+			} else {
+				// Closing a nested block: capture as content
+				sectionContent.WriteString(trimmed + "\n")
 			}
-			continue
-		}
-
-		// Add content to current section
-		if len(currentSection) > 0 {
-			sectionContent.WriteString(line)
-			sectionContent.WriteString("\n")
+		} else if depth > 0 {
+			sectionContent.WriteString(trimmed + "\n")
 		}
 	}
 
@@ -222,7 +254,7 @@ func (p *FortinetParser) parseFortinetInterfaces(config *FortinetConfig) ([]conf
 		}
 
 		// Parse IP configuration
-		if ip := p.extractValue(block, "set ip"); ip != "" {
+		if ip := p.extractIPWithMask(block, "set ip"); ip != "" {
 			configIface.IPAddresses = append(configIface.IPAddresses, ip)
 		}
 
@@ -422,6 +454,25 @@ func (p *FortinetParser) extractValue(block, keyword string) string {
 	matches := re.FindStringSubmatch(block)
 	if len(matches) > 1 {
 		return matches[1]
+	}
+	return ""
+}
+
+// extractIPWithMask extracts an IP address with optional subnet mask from a config block,
+// returning CIDR notation (e.g. "192.168.1.1/24") when a mask is present.
+func (p *FortinetParser) extractIPWithMask(block, keyword string) string {
+	re := regexp.MustCompile(keyword + `\s+(\d+\.\d+\.\d+\.\d+)\s+(\d+\.\d+\.\d+\.\d+)`)
+	matches := re.FindStringSubmatch(block)
+	if len(matches) == 3 {
+		if prefix := netmaskToPrefix(matches[2]); prefix >= 0 {
+			return fmt.Sprintf("%s/%d", matches[1], prefix)
+		}
+		return fmt.Sprintf("%s/%s", matches[1], matches[2])
+	}
+	// Fall back to bare IP (e.g. management interface with no mask)
+	re2 := regexp.MustCompile(keyword + `\s+(\d+\.\d+\.\d+\.\d+)`)
+	if m := re2.FindStringSubmatch(block); len(m) > 1 {
+		return m[1]
 	}
 	return ""
 }

@@ -2,6 +2,7 @@ package configparser
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	s "nsl-graph/internal/scanner"
@@ -14,13 +15,8 @@ type ConfigurationMerger struct {
 
 // NewConfigurationMerger creates a new configuration merger
 func NewConfigurationMerger() *ConfigurationMerger {
-	registry := NewConfigParserRegistry()
-
-	// Note: Parser registration will be implemented when integrating
-	// For now, we'll register placeholder parsers
-
 	return &ConfigurationMerger{
-		parserRegistry: registry,
+		parserRegistry: DefaultRegistry,
 	}
 }
 
@@ -293,6 +289,11 @@ func (m *ConfigurationMerger) mergeConfigIntoDevice(
 					)
 				}
 			}
+
+			// Propagate parent interface name from config if not already set.
+			if merged.Device.Interfaces[i].Parent == "" && configIface.Parent != "" {
+				merged.Device.Interfaces[i].Parent = configIface.Parent
+			}
 		}
 	}
 
@@ -302,9 +303,11 @@ func (m *ConfigurationMerger) mergeConfigIntoDevice(
 // Helper functions
 
 func readConfigFile(filePath string) (string, error) {
-	// Implementation would read file from disk
-	// This is a placeholder
-	return "", fmt.Errorf("file reading not implemented in this example")
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read config file %q: %w", filePath, err)
+	}
+	return string(data), nil
 }
 
 func findConfigInterface(interfaces []ConfigInterface, name string) *ConfigInterface {

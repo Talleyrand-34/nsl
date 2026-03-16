@@ -34,6 +34,7 @@ type DeviceInterface struct {
 	IPAddresses []string          `json:"ip_addresses"`
 	IPNetmasks  map[string]string `json:"ip_netmasks"`  // ip -> netmask (e.g. "255.255.255.0")
 	VLANs       []VLANMembership  `json:"vlans"`
+	Parent      string            `json:"parent,omitempty"` // physical parent for VLAN/subinterfaces
 }
 
 // IsPhysicalPort returns true if the interface represents a physical port.

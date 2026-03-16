@@ -35,7 +35,7 @@ func createSimpleDevice(sysDescr, sysName string) s.SNMPDevice {
 
 func TestDeviceTypeDetection_OPNsense(t *testing.T) {
 	registry := configparser.NewConfigParserRegistry()
-	parser := parsers.NewOPNsenseParser()
+	parser := parsers.NewFreeBSDParser()
 
 	registry.RegisterParser(parser)
 
@@ -117,7 +117,7 @@ func TestManualTypeOverride(t *testing.T) {
 	registry := configparser.NewConfigParserRegistry()
 
 	// Register multiple parsers
-	opnsenseParser := parsers.NewOPNsenseParser()
+	opnsenseParser := parsers.NewFreeBSDParser()
 	openwrtParser := parsers.NewOpenWrtParser()
 
 	registry.RegisterParser(opnsenseParser)
@@ -141,7 +141,7 @@ func TestManualTypeOverride(t *testing.T) {
 
 func TestInvalidManualType(t *testing.T) {
 	registry := configparser.NewConfigParserRegistry()
-	opnsenseParser := parsers.NewOPNsenseParser()
+	opnsenseParser := parsers.NewFreeBSDParser()
 	registry.RegisterParser(opnsenseParser)
 
 	device := createSimpleDevice("FreeBSD OPNsense.localdomain", "OPNsense")
@@ -174,7 +174,7 @@ func TestRealWorldScenarios(t *testing.T) {
 	registry := configparser.NewConfigParserRegistry()
 
 	// Register real parsers
-	registry.RegisterParser(parsers.NewOPNsenseParser())
+	registry.RegisterParser(parsers.NewFreeBSDParser())
 	registry.RegisterParser(parsers.NewOpenWrtParser())
 	registry.RegisterParser(parsers.NewFortinetParser())
 

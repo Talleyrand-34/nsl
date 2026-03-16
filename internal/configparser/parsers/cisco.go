@@ -20,6 +20,8 @@ func NewCiscoParser() *CiscoParser {
 	return &CiscoParser{}
 }
 
+func init() { configparser.DefaultRegistry.RegisterParser(NewCiscoParser()) }
+
 // GetDeviceType returns the device type this parser handles
 func (p *CiscoParser) GetDeviceType() string {
 	return "cisco"

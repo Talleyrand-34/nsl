@@ -1,3 +1,6 @@
+// Legacy XML-based OPNsense parser.
+// Use the FreeBSD ifconfig parser (--device-type opnsense) instead.
+// Still accessible via --device-type opnsense-xml for backwards compatibility.
 package parsers
 
 import (
@@ -19,20 +22,30 @@ func NewOPNsenseParser() *OPNsenseParser {
 	return &OPNsenseParser{}
 }
 
-// GetDeviceType returns the device type this parser handles
+func init() { configparser.DefaultRegistry.RegisterParser(NewOPNsenseParser()) }
+
+// GetDeviceType returns the device type key for this legacy parser.
 func (p *OPNsenseParser) GetDeviceType() string {
-	return "opnsense"
+	return "opnsense-xml"
 }
 
-// SupportsDevice returns true if this parser can handle the given device
-func (p *OPNsenseParser) SupportsDevice(device s.SNMPDevice) bool {
-	descr := strings.ToLower(device.SysDescr)
-	return strings.Contains(descr, "freebsd") || strings.Contains(descr, "opnsense") ||
-		strings.Contains(device.SysName, "opnsense") || strings.Contains(device.SysName, "OPNsense")
+// SupportsDevice always returns false — auto-detection is handled by FreeBSDParser.
+// Use --device-type opnsense-xml to select this parser explicitly.
+func (p *OPNsenseParser) SupportsDevice(_ s.SNMPDevice) bool {
+	return false
 }
 
 // ParseConfig parses raw OPNsense XML configuration and returns structured ConfigData
 func (p *OPNsenseParser) ParseConfig(rawConfig string, deviceInfo s.SNMPDevice) (*configparser.ConfigData, error) {
+	// Strip any SSH banner / prompt text that precedes the XML document.
+	xmlStart := strings.Index(rawConfig, "<?xml")
+	if xmlStart < 0 {
+		xmlStart = strings.Index(rawConfig, "<opnsense")
+	}
+	if xmlStart > 0 {
+		rawConfig = rawConfig[xmlStart:]
+	}
+
 	var config OPNsenseConfig
 	if err := xml.Unmarshal([]byte(rawConfig), &config); err != nil {
 		return nil, fmt.Errorf("failed to parse OPNsense XML config: %w", err)
@@ -80,7 +93,14 @@ func (p *OPNsenseParser) ParseConfig(rawConfig string, deviceInfo s.SNMPDevice) 
 	return configData, nil
 }
 
-// GetConfigViaSSH retrieves OPNsense configuration via SSH
+// isXMLContent returns true if the string looks like OPNsense XML config.
+func isXMLContent(s string) bool {
+	s = strings.TrimSpace(s)
+	return strings.HasPrefix(s, "<?xml") || strings.HasPrefix(s, "<opnsense")
+}
+
+// GetConfigViaSSH retrieves OPNsense configuration via SSH.
+// Tries cat /conf/config.xml first (most reliable), then configctl as fallback.
 func (p *OPNsenseParser) GetConfigViaSSH(ip string, creds configparser.SSHCredentials) (string, error) {
 	client := configparser.NewSSHClient(creds)
 	if err := client.Connect(ip); err != nil {
@@ -88,17 +108,27 @@ func (p *OPNsenseParser) GetConfigViaSSH(ip string, creds configparser.SSHCreden
 	}
 	defer client.Close()
 
-	// OPNsense command to export configuration
-	output, err := client.Execute("configctl system config show")
-	if err != nil {
-		// Fallback to alternative method
-		output, err = client.Execute("cat /conf/config.xml")
-		if err != nil {
-			return "", fmt.Errorf("failed to retrieve OPNsense configuration: %w", err)
-		}
+	// Read config file directly — most reliable across OPNsense versions.
+	output, err := client.Execute("cat /conf/config.xml")
+	if err == nil && isXMLContent(output) {
+		return output, nil
 	}
 
-	return output, nil
+	// Fallback: configctl (may not exist or may be restricted on some setups).
+	output2, err2 := client.Execute("configctl system config show")
+	if err2 == nil && isXMLContent(output2) {
+		return output2, nil
+	}
+
+	// If cat returned an error but somehow got valid XML, use it.
+	if isXMLContent(output) {
+		return output, nil
+	}
+
+	if err != nil {
+		return "", fmt.Errorf("failed to retrieve OPNsense configuration: %w", err)
+	}
+	return "", fmt.Errorf("failed to retrieve OPNsense XML config: unexpected output: %s", strings.TrimSpace(output))
 }
 
 // ValidateConfig performs basic validation on parsed OPNsense configuration
@@ -154,7 +184,7 @@ func (p *OPNsenseParser) parseInterfaces(config OPNsenseConfig) ([]configparser.
 		configIface := configparser.ConfigInterface{
 			Name:        name,
 			Description: iface.Descr,
-			Enabled:     !iface.Disabled,
+			Enabled:     iface.Enable != "" && iface.Enable != "0",
 			Type:        "physical",
 		}
 
@@ -333,14 +363,38 @@ func extractDeviceModel(config OPNsenseConfig) string {
 
 // OPNsense XML configuration structures
 
+// OPNsenseInterfaceMap decodes named children of <interfaces> into a Go map.
+// encoding/xml cannot decode map[string]T directly, so we implement xml.Unmarshaler.
+type OPNsenseInterfaceMap map[string]OPNsenseInterface
+
+func (m *OPNsenseInterfaceMap) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	*m = make(OPNsenseInterfaceMap)
+	for {
+		tok, err := d.Token()
+		if err != nil {
+			return err
+		}
+		switch t := tok.(type) {
+		case xml.StartElement:
+			var iface OPNsenseInterface
+			if err := d.DecodeElement(&iface, &t); err != nil {
+				return err
+			}
+			(*m)[t.Name.Local] = iface
+		case xml.EndElement:
+			return nil
+		}
+	}
+}
+
 type OPNsenseConfig struct {
-	XMLName      xml.Name                  `xml:"opnsense"`
-	Version      string                    `xml:"version"`
-	System       OPNsenseSystem            `xml:"system"`
-	Interfaces   map[string]OPNsenseInterface `xml:"interfaces"`
-	VLANs        []OPNsenseVLAN            `xml:"vlans>vlan"`
-	StaticRoutes []OPNsenseStaticRoute     `xml:"staticroutes>route"`
-	Filter       OPNsenseFilter            `xml:"filter"`
+	XMLName      xml.Name             `xml:"opnsense"`
+	Version      string               `xml:"version"`
+	System       OPNsenseSystem       `xml:"system"`
+	Interfaces   OPNsenseInterfaceMap `xml:"interfaces"`
+	VLANs        []OPNsenseVLAN       `xml:"vlans>vlan"`
+	StaticRoutes []OPNsenseStaticRoute `xml:"staticroutes>route"`
+	Filter       OPNsenseFilter       `xml:"filter"`
 }
 
 type OPNsenseSystem struct {

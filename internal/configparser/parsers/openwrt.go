@@ -19,6 +19,8 @@ func NewOpenWrtParser() *OpenWrtParser {
 	return &OpenWrtParser{}
 }
 
+func init() { configparser.DefaultRegistry.RegisterParser(NewOpenWrtParser()) }
+
 // GetDeviceType returns the device type this parser handles
 func (p *OpenWrtParser) GetDeviceType() string {
 	return "openwrt"
@@ -178,7 +180,7 @@ func (p *OpenWrtParser) parseUCIConfig(rawConfig string) (*UCIConfig, error) {
 
 		// Parse list entries (package.section.option[]=value)
 		if matches := listRegex.FindStringSubmatch(line); len(matches) == 5 {
-			pkg, section, option, value := matches[1], matches[2], matches[3], matches[4]
+			pkg, section, option, value := matches[1], matches[2], matches[3], stripUCIQuotes(matches[4])
 
 			if config.Sections[pkg] == nil {
 				config.Sections[pkg] = make(map[string]UCISection)
@@ -196,7 +198,7 @@ func (p *OpenWrtParser) parseUCIConfig(rawConfig string) (*UCIConfig, error) {
 
 		// Parse options (package.section.option=value)
 		if matches := optionRegex.FindStringSubmatch(line); len(matches) == 5 {
-			pkg, section, option, value := matches[1], matches[2], matches[3], matches[4]
+			pkg, section, option, value := matches[1], matches[2], matches[3], stripUCIQuotes(matches[4])
 
 			if config.Sections[pkg] == nil {
 				config.Sections[pkg] = make(map[string]UCISection)
@@ -213,7 +215,7 @@ func (p *OpenWrtParser) parseUCIConfig(rawConfig string) (*UCIConfig, error) {
 
 		// Parse section definitions (package.section=type)
 		if matches := sectionRegex.FindStringSubmatch(line); len(matches) == 4 {
-			pkg, section, sectionType := matches[1], matches[2], matches[3]
+			pkg, section, sectionType := matches[1], matches[2], stripUCIQuotes(matches[3])
 
 			if config.Sections[pkg] == nil {
 				config.Sections[pkg] = make(map[string]UCISection)
@@ -257,7 +259,11 @@ func (p *OpenWrtParser) parseNetworkInterfaces(config *UCIConfig) ([]configparse
 		if proto == "static" {
 			if ipaddr := section.Options["ipaddr"]; ipaddr != "" {
 				if netmask := section.Options["netmask"]; netmask != "" {
-					configIface.IPAddresses = append(configIface.IPAddresses, fmt.Sprintf("%s/%s", ipaddr, netmask))
+					if prefix := netmaskToPrefix(netmask); prefix >= 0 {
+						configIface.IPAddresses = append(configIface.IPAddresses, fmt.Sprintf("%s/%d", ipaddr, prefix))
+					} else {
+						configIface.IPAddresses = append(configIface.IPAddresses, fmt.Sprintf("%s/%s", ipaddr, netmask))
+					}
 				} else {
 					configIface.IPAddresses = append(configIface.IPAddresses, ipaddr)
 				}
@@ -276,7 +282,12 @@ func (p *OpenWrtParser) parseNetworkInterfaces(config *UCIConfig) ([]configparse
 		}
 
 		// Set parent interface for VLANs
-		if ifname := section.Options["ifname"]; ifname != "" {
+		// Newer OpenWrt uses 'device' instead of 'ifname'
+		ifname := section.Options["ifname"]
+		if ifname == "" {
+			ifname = section.Options["device"]
+		}
+		if ifname != "" {
 			if strings.Contains(ifname, ".") {
 				parts := strings.Split(ifname, ".")
 				if len(parts) == 2 {
