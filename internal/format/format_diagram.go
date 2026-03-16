@@ -283,8 +283,10 @@ func generateD2ConnectionStrings(connections []e.Connection, deviceMap map[strin
 		fromPortNum := deviceMap[fromKey].PortNumMap[c.FromModelPort]
 		toPortNum := deviceMap[toKey].PortNumMap[c.ToModelPort]
 
-		from := fmt.Sprintf("%s.%s", fromKey, fromPortNum)
-		to := fmt.Sprintf("%s.%s", toKey, toPortNum)
+		fromPath := buildD2DevicePath(zoneFullName[c.FromZoneID], c.FromDevice)
+		toPath := buildD2DevicePath(zoneFullName[c.ToZoneID], c.ToDevice)
+		from := fmt.Sprintf("%s.%s", fromPath, fromPortNum)
+		to := fmt.Sprintf("%s.%s", toPath, toPortNum)
 
 		// Add IP addresses as comments if requested and they exist
 		// var ipComment string
@@ -299,12 +301,33 @@ func generateD2ConnectionStrings(connections []e.Connection, deviceMap map[strin
 	return d2Connections.String()
 }
 
+// quoteD2Identifier quotes a D2 identifier if it contains special characters like dots
+func quoteD2Identifier(name string) string {
+	if strings.Contains(name, ".") || strings.Contains(name, " ") {
+		return fmt.Sprintf(`"%s"`, name)
+	}
+	return name
+}
+
+// buildD2DevicePath creates a properly-quoted D2 path for a device.
+// Zone names remain unquoted (they are D2 hierarchy separators).
+// The device name is quoted only if it contains special characters.
+func buildD2DevicePath(zonePath string, deviceName string) string {
+	quoted := quoteD2Identifier(deviceName)
+	if zonePath == "" {
+		return quoted
+	}
+	return zonePath + "." + quoted
+}
+
 // generateD2DeviceBlocks generates D2 device block definitions with ports
 func generateD2DeviceBlocks(deviceMap map[string]*DeviceD2) string {
 	var d2Devices strings.Builder
 
-	for key, dev := range deviceMap {
-		d2Devices.WriteString(fmt.Sprintf("%s: {\n", key))
+	for _, dev := range deviceMap {
+		zonePath := strings.Join(dev.ZoneHierarchy, ".")
+		d2Key := buildD2DevicePath(zonePath, dev.Label)
+		d2Devices.WriteString(fmt.Sprintf("%s: {\n", d2Key))
 		d2Devices.WriteString(fmt.Sprintf("  shape: %s\n", dev.Shape))
 		d2Devices.WriteString(fmt.Sprintf("  label: \"%s\"\n", dev.Label))
 		for _, portName := range dev.PortOrder {
@@ -346,8 +369,10 @@ func getPortUntaggedVlan(deviceLabel string, portName string, devicePorts []e.De
 func generateD2DeviceBlocksWithPortColors(deviceMap map[string]*DeviceD2, devicePorts []e.DevicePort, vlanColorMap map[string]string) string {
 	var d2Devices strings.Builder
 
-	for key, dev := range deviceMap {
-		d2Devices.WriteString(fmt.Sprintf("%s: {\n", key))
+	for _, dev := range deviceMap {
+		zonePath := strings.Join(dev.ZoneHierarchy, ".")
+		d2Key := buildD2DevicePath(zonePath, dev.Label)
+		d2Devices.WriteString(fmt.Sprintf("%s: {\n", d2Key))
 		d2Devices.WriteString(fmt.Sprintf("  shape: %s\n", dev.Shape))
 		d2Devices.WriteString(fmt.Sprintf("  label: \"%s\"\n", dev.Label))
 		for _, portName := range dev.PortOrder {
@@ -424,8 +449,10 @@ func generateD2ConnectionStringsWithVlans(connections []e.Connection, deviceMap 
 		fromPortNum := deviceMap[fromKey].PortNumMap[c.FromModelPort]
 		toPortNum := deviceMap[toKey].PortNumMap[c.ToModelPort]
 
-		from := fmt.Sprintf("%s.%s", fromKey, fromPortNum)
-		to := fmt.Sprintf("%s.%s", toKey, toPortNum)
+		fromPath := buildD2DevicePath(zoneFullName[c.FromZoneID], c.FromDevice)
+		toPath := buildD2DevicePath(zoneFullName[c.ToZoneID], c.ToDevice)
+		from := fmt.Sprintf("%s.%s", fromPath, fromPortNum)
+		to := fmt.Sprintf("%s.%s", toPath, toPortNum)
 
 		// Get the untagged VLAN from the source port
 		untaggedVlan := getPortUntaggedVlan(c.FromDevice, c.FromModelPort, devicePorts)
