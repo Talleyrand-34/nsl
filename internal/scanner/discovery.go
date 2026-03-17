@@ -42,6 +42,8 @@ func (dd *DeviceDiscoverer) ClassifyDevice(device SNMPDevice) (brand, model, dev
 		return "MikroTik", "RouterOS Device", "Router"
 	case strings.Contains(descr, "hp procurve") || strings.Contains(descr, "hpe aruba"):
 		return "HP", "ProCurve Switch", "Switch"
+	case strings.Contains(descr, "openwrt"):
+		return "OpenWrt", "OpenWrt Router", "Router"
 	case strings.Contains(descr, "linux"):
 		return "Linux", "Linux Server", "Server"
 	case strings.Contains(descr, "windows"):

@@ -342,95 +342,152 @@ Examples:
 	},
 }
 
+// ifTypeLabel returns a short human-readable label for an SNMP ifType value.
+func ifTypeLabel(ifType int) string {
+	switch ifType {
+	case s.IfTypeEthernetCsmacd:
+		return "ethernet"
+	case s.IfTypeLag:
+		return "lag"
+	case s.IfTypeIEEE80211:
+		return "wifi-radio"
+	case s.IfTypeLoopback:
+		return "loopback"
+	case s.IfTypeTunnel:
+		return "tunnel"
+	case s.IfTypePropVirtual:
+		return "virtual"
+	default:
+		return fmt.Sprintf("type%d", ifType)
+	}
+}
+
 func printDeviceInfo(device *s.SNMPDevice) {
 	if len(device.Interfaces) == 0 {
 		return
 	}
 
-	// Build MAC → physical port name map (non-VLAN interfaces only).
-	// When multiple physical interfaces share the same MAC (e.g. lagg members),
-	// prefer the one that has IP addresses assigned.
-	macToPort := make(map[string]string)
+	var physical, logical []s.DeviceInterface
 	for _, iface := range device.Interfaces {
-		if iface.MAC == "" || len(iface.VLANs) > 0 {
+		if iface.IsPhysicalPort() {
+			physical = append(physical, iface)
+		} else {
+			logical = append(logical, iface)
+		}
+	}
+
+	// Build MAC → physical port name map for parent resolution in SNMP mode
+	macToPort := make(map[string]string)
+	for _, iface := range physical {
+		if iface.MAC == "" {
 			continue
 		}
-		existing, seen := macToPort[iface.MAC]
-		if !seen {
+		if _, seen := macToPort[iface.MAC]; !seen {
 			macToPort[iface.MAC] = iface.Name
-		} else if len(iface.IPAddresses) > 0 && existing != iface.Name {
+		} else if len(iface.IPAddresses) > 0 {
 			macToPort[iface.MAC] = iface.Name
 		}
 	}
 
-	fmt.Printf("\nInterfaces (%d):\n", len(device.Interfaces))
-	fmt.Printf(
-		"  %-35s %-17s %-6s %-35s %-8s %-8s %-10s\n",
-		"Interface", "MAC", "Status", "IPs", "VLAN", "Accuracy", "Port",
-	)
-	fmt.Printf(
-		"  %-35s %-17s %-6s %-35s %-8s %-8s %-10s\n",
-		strings.Repeat("-", 35),
-		strings.Repeat("-", 17),
-		strings.Repeat("-", 6),
-		strings.Repeat("-", 35),
-		strings.Repeat("-", 8),
-		strings.Repeat("-", 8),
-		strings.Repeat("-", 10),
-	)
-
-	for _, iface := range device.Interfaces {
-		status := "down"
-		if iface.OperStatus == 1 {
-			status = "up"
+	printIfaceTable := func(ifaces []s.DeviceInterface, showParent bool) {
+		const (
+			wName   = 22
+			wType   = 10
+			wMAC    = 17
+			wStatus = 6
+			wInfo   = 20
+			wIPs    = 32
+			wParent = 14
+		)
+		hdr := fmt.Sprintf("  %-*s %-*s %-*s %-*s %-*s %-*s",
+			wName, "Name", wType, "Type", wMAC, "MAC", wStatus, "Status", wInfo, "Info", wIPs, "IPs")
+		sep := fmt.Sprintf("  %-*s %-*s %-*s %-*s %-*s %-*s",
+			wName, strings.Repeat("-", wName),
+			wType, strings.Repeat("-", wType),
+			wMAC, strings.Repeat("-", wMAC),
+			wStatus, strings.Repeat("-", wStatus),
+			wInfo, strings.Repeat("-", wInfo),
+			wIPs, strings.Repeat("-", wIPs))
+		if showParent {
+			hdr += fmt.Sprintf(" %-*s", wParent, "Parent")
+			sep += fmt.Sprintf(" %-*s", wParent, strings.Repeat("-", wParent))
 		}
+		fmt.Println(hdr)
+		fmt.Println(sep)
 
-		vlanInference := s.InferVLANFromInterface(iface.Name, iface.IPAddresses)
-
-		ipsDisplay := "[]"
-		if len(iface.IPAddresses) > 0 {
-			ipsDisplay = fmt.Sprintf("%v", iface.IPAddresses)
-			if len(ipsDisplay) > 33 {
-				ipsDisplay = ipsDisplay[:30] + "..."
+		for _, iface := range ifaces {
+			status := "down"
+			if iface.OperStatus == 1 {
+				status = "up"
 			}
-		}
 
-		// Resolve physical port for VLAN interfaces.
-		// Prefer explicit Parent field (set by Fortinet/OpenWrt parsers);
-		// fall back to MAC-based lookup (FreeBSD/OPNsense VLAN interfaces
-		// inherit the parent MAC).
-		portDisplay := ""
-		if len(iface.VLANs) > 0 {
-			if iface.Parent != "" {
-				portDisplay = iface.Parent
-			} else if iface.MAC != "" {
-				if port, ok := macToPort[iface.MAC]; ok {
-					portDisplay = port
+			// Info column: wifi band for radios, SSID+security for wifi-iface, empty otherwise
+			info := ""
+			if iface.WifiBand != "" {
+				info = iface.WifiBand
+			} else if iface.WifiSSID != "" {
+				info = iface.WifiSSID
+				if iface.WifiSecurity != "" && iface.WifiSecurity != "open" {
+					info += " (" + iface.WifiSecurity + ")"
 				}
 			}
-		}
-
-		fmt.Printf("  %-35s %-17s %-6s %-35s %-8s %-8s %-10s\n",
-			iface.Name, iface.MAC, status, ipsDisplay,
-			vlanInference.FormatVLANDisplay(),
-			vlanInference.FormatAccuracyDisplay(),
-			portDisplay)
-
-		if len(iface.VLANs) > 0 {
-			fmt.Printf("  %35s   VLANs:", "")
-			for _, v := range iface.VLANs {
-				t := "untagged"
-				if v.Tagged {
-					t = "tagged"
-				}
-				fmt.Printf(" %s(%s)", v.VLANNumber, t)
+			if len(info) > wInfo {
+				info = info[:wInfo-1] + "…"
 			}
-			fmt.Println()
-		}
 
-		if vlanInference.Notes != "" {
-			fmt.Printf("  %35s   Note: %s\n", "", vlanInference.Notes)
+			ips := ""
+			if len(iface.IPAddresses) > 0 {
+				ips = strings.Join(iface.IPAddresses, ", ")
+				if len(ips) > wIPs {
+					ips = ips[:wIPs-1] + "…"
+				}
+			}
+
+			mac := iface.MAC
+			if mac == "" {
+				mac = "-"
+			}
+
+			line := fmt.Sprintf("  %-*s %-*s %-*s %-*s %-*s %-*s",
+				wName, iface.Name,
+				wType, ifTypeLabel(iface.IfType),
+				wMAC, mac,
+				wStatus, status,
+				wInfo, info,
+				wIPs, ips)
+
+			if showParent {
+				parent := iface.Parent
+				if parent == "" && iface.MAC != "" {
+					parent = macToPort[iface.MAC]
+				}
+				line += fmt.Sprintf(" %-*s", wParent, parent)
+			}
+			fmt.Println(line)
+
+			// Sub-line: VLANs
+			if len(iface.VLANs) > 0 {
+				var vlanParts []string
+				for _, v := range iface.VLANs {
+					tag := "U"
+					if v.Tagged {
+						tag = "T"
+					}
+					vlanParts = append(vlanParts, v.VLANNumber+":"+tag)
+				}
+				fmt.Printf("  %*s VLANs: %s\n", wName, "", strings.Join(vlanParts, "  "))
+			}
 		}
+	}
+
+	if len(physical) > 0 {
+		fmt.Printf("\nPhysical Ports (%d):\n", len(physical))
+		printIfaceTable(physical, false)
+	}
+
+	if len(logical) > 0 {
+		fmt.Printf("\nLogical Interfaces (%d):\n", len(logical))
+		printIfaceTable(logical, true)
 	}
 }
 

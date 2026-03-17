@@ -11,6 +11,9 @@ func ConfigDataToSNMPDevice(cd *ConfigData, ip string) *s.SNMPDevice {
 		name = cd.Hostname
 	}
 	device := &s.SNMPDevice{IP: ip, SysName: name, Reachable: true}
+	if cd.DeviceType != "" {
+		device.SysDescr = cd.DeviceType
+	}
 	for i, ci := range cd.Interfaces {
 		oper := 1
 		if !ci.Enabled {
@@ -35,6 +38,10 @@ func ConfigDataToSNMPDevice(cd *ConfigData, ip string) *s.SNMPDevice {
 			di.WifiSSID = ci.WifiSSID
 			di.WifiSecurity = ci.WifiSecurity
 			di.Parent = ci.WifiRadio
+		case "physical":
+			di.IfType = s.IfTypeEthernetCsmacd
+		default: // "logical", "vlan", ""
+			di.IfType = s.IfTypePropVirtual
 		}
 		for _, cv := range ci.VLANs {
 			di.VLANs = append(di.VLANs, s.VLANMembership{

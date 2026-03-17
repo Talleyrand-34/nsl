@@ -1108,13 +1108,7 @@ func (ns *NetService) createDevicePortsForDevice(deviceID string, discovered s.D
 		}
 
 		// Build VLAN configs from SNMP data
-		vlanConfigs := make([]e.PortVlanConfig, 0, len(iface.VLANs))
-		for _, v := range iface.VLANs {
-			vlanConfigs = append(vlanConfigs, e.PortVlanConfig{
-				VlanNumber: v.VLANNumber,
-				Tagged:     v.Tagged,
-			})
-		}
+		vlanConfigs := buildVlanConfigs(iface.VLANs)
 
 		// Create a DeviceInterface for this logical interface and link it to the physical port
 		if len(vlanConfigs) > 0 {
@@ -1147,17 +1141,34 @@ func (ns *NetService) createDevicePortsForDevice(deviceID string, discovered s.D
 		}
 	}
 
-	// Create DeviceInterface records for wifi-iface entries (logical SSIDs)
+	// Create DeviceInterface records for virtual interfaces (wifi-iface SSIDs and logical/VLAN UCI interfaces)
 	for _, iface := range discovered.Device.Interfaces {
-		if iface.WifiSSID == "" {
+		if iface.IsPhysicalPort() {
 			continue
 		}
-		if err := ns.AddDeviceInterface(deviceID, iface.Name, "", nil, iface.IPAddresses, iface.WifiSSID, iface.WifiSecurity); err != nil {
-			log.Printf("Warning: failed to create wifi interface %s for device %s: %v", iface.Name, deviceID, err)
+		hasData := iface.WifiSSID != "" || len(iface.IPAddresses) > 0 || len(iface.VLANs) > 0
+		if !hasData {
+			continue
+		}
+		vlanConfigs := buildVlanConfigs(iface.VLANs)
+		if err := ns.AddDeviceInterface(deviceID, iface.Name, "", vlanConfigs, iface.IPAddresses, iface.WifiSSID, iface.WifiSecurity); err != nil {
+			log.Printf("Warning: failed to create interface %s for device %s: %v", iface.Name, deviceID, err)
 		}
 	}
 
 	return nil
+}
+
+// buildVlanConfigs converts scanner VLAN memberships to entity VLAN configs.
+func buildVlanConfigs(vlans []s.VLANMembership) []e.PortVlanConfig {
+	if len(vlans) == 0 {
+		return nil
+	}
+	out := make([]e.PortVlanConfig, 0, len(vlans))
+	for _, v := range vlans {
+		out = append(out, e.PortVlanConfig{VlanNumber: v.VLANNumber, Tagged: v.Tagged})
+	}
+	return out
 }
 
 // AnalyzeDeviceForImport creates a comprehensive import plan for a discovered device
@@ -1799,13 +1810,18 @@ func (ns *NetService) createDevicePortsWithPlan(deviceID string, discovered s.Di
 		}
 	}
 
-	// Create DeviceInterface records for wifi-iface entries (logical SSIDs)
+	// Create DeviceInterface records for virtual interfaces (wifi-iface SSIDs and logical/VLAN UCI interfaces)
 	for _, iface := range discovered.Device.Interfaces {
-		if iface.WifiSSID == "" {
+		if iface.IsPhysicalPort() {
 			continue
 		}
-		if err := ns.AddDeviceInterface(deviceID, iface.Name, "", nil, iface.IPAddresses, iface.WifiSSID, iface.WifiSecurity); err != nil {
-			log.Printf("Warning: failed to create wifi interface %s for device %s: %v", iface.Name, deviceID, err)
+		hasData := iface.WifiSSID != "" || len(iface.IPAddresses) > 0 || len(iface.VLANs) > 0
+		if !hasData {
+			continue
+		}
+		vlanConfigs := buildVlanConfigs(iface.VLANs)
+		if err := ns.AddDeviceInterface(deviceID, iface.Name, "", vlanConfigs, iface.IPAddresses, iface.WifiSSID, iface.WifiSecurity); err != nil {
+			log.Printf("Warning: failed to create interface %s for device %s: %v", iface.Name, deviceID, err)
 		}
 	}
 

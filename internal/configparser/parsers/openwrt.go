@@ -249,13 +249,25 @@ func (p *OpenWrtParser) parseNetworkInterfaces(config *UCIConfig) ([]configparse
 		return interfaces, nil
 	}
 
+	physicalDevs := make(map[string]bool)
+	// Track VLANs declared on bridge devices so they can be propagated to logical interfaces
+	bridgeVLANs := make(map[string][]configparser.ConfigVLAN)
+
 	for name, section := range network {
 		if section.Type != "interface" && section.Type != "device" {
 			continue
 		}
 
+		// For "device" sections, the real kernel name is in Options["name"]
+		ifaceName := name
+		if section.Type == "device" {
+			if devName := section.Options["name"]; devName != "" {
+				ifaceName = devName
+			}
+		}
+
 		configIface := configparser.ConfigInterface{
-			Name:        name,
+			Name:        ifaceName,
 			Description: section.Options["description"],
 			Enabled:     section.Options["enabled"] != "0",
 			Type:        determineInterfaceType(section),
@@ -288,26 +300,103 @@ func (p *OpenWrtParser) parseNetworkInterfaces(config *UCIConfig) ([]configparse
 			}
 		}
 
-		// Set parent interface for VLANs
+		// For bridge device sections, extract physical members from "ports" (e.g., "eth0.2")
+		// eth0.2 → base=eth0 (physical parent), vlanID=2 (VLAN membership on bridge side)
+		if section.Type == "device" && configIface.Type == "bridge" {
+			for _, port := range strings.Fields(section.Options["ports"]) {
+				parts := strings.SplitN(port, ".", 2)
+				base := parts[0]
+				if base == "" || base == "lo" {
+					continue
+				}
+				physicalDevs[base] = true
+				if configIface.Parent == "" {
+					configIface.Parent = base
+				}
+				if len(parts) == 2 && parts[1] != "" {
+					configIface.VLANs = append(configIface.VLANs, configparser.ConfigVLAN{
+						ID:     parts[1],
+						Tagged: false,
+					})
+				}
+			}
+			// Record this bridge's VLANs for propagation to logical interfaces later
+			if len(configIface.VLANs) > 0 {
+				bridgeVLANs[ifaceName] = configIface.VLANs
+			}
+		}
+
+		// Set parent interface reference
 		// Newer OpenWrt uses 'device' instead of 'ifname'
 		ifname := section.Options["ifname"]
 		if ifname == "" {
 			ifname = section.Options["device"]
 		}
 		if ifname != "" {
-			if strings.Contains(ifname, ".") {
-				parts := strings.Split(ifname, ".")
-				if len(parts) == 2 {
-					configIface.Parent = parts[0]
-					configIface.Type = "vlan"
-				}
+			firstDev := strings.Fields(ifname)[0]
+			if strings.Contains(firstDev, ".") {
+				// VLAN sub-interface: eth0.10
+				parts := strings.Split(firstDev, ".")
+				configIface.Parent = parts[0]
+				configIface.Type = "vlan"
+			} else {
+				configIface.Parent = firstDev
+			}
+			// Track the physical device name for later
+			physRoot := strings.Fields(ifname)[0]
+			if strings.Contains(physRoot, ".") {
+				physRoot = strings.Split(physRoot, ".")[0]
+			}
+			if physRoot != "" && physRoot != "lo" {
+				physicalDevs[physRoot] = true
 			}
 		}
 
 		interfaces = append(interfaces, configIface)
 	}
 
+	// Propagate bridge VLANs to logical interfaces that sit on top of a bridge.
+	// e.g., mgmt2 → parent br-2-mgmt2 → VLAN 2; copy VLAN 2 onto mgmt2 so
+	// the import pipeline can map its IP to the correct VLAN.
+	for i, iface := range interfaces {
+		if iface.Type != "logical" || iface.Parent == "" || len(iface.VLANs) > 0 {
+			continue
+		}
+		if vlans, ok := bridgeVLANs[iface.Parent]; ok {
+			interfaces[i].VLANs = append(interfaces[i].VLANs, vlans...)
+		}
+	}
+
+	// Emit physical/bridge devices referenced by interface sections
+	// (ensures they get DevicePorts during import)
+	for devName := range physicalDevs {
+		// Skip if already emitted as a "device" section
+		alreadyEmitted := false
+		for _, iface := range interfaces {
+			if iface.Name == devName {
+				alreadyEmitted = true
+				break
+			}
+		}
+		if alreadyEmitted {
+			continue
+		}
+		interfaces = append(interfaces, configparser.ConfigInterface{
+			Name:    devName,
+			Enabled: true,
+			Type:    determineDeviceType(devName),
+		})
+	}
+
 	return interfaces, nil
+}
+
+// determineDeviceType returns "bridge" for br-* names, "physical" otherwise.
+func determineDeviceType(name string) string {
+	if strings.HasPrefix(name, "br-") || strings.HasPrefix(name, "br_") {
+		return "bridge"
+	}
+	return "physical"
 }
 
 // parseNetworkVLANs extracts VLAN information from UCI network config
