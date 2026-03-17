@@ -179,8 +179,8 @@ func (p *PluginAwareRepository) DeleteDevice(deviceId string) error {
 }
 
 // ModelPort interaction
-func (p *PluginAwareRepository) AddModelPort(portName string, positionX string, positionY string, modelName string, allowMultipleConnections bool) error {
-	return p.baseRepo.AddModelPort(portName, positionX, positionY, modelName, allowMultipleConnections)
+func (p *PluginAwareRepository) AddModelPort(portName string, positionX string, positionY string, modelName string, allowMultipleConnections bool, portType string, band string) error {
+	return p.baseRepo.AddModelPort(portName, positionX, positionY, modelName, allowMultipleConnections, portType, band)
 }
 
 func (p *PluginAwareRepository) GetModelPorts() ([]e.ModelPort, error) {
@@ -363,8 +363,8 @@ func (p *PluginAwareRepository) DeleteVlanCascade(vlanId string) error {
 }
 
 // DeviceInterface interaction
-func (p *PluginAwareRepository) AddDeviceInterface(deviceID, name, description string, vlanConfigs []e.PortVlanConfig, ips []string) error {
-	return p.baseRepo.AddDeviceInterface(deviceID, name, description, vlanConfigs, ips)
+func (p *PluginAwareRepository) AddDeviceInterface(deviceID, name, description string, vlanConfigs []e.PortVlanConfig, ips []string, wifiSSID, wifiSecurity string) error {
+	return p.baseRepo.AddDeviceInterface(deviceID, name, description, vlanConfigs, ips, wifiSSID, wifiSecurity)
 }
 
 func (p *PluginAwareRepository) GetDeviceInterfaces(deviceID string) ([]e.DeviceInterface, error) {

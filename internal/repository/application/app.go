@@ -118,6 +118,8 @@ type NetServiceInt interface {
 		positionY string,
 		modelName string,
 		allowMultipleConnections bool,
+		portType string,
+		band string,
 	) error
 	GetModelPorts() ([]e.ModelPort, error)
 	UpdateModelPort(
@@ -193,7 +195,7 @@ type NetServiceInt interface {
 	DeleteVlanCascade(vlanId string) error
 
 	// DeviceInterface operations
-	AddDeviceInterface(deviceID, name, description string, vlanConfigs []e.PortVlanConfig, ips []string) error
+	AddDeviceInterface(deviceID, name, description string, vlanConfigs []e.PortVlanConfig, ips []string, wifiSSID, wifiSecurity string) error
 	GetDeviceInterfaces(deviceID string) ([]e.DeviceInterface, error)
 	GetAllDeviceInterfaces() ([]e.DeviceInterface, error)
 	DeleteDeviceInterface(id string) error
@@ -289,8 +291,10 @@ func (ns *NetService) AddModelPort(
 	posy string,
 	modelName string,
 	allowMultipleConnections bool,
+	portType string,
+	band string,
 ) error {
-	return ns.netRepo.AddModelPort(name, posx, posy, modelName, allowMultipleConnections)
+	return ns.netRepo.AddModelPort(name, posx, posy, modelName, allowMultipleConnections, portType, band)
 }
 
 func (ns *NetService) GetModelPorts() ([]e.ModelPort, error) {
@@ -396,8 +400,8 @@ func (ns *NetService) GetAllPortsAll() ([]e.DevicePort, error) {
 
 // DeviceInterface method implementations
 
-func (ns *NetService) AddDeviceInterface(deviceID, name, description string, vlanConfigs []e.PortVlanConfig, ips []string) error {
-	return ns.netRepo.AddDeviceInterface(deviceID, name, description, vlanConfigs, ips)
+func (ns *NetService) AddDeviceInterface(deviceID, name, description string, vlanConfigs []e.PortVlanConfig, ips []string, wifiSSID, wifiSecurity string) error {
+	return ns.netRepo.AddDeviceInterface(deviceID, name, description, vlanConfigs, ips, wifiSSID, wifiSecurity)
 }
 
 func (ns *NetService) GetDeviceInterfaces(deviceID string) ([]e.DeviceInterface, error) {
@@ -1062,10 +1066,21 @@ func (ns *NetService) createDevicePortsForDevice(deviceID string, discovered s.D
 
 		portName := iface.Name
 		if portName == "" {
-			portName = fmt.Sprintf("eth%d", portIdx)
+			if iface.IsWifiRadio() {
+				portName = fmt.Sprintf("radio%d", portIdx)
+			} else {
+				portName = fmt.Sprintf("eth%d", portIdx)
+			}
 		}
 
-		if err := ns.AddModelPort(portName, fmt.Sprintf("%d", portIdx), "0", modelName, false); err != nil {
+		portType := ""
+		band := ""
+		if iface.IsWifiRadio() {
+			portType = "wifi"
+			band = iface.WifiBand
+		}
+
+		if err := ns.AddModelPort(portName, fmt.Sprintf("%d", portIdx), "0", modelName, false, portType, band); err != nil {
 			if !strings.Contains(err.Error(), "already exists") {
 				return err
 			}
@@ -1103,7 +1118,7 @@ func (ns *NetService) createDevicePortsForDevice(deviceID string, discovered s.D
 
 		// Create a DeviceInterface for this logical interface and link it to the physical port
 		if len(vlanConfigs) > 0 {
-			if err := ns.AddDeviceInterface(deviceID, iface.Name, "", vlanConfigs, iface.IPAddresses); err != nil {
+			if err := ns.AddDeviceInterface(deviceID, iface.Name, "", vlanConfigs, iface.IPAddresses, "", ""); err != nil {
 				log.Printf("Warning: failed to create device interface %s for device %s: %v", iface.Name, deviceID, err)
 			} else {
 				// Look up the newly created interface by name so we can link it
@@ -1129,6 +1144,16 @@ func (ns *NetService) createDevicePortsForDevice(deviceID string, discovered s.D
 					fmt.Printf("Warning: failed to create local VLAN mapping %s for device %s: %v\n", v.VLANNumber, deviceID, err)
 				}
 			}
+		}
+	}
+
+	// Create DeviceInterface records for wifi-iface entries (logical SSIDs)
+	for _, iface := range discovered.Device.Interfaces {
+		if iface.WifiSSID == "" {
+			continue
+		}
+		if err := ns.AddDeviceInterface(deviceID, iface.Name, "", nil, iface.IPAddresses, iface.WifiSSID, iface.WifiSecurity); err != nil {
+			log.Printf("Warning: failed to create wifi interface %s for device %s: %v", iface.Name, deviceID, err)
 		}
 	}
 
@@ -1684,10 +1709,21 @@ func (ns *NetService) createDevicePortsWithPlan(deviceID string, discovered s.Di
 
 		portName := iface.Name
 		if portName == "" {
-			portName = fmt.Sprintf("eth%d", portIdx)
+			if iface.IsWifiRadio() {
+				portName = fmt.Sprintf("radio%d", portIdx)
+			} else {
+				portName = fmt.Sprintf("eth%d", portIdx)
+			}
 		}
 
-		if err := ns.AddModelPort(portName, fmt.Sprintf("%d", portIdx), "0", modelName, false); err != nil {
+		portType := ""
+		band := ""
+		if iface.IsWifiRadio() {
+			portType = "wifi"
+			band = iface.WifiBand
+		}
+
+		if err := ns.AddModelPort(portName, fmt.Sprintf("%d", portIdx), "0", modelName, false, portType, band); err != nil {
 			if !strings.Contains(err.Error(), "already exists") {
 				return err
 			}
@@ -1760,6 +1796,16 @@ func (ns *NetService) createDevicePortsWithPlan(deviceID string, discovered s.Di
 					fmt.Printf("Warning: failed to create local VLAN mapping %s for device %s: %v\n", v.VLANNumber, deviceID, err)
 				}
 			}
+		}
+	}
+
+	// Create DeviceInterface records for wifi-iface entries (logical SSIDs)
+	for _, iface := range discovered.Device.Interfaces {
+		if iface.WifiSSID == "" {
+			continue
+		}
+		if err := ns.AddDeviceInterface(deviceID, iface.Name, "", nil, iface.IPAddresses, iface.WifiSSID, iface.WifiSecurity); err != nil {
+			log.Printf("Warning: failed to create wifi interface %s for device %s: %v", iface.Name, deviceID, err)
 		}
 	}
 

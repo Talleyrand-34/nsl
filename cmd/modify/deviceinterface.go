@@ -48,6 +48,8 @@ Multiple values accepted: --vlan-configs 10:untagged --vlan-configs 20:tagged`,
 
 		vlanConfigsStr, _ := cmd.Flags().GetStringSlice("vlan-configs")
 		ipAddresses, _ := cmd.Flags().GetStringSlice("ips")
+		ssid, _ := cmd.Flags().GetString("ssid")
+		securityMode, _ := cmd.Flags().GetString("security-mode")
 
 		var vlanConfigs []e.PortVlanConfig
 		for _, vcStr := range vlanConfigsStr {
@@ -70,7 +72,7 @@ Multiple values accepted: --vlan-configs 10:untagged --vlan-configs 20:tagged`,
 		if err != nil {
 			return
 		}
-		err = service.AddDeviceInterface(deviceid, name, description, vlanConfigs, ipAddresses)
+		err = service.AddDeviceInterface(deviceid, name, description, vlanConfigs, ipAddresses, ssid, securityMode)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error adding device interface: %v\n", err)
 			os.Exit(1)
@@ -108,6 +110,8 @@ func init() {
 	deviceInterfaceModCmd.Flags().String("description", "", "Interface description (optional)")
 	deviceInterfaceModCmd.Flags().StringSlice("vlan-configs", []string{}, "VLAN configs (format: 'NUMBER:tagged' or 'NUMBER:untagged')")
 	deviceInterfaceModCmd.Flags().StringSlice("ips", []string{}, "IP addresses assigned to this interface")
+	deviceInterfaceModCmd.Flags().String("ssid", "", "WiFi SSID (for wireless interfaces)")
+	deviceInterfaceModCmd.Flags().String("security-mode", "", "WiFi security mode: open, wpa2, or wpa3")
 
 	cmd.ModifyCmd.AddCommand(interfacePortModCmd)
 	interfacePortModCmd.Flags().String("interfaceid", "", "Device interface ID")

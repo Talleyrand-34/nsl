@@ -19,27 +19,36 @@ const (
 	IfTypeEthernetCsmacd = 6   // physical Ethernet port
 	IfTypeLoopback       = 24  // software loopback
 	IfTypePropVirtual    = 53  // VLAN sub-interfaces and other virtual interfaces
+	IfTypeIEEE80211      = 71  // IEEE 802.11 wireless radio
 	IfTypeTunnel         = 131 // tunnel interfaces
 	IfTypeLag            = 161 // IEEE 802.3ad Link Aggregation (bond)
 )
 
 // DeviceInterface represents one physical or logical interface as reported by the device's ifTable.
 type DeviceInterface struct {
-	Index       int               `json:"index"`
-	IfType      int               `json:"if_type"`      // SNMP ifType value
-	Name        string            `json:"name"`         // ifDescr
-	MAC         string            `json:"mac"`          // ifPhysAddress
-	AdminStatus int               `json:"admin_status"` // 1=up 2=down
-	OperStatus  int               `json:"oper_status"`
-	IPAddresses []string          `json:"ip_addresses"`
-	IPNetmasks  map[string]string `json:"ip_netmasks"`  // ip -> netmask (e.g. "255.255.255.0")
-	VLANs       []VLANMembership  `json:"vlans"`
-	Parent      string            `json:"parent,omitempty"` // physical parent for VLAN/subinterfaces
+	Index        int               `json:"index"`
+	IfType       int               `json:"if_type"`      // SNMP ifType value
+	Name         string            `json:"name"`         // ifDescr
+	MAC          string            `json:"mac"`          // ifPhysAddress
+	AdminStatus  int               `json:"admin_status"` // 1=up 2=down
+	OperStatus   int               `json:"oper_status"`
+	IPAddresses  []string          `json:"ip_addresses"`
+	IPNetmasks   map[string]string `json:"ip_netmasks"`  // ip -> netmask (e.g. "255.255.255.0")
+	VLANs        []VLANMembership  `json:"vlans"`
+	Parent       string            `json:"parent,omitempty"` // physical parent for VLAN/subinterfaces
+	WifiBand     string            `json:"wifi_band,omitempty"`     // "2.4GHz", "5GHz", "6GHz" for wifi radios
+	WifiSSID     string            `json:"wifi_ssid,omitempty"`     // SSID for wifi-iface type
+	WifiSecurity string            `json:"wifi_security,omitempty"` // "open", "wpa2", "wpa3"
 }
 
 // IsPhysicalPort returns true if the interface represents a physical port.
 func (d *DeviceInterface) IsPhysicalPort() bool {
-	return d.IfType == IfTypeEthernetCsmacd || d.IfType == IfTypeLag
+	return d.IfType == IfTypeEthernetCsmacd || d.IfType == IfTypeLag || d.IfType == IfTypeIEEE80211
+}
+
+// IsWifiRadio returns true if the interface is a WiFi radio port.
+func (d *DeviceInterface) IsWifiRadio() bool {
+	return d.IfType == IfTypeIEEE80211
 }
 
 // VLANMembership describes a VLAN assignment on an interface.

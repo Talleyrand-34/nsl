@@ -62,15 +62,21 @@ type SSHCredentials struct {
 
 // ConfigInterface represents a network interface as defined in device configuration
 type ConfigInterface struct {
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Enabled     bool     `json:"enabled"`
-	IPAddresses []string `json:"ip_addresses"`
-	MACAddress  string   `json:"mac_address,omitempty"`
-	MTU         int      `json:"mtu,omitempty"`
+	Name        string       `json:"name"`
+	Description string       `json:"description"`
+	Enabled     bool         `json:"enabled"`
+	IPAddresses []string     `json:"ip_addresses"`
+	MACAddress  string       `json:"mac_address,omitempty"`
+	MTU         int          `json:"mtu,omitempty"`
 	VLANs       []ConfigVLAN `json:"vlans"`
-	Type        string   `json:"type"` // "physical", "vlan", "bridge", "tunnel", etc.
-	Parent      string   `json:"parent,omitempty"` // Parent interface for VLANs/subinterfaces
+	// Type: "physical", "vlan", "bridge", "tunnel", "wifi-radio", "wifi-iface", etc.
+	Type        string `json:"type"`
+	Parent      string `json:"parent,omitempty"` // Parent interface for VLANs/subinterfaces
+	// WiFi fields — populated for "wifi-radio" and "wifi-iface" types
+	WifiBand     string `json:"wifi_band,omitempty"`   // "2.4GHz", "5GHz", "6GHz" — wifi-radio only
+	WifiSSID     string `json:"wifi_ssid,omitempty"`   // SSID name — wifi-iface only
+	WifiSecurity string `json:"wifi_security,omitempty"` // "open", "wpa2", "wpa3" — wifi-iface only
+	WifiRadio    string `json:"wifi_radio,omitempty"`  // parent radio name — wifi-iface only
 }
 
 // ConfigVLAN represents a VLAN as defined in device configuration

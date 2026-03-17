@@ -78,6 +78,13 @@ func (p *OpenWrtParser) ParseConfig(rawConfig string, deviceInfo s.SNMPDevice) (
 	}
 	configData.FirewallRules = firewallRules
 
+	// Parse wireless interfaces (radios + SSIDs)
+	wifiIfaces, err := p.parseWirelessInterfaces(uciConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse wireless interfaces: %w", err)
+	}
+	configData.Interfaces = append(configData.Interfaces, wifiIfaces...)
+
 	return configData, nil
 }
 
@@ -505,4 +512,78 @@ func extractOpenWrtModel(config *UCIConfig, deviceInfo s.SNMPDevice) string {
 	}
 
 	return "OpenWrt Device"
+}
+
+// parseWirelessInterfaces extracts wifi-device (radios) and wifi-iface (SSIDs) from UCI wireless config.
+func (p *OpenWrtParser) parseWirelessInterfaces(config *UCIConfig) ([]configparser.ConfigInterface, error) {
+	var ifaces []configparser.ConfigInterface
+
+	wireless, exists := config.Sections["wireless"]
+	if !exists {
+		return ifaces, nil
+	}
+
+	for name, section := range wireless {
+		switch section.Type {
+		case "wifi-device":
+			band := normalizeWifiBand(section.Options["band"])
+			ifaces = append(ifaces, configparser.ConfigInterface{
+				Name:     name,
+				Type:     "wifi-radio",
+				Enabled:  section.Options["disabled"] != "1",
+				WifiBand: band,
+			})
+
+		case "wifi-iface":
+			ssid := section.Options["ssid"]
+			iface := configparser.ConfigInterface{
+				Type:         "wifi-iface",
+				Enabled:      section.Options["disabled"] != "1",
+				WifiSSID:     ssid,
+				WifiSecurity: normalizeWifiSecurity(section.Options["encryption"]),
+				WifiRadio:    section.Options["device"],
+				Parent:       section.Options["device"],
+			}
+			// Use SSID as name if available, otherwise fall back to section key
+			if ssid != "" {
+				iface.Name = ssid
+			} else {
+				iface.Name = name
+			}
+			ifaces = append(ifaces, iface)
+		}
+	}
+
+	return ifaces, nil
+}
+
+// normalizeWifiBand converts UCI band values to human-readable strings.
+func normalizeWifiBand(band string) string {
+	switch strings.ToLower(band) {
+	case "2g", "2ghz", "2.4g", "2.4ghz", "bg", "bgn":
+		return "2.4GHz"
+	case "5g", "5ghz", "a", "an", "ac":
+		return "5GHz"
+	case "6g", "6ghz", "ax6":
+		return "6GHz"
+	default:
+		return band
+	}
+}
+
+// normalizeWifiSecurity maps UCI encryption values to canonical security modes.
+func normalizeWifiSecurity(enc string) string {
+	enc = strings.ToLower(enc)
+	switch {
+	case enc == "" || enc == "none":
+		return "open"
+	case strings.HasPrefix(enc, "sae") || enc == "psk-mixed+ccmp" || enc == "psk2+ccmp+sae":
+		return "wpa3"
+	case strings.HasPrefix(enc, "psk2") || strings.HasPrefix(enc, "psk+ccmp") || strings.HasPrefix(enc, "ccmp"):
+		return "wpa2"
+	case strings.HasPrefix(enc, "psk"):
+		return "wpa2"
+	default:
+		return "open"
+	}
 }

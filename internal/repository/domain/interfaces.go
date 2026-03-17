@@ -106,6 +106,8 @@ type repository interface {
 		positionY string,
 		modelName string,
 		allowMultipleConnections bool,
+		portType string,
+		band string,
 	) error
 	GetModelPorts() ([]e.ModelPort, error)
 	UpdateModelPort(
@@ -183,7 +185,7 @@ type repository interface {
 	DeleteVlanCascade(vlanId string) error
 
 	// DeviceInterface interaction
-	AddDeviceInterface(deviceID, name, description string, vlanConfigs []e.PortVlanConfig, ips []string) error
+	AddDeviceInterface(deviceID, name, description string, vlanConfigs []e.PortVlanConfig, ips []string, wifiSSID, wifiSecurity string) error
 	GetDeviceInterfaces(deviceID string) ([]e.DeviceInterface, error)
 	GetAllDeviceInterfaces() ([]e.DeviceInterface, error)
 	UpdateDeviceInterface(id string, vlanConfigs []e.PortVlanConfig) error

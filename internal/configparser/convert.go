@@ -26,6 +26,16 @@ func ConfigDataToSNMPDevice(cd *ConfigData, ip string) *s.SNMPDevice {
 			AdminStatus: oper,
 			Parent:      ci.Parent,
 		}
+		switch ci.Type {
+		case "wifi-radio":
+			di.IfType = s.IfTypeIEEE80211
+			di.WifiBand = ci.WifiBand
+		case "wifi-iface":
+			di.IfType = s.IfTypePropVirtual
+			di.WifiSSID = ci.WifiSSID
+			di.WifiSecurity = ci.WifiSecurity
+			di.Parent = ci.WifiRadio
+		}
 		for _, cv := range ci.VLANs {
 			di.VLANs = append(di.VLANs, s.VLANMembership{
 				VLANNumber: cv.ID,

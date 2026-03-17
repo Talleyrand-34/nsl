@@ -43,11 +43,13 @@ var modelPortModCmd = &cobra.Command{
 		posy := vals[2]
 		modelname := vals[3]
 		allowMultiple, _ := cmd.Flags().GetBool("allow-multiple")
+		portType, _ := cmd.Flags().GetString("port-type")
+		band, _ := cmd.Flags().GetString("band")
 		service, err := util.ServiceConnection()
 		if err != nil {
 			return
 		}
-		err = service.AddModelPort(name, posx, posy, modelname, allowMultiple)
+		err = service.AddModelPort(name, posx, posy, modelname, allowMultiple, portType, band)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error writing modelPort: %v\n", err)
 			os.Exit(1)
@@ -68,4 +70,8 @@ func init() {
 		String("modelname", "", "Sets the model name of the modelPort")
 	modelPortModCmd.Flags().
 		Bool("allow-multiple", false, "Allow multiple connections to this port")
+	modelPortModCmd.Flags().
+		String("port-type", "", "Port type: '' (wired) or 'wifi' (radio)")
+	modelPortModCmd.Flags().
+		String("band", "", "WiFi band: '2.4GHz', '5GHz', or '6GHz' (wifi ports only)")
 }

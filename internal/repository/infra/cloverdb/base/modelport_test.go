@@ -27,7 +27,7 @@ func TestModelPort_AddAndGet(t *testing.T) {
 	}
 
 	// Add model port
-	if err := repo.AddModelPort("GigabitEthernet1/0/1", "0", "0", "Catalyst 9300", false); err != nil {
+	if err := repo.AddModelPort("GigabitEthernet1/0/1", "0", "0", "Catalyst 9300", false, "", ""); err != nil {
 		t.Errorf("failed to add model port: %v", err)
 	}
 
@@ -60,7 +60,7 @@ func TestModelPort_CreateAndUpdate(t *testing.T) {
 	}
 
 	// Add model port
-	if err := repo.AddModelPort("Gi1/0/1", "0", "0", "Catalyst 9300", false); err != nil {
+	if err := repo.AddModelPort("Gi1/0/1", "0", "0", "Catalyst 9300", false, "", ""); err != nil {
 		t.Fatalf("failed to add model port: %v", err)
 	}
 
@@ -127,7 +127,7 @@ func TestModelPort_CreateAndDelete(t *testing.T) {
 	}
 
 	// Add model port
-	if err := repo.AddModelPort("Gi1/0/3", "0", "1", "Catalyst 9300", false); err != nil {
+	if err := repo.AddModelPort("Gi1/0/3", "0", "1", "Catalyst 9300", false, "", ""); err != nil {
 		t.Errorf("failed to add model port: %v", err)
 	}
 

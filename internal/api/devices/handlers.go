@@ -1058,6 +1058,8 @@ func AddModelPortHandler(service q.NetServiceInt) http.HandlerFunc {
 			PositionY                string `json:"position_y"`
 			ModelName                string `json:"model_name"`
 			AllowMultipleConnections bool   `json:"allow_multiple_connections"`
+			PortType                 string `json:"port_type"`
+			Band                     string `json:"band"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1072,7 +1074,7 @@ func AddModelPortHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		err := service.AddModelPort(req.PortName, req.PositionX, req.PositionY, req.ModelName, req.AllowMultipleConnections)
+		err := service.AddModelPort(req.PortName, req.PositionX, req.PositionY, req.ModelName, req.AllowMultipleConnections, req.PortType, req.Band)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": "creation_failed", "message": err.Error()})
@@ -1109,6 +1111,8 @@ func AddBulkModelPortHandler(service q.NetServiceInt) http.HandlerFunc {
 				PosY                     string `json:"posy"`
 				ModelName                string `json:"modelName"`
 				AllowMultipleConnections bool   `json:"allow_multiple_connections"`
+				PortType                 string `json:"port_type"`
+				Band                     string `json:"band"`
 			} `json:"ports"`
 		}
 
@@ -1135,7 +1139,7 @@ func AddBulkModelPortHandler(service q.NetServiceInt) http.HandlerFunc {
 				continue
 			}
 
-			err := service.AddModelPort(port.Name, port.PosX, port.PosY, port.ModelName, port.AllowMultipleConnections)
+			err := service.AddModelPort(port.Name, port.PosX, port.PosY, port.ModelName, port.AllowMultipleConnections, port.PortType, port.Band)
 			if err != nil {
 				errors = append(errors, fmt.Sprintf("Port %d (%s): %s", i+1, port.Name, err.Error()))
 				failureCount++
@@ -1522,11 +1526,13 @@ func AddDeviceInterfaceHandler(service q.NetServiceInt) http.HandlerFunc {
 		}
 
 		var req struct {
-			DeviceID    string             `json:"device_id"`
-			Name        string             `json:"name"`
-			Description string             `json:"description"`
-			VlanConfigs []e.PortVlanConfig `json:"vlan_configs"`
-			IPAddresses []string           `json:"ip_addresses"`
+			DeviceID     string             `json:"device_id"`
+			Name         string             `json:"name"`
+			Description  string             `json:"description"`
+			VlanConfigs  []e.PortVlanConfig `json:"vlan_configs"`
+			IPAddresses  []string           `json:"ip_addresses"`
+			WifiSSID     string             `json:"wifi_ssid"`
+			WifiSecurity string             `json:"wifi_security"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1541,7 +1547,7 @@ func AddDeviceInterfaceHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		err := service.AddDeviceInterface(req.DeviceID, req.Name, req.Description, req.VlanConfigs, req.IPAddresses)
+		err := service.AddDeviceInterface(req.DeviceID, req.Name, req.Description, req.VlanConfigs, req.IPAddresses, req.WifiSSID, req.WifiSecurity)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": "creation_failed", "message": err.Error()})

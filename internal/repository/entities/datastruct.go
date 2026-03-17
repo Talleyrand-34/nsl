@@ -47,6 +47,8 @@ type ModelPort struct {
 	Model                    string `json:"model"`
 	Brand                    string `json:"brand"`
 	AllowMultipleConnections bool   `json:"allow_multiple_connections"`
+	PortType                 string `json:"port_type,omitempty"` // "" / "ethernet" = wired; "wifi" = radio
+	Band                     string `json:"band,omitempty"`      // for wifi ports: "2.4GHz", "5GHz", "6GHz"
 }
 
 // Device This struct contains the info about a device
@@ -83,12 +85,14 @@ type DevicePort struct {
 // Multiple logical interfaces can be mapped to one or more physical DevicePorts
 // via InterfacePort join records.
 type DeviceInterface struct {
-	ID          string           `json:"id"`
-	DeviceID    string           `json:"device_id"`
-	Name        string           `json:"name"`
-	Description string           `json:"description"`
-	VlanConfigs []PortVlanConfig `json:"vlan_configs"`
-	IPAddresses []string         `json:"ip_addresses"`
+	ID           string           `json:"id"`
+	DeviceID     string           `json:"device_id"`
+	Name         string           `json:"name"`
+	Description  string           `json:"description"`
+	VlanConfigs  []PortVlanConfig `json:"vlan_configs"`
+	IPAddresses  []string         `json:"ip_addresses"`
+	WifiSSID     string           `json:"wifi_ssid,omitempty"`
+	WifiSecurity string           `json:"wifi_security,omitempty"` // "open", "wpa2", "wpa3"
 }
 
 // InterfacePort is a join record linking a DeviceInterface to a physical DevicePort.

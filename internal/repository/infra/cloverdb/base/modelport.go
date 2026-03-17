@@ -63,6 +63,13 @@ func (r BasicOpsCloverRepository) GetModelPorts() ([]e.ModelPort, error) {
 			AllowMultipleConnections: allowMultiple,
 		}
 
+		if pt, ok := doc.Get("port_type").(string); ok {
+			modelPort.PortType = pt
+		}
+		if band, ok := doc.Get("band").(string); ok {
+			modelPort.Band = band
+		}
+
 		// Get model name and brand if model ID exists
 		if modelID, ok := doc.Get("model_id").(string); ok && modelID != "" {
 			modelDoc, err := r.db.FindById(modelsCollection, modelID)
@@ -92,6 +99,8 @@ func (r BasicOpsCloverRepository) AddModelPort(
 	posy string,
 	modelName string,
 	allowMultipleConnections bool,
+	portType string,
+	band string,
 ) error {
 	// Get model ID from name (required)
 	modelID, err := r.getModelID(modelName)
@@ -115,6 +124,12 @@ func (r BasicOpsCloverRepository) AddModelPort(
 	doc.Set("position_y", iposy)
 	doc.Set("model_id", modelID)
 	doc.Set("allow_multiple_connections", allowMultipleConnections)
+	if portType != "" {
+		doc.Set("port_type", portType)
+	}
+	if band != "" {
+		doc.Set("band", band)
+	}
 
 	_, err = r.db.InsertOne(modelportsCollection, doc)
 	if err != nil {
