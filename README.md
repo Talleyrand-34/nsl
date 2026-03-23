@@ -1,6 +1,6 @@
 # NSL-Graph
 
-Network Specification and Layout Graph - A comprehensive network infrastructure management tool with visualization, VLAN support, and a flexible plugin system.
+Network Specification and Layout Graph - A comprehensive network infrastructure management tool with visualization, VLAN support, multi-vendor device configuration integration, and a flexible plugin system.
 
 ## Overview
 
@@ -12,12 +12,14 @@ NSL-Graph is a network specification management tool designed to help you docume
 
 ### Key Features
 
-- 📊 **Network Visualization**: Generate D2-based diagrams showing devices, connections, and VLANs
-- 🔌 **Plugin System**: Extensible architecture for custom connection sorting strategies
-- 🌐 **VLAN Support**: Tagged and untagged VLAN configurations with color-coded visualization
-- 🗄️ **Clean Architecture**: Separation of concerns with repository pattern and SQLite backend
-- 🔄 **Multiple Interfaces**: CLI, HTTP API, and PHP web frontend
-- 📝 **Comprehensive Data Model**: Brands, device classes, zones, models, devices, ports, connections, and VLANs
+- **Network Visualization**: Generate D2-based diagrams showing devices, connections, and VLANs
+- **Plugin System**: Extensible architecture for custom connection sorting strategies
+- **VLAN Support**: Tagged and untagged VLAN configurations with color-coded visualization
+- **WiFi Support**: WiFi radio ports and SSID interface entities
+- **Device Configuration Integration**: SSH, file, and manual config parsing for OPNsense, OpenWrt, Fortinet, and Cisco devices
+- **SNMP + Config Coordination**: Merge operational SNMP data with declarative configuration
+- **Clean Architecture**: Repository pattern with CloverDB backend
+- **Multiple Interfaces**: CLI, HTTP API, and PHP web frontend
 
 ## Quick Start
 
@@ -32,7 +34,7 @@ NSL-Graph is a network specification management tool designed to help you docume
 1. Clone the repository:
 ```bash
 git clone <repository-url>
-cd nsl5
+cd nsl
 ```
 
 2. Build the binary:
@@ -86,6 +88,25 @@ The CLI provides commands for managing all network entities:
 ./nsl-graph diagram --format connections --vlan true --colorports true
 ```
 
+### Device Scanning with Configuration Integration
+
+```bash
+# Basic SNMP scanning
+./nsl-graph scan host 192.168.1.1
+
+# Enhanced scanning with SSH configuration retrieval
+./nsl-graph scan host 10.0.0.1 --config-source ssh --ssh-user admin --merge-configs
+
+# Manual device type specification (bypass auto-detection)
+./nsl-graph scan host 10.0.0.245 --config-source ssh --ssh-user root --device-type openwrt
+
+# Configuration file parsing
+./nsl-graph scan host 10.0.0.132 --config-source file --config-file fortinet.conf --auto-import
+
+# Advanced options with conflict resolution
+./nsl-graph scan host 10.0.0.1 --config-source ssh --ssh-user admin --device-type opnsense --discrepancy-action prefer-config --auto-import
+```
+
 ### HTTP API
 
 The API exposes RESTful endpoints for all operations:
@@ -130,8 +151,10 @@ Features:
 Brand → Device Class → Device Model → Model Ports
                           ↓
 Zone Type → Zone → Device → Device Ports → Connections
-                                ↓
-                              VLANs
+                       ↓          ↓
+               Device Interfaces  VLANs
+                       ↓
+               WiFi Radio Ports → SSID Interfaces
 ```
 
 ### Plugin System
@@ -172,7 +195,7 @@ Use the plugin selector dropdown in the main interface.
 ### Directory Structure
 
 ```
-nsl5/
+nsl/
 ├── cmd/                    # CLI commands
 │   ├── modify/            # Add/update entities
 │   ├── print/             # Display data
@@ -184,8 +207,10 @@ nsl5/
 │   │   ├── application/   # Business logic service layer
 │   │   ├── domain/        # Repository interfaces
 │   │   ├── entities/      # Core data structures
-│   │   ├── infra/         # SQLite implementation
+│   │   ├── infra/         # CloverDB implementation
 │   │   └── plugins/       # Plugin system
+│   ├── configparser/      # Configuration parsing framework
+│   │   └── parsers/       # Device-specific parsers (OPNsense, OpenWrt, Fortinet, Cisco)
 │   └── format/            # Diagram generation
 ├── frontend/php/          # Web interface
 │   ├── action/            # Entity management forms
@@ -211,6 +236,47 @@ When VLAN visualization is enabled (`--vlan true` or `vlan=true`):
 - A legend shows VLAN number to color mapping
 - Use `--colorports true` to enable port coloring
 
+## Device Configuration Integration
+
+### Supported Device Types
+
+| Device Type | Format | Auto-detection |
+|-------------|--------|---------------|
+| **OPNsense** | XML (`/conf/config.xml`) | FreeBSD + "opnsense" in SysDescr/SysName |
+| **OpenWrt** | UCI (Unified Configuration Interface) | Linux + "openwrt" in SysDescr/SysName |
+| **Fortinet FortiGate** | CLI configuration | "fortinet", "fortigate", or "FG-" prefix |
+| **Cisco** | CLI configuration | "cisco" or "IOS" in SysDescr |
+
+### Configuration Sources
+
+- `--config-source ssh`: Connect via SSH to retrieve configuration
+- `--config-source file`: Read from a local file (`--config-file /path/to/config`)
+- `--config-source manual`: SNMP only, no automatic config retrieval
+- `--config-source none`: Default, pure SNMP-based scanning
+
+### Conflict Resolution
+
+When SNMP and configuration data conflict:
+
+- `--discrepancy-action prefer-snmp` (default): Trust SNMP operational data
+- `--discrepancy-action prefer-config`: Trust device configuration
+- `--discrepancy-action fail`: Stop on any conflict
+
+### Configuration Flags Reference
+
+| Flag | Description |
+|------|-------------|
+| `--config-source` | Configuration source (none, ssh, file, manual) |
+| `--config-file` | Path to configuration file (file source only) |
+| `--device-type` | Manual type override (opnsense, openwrt, fortinet, cisco) |
+| `--ssh-user` | SSH username |
+| `--ssh-password` | SSH password |
+| `--ssh-key` | Path to SSH private key |
+| `--ssh-port` | SSH port (default: 22) |
+| `--discrepancy-action` | Conflict resolution strategy |
+| `--merge-configs` | Merge SNMP and configuration data |
+| `--auto-import` | Automatically import parsed data |
+
 ## Development
 
 ### Building from Source
@@ -224,23 +290,12 @@ go test ./...
 
 # Run specific package tests
 go test ./internal/repository/application
-```
-
-### Database Schema Changes
-
-After modifying `internal/repository/infra/sqlc_sqlite/schema.sql`:
-
-```bash
-cd internal/repository/infra/sqlc_sqlite
-sqlc generate
-cd ../../../..
-go build -o nsl-graph main.go
+go test ./internal/configparser
 ```
 
 ### Custom Database Location
 
 ```bash
-# Specify custom database file
 ./nsl-graph -s /path/to/custom.db server --port 8081
 ```
 
@@ -257,6 +312,7 @@ go build -o nsl-graph main.go
 - `GET/POST/PUT/DELETE /modelports`
 - `POST /modelports/bulk` - Bulk create model ports
 - `GET/POST/PUT/DELETE /deviceports`
+- `GET/POST/PUT/DELETE /deviceinterfaces`
 - `GET/POST/PUT/DELETE /connections`
 - `GET/POST/PUT/DELETE /connectiontypes`
 - `GET/POST/PUT/DELETE /vlans`
@@ -270,7 +326,7 @@ go build -o nsl-graph main.go
 
 ## License
 
-Copyright © 2025 Talleyrand-34 (t34@t34.dev)
+Copyright © 2026 Talleyrand-34 (t34@t34.dev)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as published
@@ -288,4 +344,3 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 ## Support
 
 For issues, questions, or contributions, please open an issue on the project repository.
-
