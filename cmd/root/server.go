@@ -1,5 +1,5 @@
 /*
-  Copyright © 2025 Tecdesoft (rodrigo-gonzalez@tecdesoft.es, t34@t34.dev)
+  Copyright © 2025 Talleyrand-34 (t34@t34.dev)
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU Affero General Public License as published
@@ -15,7 +15,7 @@
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 /*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
+Copyright © 2025 Talleyrand-34 (t34@t34.dev)
 */
 package cmd_root
 

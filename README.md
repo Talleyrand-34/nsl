@@ -270,7 +270,7 @@ go build -o nsl-graph main.go
 
 ## License
 
-Copyright © 2025 Tecdesoft (rodrigo-gonzalez@tecdesoft.es, t34@t34.dev)
+Copyright © 2025 Talleyrand-34 (t34@t34.dev)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as published
