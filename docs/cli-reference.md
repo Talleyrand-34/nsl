@@ -244,16 +244,66 @@ Export all network data as JSON.
 
 ### diagram
 
-Generate network diagrams.
+Generate network diagrams. Output files default to `out/out.d2` and `out/out.svg`.
 
+#### diagram simple
 ```bash
-nsl-graph diagram
+nsl-graph diagram simple
 ```
-Generate a D2 diagram script and SVG image of the network topology.
+Basic diagram with all devices and connections.
 
-**Output files:**
-- D2 script: `{outPath}/{outFile}` (default: `out/out.d2`)
-- SVG image: `{outPath}/{outImage}` (default: `out/out.svg`)
+#### diagram connection
+```bash
+nsl-graph diagram connection [--all-ports]
+```
+Sorted connection diagram. `--all-ports` includes ports with no connections.
+
+#### diagram port
+```bash
+nsl-graph diagram port [--all-ports]
+```
+Port-focused diagram (lists all ports per device).
+
+#### diagram connection-vlan
+```bash
+nsl-graph diagram connection-vlan [flags]
+```
+Connection diagram with VLAN coloring and a legend.
+
+**Flags:**
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--vlan-scope` | `untagged` | `untagged`: one line per link colored by source port's untagged VLAN. `all`: one colored line per VLAN in the **intersection** of both port ends (multiple lines per trunk). |
+| `--color-target` | `both` | What to color: `both` (connections + port nodes), `connections` (port nodes plain), `ports` (connection lines plain). |
+| `--all-ports` | `false` | Include ports with no connections. |
+
+**Examples:**
+```bash
+# Default: untagged scope, color both connections and ports
+nsl-graph diagram connection-vlan -s demo.db
+
+# Show every shared VLAN as a separate colored line per trunk link
+nsl-graph diagram connection-vlan --vlan-scope all -s demo.db
+
+# All VLANs, color connection lines only
+nsl-graph diagram connection-vlan --vlan-scope all --color-target connections -s demo.db
+```
+
+#### diagram port-vlan
+```bash
+nsl-graph diagram port-vlan [flags]
+```
+Port diagram with VLAN coloring and a legend. Accepts the same `--vlan-scope`, `--color-target`, and `--all-ports` flags as `connection-vlan`.
+
+**Examples:**
+```bash
+# Color port nodes by their untagged VLAN, leave connection lines plain
+nsl-graph diagram port-vlan --color-target ports -s demo.db
+
+# All VLANs (intersection), color both
+nsl-graph diagram port-vlan --vlan-scope all --color-target both -s demo.db
+```
 
 ### server
 

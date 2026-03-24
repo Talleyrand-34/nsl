@@ -25,6 +25,8 @@ import (
 )
 
 var diagramPortVlanAllPorts bool
+var diagramPortVlanScope string
+var diagramPortColorTarget string
 
 // DiagramPortVlanCmd represents the port-vlan diagram command
 var DiagramPortVlanCmd = &cobra.Command{
@@ -53,7 +55,7 @@ var DiagramPortVlanCmd = &cobra.Command{
 		if err != nil {
 			return
 		}
-		d2diagram := format.GenerateD2FocusPortsWithVlans(devices, connections, zones, devicePorts, allInterfaces, ifacePorts, false, diagramPortVlanAllPorts)
+		d2diagram := format.GenerateD2FocusPortsWithVlans(devices, connections, zones, devicePorts, allInterfaces, ifacePorts, diagramPortVlanAllPorts, diagramPortVlanScope, diagramPortColorTarget)
 		format.WriteDiagram(d2diagram, op, of, oi)
 	},
 }
@@ -61,4 +63,6 @@ var DiagramPortVlanCmd = &cobra.Command{
 func init() {
 	cmd.DiagramCmd.AddCommand(DiagramPortVlanCmd)
 	DiagramPortVlanCmd.Flags().BoolVar(&diagramPortVlanAllPorts, "all-ports", false, "Include ports with no connections in the diagram")
+	DiagramPortVlanCmd.Flags().StringVar(&diagramPortVlanScope, "vlan-scope", "untagged", "Which VLANs to represent: 'untagged' (one line per link) or 'all' (one line per VLAN in intersection)")
+	DiagramPortVlanCmd.Flags().StringVar(&diagramPortColorTarget, "color-target", "both", "What to color: 'both', 'connections', or 'ports'")
 }

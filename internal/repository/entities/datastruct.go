@@ -72,13 +72,14 @@ type PortVlanConfig struct {
 
 // DevicePort This struct contains the info about ports asociated to a device since the information is contained in the model
 type DevicePort struct {
-	DeviceID   string `json:"devid"`
-	ModelID    string `json:"modelid"`
-	MacAddress string `json:"mac_address"`
-	PortName   string `json:"portname"`
-	DevLabel   string `json:"devname"`
-	Positionx  int    `json:"positionx"`
-	Positiony  int    `json:"positiony"`
+	DeviceID    string           `json:"devid"`
+	ModelID     string           `json:"modelid"`
+	MacAddress  string           `json:"mac_address"`
+	PortName    string           `json:"portname"`
+	DevLabel    string           `json:"devname"`
+	Positionx   int              `json:"positionx"`
+	Positiony   int              `json:"positiony"`
+	VlanConfigs []PortVlanConfig `json:"vlan_configs"`
 }
 
 // DeviceInterface represents a logical interface (with VLANs) on a device.

@@ -83,6 +83,45 @@ func (r BasicOpsCloverRepository) GetDevicePorts() ([]e.DevicePort, error) {
 		return []e.DevicePort{}, err
 	}
 
+	// Pre-load interface ports: key = "deviceID:modelPortID" → []interfaceID
+	ifacePortDocs, _ := r.db.FindAll(q.NewQuery(interfacePortsCollection))
+	portToIfaces := make(map[string][]string)
+	for _, ipDoc := range ifacePortDocs {
+		devID, _ := ipDoc.Get("device_id").(string)
+		mpID, _ := ipDoc.Get("model_port_id").(string)
+		ifaceID, _ := ipDoc.Get("interface_id").(string)
+		if devID != "" && mpID != "" && ifaceID != "" {
+			key := devID + ":" + mpID
+			portToIfaces[key] = append(portToIfaces[key], ifaceID)
+		}
+	}
+
+	// Pre-load device interfaces: interfaceID → []PortVlanConfig
+	ifaceDocs, _ := r.db.FindAll(q.NewQuery(deviceInterfacesCollection))
+	ifaceVlans := make(map[string][]e.PortVlanConfig)
+	for _, ifDoc := range ifaceDocs {
+		var ifaceID string
+		if id, ok := ifDoc.Get("_id").(string); ok {
+			ifaceID = id
+		} else {
+			ifaceID = ifDoc.ObjectId()
+		}
+		rawVlans, _ := ifDoc.Get("vlan_configs").([]interface{})
+		configs := make([]e.PortVlanConfig, 0, len(rawVlans))
+		for _, rv := range rawVlans {
+			vm, ok := rv.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			vnum, _ := vm["vlan_number"].(string)
+			tagged, _ := vm["tagged"].(bool)
+			if vnum != "" {
+				configs = append(configs, e.PortVlanConfig{VlanNumber: vnum, Tagged: tagged})
+			}
+		}
+		ifaceVlans[ifaceID] = configs
+	}
+
 	result := make([]e.DevicePort, 0, len(docs))
 	for _, doc := range docs {
 		devicePort := e.DevicePort{}
@@ -118,6 +157,21 @@ func (r BasicOpsCloverRepository) GetDevicePorts() ([]e.DevicePort, error) {
 				} else if py, ok := modelPortDoc.Get("position_y").(int); ok {
 					devicePort.Positiony = py
 				}
+			}
+
+			// Collect VLAN configs from all interfaces linked to this port
+			seen := make(map[string]struct{})
+			for _, ifaceID := range portToIfaces[devicePort.DeviceID+":"+modelPortID] {
+				for _, vc := range ifaceVlans[ifaceID] {
+					key := vc.VlanNumber + ":" + fmt.Sprintf("%v", vc.Tagged)
+					if _, exists := seen[key]; !exists {
+						seen[key] = struct{}{}
+						devicePort.VlanConfigs = append(devicePort.VlanConfigs, vc)
+					}
+				}
+			}
+			if devicePort.VlanConfigs == nil {
+				devicePort.VlanConfigs = []e.PortVlanConfig{}
 			}
 		}
 

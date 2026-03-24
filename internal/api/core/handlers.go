@@ -154,6 +154,15 @@ func GetDiagramHandler(service q.NetServiceInt) http.HandlerFunc {
 		colorports := r.URL.Query().Get("colorports") == "true"
 		allports := r.URL.Query().Get("allports") == "true"
 
+		vlanScope := r.URL.Query().Get("vlan_scope")
+		if vlanScope == "" {
+			vlanScope = "untagged"
+		}
+		colorTarget := r.URL.Query().Get("color_target")
+		if colorTarget == "" {
+			colorTarget = "both"
+		}
+
 		// Validate format parameter
 		if format != "ports" && format != "connections" {
 			w.WriteHeader(http.StatusBadRequest)
@@ -209,9 +218,9 @@ func GetDiagramHandler(service q.NetServiceInt) http.HandlerFunc {
 
 		if vlan {
 			if format == "ports" {
-				d2Script = fmtd2.GenerateD2FocusPortsWithVlans(devices, connections, zones, devicePorts, allInterfaces, ifacePorts, colorports, allports)
+				d2Script = fmtd2.GenerateD2FocusPortsWithVlans(devices, connections, zones, devicePorts, allInterfaces, ifacePorts, allports, vlanScope, colorTarget)
 			} else {
-				d2Script = fmtd2.GenerateD2FocusConnectionsWithVlans(devices, connections, zones, devicePorts, allInterfaces, ifacePorts, colorports, allports)
+				d2Script = fmtd2.GenerateD2FocusConnectionsWithVlans(devices, connections, zones, devicePorts, allInterfaces, ifacePorts, allports, vlanScope, colorTarget)
 			}
 		} else {
 			if format == "ports" {
