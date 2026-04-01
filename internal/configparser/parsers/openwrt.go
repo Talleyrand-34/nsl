@@ -405,7 +405,41 @@ func (p *OpenWrtParser) parseNetworkInterfaces(config *UCIConfig, switchPorts []
 			for _, port := range strings.Fields(section.Options["ports"]) {
 				parts := strings.SplitN(port, ".", 2)
 				base := parts[0]
-				if base == "" || base == "lo" || base == "eth0" {
+
+				// Skip loopback
+				if base == "lo" {
+					continue
+				}
+
+				// If base is eth0 and we have a VLAN suffix (e.g., eth0.4), emit the VLAN subinterface
+				if base == "eth0" && len(parts) == 2 && parts[1] != "" {
+					vlanIfaceName := port // e.g., "eth0.4"
+					// Only emit if not already emitted
+					alreadyEmitted := false
+					for _, iface := range interfaces {
+						if iface.Name == vlanIfaceName {
+							alreadyEmitted = true
+							break
+						}
+					}
+					if !alreadyEmitted {
+						interfaces = append(interfaces, configparser.ConfigInterface{
+							Name:   vlanIfaceName,
+							Parent: "eth0",
+							Type:   "vlan",
+						})
+					}
+					// Set this VLAN subinterface as the bridge's parent
+					configIface.Parent = vlanIfaceName
+					// Extract VLAN ID
+					configIface.VLANs = append(configIface.VLANs, configparser.ConfigVLAN{
+						ID:     parts[1],
+						Tagged: false,
+					})
+					continue
+				}
+
+				if base == "" || base == "eth0" {
 					continue
 				}
 				physicalDevs[base] = true
