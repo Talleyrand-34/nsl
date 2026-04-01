@@ -54,6 +54,16 @@ func (p *OpenWrtParser) ParseConfig(rawConfig string, deviceInfo s.SNMPDevice) (
 	// Extract board.json for physical port information
 	boardPorts, _ := p.parseBoardJSON(rawConfig)
 	if len(boardPorts) > 0 {
+		// Parse swconfig VLAN data and populate into switch ports
+		// Note: swconfig only works on older non-DSA switches. DSA switches
+		// (like Aircube AC) don't have swconfig and VLAN info must come from
+		// bridge vlan show or network config parsing instead.
+		swconfigVLANs := p.parseSwconfigVLANs(rawConfig)
+		for i := range boardPorts {
+			if vlans, ok := swconfigVLANs[boardPorts[i].PortNumber]; ok {
+				boardPorts[i].VLANs = vlans
+			}
+		}
 		configData.SwitchPorts = boardPorts
 	}
 
@@ -110,6 +120,12 @@ func (p *OpenWrtParser) GetConfigViaSSH(ip string, creds configparser.SSHCredent
 		"uci show system",
 		"uci show dhcp",
 		"cat /etc/board.json",
+		"swconfig dev switch0 vlan 1 get ports",
+		"swconfig dev switch0 vlan 2 get ports",
+		"swconfig dev switch0 vlan 4 get ports",
+		"swconfig dev switch0 vlan 5 get ports",
+		"swconfig dev switch0 vlan 6 get ports",
+		"swconfig dev switch0 vlan 7 get ports",
 	}
 
 	var allConfig strings.Builder
@@ -218,6 +234,74 @@ func (p *OpenWrtParser) parseBoardJSON(rawConfig string) ([]configparser.SwitchP
 	}
 
 	return ports, nil
+}
+
+// parseSwconfigVLANs parses swconfig VLAN output and returns VLAN-port membership
+// Output format from command: "VLAN 1: ports: 0t 2 4"
+// Returns: map[portNumber][]PortVLANInfo where VID is the actual VLAN ID
+func (p *OpenWrtParser) parseSwconfigVLANs(rawConfig string) map[int][]configparser.PortVLANInfo {
+	// map[portNumber]map[vid]tagged for intermediate storage
+	portVLANs := make(map[int]map[int]bool)
+
+	lines := strings.Split(rawConfig, "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+
+		// Match "VLAN 1: ports: 0t 2 4" format
+		if !strings.HasPrefix(trimmed, "VLAN ") {
+			continue
+		}
+
+		// Extract VLAN number: "VLAN 1:" -> "1"
+		vlanPart := strings.TrimPrefix(trimmed, "VLAN ")
+		vlanParts := strings.Split(vlanPart, ":")
+		if len(vlanParts) < 2 {
+			continue
+		}
+		vlanNum, err := strconv.Atoi(strings.TrimSpace(vlanParts[0]))
+		if err != nil {
+			continue
+		}
+
+		// Extract ports: "ports: 0t 2 4" -> "0t 2 4"
+		portsPart := strings.Join(vlanParts[1:], ":")
+		portsIdx := strings.Index(portsPart, "ports:")
+		if portsIdx == -1 {
+			continue
+		}
+		portsStr := strings.TrimSpace(strings.TrimPrefix(portsPart[portsIdx:], "ports:"))
+
+		// Parse port list - each port has optional 't' suffix for tagged
+		portList := strings.Fields(portsStr)
+		for _, portEntry := range portList {
+			tagged := strings.HasSuffix(portEntry, "t")
+			portNum, err := strconv.Atoi(strings.TrimSuffix(portEntry, "t"))
+			if err != nil {
+				continue
+			}
+
+			if portVLANs[portNum] == nil {
+				portVLANs[portNum] = make(map[int]bool)
+			}
+			portVLANs[portNum][vlanNum] = tagged
+		}
+	}
+
+	// Convert to map[portNumber][]PortVLANInfo
+	result := make(map[int][]configparser.PortVLANInfo)
+	for portNum, vlans := range portVLANs {
+		for vid, tagged := range vlans {
+			result[portNum] = append(result[portNum], configparser.PortVLANInfo{
+				VID:    strconv.Itoa(vid),
+				Tagged: tagged,
+			})
+		}
+	}
+
+	return result
 }
 
 // ValidateConfig performs basic validation on parsed OpenWrt configuration

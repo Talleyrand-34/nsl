@@ -114,13 +114,19 @@ type ConfigFirewallRule struct {
 	Protocol    string   `json:"protocol"`    // "tcp", "udp", "icmp", etc.
 }
 
-// SwitchPortInfo represents physical switch port information from swconfig
+// PortVLANInfo represents VLAN membership for a switch port
+type PortVLANInfo struct {
+	VID    string `json:"vid"`    // VLAN ID (e.g., "1", "60")
+	Tagged bool   `json:"tagged"` // true if port is tagged on this VLAN
+}
+
+// SwitchPortInfo represents physical switch port information from board.json/swconfig
 type SwitchPortInfo struct {
-	PortNumber int    `json:"port_number"` // Port index (0, 1, 2, etc.)
-	PortName   string `json:"port_name"`   // Human-readable name (e.g., "lan1", "wan0")
-	LinkStatus string `json:"link_status"` // "up", "down"
-	PVID       string `json:"pvid"`        // Port VLAN ID (untagged)
-	Role       string `json:"role"`        // "physical", "cpu", "internal"
+	PortNumber int            `json:"port_number"` // Port index (0, 1, 2, etc.)
+	PortName   string         `json:"port_name"`   // Human-readable name (e.g., "lan1", "wan0")
+	LinkStatus string         `json:"link_status"` // "up", "down"
+	Role       string         `json:"role"`        // "lan", "wan"
+	VLANs      []PortVLANInfo `json:"vlans"`       // VLAN membership per port (from swconfig)
 }
 
 // ConfigData contains the parsed configuration data from a network device

@@ -27,8 +27,8 @@ func ConfigDataToDiscoveredDeviceInfo(cd *ConfigData, ip string) *s.DiscoveredDe
 			PortNumber: sp.PortNumber,
 			Role:       sp.Role,
 			LinkStatus: sp.LinkStatus,
-			PVID:       sp.PVID,
 			MAC:        "",
+			VLANs:      nil, // VLANs will be populated from swconfig separately
 		})
 	}
 
@@ -90,16 +90,22 @@ func ConfigDataToSNMPDevice(cd *ConfigData, ip string) *s.SNMPDevice {
 		device.SysDescr = cd.DeviceType
 	}
 
-	// Convert SwitchPorts from ConfigData
+	// Convert SwitchPorts from ConfigData (includes VLANs parsed from swconfig)
 	for _, sp := range cd.SwitchPorts {
-		device.SwitchPorts = append(device.SwitchPorts, s.PhysicalPortInfo{
+		ppi := s.PhysicalPortInfo{
 			Name:       sp.PortName,
 			PortNumber: sp.PortNumber,
 			Role:       sp.Role,
 			LinkStatus: sp.LinkStatus,
-			PVID:       sp.PVID,
 			MAC:        "",
-		})
+		}
+		for _, v := range sp.VLANs {
+			ppi.VLANs = append(ppi.VLANs, s.PortVLANInfo{
+				VID:    v.VID,
+				Tagged: v.Tagged,
+			})
+		}
+		device.SwitchPorts = append(device.SwitchPorts, ppi)
 	}
 
 	for i, ci := range cd.Interfaces {

@@ -459,14 +459,21 @@ func printSwitchPortsTable(ports []s.PhysicalPortInfo) {
 			mac = port.MAC
 		}
 
-		pvid := ""
-		if port.PVID != "" {
-			pvid = "PVID:" + port.PVID
+		var vlanInfo string
+		for _, vlan := range port.VLANs {
+			if vlanInfo != "" {
+				vlanInfo += " "
+			}
+			tag := "U"
+			if vlan.Tagged {
+				tag = "T"
+			}
+			vlanInfo += fmt.Sprintf("%s:%s", vlan.VID, tag)
 		}
 
 		ips := "-"
-		if pvid != "" {
-			ips = pvid
+		if vlanInfo != "" {
+			ips = vlanInfo
 		}
 
 		fmt.Printf("  %-*s %-*s %-*s %-*s %-*s %-*s\n",

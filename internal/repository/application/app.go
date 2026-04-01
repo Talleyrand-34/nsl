@@ -1801,10 +1801,10 @@ func (ns *NetService) createDevicePortsWithPlan(deviceID string, discovered s.Di
 
 		if modelPortID != "" {
 			var vlanConfigs []e.PortVlanConfig
-			if port.PVID != "" {
+			for _, vlan := range port.VLANs {
 				vlanConfigs = append(vlanConfigs, e.PortVlanConfig{
-					VlanNumber: port.PVID,
-					Tagged:     false,
+					VlanNumber: vlan.VID,
+					Tagged:     vlan.Tagged,
 				})
 			}
 			if err := ns.AddDevicePort(deviceID, modelPortID, port.MAC, vlanConfigs); err != nil {

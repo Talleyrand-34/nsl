@@ -228,12 +228,18 @@ type ScanResult struct {
 
 // PhysicalPortInfo represents a physical switch port from device configuration (e.g., OpenWrt board.json)
 type PhysicalPortInfo struct {
-	Name       string `json:"name"`        // "lan1", "wan0"
-	PortNumber int    `json:"port_number"` // 2, 3, 5, 4 (switch port number)
-	Role       string `json:"role"`        // "lan", "wan"
-	LinkStatus string `json:"link_status"` // "up", "down"
-	PVID       string `json:"pvid"`        // native/untagged VLAN
-	MAC        string `json:"mac"`         // MAC address if available
+	Name       string         `json:"name"`        // "lan1", "wan0"
+	PortNumber int            `json:"port_number"` // 2, 3, 5, 4 (switch port number)
+	Role       string         `json:"role"`        // "lan", "wan"
+	LinkStatus string         `json:"link_status"` // "up", "down"
+	MAC        string         `json:"mac"`         // MAC address if available
+	VLANs      []PortVLANInfo `json:"vlans"`       // VLAN membership per port (from swconfig)
+}
+
+// PortVLANInfo represents VLAN membership for a switch port
+type PortVLANInfo struct {
+	VID    string `json:"vid"`    // VLAN ID (e.g., "1", "60")
+	Tagged bool   `json:"tagged"` // true if port is tagged on this VLAN
 }
 
 // DiscoveredDevice pairs an SNMPDevice with classification for import.
