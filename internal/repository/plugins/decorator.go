@@ -384,8 +384,8 @@ func (p *PluginAwareRepository) DeleteDeviceInterface(id string) error {
 }
 
 // InterfacePort interaction
-func (p *PluginAwareRepository) AddInterfacePort(interfaceID, deviceID, modelPortID string) error {
-	return p.baseRepo.AddInterfacePort(interfaceID, deviceID, modelPortID)
+func (p *PluginAwareRepository) AddInterfacePort(interfaceID, deviceID, modelPortID string, vlanConfigs []e.PortVlanConfig) error {
+	return p.baseRepo.AddInterfacePort(interfaceID, deviceID, modelPortID, vlanConfigs)
 }
 
 func (p *PluginAwareRepository) GetInterfacePortsByInterface(interfaceID string) ([]e.InterfacePort, error) {

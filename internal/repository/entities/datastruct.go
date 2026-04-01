@@ -98,11 +98,13 @@ type DeviceInterface struct {
 }
 
 // InterfacePort is a join record linking a DeviceInterface to a physical DevicePort.
+// It also stores the VLAN configurations for that specific interface-to-port link.
 type InterfacePort struct {
-	ID          string `json:"id"`
-	InterfaceID string `json:"interface_id"`
-	DeviceID    string `json:"device_id"`
-	ModelPortID string `json:"model_port_id"`
+	ID          string           `json:"id"`
+	InterfaceID string           `json:"interface_id"`
+	DeviceID    string           `json:"device_id"`
+	ModelPortID string           `json:"model_port_id"`
+	VlanConfigs []PortVlanConfig `json:"vlan_configs"`
 }
 
 // Connection This struct contains the info about a connection

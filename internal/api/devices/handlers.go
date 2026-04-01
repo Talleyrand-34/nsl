@@ -1662,7 +1662,7 @@ func AddInterfacePortHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		err := service.AddInterfacePort(req.InterfaceID, req.DeviceID, req.ModelPortID)
+		err := service.AddInterfacePort(req.InterfaceID, req.DeviceID, req.ModelPortID, nil)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": "creation_failed", "message": err.Error()})

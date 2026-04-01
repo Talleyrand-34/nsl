@@ -24,7 +24,20 @@ import (
 
 	cmd "nsl-graph/cmd/root"
 	util "nsl-graph/cmd/utils"
+	e "nsl-graph/internal/repository/entities"
 )
+
+// VerboseInterfacePort is an enriched InterfacePort with resolved names
+type VerboseInterfacePort struct {
+	ID            string             `json:"id"`
+	InterfaceID   string             `json:"interface_id"`
+	InterfaceName string             `json:"interface_name,omitempty"`
+	DeviceID      string             `json:"device_id"`
+	DeviceName    string             `json:"device_name,omitempty"`
+	ModelPortID   string             `json:"model_port_id"`
+	PortName      string             `json:"port_name,omitempty"`
+	VlanConfigs   []e.PortVlanConfig `json:"vlan_configs,omitempty"`
+}
 
 var deviceInterfacePrintCmd = &cobra.Command{
 	Use:   "deviceinterface",
@@ -61,7 +74,7 @@ var deviceInterfacePrintCmd = &cobra.Command{
 var interfacePortPrintCmd = &cobra.Command{
 	Use:   "interfaceport",
 	Short: "Print interface-port links",
-	Long: `Print interface-to-port associations.
+	Long: `Print interface-to-port associations with resolved names.
 
 Use --interfaceid to list ports for a given interface.
 Use --deviceid and --modelportid to list interfaces for a given physical port.
@@ -76,20 +89,95 @@ Without flags, prints all interface-port links.`,
 			return
 		}
 
-		var result interface{}
-		if interfaceid != "" {
-			result, err = service.GetPortsForInterface(interfaceid)
-		} else if deviceid != "" && modelportid != "" {
-			result, err = service.GetInterfacesForPort(deviceid, modelportid)
-		} else {
-			result, err = service.GetAllInterfacePorts()
+		var verbosePorts []VerboseInterfacePort
+
+		// Get lookup maps
+		devices, _ := service.GetDevices()
+		modelPorts, _ := service.GetModelPorts()
+		interfaces, _ := service.GetAllDeviceInterfaces()
+
+		deviceNameMap := make(map[string]string)
+		for _, d := range devices {
+			deviceNameMap[d.ID] = d.Name
 		}
-		if err != nil {
-			fmt.Println("Error getting interface-port links:", err)
-			return
+		portNameMap := make(map[string]string)
+		for _, mp := range modelPorts {
+			portNameMap[mp.ID] = mp.Name
+		}
+		ifaceNameMap := make(map[string]string)
+		for _, iface := range interfaces {
+			ifaceNameMap[iface.ID] = iface.Name
 		}
 
-		jsonBytes, err := json.MarshalIndent(result, "", "  ")
+		if interfaceid != "" {
+			// GetPortsForInterface returns []DevicePort - get the physical ports for this interface
+			devicePorts, err := service.GetPortsForInterface(interfaceid)
+			if err != nil {
+				fmt.Println("Error getting ports for interface:", err)
+				return
+			}
+			verbosePorts = make([]VerboseInterfacePort, len(devicePorts))
+			for i, dp := range devicePorts {
+				verbosePorts[i] = VerboseInterfacePort{
+					InterfaceID:   interfaceid,
+					InterfaceName: ifaceNameMap[interfaceid],
+					DeviceID:      dp.DeviceID,
+					DeviceName:    deviceNameMap[dp.DeviceID],
+					ModelPortID:   dp.ModelID,
+					PortName:      portNameMap[dp.ModelID],
+				}
+			}
+		} else if deviceid != "" && modelportid != "" {
+			// GetInterfacesForPort returns []DeviceInterface - get interfaces on a physical port
+			deviceIfaces, err := service.GetInterfacesForPort(deviceid, modelportid)
+			if err != nil {
+				fmt.Println("Error getting interfaces for port:", err)
+				return
+			}
+			// Get InterfacePorts to find VLANs
+			allIPs, _ := service.GetAllInterfacePorts()
+			ifaceNameMap2 := make(map[string]string)
+			for _, di := range deviceIfaces {
+				ifaceNameMap2[di.ID] = di.Name
+			}
+			verbosePorts = make([]VerboseInterfacePort, 0)
+			for _, ip := range allIPs {
+				if ip.DeviceID == deviceid && ip.ModelPortID == modelportid {
+					verbosePorts = append(verbosePorts, VerboseInterfacePort{
+						ID:            ip.ID,
+						InterfaceID:   ip.InterfaceID,
+						InterfaceName: ifaceNameMap2[ip.InterfaceID],
+						DeviceID:      ip.DeviceID,
+						DeviceName:    deviceNameMap[ip.DeviceID],
+						ModelPortID:   ip.ModelPortID,
+						PortName:      portNameMap[ip.ModelPortID],
+						VlanConfigs:   ip.VlanConfigs,
+					})
+				}
+			}
+		} else {
+			// Get all interface ports
+			ports, err := service.GetAllInterfacePorts()
+			if err != nil {
+				fmt.Println("Error getting interface ports:", err)
+				return
+			}
+			verbosePorts = make([]VerboseInterfacePort, len(ports))
+			for i, p := range ports {
+				verbosePorts[i] = VerboseInterfacePort{
+					ID:            p.ID,
+					InterfaceID:   p.InterfaceID,
+					InterfaceName: ifaceNameMap[p.InterfaceID],
+					DeviceID:      p.DeviceID,
+					DeviceName:    deviceNameMap[p.DeviceID],
+					ModelPortID:   p.ModelPortID,
+					PortName:      portNameMap[p.ModelPortID],
+					VlanConfigs:   p.VlanConfigs,
+				}
+			}
+		}
+
+		jsonBytes, err := json.MarshalIndent(verbosePorts, "", "  ")
 		if err != nil {
 			fmt.Println("Error marshaling to JSON:", err)
 			return

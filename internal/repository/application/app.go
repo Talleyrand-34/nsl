@@ -201,7 +201,7 @@ type NetServiceInt interface {
 	DeleteDeviceInterface(id string) error
 
 	// InterfacePort operations
-	AddInterfacePort(interfaceID, deviceID, modelPortID string) error
+	AddInterfacePort(interfaceID, deviceID, modelPortID string, vlanConfigs []e.PortVlanConfig) error
 	GetInterfacesForPort(deviceID, modelPortID string) ([]e.DeviceInterface, error)
 	GetPortsForInterface(interfaceID string) ([]e.DevicePort, error)
 	GetAllInterfacePorts() ([]e.InterfacePort, error)
@@ -416,8 +416,8 @@ func (ns *NetService) DeleteDeviceInterface(id string) error {
 	return ns.netRepo.DeleteDeviceInterface(id)
 }
 
-func (ns *NetService) AddInterfacePort(interfaceID, deviceID, modelPortID string) error {
-	return ns.netRepo.AddInterfacePort(interfaceID, deviceID, modelPortID)
+func (ns *NetService) AddInterfacePort(interfaceID, deviceID, modelPortID string, vlanConfigs []e.PortVlanConfig) error {
+	return ns.netRepo.AddInterfacePort(interfaceID, deviceID, modelPortID, vlanConfigs)
 }
 
 func (ns *NetService) GetAllInterfacePorts() ([]e.InterfacePort, error) {
@@ -1120,7 +1120,7 @@ func (ns *NetService) createDevicePortsForDevice(deviceID string, discovered s.D
 				if err == nil {
 					for _, di := range ifaceList {
 						if di.Name == iface.Name && di.DeviceID == deviceID {
-							if err := ns.AddInterfacePort(di.ID, deviceID, modelPortID); err != nil {
+							if err := ns.AddInterfacePort(di.ID, deviceID, modelPortID, vlanConfigs); err != nil {
 								log.Printf("Warning: failed to link interface %s to port %s: %v", di.ID, modelPortID, err)
 							}
 							break
@@ -1908,7 +1908,7 @@ func (ns *NetService) createDevicePortsWithPlan(deviceID string, discovered s.Di
 				if err == nil {
 					for _, di := range ifaceList {
 						if di.Name == iface.Name && di.DeviceID == deviceID {
-							if err := ns.AddInterfacePort(di.ID, deviceID, modelPortID); err != nil {
+							if err := ns.AddInterfacePort(di.ID, deviceID, modelPortID, vlanConfigs); err != nil {
 								log.Printf("Warning: failed to link interface %s to port %s: %v", di.ID, modelPortID, err)
 							}
 							break
