@@ -43,6 +43,10 @@ func ConfigDataToSNMPDevice(cd *ConfigData, ip string) *s.SNMPDevice {
 		case "bridge":
 			di.IfType = s.IfTypePropVirtual
 			di.IsBridge = true
+		case "switch-port":
+			// Switch ports from board.json are physical ports, not logical interfaces
+			// They should have Ethernet ifType but NOT appear in the logical interface count
+			di.IfType = s.IfTypeEthernetCsmacd
 		default: // "logical", "vlan", ""
 			di.IfType = s.IfTypePropVirtual
 		}

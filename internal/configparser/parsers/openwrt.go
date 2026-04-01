@@ -490,7 +490,10 @@ func (p *OpenWrtParser) parseNetworkInterfaces(config *UCIConfig, switchPorts []
 		})
 	}
 
-	// Add physical switch ports from board.json as named devices (lan0, lan1, wan0, etc.)
+	// Add physical switch ports from board.json (lan1, lan2, lan3, wan0, etc.)
+	// These are emitted as interfaces so they become DevicePorts, but marked
+	// as type "switch-port" so they can be identified as physical switch ports
+	// rather than regular logical interfaces.
 	for _, port := range switchPorts {
 		if port.Role == "" || port.Role == "cpu" {
 			continue
@@ -504,7 +507,7 @@ func (p *OpenWrtParser) parseNetworkInterfaces(config *UCIConfig, switchPorts []
 		interfaces = append(interfaces, configparser.ConfigInterface{
 			Name:    portName,
 			Enabled: port.LinkStatus == "up",
-			Type:    "physical",
+			Type:    "switch-port",
 		})
 	}
 
