@@ -40,6 +40,9 @@ func ConfigDataToSNMPDevice(cd *ConfigData, ip string) *s.SNMPDevice {
 			di.Parent = ci.WifiRadio
 		case "physical":
 			di.IfType = s.IfTypeEthernetCsmacd
+		case "bridge":
+			di.IfType = s.IfTypePropVirtual
+			di.IsBridge = true
 		default: // "logical", "vlan", ""
 			di.IfType = s.IfTypePropVirtual
 		}

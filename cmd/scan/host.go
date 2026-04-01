@@ -26,10 +26,10 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"golang.org/x/term"
 	cmd_pkg "nsl-graph/cmd"
 	cmd_root "nsl-graph/cmd/root"
 	util "nsl-graph/cmd/utils"
-	"golang.org/x/term"
 
 	configparser "nsl-graph/internal/configparser"
 	_ "nsl-graph/internal/configparser/parsers" // side-effect: registers all parsers
@@ -328,10 +328,16 @@ Examples:
 				ParseConfigTimeout: hostConfigTimeout,
 			}
 
-			// When using --scan-source ssh, SSH was the primary source so don't use config-source
-			if hostScanSource == "ssh" {
+			// When using --scan-source ssh without --merge-configs, disable config merging
+			// When using --scan-source ssh WITH --merge-configs, use SSH for config (not SNMP)
+			if hostScanSource == "ssh" && !hostMergeConfig {
 				hostConfigSource = "none"
 				importOptions.MergeWithConfig = false
+			}
+
+			// When --merge-configs is used, default to prefer-config unless explicitly set
+			if hostMergeConfig && hostDiscrepancyAction == "prefer-snmp" {
+				importOptions.DiscrepancyAction = "prefer-config"
 			}
 
 			if err := importSingleDeviceWithVLANMapping(service, discoveredDevice, importOptions); err != nil {
