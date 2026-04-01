@@ -90,6 +90,7 @@ type DeviceInterface struct {
 	DeviceID     string           `json:"device_id"`
 	Name         string           `json:"name"`
 	Description  string           `json:"description"`
+	Parent       string           `json:"parent,omitempty"` // physical parent interface for VLAN/subinterfaces
 	VlanConfigs  []PortVlanConfig `json:"vlan_configs"`
 	IPAddresses  []string         `json:"ip_addresses"`
 	WifiSSID     string           `json:"wifi_ssid,omitempty"`

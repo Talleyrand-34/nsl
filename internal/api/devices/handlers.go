@@ -834,9 +834,9 @@ func AddModelHandler(service q.NetServiceInt) http.HandlerFunc {
 		}
 
 		var req struct {
-			ModelName        string `json:"model_name"`
-			BrandName        string `json:"brand_name"`
-			DeviceClassName  string `json:"device_class_name"`
+			ModelName       string `json:"model_name"`
+			BrandName       string `json:"brand_name"`
+			DeviceClassName string `json:"device_class_name"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -917,10 +917,10 @@ func UpdateModelHandler(service q.NetServiceInt) http.HandlerFunc {
 		}
 
 		var req struct {
-			ModelID         string `json:"model_id"`
-			ModelName       string `json:"model_name"`
-			BrandID         string `json:"brand_id"`
-			DeviceClassID   string `json:"device_class_id"`
+			ModelID       string `json:"model_id"`
+			ModelName     string `json:"model_name"`
+			BrandID       string `json:"brand_id"`
+			DeviceClassID string `json:"device_class_id"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1212,12 +1212,12 @@ func UpdateModelPortHandler(service q.NetServiceInt) http.HandlerFunc {
 		}
 
 		var req struct {
-			ModelPortID              string `json:"model_port_id"`
-			NewPortName              string `json:"new_port_name"`
-			NewPositionX             string `json:"new_position_x"`
-			NewPositionY             string `json:"new_position_y"`
-			NewModelID               string `json:"new_model_id"`
-			NewAllowMultipleConnections bool `json:"new_allow_multiple_connections"`
+			ModelPortID                 string `json:"model_port_id"`
+			NewPortName                 string `json:"new_port_name"`
+			NewPositionX                string `json:"new_position_x"`
+			NewPositionY                string `json:"new_position_y"`
+			NewModelID                  string `json:"new_model_id"`
+			NewAllowMultipleConnections bool   `json:"new_allow_multiple_connections"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1309,9 +1309,9 @@ func AddDevicePortHandler(service q.NetServiceInt) http.HandlerFunc {
 		}
 
 		var req struct {
-			DeviceID    string                     `json:"device_id"`
-			ModelPortID string                     `json:"model_port_id"`
-			MacAddress  string                     `json:"mac_address"`
+			DeviceID    string             `json:"device_id"`
+			ModelPortID string             `json:"model_port_id"`
+			MacAddress  string             `json:"mac_address"`
 			VlanConfigs []e.PortVlanConfig `json:"vlan_configs"`
 		}
 
@@ -1381,9 +1381,9 @@ func UpdateDevicePortHandler(service q.NetServiceInt) http.HandlerFunc {
 		}
 
 		var req struct {
-			DeviceID    string                     `json:"device_id"`
-			ModelPortID string                     `json:"model_port_id"`
-			MacAddress  string                     `json:"mac_address"`
+			DeviceID    string             `json:"device_id"`
+			ModelPortID string             `json:"model_port_id"`
+			MacAddress  string             `json:"mac_address"`
 			VlanConfigs []e.PortVlanConfig `json:"vlan_configs"`
 		}
 
@@ -1547,7 +1547,7 @@ func AddDeviceInterfaceHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		err := service.AddDeviceInterface(req.DeviceID, req.Name, req.Description, req.VlanConfigs, req.IPAddresses, req.WifiSSID, req.WifiSecurity)
+		err := service.AddDeviceInterface(req.DeviceID, req.Name, req.Description, "", req.VlanConfigs, req.IPAddresses, req.WifiSSID, req.WifiSecurity)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": "creation_failed", "message": err.Error()})

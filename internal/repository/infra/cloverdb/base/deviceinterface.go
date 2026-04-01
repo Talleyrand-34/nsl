@@ -32,7 +32,7 @@ const (
 )
 
 // AddDeviceInterface adds a new logical interface for a device
-func (r BasicOpsCloverRepository) AddDeviceInterface(deviceID, name, description string, vlanConfigs []e.PortVlanConfig, ips []string, wifiSSID, wifiSecurity string) error {
+func (r BasicOpsCloverRepository) AddDeviceInterface(deviceID, name, description, parent string, vlanConfigs []e.PortVlanConfig, ips []string, wifiSSID, wifiSecurity string) error {
 	id := uuid.New().String()
 
 	doc := d.NewDocument()
@@ -40,6 +40,9 @@ func (r BasicOpsCloverRepository) AddDeviceInterface(deviceID, name, description
 	doc.Set("device_id", deviceID)
 	doc.Set("name", name)
 	doc.Set("description", description)
+	if parent != "" {
+		doc.Set("parent", parent)
+	}
 
 	if len(vlanConfigs) > 0 {
 		vlanConfigsMap := make([]map[string]interface{}, len(vlanConfigs))
@@ -206,6 +209,9 @@ func (r BasicOpsCloverRepository) docsToDeviceInterfaces(docs []*d.Document) []e
 		}
 		if desc, ok := doc.Get("description").(string); ok {
 			iface.Description = desc
+		}
+		if parent, ok := doc.Get("parent").(string); ok {
+			iface.Parent = parent
 		}
 
 		iface.VlanConfigs = make([]e.PortVlanConfig, 0)

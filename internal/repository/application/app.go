@@ -195,7 +195,7 @@ type NetServiceInt interface {
 	DeleteVlanCascade(vlanId string) error
 
 	// DeviceInterface operations
-	AddDeviceInterface(deviceID, name, description string, vlanConfigs []e.PortVlanConfig, ips []string, wifiSSID, wifiSecurity string) error
+	AddDeviceInterface(deviceID, name, description, parent string, vlanConfigs []e.PortVlanConfig, ips []string, wifiSSID, wifiSecurity string) error
 	GetDeviceInterfaces(deviceID string) ([]e.DeviceInterface, error)
 	GetAllDeviceInterfaces() ([]e.DeviceInterface, error)
 	DeleteDeviceInterface(id string) error
@@ -400,8 +400,8 @@ func (ns *NetService) GetAllPortsAll() ([]e.DevicePort, error) {
 
 // DeviceInterface method implementations
 
-func (ns *NetService) AddDeviceInterface(deviceID, name, description string, vlanConfigs []e.PortVlanConfig, ips []string, wifiSSID, wifiSecurity string) error {
-	return ns.netRepo.AddDeviceInterface(deviceID, name, description, vlanConfigs, ips, wifiSSID, wifiSecurity)
+func (ns *NetService) AddDeviceInterface(deviceID, name, description, parent string, vlanConfigs []e.PortVlanConfig, ips []string, wifiSSID, wifiSecurity string) error {
+	return ns.netRepo.AddDeviceInterface(deviceID, name, description, parent, vlanConfigs, ips, wifiSSID, wifiSecurity)
 }
 
 func (ns *NetService) GetDeviceInterfaces(deviceID string) ([]e.DeviceInterface, error) {
@@ -1112,7 +1112,7 @@ func (ns *NetService) createDevicePortsForDevice(deviceID string, discovered s.D
 
 		// Create a DeviceInterface for this logical interface and link it to the physical port
 		if len(vlanConfigs) > 0 {
-			if err := ns.AddDeviceInterface(deviceID, iface.Name, "", vlanConfigs, iface.IPAddresses, "", ""); err != nil {
+			if err := ns.AddDeviceInterface(deviceID, iface.Name, "", iface.Parent, vlanConfigs, iface.IPAddresses, "", ""); err != nil {
 				log.Printf("Warning: failed to create device interface %s for device %s: %v", iface.Name, deviceID, err)
 			} else {
 				// Look up the newly created interface by name so we can link it
@@ -1151,7 +1151,7 @@ func (ns *NetService) createDevicePortsForDevice(deviceID string, discovered s.D
 			continue
 		}
 		vlanConfigs := buildVlanConfigs(iface.VLANs)
-		if err := ns.AddDeviceInterface(deviceID, iface.Name, "", vlanConfigs, iface.IPAddresses, iface.WifiSSID, iface.WifiSecurity); err != nil {
+		if err := ns.AddDeviceInterface(deviceID, iface.Name, "", iface.Parent, vlanConfigs, iface.IPAddresses, iface.WifiSSID, iface.WifiSecurity); err != nil {
 			log.Printf("Warning: failed to create interface %s for device %s: %v", iface.Name, deviceID, err)
 		}
 	}
@@ -1504,7 +1504,7 @@ func (ns *NetService) EnsureModelExists(modelName, brandName, defaultBrand strin
 
 // generateVLANPlans creates VLAN creation/update plans based on IP mappings
 func (ns *NetService) generateVLANPlans(plan *s.InterfaceImportPlan, existingVLANMap map[string]e.Vlan) {
-	vlanUpdates := make(map[string][]string) // VLAN ID -> new IP segments
+	vlanUpdates := make(map[string][]string)   // VLAN ID -> new IP segments
 	vlanCreations := make(map[string][]string) // VLAN ID -> IP segments
 
 	for _, mapping := range plan.IPMappings {
@@ -1859,6 +1859,30 @@ func (ns *NetService) createDevicePortsWithPlan(deviceID string, discovered s.Di
 	}
 
 	// Create DeviceInterface records for virtual interfaces (wifi-iface SSIDs and logical/VLAN UCI interfaces)
+	// Build a map of physical port names to modelPortIDs for linking
+	physicalPortMap := make(map[string]string) // port name -> modelPortID
+	for _, iface := range discovered.Device.Interfaces {
+		if !iface.IsPhysicalPort() {
+			continue
+		}
+		portName := iface.Name
+		if portName == "" {
+			if iface.IsWifiRadio() {
+				portName = fmt.Sprintf("radio%d", portIdx)
+			} else {
+				portName = fmt.Sprintf("eth%d", portIdx)
+			}
+		}
+		// Find the modelPortID for this physical port
+		modelPorts, _ := ns.GetModelPorts()
+		for _, mp := range modelPorts {
+			if mp.Name == portName && mp.Model == modelName {
+				physicalPortMap[portName] = mp.ID
+				break
+			}
+		}
+	}
+
 	for _, iface := range discovered.Device.Interfaces {
 		if iface.IsPhysicalPort() {
 			continue
@@ -1868,8 +1892,40 @@ func (ns *NetService) createDevicePortsWithPlan(deviceID string, discovered s.Di
 			continue
 		}
 		vlanConfigs := buildVlanConfigs(iface.VLANs)
-		if err := ns.AddDeviceInterface(deviceID, iface.Name, "", vlanConfigs, iface.IPAddresses, iface.WifiSSID, iface.WifiSecurity); err != nil {
+		// Pass the Parent field from scanner interface
+		if err := ns.AddDeviceInterface(deviceID, iface.Name, "", iface.Parent, vlanConfigs, iface.IPAddresses, iface.WifiSSID, iface.WifiSecurity); err != nil {
 			log.Printf("Warning: failed to create interface %s for device %s: %v", iface.Name, deviceID, err)
+			continue
+		}
+
+		// Find the newly created interface and link it to the appropriate physical port
+		// Traverse parent chain to find the root physical port
+		rootPortName := iface.Parent
+		for rootPortName != "" {
+			if modelPortID, exists := physicalPortMap[rootPortName]; exists {
+				// Found the root physical port - link this interface to it
+				ifaceList, err := ns.GetDeviceInterfaces(deviceID)
+				if err == nil {
+					for _, di := range ifaceList {
+						if di.Name == iface.Name && di.DeviceID == deviceID {
+							if err := ns.AddInterfacePort(di.ID, deviceID, modelPortID); err != nil {
+								log.Printf("Warning: failed to link interface %s to port %s: %v", di.ID, modelPortID, err)
+							}
+							break
+						}
+					}
+				}
+				break
+			}
+			// Need to traverse up the parent chain to find the physical port
+			parentIface := findInterfaceByName(discovered.Device.Interfaces, rootPortName)
+			if parentIface == nil {
+				break
+			}
+			if parentIface.Parent == "" || parentIface.IsPhysicalPort() {
+				break
+			}
+			rootPortName = parentIface.Parent
 		}
 	}
 
@@ -1904,4 +1960,14 @@ func (ns *NetService) vlanExists(vlanNumber string, existingVLANs []e.Vlan) bool
 		}
 	}
 	return false
+}
+
+// findInterfaceByName finds a scanner interface by name from a list of interfaces
+func findInterfaceByName(interfaces []s.DeviceInterface, name string) *s.DeviceInterface {
+	for i := range interfaces {
+		if interfaces[i].Name == name {
+			return &interfaces[i]
+		}
+	}
+	return nil
 }

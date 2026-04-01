@@ -784,7 +784,7 @@ func TestDeleteVlan_CleansDeviceInterfaceVlanConfigs(t *testing.T) {
 	}
 
 	vlanConfigs := []e.PortVlanConfig{{VlanNumber: "20", Tagged: false}}
-	if err := repo.AddDeviceInterface(deviceID, "Gi1/0/1.20", "", vlanConfigs, []string{}, "", ""); err != nil {
+	if err := repo.AddDeviceInterface(deviceID, "Gi1/0/1.20", "", "", vlanConfigs, []string{}, "", ""); err != nil {
 		t.Fatalf("failed to add device interface with VLAN config: %v", err)
 	}
 

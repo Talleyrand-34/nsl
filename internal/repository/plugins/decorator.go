@@ -363,8 +363,8 @@ func (p *PluginAwareRepository) DeleteVlanCascade(vlanId string) error {
 }
 
 // DeviceInterface interaction
-func (p *PluginAwareRepository) AddDeviceInterface(deviceID, name, description string, vlanConfigs []e.PortVlanConfig, ips []string, wifiSSID, wifiSecurity string) error {
-	return p.baseRepo.AddDeviceInterface(deviceID, name, description, vlanConfigs, ips, wifiSSID, wifiSecurity)
+func (p *PluginAwareRepository) AddDeviceInterface(deviceID, name, description, parent string, vlanConfigs []e.PortVlanConfig, ips []string, wifiSSID, wifiSecurity string) error {
+	return p.baseRepo.AddDeviceInterface(deviceID, name, description, parent, vlanConfigs, ips, wifiSSID, wifiSecurity)
 }
 
 func (p *PluginAwareRepository) GetDeviceInterfaces(deviceID string) ([]e.DeviceInterface, error) {
