@@ -30,7 +30,7 @@ func (p *OpenWrtParser) GetDeviceType() string {
 func (p *OpenWrtParser) SupportsDevice(device s.SNMPDevice) bool {
 	descr := strings.ToLower(device.SysDescr)
 	return strings.Contains(descr, "linux") &&
-		   (strings.Contains(descr, "openwrt") || strings.Contains(device.SysName, "OpenWrt"))
+		(strings.Contains(descr, "openwrt") || strings.Contains(device.SysName, "OpenWrt"))
 }
 
 // ParseConfig parses raw OpenWrt UCI configuration and returns structured ConfigData
@@ -45,13 +45,19 @@ func (p *OpenWrtParser) ParseConfig(rawConfig string, deviceInfo s.SNMPDevice) (
 		DeviceModel:   extractOpenWrtModel(uciConfig, deviceInfo),
 		Hostname:      extractHostname(uciConfig),
 		ConfigVersion: extractConfigVersion(uciConfig),
-		Source:        configparser.ConfigSourceSSH, // Will be set by caller
+		Source:        configparser.ConfigSourceSSH,
 		ParsedAt:      time.Now(),
 		Raw:           rawConfig,
 	}
 
+	// Parse switch ports from swconfig output
+	switchPorts, err := p.parseSwconfigOutput(rawConfig)
+	if err == nil && len(switchPorts) > 0 {
+		configData.SwitchPorts = switchPorts
+	}
+
 	// Parse interfaces
-	interfaces, err := p.parseNetworkInterfaces(uciConfig)
+	interfaces, err := p.parseNetworkInterfaces(uciConfig, configData.SwitchPorts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse interfaces: %w", err)
 	}
@@ -96,7 +102,6 @@ func (p *OpenWrtParser) GetConfigViaSSH(ip string, creds configparser.SSHCredent
 	}
 	defer client.Close()
 
-	// Get all UCI configuration files
 	commands := []string{
 		"uci show network",
 		"uci show wireless",
@@ -109,7 +114,6 @@ func (p *OpenWrtParser) GetConfigViaSSH(ip string, creds configparser.SSHCredent
 	for _, cmd := range commands {
 		output, err := client.Execute(cmd)
 		if err != nil {
-			// Continue with other configs if one fails
 			allConfig.WriteString(fmt.Sprintf("# Error executing %s: %v\n", cmd, err))
 			continue
 		}
@@ -118,7 +122,133 @@ func (p *OpenWrtParser) GetConfigViaSSH(ip string, creds configparser.SSHCredent
 		allConfig.WriteString("\n")
 	}
 
+	// Get switch port info via swconfig
+	switchOutput, err := p.getSwitchConfigViaSSH(client, "switch0")
+	if err != nil {
+		allConfig.WriteString(fmt.Sprintf("# swconfig error: %v\n", err))
+	} else {
+		allConfig.WriteString("# swconfig\n")
+		allConfig.WriteString(switchOutput)
+		allConfig.WriteString("\n")
+	}
+
 	return allConfig.String(), nil
+}
+
+// getSwitchConfigViaSSH executes swconfig commands to get physical switch port info
+func (p *OpenWrtParser) getSwitchConfigViaSSH(client *configparser.SSHClient, switchName string) (string, error) {
+	var output strings.Builder
+
+	// Get switch info to find max port and CPU port
+	showOutput, err := client.Execute(fmt.Sprintf("swconfig dev %s show", switchName))
+	if err != nil {
+		return "", fmt.Errorf("swconfig show failed: %w", err)
+	}
+
+	// Parse CPU port from first 5 lines
+	cpuPort := ""
+	for _, line := range strings.Split(showOutput, "\n")[:5] {
+		if strings.Contains(line, "cpu @") {
+			re := regexp.MustCompile(`cpu @ \((\d+)\)`)
+			if matches := re.FindStringSubmatch(line); len(matches) == 2 {
+				cpuPort = matches[1]
+				break
+			}
+		}
+	}
+
+	// Get max port
+	maxPort := 0
+	portRegex := regexp.MustCompile(`port:(\d+)`)
+	for _, line := range strings.Split(showOutput, "\n") {
+		if matches := portRegex.FindStringSubmatch(line); len(matches) == 2 {
+			if port, err := strconv.Atoi(matches[1]); err == nil && port > maxPort {
+				maxPort = port
+			}
+		}
+	}
+
+	// Iterate through ports 0 to maxPort
+	for i := 0; i <= maxPort; i++ {
+		linkOutput, _ := client.Execute(fmt.Sprintf("swconfig dev %s port %d get link", switchName, i))
+		pvidOutput, _ := client.Execute(fmt.Sprintf("swconfig dev %s port %d get pvid", switchName, i))
+
+		role := "physical"
+		if cpuPort != "" && strconv.Itoa(i) == cpuPort {
+			role = "cpu"
+		} else if linkOutput != "" {
+			// Check script logic: internal/SerDes if link:up AND no auto AND no txflow/rxflow
+			hasUp := strings.Contains(linkOutput, "link:up")
+			hasAuto := strings.Contains(linkOutput, "auto")
+			hasFlow := strings.Contains(linkOutput, "txflow") || strings.Contains(linkOutput, "rxflow")
+			if hasUp && !hasAuto && !hasFlow {
+				role = "internal"
+			}
+		}
+
+		output.WriteString(fmt.Sprintf("# Port %d role=%s\n", i, role))
+		output.WriteString(fmt.Sprintf("port %d link: %s", i, strings.TrimSpace(linkOutput)))
+		output.WriteString(fmt.Sprintf(" pvid: %s\n", strings.TrimSpace(pvidOutput)))
+	}
+
+	return output.String(), nil
+}
+
+// parseSwconfigOutput parses swconfig output and returns physical switch ports
+func (p *OpenWrtParser) parseSwconfigOutput(swconfigOutput string) ([]configparser.SwitchPortInfo, error) {
+	var ports []configparser.SwitchPortInfo
+
+	lines := strings.Split(swconfigOutput, "\n")
+	i := 0
+	for i < len(lines) {
+		line := strings.TrimSpace(lines[i])
+		if strings.HasPrefix(line, "# Port ") && strings.HasSuffix(line, " role=physical") {
+			// Parse port number and following data line
+			parts := strings.Split(strings.TrimPrefix(strings.TrimSuffix(line, " role=physical"), "# Port "), " ")
+			if len(parts) >= 1 {
+				portNum, err := strconv.Atoi(parts[0])
+				if err != nil {
+					i++
+					continue
+				}
+
+				// Read the actual data line
+				i++
+				var linkStatus, pvid string
+				for i < len(lines) && strings.HasPrefix(lines[i], "port ") {
+					dataLine := lines[i]
+					if idx := strings.Index(dataLine, "link:"); idx != -1 {
+						linkPart := dataLine[idx+5:]
+						if spaceIdx := strings.IndexAny(linkPart, " \n"); spaceIdx != -1 {
+							linkStatus = strings.TrimSpace(linkPart[:spaceIdx])
+						} else {
+							linkStatus = strings.TrimSpace(linkPart)
+						}
+					}
+					if idx := strings.Index(dataLine, "pvid:"); idx != -1 {
+						pvidPart := dataLine[idx+5:]
+						if spaceIdx := strings.IndexAny(pvidPart, " \n"); spaceIdx != -1 {
+							pvid = strings.TrimSpace(pvidPart[:spaceIdx])
+						} else {
+							pvid = strings.TrimSpace(pvidPart)
+						}
+					}
+					i++
+				}
+
+				ports = append(ports, configparser.SwitchPortInfo{
+					PortNumber: portNum,
+					LinkStatus: linkStatus,
+					PVID:       pvid,
+					Role:       "physical",
+				})
+				continue
+			}
+		}
+		i++
+	}
+
+	return ports, nil
 }
 
 // ValidateConfig performs basic validation on parsed OpenWrt configuration
@@ -241,7 +371,7 @@ func (p *OpenWrtParser) parseUCIConfig(rawConfig string) (*UCIConfig, error) {
 }
 
 // parseNetworkInterfaces extracts interface information from UCI network config
-func (p *OpenWrtParser) parseNetworkInterfaces(config *UCIConfig) ([]configparser.ConfigInterface, error) {
+func (p *OpenWrtParser) parseNetworkInterfaces(config *UCIConfig, switchPorts []configparser.SwitchPortInfo) ([]configparser.ConfigInterface, error) {
 	var interfaces []configparser.ConfigInterface
 
 	network, exists := config.Sections["network"]
@@ -388,6 +518,34 @@ func (p *OpenWrtParser) parseNetworkInterfaces(config *UCIConfig) ([]configparse
 		})
 	}
 
+	// Add physical switch ports from swconfig as eth* devices
+	// Switch ports 0,1,2,3 → eth0,eth1,eth2,eth3 (port 4 is CPU)
+	for _, port := range switchPorts {
+		if port.Role != "physical" {
+			continue
+		}
+		// Map switch port number to eth* device name
+		ethName := fmt.Sprintf("eth%d", port.PortNumber)
+
+		// Skip if already emitted
+		alreadyEmitted := false
+		for _, iface := range interfaces {
+			if iface.Name == ethName {
+				alreadyEmitted = true
+				break
+			}
+		}
+		if alreadyEmitted {
+			continue
+		}
+
+		interfaces = append(interfaces, configparser.ConfigInterface{
+			Name:    ethName,
+			Enabled: port.LinkStatus == "up",
+			Type:    "physical",
+		})
+	}
+
 	return interfaces, nil
 }
 
@@ -506,12 +664,12 @@ func (p *OpenWrtParser) parseFirewallRules(config *UCIConfig) ([]configparser.Co
 		}
 
 		rule := configparser.ConfigFirewallRule{
-			ID:          name,
-			Name:        section.Options["name"],
-			Enabled:     section.Options["enabled"] != "0",
-			Action:      mapOpenWrtTarget(section.Options["target"]),
-			Direction:   "forward", // OpenWrt rules are typically forward rules
-			Protocol:    section.Options["proto"],
+			ID:        name,
+			Name:      section.Options["name"],
+			Enabled:   section.Options["enabled"] != "0",
+			Action:    mapOpenWrtTarget(section.Options["target"]),
+			Direction: "forward", // OpenWrt rules are typically forward rules
+			Protocol:  section.Options["proto"],
 		}
 
 		// Parse source

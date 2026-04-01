@@ -52,12 +52,12 @@ func (da DiscrepancyAction) String() string {
 
 // SSHCredentials contains SSH authentication information
 type SSHCredentials struct {
-	Username   string `json:"username"`
-	Password   string `json:"password,omitempty"`
-	KeyFile    string `json:"key_file,omitempty"`
-	KeyPassphrase string `json:"key_passphrase,omitempty"`
-	Port       int    `json:"port"`
-	Timeout    time.Duration `json:"timeout"`
+	Username      string        `json:"username"`
+	Password      string        `json:"password,omitempty"`
+	KeyFile       string        `json:"key_file,omitempty"`
+	KeyPassphrase string        `json:"key_passphrase,omitempty"`
+	Port          int           `json:"port"`
+	Timeout       time.Duration `json:"timeout"`
 }
 
 // ConfigInterface represents a network interface as defined in device configuration
@@ -70,13 +70,13 @@ type ConfigInterface struct {
 	MTU         int          `json:"mtu,omitempty"`
 	VLANs       []ConfigVLAN `json:"vlans"`
 	// Type: "physical", "vlan", "bridge", "tunnel", "wifi-radio", "wifi-iface", etc.
-	Type        string `json:"type"`
-	Parent      string `json:"parent,omitempty"` // Parent interface for VLANs/subinterfaces
+	Type   string `json:"type"`
+	Parent string `json:"parent,omitempty"` // Parent interface for VLANs/subinterfaces
 	// WiFi fields — populated for "wifi-radio" and "wifi-iface" types
-	WifiBand     string `json:"wifi_band,omitempty"`   // "2.4GHz", "5GHz", "6GHz" — wifi-radio only
-	WifiSSID     string `json:"wifi_ssid,omitempty"`   // SSID name — wifi-iface only
+	WifiBand     string `json:"wifi_band,omitempty"`     // "2.4GHz", "5GHz", "6GHz" — wifi-radio only
+	WifiSSID     string `json:"wifi_ssid,omitempty"`     // SSID name — wifi-iface only
 	WifiSecurity string `json:"wifi_security,omitempty"` // "open", "wpa2", "wpa3" — wifi-iface only
-	WifiRadio    string `json:"wifi_radio,omitempty"`  // parent radio name — wifi-iface only
+	WifiRadio    string `json:"wifi_radio,omitempty"`    // parent radio name — wifi-iface only
 }
 
 // ConfigVLAN represents a VLAN as defined in device configuration
@@ -92,10 +92,10 @@ type ConfigVLAN struct {
 
 // ConfigRoute represents routing information from configuration
 type ConfigRoute struct {
-	Network     string `json:"network"`     // Destination network (CIDR)
-	Gateway     string `json:"gateway"`     // Next hop
-	Interface   string `json:"interface"`   // Outgoing interface
-	Metric      int    `json:"metric"`      // Route metric/priority
+	Network     string `json:"network"`   // Destination network (CIDR)
+	Gateway     string `json:"gateway"`   // Next hop
+	Interface   string `json:"interface"` // Outgoing interface
+	Metric      int    `json:"metric"`    // Route metric/priority
 	Description string `json:"description,omitempty"`
 }
 
@@ -104,8 +104,8 @@ type ConfigFirewallRule struct {
 	ID          string   `json:"id"`
 	Name        string   `json:"name"`
 	Enabled     bool     `json:"enabled"`
-	Action      string   `json:"action"`      // "allow", "deny", "reject"
-	Direction   string   `json:"direction"`   // "in", "out", "forward"
+	Action      string   `json:"action"`    // "allow", "deny", "reject"
+	Direction   string   `json:"direction"` // "in", "out", "forward"
 	SourceZone  string   `json:"source_zone,omitempty"`
 	DestZone    string   `json:"dest_zone,omitempty"`
 	Source      []string `json:"source"`      // IP addresses/networks
@@ -114,38 +114,47 @@ type ConfigFirewallRule struct {
 	Protocol    string   `json:"protocol"`    // "tcp", "udp", "icmp", etc.
 }
 
+// SwitchPortInfo represents physical switch port information from swconfig
+type SwitchPortInfo struct {
+	PortNumber int    `json:"port_number"` // Port index (0, 1, 2, etc.)
+	LinkStatus string `json:"link_status"` // "up", "down"
+	PVID       string `json:"pvid"`        // Port VLAN ID (untagged)
+	Role       string `json:"role"`        // "physical", "cpu", "internal"
+}
+
 // ConfigData contains the parsed configuration data from a network device
 type ConfigData struct {
-	DeviceType    string               `json:"device_type"`    // "opnsense", "openwrt", "fortinet", "cisco"
-	DeviceModel   string               `json:"device_model"`   // Specific model/version info
+	DeviceType    string               `json:"device_type"`  // "opnsense", "openwrt", "fortinet", "cisco"
+	DeviceModel   string               `json:"device_model"` // Specific model/version info
 	Hostname      string               `json:"hostname"`
 	Domain        string               `json:"domain,omitempty"`
 	ConfigVersion string               `json:"config_version"` // Configuration version/timestamp
 	Source        ConfigSource         `json:"source"`         // How config was obtained
 	Interfaces    []ConfigInterface    `json:"interfaces"`
-	VLANs         []ConfigVLAN        `json:"vlans"`
-	Routes        []ConfigRoute       `json:"routes"`
+	VLANs         []ConfigVLAN         `json:"vlans"`
+	Routes        []ConfigRoute        `json:"routes"`
 	FirewallRules []ConfigFirewallRule `json:"firewall_rules"`
-	Raw           string               `json:"raw,omitempty"` // Raw configuration content
+	SwitchPorts   []SwitchPortInfo     `json:"switch_ports,omitempty"` // Physical switch ports (OpenWrt)
+	Raw           string               `json:"raw,omitempty"`          // Raw configuration content
 	ParsedAt      time.Time            `json:"parsed_at"`
 }
 
 // ConfigDiscrepancy represents a conflict between SNMP and configuration data
 type ConfigDiscrepancy struct {
-	Type        string `json:"type"`        // "interface", "vlan", "ip", "status"
-	Object      string `json:"object"`      // Object identifier (interface name, VLAN ID, etc.)
-	SNMPValue   string `json:"snmp_value"`  // Value from SNMP
+	Type        string `json:"type"`         // "interface", "vlan", "ip", "status"
+	Object      string `json:"object"`       // Object identifier (interface name, VLAN ID, etc.)
+	SNMPValue   string `json:"snmp_value"`   // Value from SNMP
 	ConfigValue string `json:"config_value"` // Value from configuration
-	Description string `json:"description"` // Human-readable description
-	Severity    string `json:"severity"`    // "warning", "error"
+	Description string `json:"description"`  // Human-readable description
+	Severity    string `json:"severity"`     // "warning", "error"
 }
 
 // EnhancedDiscoveredDevice extends scanner.DiscoveredDevice with configuration data
 type EnhancedDiscoveredDevice struct {
-	s.DiscoveredDevice                    // Embedded original struct
-	ConfigData         *ConfigData        `json:"config_data,omitempty"`
+	s.DiscoveredDevice                     // Embedded original struct
+	ConfigData         *ConfigData         `json:"config_data,omitempty"`
 	Discrepancies      []ConfigDiscrepancy `json:"discrepancies,omitempty"`
-	EnhancedBy         []string           `json:"enhanced_by"` // Sources of enhancement: ["snmp", "config"]
+	EnhancedBy         []string            `json:"enhanced_by"` // Sources of enhancement: ["snmp", "config"]
 }
 
 // ConfigParser defines the interface that all device-specific configuration parsers must implement
@@ -168,13 +177,13 @@ type ConfigParser interface {
 
 // ConfigParserOptions contains options for configuration parsing
 type ConfigParserOptions struct {
-	Source            ConfigSource         `json:"source"`
-	FilePath          string               `json:"file_path,omitempty"`
-	DeviceType        string               `json:"device_type,omitempty"` // Manual OS override (opnsense, openwrt, fortinet, cisco)
-	SSHCredentials    *SSHCredentials      `json:"ssh_credentials,omitempty"`
-	DiscrepancyAction DiscrepancyAction    `json:"discrepancy_action"`
-	MergeWithSNMP     bool                 `json:"merge_with_snmp"`
-	ParseTimeout      time.Duration        `json:"parse_timeout"`
+	Source            ConfigSource      `json:"source"`
+	FilePath          string            `json:"file_path,omitempty"`
+	DeviceType        string            `json:"device_type,omitempty"` // Manual OS override (opnsense, openwrt, fortinet, cisco)
+	SSHCredentials    *SSHCredentials   `json:"ssh_credentials,omitempty"`
+	DiscrepancyAction DiscrepancyAction `json:"discrepancy_action"`
+	MergeWithSNMP     bool              `json:"merge_with_snmp"`
+	ParseTimeout      time.Duration     `json:"parse_timeout"`
 }
 
 // ConfigParserRegistry manages available configuration parsers

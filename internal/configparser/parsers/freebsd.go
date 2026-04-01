@@ -288,5 +288,34 @@ func classifyFreeBSDIface(name string, lines []string, isVLAN bool) string {
 	if len(lines) > 0 && strings.Contains(lines[0], "POINTOPOINT") {
 		return "tunnel"
 	}
-	return "physical"
+
+	// FreeBSD physical interface naming patterns
+	// igc*, igb*, em*, ix*, bge*, re*, vtnet*, vmx*, hn*, ue*
+	if isPhysicalInterfaceName(name) {
+		return "physical"
+	}
+
+	return "logical"
+}
+
+// isPhysicalInterfaceName checks if name matches FreeBSD physical NIC patterns
+func isPhysicalInterfaceName(name string) bool {
+	physicalPrefixes := []string{
+		"igc",   // Intel I225/I226 2.5G NICs
+		"igb",   // Intel PRO/1000 gigabit
+		"em",    // Intel PRO/100 (older)
+		"ix",    // Intel 10GbE
+		"bge",   // Broadcom BCM57xx
+		"re",    // Realtek 8139/8169
+		"vtnet", // VirtIO
+		"vmx",   // VMware VMXNET3
+		"hn",    // Hyper-V
+		"ue",    // USB Ethernet adapters
+	}
+	for _, prefix := range physicalPrefixes {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	return false
 }

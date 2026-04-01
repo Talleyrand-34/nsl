@@ -256,12 +256,15 @@ func extractData(dbPath, hostIP string) (*ExtractedData, error) {
 		data.Interfaces = append(data.Interfaces, ifaceData)
 	}
 
-	ports, err := service.GetAllPortsDevice(deviceID)
+	ports, err := service.GetDevicePorts()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get device ports: %w", err)
 	}
 
 	for _, p := range ports {
+		if p.DeviceID != deviceID {
+			continue
+		}
 		portData := DevicePortData{
 			PortName: p.PortName,
 			MAC:      p.MacAddress,
@@ -345,10 +348,22 @@ func extractMethodInfo(data *ExtractedData) MethodInfo {
 	physicalPorts := make(map[string]bool)
 	logicalPorts := make(map[string]bool)
 
+	// First, add all ports as physical interfaces
+	for _, port := range data.DevicePorts {
+		physicalPorts[port.PortName] = true
+		info.InterfaceNames = append(info.InterfaceNames, port.PortName+" (port)")
+	}
+
+	// Then process interfaces
 	for _, iface := range data.Interfaces {
+		// Skip if already counted as a port
+		if physicalPorts[iface.Name] {
+			continue
+		}
+
 		info.InterfaceNames = append(info.InterfaceNames, iface.Name)
 
-		if iface.Type == "ethernet" || iface.Type == "wifi" {
+		if isPhysicalInterfaceName(iface.Name) {
 			physicalPorts[iface.Name] = true
 		} else {
 			logicalPorts[iface.Name] = true
@@ -358,12 +373,105 @@ func extractMethodInfo(data *ExtractedData) MethodInfo {
 		info.VLANCount += len(iface.VLANs)
 	}
 
-	info.InterfaceCount = len(data.Interfaces)
+	info.InterfaceCount = len(data.Interfaces) + len(data.DevicePorts)
 	info.PhysicalPorts = len(physicalPorts)
 	info.LogicalPorts = len(logicalPorts)
 
 	sort.Strings(info.InterfaceNames)
 	return info
+}
+
+// isPhysicalInterfaceName determines if an interface name represents a physical port
+func isPhysicalInterfaceName(name string) bool {
+	// Physical patterns
+	physicalPrefixes := []string{
+		"igc", "igb", "em", "ix", "bge", "re", // Ethernet NICs (FreeBSD/Linux)
+		"eth", "en", "em", // Linux ethernet
+	}
+
+	for _, prefix := range physicalPrefixes {
+		if strings.HasPrefix(name, prefix) {
+			// Check it's not a logical variant
+			if isLogicalInterfaceName(name) {
+				return false
+			}
+			return true
+		}
+	}
+
+	// WiFi radios
+	if strings.HasPrefix(name, "phy") && !strings.Contains(name, "-ap") {
+		return true
+	}
+	if strings.HasPrefix(name, "wlan") || strings.HasPrefix(name, "wifi") {
+		return true
+	}
+
+	return false
+}
+
+// isLogicalInterfaceName checks if an interface name represents a logical/virtual interface
+func isLogicalInterfaceName(name string) bool {
+	// Bridge interfaces
+	if strings.HasPrefix(name, "br-") || strings.HasPrefix(name, "bridge") {
+		return true
+	}
+	// VLAN subinterfaces (e.g., eth0.10, eth1.20)
+	if strings.Contains(name, ".") {
+		parts := strings.Split(name, ".")
+		if len(parts) == 2 {
+			base := parts[0]
+			vlan := parts[1]
+			// Base should be physical-like, VLAN should be numeric
+			if isNumeric(vlan) && (strings.HasPrefix(base, "eth") || strings.HasPrefix(base, "igc") || strings.HasPrefix(base, "igb")) {
+				return true
+			}
+		}
+	}
+	// VPN interfaces
+	if strings.HasPrefix(name, "ovpns") || strings.HasPrefix(name, "tun") ||
+		strings.HasPrefix(name, "tap") || strings.HasPrefix(name, "wg") {
+		return true
+	}
+	// VLAN prefix
+	if strings.HasPrefix(name, "vlan") && isNumeric(name[4:]) {
+		return true
+	}
+	// Loopback
+	if strings.HasPrefix(name, "lo") && isNumeric(strings.TrimPrefix(name, "lo")) {
+		return true
+	}
+	// ZeroTier
+	if strings.HasPrefix(name, "zt") || strings.HasPrefix(name, "zt+") {
+		return true
+	}
+	// GRE tunnels
+	if strings.HasPrefix(name, "gre") || strings.HasPrefix(name, "gretap") {
+		return true
+	}
+	// VXLAN
+	if strings.HasPrefix(name, "vxlan") {
+		return true
+	}
+	// LAG/bond
+	if strings.HasPrefix(name, "lagg") || strings.HasPrefix(name, "bond") {
+		return true
+	}
+	// WiFi AP interfaces
+	if strings.HasPrefix(name, "phy") && strings.Contains(name, "-ap") {
+		return true
+	}
+
+	return false
+}
+
+func isNumeric(s string) bool {
+	for _, c := range s {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return len(s) > 0
 }
 
 func compareInterfaces(report *ComparisonReport, name string, snmpIface, sshIface *InterfaceData) {
