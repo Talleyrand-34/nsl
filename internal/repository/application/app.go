@@ -1768,7 +1768,54 @@ func (ns *NetService) createDevicePortsWithPlan(deviceID string, discovered s.Di
 		}
 	}
 
-	// Process physical ports
+	// Process physical switch ports from configuration (e.g., OpenWrt board.json)
+	for _, port := range discovered.Device.SwitchPorts {
+		portName := port.Name
+		if portName == "" {
+			portName = fmt.Sprintf("%s%d", port.Role, port.PortNumber)
+		}
+
+		portType := "ethernet"
+		band := ""
+		if port.Role == "wan" {
+			portType = "wan"
+		} else if port.Role == "lan" {
+			portType = "lan"
+		}
+
+		if err := ns.AddModelPort(portName, fmt.Sprintf("%d", port.PortNumber), "0", modelName, false, portType, band); err != nil {
+			if !strings.Contains(err.Error(), "already exists") {
+				return err
+			}
+		}
+
+		// Create DevicePort for the switch port
+		modelPorts, _ := ns.GetModelPorts()
+		var modelPortID string
+		for _, mp := range modelPorts {
+			if mp.Name == portName && mp.Model == modelName {
+				modelPortID = mp.ID
+				break
+			}
+		}
+
+		if modelPortID != "" {
+			var vlanConfigs []e.PortVlanConfig
+			if port.PVID != "" {
+				vlanConfigs = append(vlanConfigs, e.PortVlanConfig{
+					VlanNumber: port.PVID,
+					Tagged:     false,
+				})
+			}
+			if err := ns.AddDevicePort(deviceID, modelPortID, port.MAC, vlanConfigs); err != nil {
+				if !strings.Contains(err.Error(), "already exists") {
+					return err
+				}
+			}
+		}
+	}
+
+	// Process physical ports from interfaces
 	portIdx := 0
 	for _, iface := range discovered.Device.Interfaces {
 		if !iface.IsPhysicalPort() {
