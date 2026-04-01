@@ -1191,6 +1191,12 @@ func (ns *NetService) AnalyzeDeviceForImport(discovered s.DiscoveredDevice) (s.D
 	}
 
 	for _, iface := range discovered.Device.Interfaces {
+		// Skip physical ports - they're handled separately in createDevicePortsWithPlan
+		// Physical ports should not have InterfacePlans created for them
+		if iface.IsPhysicalPort() {
+			continue
+		}
+
 		interfacePlan, err := ns.analyzeInterfaceForImport(iface, existingVLANs)
 		if err != nil {
 			return plan, fmt.Errorf("failed to analyze interface %s: %w", iface.Name, err)

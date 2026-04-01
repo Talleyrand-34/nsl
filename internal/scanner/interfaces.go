@@ -225,6 +225,16 @@ type ScanResult struct {
 	Devices   []SNMPDevice `json:"devices"`
 }
 
+// PhysicalPortInfo represents a physical switch port from device configuration (e.g., OpenWrt board.json)
+type PhysicalPortInfo struct {
+	Name       string `json:"name"`        // "lan1", "wan0"
+	PortNumber int    `json:"port_number"` // 2, 3, 5, 4 (switch port number)
+	Role       string `json:"role"`        // "lan", "wan"
+	LinkStatus string `json:"link_status"` // "up", "down"
+	PVID       string `json:"pvid"`        // native/untagged VLAN
+	MAC        string `json:"mac"`         // MAC address if available
+}
+
 // DiscoveredDevice pairs an SNMPDevice with classification for import.
 type DiscoveredDevice struct {
 	Device        SNMPDevice `json:"device"`
@@ -233,6 +243,29 @@ type DiscoveredDevice struct {
 	DeviceClass   string     `json:"device_class"`
 	SuggestedName string     `json:"suggested_name"`
 	SuggestedZone string     `json:"suggested_zone"`
+}
+
+// DiscoveredDeviceInfo holds ALL discovered information from a scan.
+// This is the canonical data structure passed between discovery, display, and import phases.
+type DiscoveredDeviceInfo struct {
+	IP            string `json:"ip"`
+	SysName       string `json:"sys_name"`
+	SysDescr      string `json:"sys_descr"`
+	Brand         string `json:"brand"`
+	Model         string `json:"model"`
+	DeviceClass   string `json:"device_class"`
+	SuggestedName string `json:"suggested_name"`
+	SuggestedZone string `json:"suggested_zone"`
+
+	// Physical ports from configuration (e.g., board.json switch ports)
+	PhysicalPorts []PhysicalPortInfo `json:"physical_ports"`
+
+	// Interfaces - logical interfaces only (bridges, VLAN subinterfaces, WiFi, etc.)
+	// Physical ports are NOT included here
+	Interfaces []DeviceInterface `json:"interfaces"`
+
+	// Source tracking
+	Source string `json:"source"` // "snmp", "ssh", "merged"
 }
 
 // IPVLANMapping represents a proposed mapping between an IP address and a VLAN
@@ -267,9 +300,16 @@ type VLANPlan struct {
 type DeviceImportPlan struct {
 	Device         DiscoveredDevice      `json:"device"`
 	InterfacePlans []InterfaceImportPlan `json:"interface_plans"`
+	PhysicalPlans  []PhysicalPortPlan    `json:"physical_plans,omitempty"`
 	HasConflicts   bool                  `json:"has_conflicts"`
 	RequiresInput  bool                  `json:"requires_input"`
 	Summary        string                `json:"summary"`
+}
+
+// PhysicalPortPlan represents a physical port to be created during import
+type PhysicalPortPlan struct {
+	Port  PhysicalPortInfo `json:"port"`
+	VLANs []VLANPlan       `json:"vlans"`
 }
 
 // MappingAction represents user choices for import plans
