@@ -205,15 +205,16 @@ type DirectNeighbor struct {
 
 // SNMPDevice is the complete result of querying one device via SNMP.
 type SNMPDevice struct {
-	IP          string            `json:"ip"`
-	SysName     string            `json:"sys_name"`
-	SysDescr    string            `json:"sys_descr"`
-	SysObjectID string            `json:"sys_object_id"`
-	SysLocation string            `json:"sys_location"`
-	SysContact  string            `json:"sys_contact"`
-	Reachable   bool              `json:"reachable"`
-	Interfaces  []DeviceInterface `json:"interfaces"`
-	Neighbors   []DirectNeighbor  `json:"neighbors"`
+	IP          string             `json:"ip"`
+	SysName     string             `json:"sys_name"`
+	SysDescr    string             `json:"sys_descr"`
+	SysObjectID string             `json:"sys_object_id"`
+	SysLocation string             `json:"sys_location"`
+	SysContact  string             `json:"sys_contact"`
+	Reachable   bool               `json:"reachable"`
+	Interfaces  []DeviceInterface  `json:"interfaces"`
+	Neighbors   []DirectNeighbor   `json:"neighbors"`
+	SwitchPorts []PhysicalPortInfo `json:"switch_ports,omitempty"` // Physical switch ports (OpenWrt)
 }
 
 // ScanResult aggregates all devices discovered in a scan.
