@@ -183,10 +183,6 @@ Examples:
 				os.Exit(1)
 			}
 			device = configparser.ConfigDataToSNMPDevice(configData, ip)
-			// Implicitly enable SSH config source if not already set
-			if hostConfigSource == "none" {
-				hostConfigSource = "ssh"
-			}
 			fmt.Printf("\nSSH Results for %s:\n", ip)
 			if device.SysName != ip {
 				fmt.Printf("Name:     %s\n", device.SysName)
@@ -318,6 +314,8 @@ Examples:
 				VLANAccuracyLevel: hostVLANAccuracy,
 
 				// Configuration parsing options
+				// Only pass config source if explicitly requested (not auto-detected)
+				// When --scan-source ssh is used, SSH is already the primary source
 				ConfigSource:       hostConfigSource,
 				ConfigFile:         hostConfigFile,
 				DeviceType:         hostDeviceType,
@@ -328,6 +326,12 @@ Examples:
 				DiscrepancyAction:  hostDiscrepancyAction,
 				MergeWithConfig:    hostMergeConfig,
 				ParseConfigTimeout: hostConfigTimeout,
+			}
+
+			// When using --scan-source ssh, SSH was the primary source so don't use config-source
+			if hostScanSource == "ssh" {
+				hostConfigSource = "none"
+				importOptions.MergeWithConfig = false
 			}
 
 			if err := importSingleDeviceWithVLANMapping(service, discoveredDevice, importOptions); err != nil {

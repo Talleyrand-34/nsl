@@ -784,7 +784,7 @@ func (ns *NetService) DiscoverDevices(scanResult *s.ScanResult) ([]s.DiscoveredD
 		})
 	}
 
-	log.Printf("Discovered %d devices via SNMP", len(devices))
+	log.Printf("Discovered %d devices", len(devices))
 	return devices, nil
 }
 

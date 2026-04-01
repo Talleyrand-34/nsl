@@ -14,10 +14,21 @@ func NewDeviceDiscoverer() *DeviceDiscoverer {
 }
 
 // ClassifyDevice returns (brand, model, deviceClass) based on sysDescr.
+// For SSH config sources, sysDescr may contain the device type key (e.g., "opnsense-xml", "openwrt-uci").
 func (dd *DeviceDiscoverer) ClassifyDevice(device SNMPDevice) (brand, model, deviceClass string) {
 	descr := strings.ToLower(device.SysDescr)
 
 	switch {
+	// SSH config device type keys
+	case strings.Contains(descr, "opnsense") || strings.Contains(descr, "opnsense-xml"):
+		return "OPNsense", "OPNsense Firewall", "Firewall"
+	case strings.Contains(descr, "openwrt") || strings.Contains(descr, "openwrt-uci"):
+		return "OpenWrt", "OpenWrt Router", "Router"
+	case strings.Contains(descr, "fortinet") || strings.Contains(descr, "fortinet-config"):
+		return "Fortinet", "FortiGate", "Firewall"
+	case strings.Contains(descr, "cisco") || strings.Contains(descr, "cisco-config"):
+		return "Cisco", "Cisco Device", "Switch"
+	// SNMP sysDescr patterns
 	case strings.Contains(descr, "cisco ios xe"):
 		return "Cisco", "IOS XE Device", "Router"
 	case strings.Contains(descr, "cisco ios xr"):
@@ -26,24 +37,18 @@ func (dd *DeviceDiscoverer) ClassifyDevice(device SNMPDevice) (brand, model, dev
 		return "Cisco", "NX-OS Device", "Switch"
 	case strings.Contains(descr, "cisco ios"):
 		return "Cisco", "IOS Device", "Router"
-	case strings.Contains(descr, "cisco"):
-		return "Cisco", "Cisco Device", "Switch"
 	case strings.Contains(descr, "juniper"):
 		return "Juniper", "Juniper Device", "Router"
 	case strings.Contains(descr, "aruba"):
 		return "Aruba", "Aruba Device", "Access Point"
 	case strings.Contains(descr, "ubiquiti") || strings.Contains(descr, "unifi"):
 		return "Ubiquiti", "UniFi Device", "Access Point"
-	case strings.Contains(descr, "fortinet") || strings.Contains(descr, "fortigate"):
-		return "Fortinet", "FortiGate", "Firewall"
 	case strings.Contains(descr, "palo alto"):
 		return "Palo Alto", "PAN Device", "Firewall"
 	case strings.Contains(descr, "mikrotik") || strings.Contains(descr, "routeros"):
 		return "MikroTik", "RouterOS Device", "Router"
 	case strings.Contains(descr, "hp procurve") || strings.Contains(descr, "hpe aruba"):
 		return "HP", "ProCurve Switch", "Switch"
-	case strings.Contains(descr, "openwrt"):
-		return "OpenWrt", "OpenWrt Router", "Router"
 	case strings.Contains(descr, "linux"):
 		return "Linux", "Linux Server", "Server"
 	case strings.Contains(descr, "windows"):

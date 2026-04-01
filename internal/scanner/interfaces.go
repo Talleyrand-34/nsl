@@ -36,9 +36,9 @@ type DeviceInterface struct {
 	AdminStatus  int               `json:"admin_status"` // 1=up 2=down
 	OperStatus   int               `json:"oper_status"`
 	IPAddresses  []string          `json:"ip_addresses"`
-	IPNetmasks   map[string]string `json:"ip_netmasks"`  // ip -> netmask (e.g. "255.255.255.0")
+	IPNetmasks   map[string]string `json:"ip_netmasks"` // ip -> netmask (e.g. "255.255.255.0")
 	VLANs        []VLANMembership  `json:"vlans"`
-	Parent       string            `json:"parent,omitempty"` // physical parent for VLAN/subinterfaces
+	Parent       string            `json:"parent,omitempty"`        // physical parent for VLAN/subinterfaces
 	WifiBand     string            `json:"wifi_band,omitempty"`     // "2.4GHz", "5GHz", "6GHz" for wifi radios
 	WifiSSID     string            `json:"wifi_ssid,omitempty"`     // SSID for wifi-iface type
 	WifiSecurity string            `json:"wifi_security,omitempty"` // "open", "wpa2", "wpa3"
@@ -70,7 +70,8 @@ func isLogicalInterfaceName(name string) bool {
 		return true
 	}
 	// OpenVPN interfaces
-	if strings.HasPrefix(name, "ovpns") || strings.HasPrefix(name, "tun") || strings.HasPrefix(name, "tap") {
+	if strings.HasPrefix(name, "ovpns") || strings.HasPrefix(name, "tun") ||
+		strings.HasPrefix(name, "tap") {
 		return true
 	}
 	// WireGuard
@@ -91,6 +92,9 @@ func isLogicalInterfaceName(name string) bool {
 	}
 	// VXLAN
 	if strings.HasPrefix(name, "vxlan") {
+		return true
+	}
+	if strings.HasPrefix(name, "lagg") {
 		return true
 	}
 	// Bond interfaces (not LAG, but bonding slaves)
@@ -116,7 +120,8 @@ func isWifiAPInterface(name string) bool {
 		}
 	}
 	// Standard wireless interfaces: wlan0, wlan0-1, wl0, etc.
-	if strings.HasPrefix(name, "wlan") || strings.HasPrefix(name, "wl") || strings.HasPrefix(name, "wifi") {
+	if strings.HasPrefix(name, "wlan") || strings.HasPrefix(name, "wl") ||
+		strings.HasPrefix(name, "wifi") {
 		return true
 	}
 	return false
@@ -130,7 +135,8 @@ func isWifiRadioName(name string) bool {
 		return true
 	}
 	// Standard wireless interfaces without AP suffix
-	if strings.HasPrefix(name, "wlan") || strings.HasPrefix(name, "wl") || strings.HasPrefix(name, "wifi") {
+	if strings.HasPrefix(name, "wlan") || strings.HasPrefix(name, "wl") ||
+		strings.HasPrefix(name, "wifi") {
 		// Exclude interfaces that are AP interfaces
 		if !strings.Contains(name, "-ap") {
 			return true
@@ -246,10 +252,10 @@ type InterfaceImportPlan struct {
 
 // VLANPlan represents a VLAN that will be created or updated
 type VLANPlan struct {
-	VLANNumber     string   `json:"vlan_number"`
-	VLANName       string   `json:"vlan_name"`
-	IPSegmentIDs   []string `json:"ip_segment_ids"`
-	Action         string   `json:"action"` // "create" or "update"
+	VLANNumber       string   `json:"vlan_number"`
+	VLANName         string   `json:"vlan_name"`
+	IPSegmentIDs     []string `json:"ip_segment_ids"`
+	Action           string   `json:"action"` // "create" or "update"
 	ExistingSegments []string `json:"existing_segments,omitempty"`
 }
 
@@ -282,21 +288,21 @@ type ImportOptions struct {
 	DefaultBrand         string `json:"default_brand"`
 	SkipExisting         bool   `json:"skip_existing"`
 	ReviewMode           bool   `json:"review_mode"`
-	InteractiveVLANs     bool   `json:"interactive_vlans"`     // New: Always confirm VLAN mappings
+	InteractiveVLANs     bool   `json:"interactive_vlans"`      // New: Always confirm VLAN mappings
 	AutoApproveHeuristic bool   `json:"auto_approve_heuristic"` // New: Auto-approve high-confidence mappings
-	VLANAccuracyLevel    int    `json:"vlan_accuracy_level"`   // New: VLAN detection accuracy level (1=interface names only, 2=include IP heuristics)
+	VLANAccuracyLevel    int    `json:"vlan_accuracy_level"`    // New: VLAN detection accuracy level (1=interface names only, 2=include IP heuristics)
 
 	// Configuration parsing options
-	ConfigSource         string `json:"config_source"`          // "none", "ssh", "file", "manual"
-	ConfigFile           string `json:"config_file,omitempty"`  // Path to config file when using file source
-	DeviceType           string `json:"device_type,omitempty"`  // Device OS type override (opnsense, openwrt, fortinet, cisco)
-	SSHUsername          string `json:"ssh_username,omitempty"` // SSH username for config retrieval
-	SSHPassword          string `json:"ssh_password,omitempty"` // SSH password for config retrieval
-	SSHKeyFile           string `json:"ssh_key_file,omitempty"` // SSH private key file path
-	SSHPort              int    `json:"ssh_port,omitempty"`     // SSH port (default: 22)
-	DiscrepancyAction    string `json:"discrepancy_action"`     // "fail", "prefer-snmp", "prefer-config"
-	MergeWithConfig      bool   `json:"merge_with_config"`      // Merge SNMP data with config data
-	ParseConfigTimeout   int    `json:"parse_config_timeout"`   // Timeout for config parsing in seconds
+	ConfigSource       string `json:"config_source"`          // "none", "ssh", "file", "manual"
+	ConfigFile         string `json:"config_file,omitempty"`  // Path to config file when using file source
+	DeviceType         string `json:"device_type,omitempty"`  // Device OS type override (opnsense, openwrt, fortinet, cisco)
+	SSHUsername        string `json:"ssh_username,omitempty"` // SSH username for config retrieval
+	SSHPassword        string `json:"ssh_password,omitempty"` // SSH password for config retrieval
+	SSHKeyFile         string `json:"ssh_key_file,omitempty"` // SSH private key file path
+	SSHPort            int    `json:"ssh_port,omitempty"`     // SSH port (default: 22)
+	DiscrepancyAction  string `json:"discrepancy_action"`     // "fail", "prefer-snmp", "prefer-config"
+	MergeWithConfig    bool   `json:"merge_with_config"`      // Merge SNMP data with config data
+	ParseConfigTimeout int    `json:"parse_config_timeout"`   // Timeout for config parsing in seconds
 }
 
 // RequiresUserInput checks if an interface plan needs user input
