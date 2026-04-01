@@ -25,6 +25,7 @@ import (
 
 	cmd "nsl-graph/cmd/root"
 	util "nsl-graph/cmd/utils"
+	application "nsl-graph/internal/repository/application"
 	e "nsl-graph/internal/repository/entities"
 )
 
@@ -90,11 +91,11 @@ var summaryPrintCmd = &cobra.Command{
 		case 2:
 			printLevel1Summary(devices, zones, connections, vlans)
 			fmt.Println()
-			printLevel2Summary(devices, zones)
+			printLevel2Summary(devices, zones, service)
 		case 3:
 			printLevel1Summary(devices, zones, connections, vlans)
 			fmt.Println()
-			printLevel2Summary(devices, zones)
+			printLevel2Summary(devices, zones, service)
 			fmt.Println()
 			printLevel3Summary(connections, devicePorts)
 		}
@@ -134,7 +135,7 @@ func printLevel1Summary(devices []e.Device, zones []e.Zone, connections []e.Conn
 	fmt.Printf("  VLANs          : %d\n", len(vlans))
 }
 
-func printLevel2Summary(devices []e.Device, zones []e.Zone) {
+func printLevel2Summary(devices []e.Device, zones []e.Zone, service application.NetServiceInt) {
 	fmt.Println("=== LEVEL 2: DEVICE DETAILS ===")
 
 	// Brand/Model distribution
@@ -165,12 +166,26 @@ func printLevel2Summary(devices []e.Device, zones []e.Zone) {
 	for zoneName, zoneDeviceList := range zoneDevices {
 		fmt.Printf("\n  Zone: %s\n", zoneName)
 		for _, device := range zoneDeviceList {
-			ips := strings.Join(device.IPs, ", ")
-			if ips == "" {
-				ips = "none"
+			// Get IPs from device interfaces
+			ifaces, err := service.GetDeviceInterfaces(device.ID)
+			ipSet := make(map[string]bool)
+			if err == nil {
+				for _, iface := range ifaces {
+					for _, ip := range iface.IPAddresses {
+						ipSet[ip] = true
+					}
+				}
+			}
+			var ips []string
+			for ip := range ipSet {
+				ips = append(ips, ip)
+			}
+			ipStr := strings.Join(ips, ", ")
+			if ipStr == "" {
+				ipStr = "none"
 			}
 			fmt.Printf("    %-20s [%s/%s] IPs: %s\n",
-				device.Name, device.Brand, device.Model, ips)
+				device.Name, device.Brand, device.Model, ipStr)
 		}
 	}
 }

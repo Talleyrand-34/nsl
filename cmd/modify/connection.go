@@ -166,9 +166,16 @@ func resolveDeviceID(service application.NetServiceInt, nameOrIP string) (string
 		if d.Name == nameOrIP {
 			return d.ID, nil
 		}
-		for _, ip := range d.IPs {
-			if ip == nameOrIP {
-				return d.ID, nil
+		// Search by interface IPs
+		ifaces, err := service.GetDeviceInterfaces(d.ID)
+		if err != nil {
+			continue
+		}
+		for _, iface := range ifaces {
+			for _, ip := range iface.IPAddresses {
+				if ip == nameOrIP {
+					return d.ID, nil
+				}
 			}
 		}
 	}

@@ -26,6 +26,25 @@ import (
 	util "nsl-graph/cmd/utils"
 )
 
+// DeviceWithInterfaces represents a device with its interfaces
+type DeviceWithInterfaces struct {
+	ID          string            `json:"id"`
+	Name        string            `json:"label"`
+	Model       string            `json:"model"`
+	Brand       string            `json:"brand"`
+	ZoneID      string            `json:"zoneid"`
+	ZoneName    string            `json:"zonename"`
+	ZoneFather  string            `json:"zonefathername"`
+	Proprietary string            `json:"proprietary"`
+	Interfaces  []InterfaceNameIP `json:"interfaces"`
+}
+
+// InterfaceNameIP represents an interface with its IP address
+type InterfaceNameIP struct {
+	Name string `json:"name"`
+	IP   string `json:"ip"`
+}
+
 // devicesCmd represents the devices command
 var devicePrintCmd = &cobra.Command{
 	Use:   "device",
@@ -41,7 +60,56 @@ var devicePrintCmd = &cobra.Command{
 			fmt.Println("Error getting Devices:", err)
 			return
 		}
-		jsonBytes, err := json.MarshalIndent(devs, "", "  ")
+
+		// Get all interface ports for IP lookups
+		allIPs, err := service.GetAllInterfacePorts()
+		if err != nil {
+			fmt.Println("Error getting InterfacePorts:", err)
+			return
+		}
+		// Build IP lookup: interfaceID -> IP address
+		ifaceIPMap := make(map[string]string)
+		for _, ip := range allIPs {
+			if len(ip.IPAddresses) > 0 {
+				ifaceIPMap[ip.InterfaceID] = ip.IPAddresses[0]
+			}
+		}
+
+		// Build result with interfaces
+		result := make([]DeviceWithInterfaces, len(devs))
+		for i, d := range devs {
+			result[i] = DeviceWithInterfaces{
+				ID:          d.ID,
+				Name:        d.Name,
+				Model:       d.Model,
+				Brand:       d.Brand,
+				ZoneID:      d.ZoneID,
+				ZoneName:    d.ZoneName,
+				ZoneFather:  d.ZoneFather,
+				Proprietary: d.Proprietary,
+				Interfaces:  []InterfaceNameIP{},
+			}
+
+			// Get interfaces for this device
+			ifaces, err := service.GetDeviceInterfaces(d.ID)
+			if err != nil {
+				continue
+			}
+			for _, iface := range ifaces {
+				var ip string
+				if p, ok := ifaceIPMap[iface.ID]; ok {
+					ip = p
+				} else if len(iface.IPAddresses) > 0 {
+					ip = iface.IPAddresses[0]
+				}
+				result[i].Interfaces = append(result[i].Interfaces, InterfaceNameIP{
+					Name: iface.Name,
+					IP:   ip,
+				})
+			}
+		}
+
+		jsonBytes, err := json.MarshalIndent(result, "", "  ")
 		if err != nil {
 			fmt.Println("Error marshaling Devices to JSON:", err)
 			return

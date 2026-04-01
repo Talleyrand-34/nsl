@@ -209,7 +209,7 @@ func TestDeleteZone_BlocksWithDevice(t *testing.T) {
 		}
 	}
 
-	if err := repo.AddDevice("SW-01", "Catalyst 9300", zoneID, "", "", []string{}); err != nil {
+	if err := repo.AddDevice("SW-01", "Catalyst 9300", zoneID, "", ""); err != nil {
 		t.Fatalf("failed to add device: %v", err)
 	}
 
@@ -261,7 +261,7 @@ func TestDeleteModel_BlocksWithDependentDevice(t *testing.T) {
 	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
-	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", "", []string{}); err != nil {
+	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", ""); err != nil {
 		t.Fatalf("failed to add device: %v", err)
 	}
 
@@ -365,7 +365,7 @@ func TestDeleteDevice_BlocksWithDependentDevicePort(t *testing.T) {
 	if err := repo.AddModelPort("Gi1/0/1", "0", "0", "Catalyst 9300", false, "", ""); err != nil {
 		t.Fatalf("failed to add model port: %v", err)
 	}
-	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", "", []string{}); err != nil {
+	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", ""); err != nil {
 		t.Fatalf("failed to add device: %v", err)
 	}
 
@@ -418,10 +418,10 @@ func TestDeleteDevice_BlocksWithDependentConnection(t *testing.T) {
 	if err := repo.AddModelPort("Gi1/0/2", "1", "0", "Catalyst 9300", false, "", ""); err != nil {
 		t.Fatalf("failed to add model port: %v", err)
 	}
-	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", "", []string{}); err != nil {
+	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", ""); err != nil {
 		t.Fatalf("failed to add device 1: %v", err)
 	}
-	if err := repo.AddDevice("SW-02", "Catalyst 9300", "", "", "", []string{}); err != nil {
+	if err := repo.AddDevice("SW-02", "Catalyst 9300", "", "", ""); err != nil {
 		t.Fatalf("failed to add device 2: %v", err)
 	}
 
@@ -479,7 +479,7 @@ func TestDeleteDevice_SucceedsWithoutDependents(t *testing.T) {
 	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
-	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", "", []string{}); err != nil {
+	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", ""); err != nil {
 		t.Fatalf("failed to add device: %v", err)
 	}
 
@@ -518,7 +518,7 @@ func TestDeleteModelPort_BlocksWithDependentDevicePort(t *testing.T) {
 	if err := repo.AddModelPort("Gi1/0/1", "0", "0", "Catalyst 9300", false, "", ""); err != nil {
 		t.Fatalf("failed to add model port: %v", err)
 	}
-	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", "", []string{}); err != nil {
+	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", ""); err != nil {
 		t.Fatalf("failed to add device: %v", err)
 	}
 
@@ -607,10 +607,10 @@ func TestDeleteDevicePort_BlocksWithDependentConnection(t *testing.T) {
 	if err := repo.AddModelPort("Gi1/0/2", "1", "0", "Catalyst 9300", false, "", ""); err != nil {
 		t.Fatalf("failed to add model port 2: %v", err)
 	}
-	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", "", []string{}); err != nil {
+	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", ""); err != nil {
 		t.Fatalf("failed to add device 1: %v", err)
 	}
-	if err := repo.AddDevice("SW-02", "Catalyst 9300", "", "", "", []string{}); err != nil {
+	if err := repo.AddDevice("SW-02", "Catalyst 9300", "", "", ""); err != nil {
 		t.Fatalf("failed to add device 2: %v", err)
 	}
 
@@ -668,7 +668,7 @@ func TestDeleteDevicePort_SucceedsWithoutDependents(t *testing.T) {
 	if err := repo.AddModelPort("Gi1/0/1", "0", "0", "Catalyst 9300", false, "", ""); err != nil {
 		t.Fatalf("failed to add model port: %v", err)
 	}
-	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", "", []string{}); err != nil {
+	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", ""); err != nil {
 		t.Fatalf("failed to add device: %v", err)
 	}
 
@@ -717,7 +717,7 @@ func TestDeleteVlan_BlocksWithDependentLocalVlan(t *testing.T) {
 	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
-	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", "", []string{}); err != nil {
+	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", ""); err != nil {
 		t.Fatalf("failed to add device: %v", err)
 	}
 	if err := repo.AddVlan("10", "VLAN10", ""); err != nil {
@@ -767,7 +767,7 @@ func TestDeleteVlan_CleansDeviceInterfaceVlanConfigs(t *testing.T) {
 	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
-	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", "", []string{}); err != nil {
+	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", ""); err != nil {
 		t.Fatalf("failed to add device: %v", err)
 	}
 	if err := repo.AddVlan("20", "VLAN20", ""); err != nil {
@@ -856,7 +856,7 @@ func TestDeleteVlanCascade_DeletesLocalVlans(t *testing.T) {
 	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
-	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", "", []string{}); err != nil {
+	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", ""); err != nil {
 		t.Fatalf("failed to add device: %v", err)
 	}
 	if err := repo.AddVlan("40", "VLAN40", ""); err != nil {
@@ -956,7 +956,7 @@ func TestDeleteProprietary_SetsNullOnDevices(t *testing.T) {
 	if err := repo.AddProprietary("Acme Corp"); err != nil {
 		t.Fatalf("failed to add proprietary: %v", err)
 	}
-	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", "Acme Corp", []string{}); err != nil {
+	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", "Acme Corp"); err != nil {
 		t.Fatalf("failed to add device: %v", err)
 	}
 
@@ -1006,7 +1006,7 @@ func TestDeleteProprietaryCascade_SetsNullNotCascadeDelete(t *testing.T) {
 	if err := repo.AddZone("HQ", "", "", "Acme Corp", ""); err != nil {
 		t.Fatalf("failed to add zone: %v", err)
 	}
-	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", "Acme Corp", []string{}); err != nil {
+	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", "Acme Corp"); err != nil {
 		t.Fatalf("failed to add device: %v", err)
 	}
 

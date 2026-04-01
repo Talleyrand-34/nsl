@@ -86,7 +86,6 @@ type repository interface {
 		zoneId string,
 		zoneName string,
 		proprietaryName string,
-		ips []string,
 	) error
 	GetDevices() ([]e.Device, error)
 	UpdateDevice(
@@ -192,7 +191,7 @@ type repository interface {
 	DeleteDeviceInterface(id string) error
 
 	// InterfacePort interaction
-	AddInterfacePort(interfaceID, deviceID, modelPortID string, vlanConfigs []e.PortVlanConfig) error
+	AddInterfacePort(interfaceID, deviceID, modelPortID string, vlanConfigs []e.PortVlanConfig, ipAddresses []string) error
 	GetInterfacePortsByInterface(interfaceID string) ([]e.InterfacePort, error)
 	GetInterfacePortsByPort(deviceID, modelPortID string) ([]e.InterfacePort, error)
 	GetAllInterfacePorts() ([]e.InterfacePort, error)

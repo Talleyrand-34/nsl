@@ -158,8 +158,8 @@ func (p *PluginAwareRepository) DeleteModel(modelId string) error {
 }
 
 // Device interaction
-func (p *PluginAwareRepository) AddDevice(deviceLabel string, modelName string, zoneId string, zoneName string, proprietaryName string, ips []string) error {
-	return p.baseRepo.AddDevice(deviceLabel, modelName, zoneId, zoneName, proprietaryName, ips)
+func (p *PluginAwareRepository) AddDevice(deviceLabel string, modelName string, zoneId string, zoneName string, proprietaryName string) error {
+	return p.baseRepo.AddDevice(deviceLabel, modelName, zoneId, zoneName, proprietaryName)
 }
 
 func (p *PluginAwareRepository) GetDevices() ([]e.Device, error) {
@@ -384,8 +384,8 @@ func (p *PluginAwareRepository) DeleteDeviceInterface(id string) error {
 }
 
 // InterfacePort interaction
-func (p *PluginAwareRepository) AddInterfacePort(interfaceID, deviceID, modelPortID string, vlanConfigs []e.PortVlanConfig) error {
-	return p.baseRepo.AddInterfacePort(interfaceID, deviceID, modelPortID, vlanConfigs)
+func (p *PluginAwareRepository) AddInterfacePort(interfaceID, deviceID, modelPortID string, vlanConfigs []e.PortVlanConfig, ipAddresses []string) error {
+	return p.baseRepo.AddInterfacePort(interfaceID, deviceID, modelPortID, vlanConfigs, ipAddresses)
 }
 
 func (p *PluginAwareRepository) GetInterfacePortsByInterface(interfaceID string) ([]e.InterfacePort, error) {

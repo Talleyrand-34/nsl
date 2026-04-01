@@ -98,7 +98,6 @@ type NetServiceInt interface {
 		zoneId string,
 		zoneName string,
 		proprietaryName string,
-		ips []string,
 	) error
 	GetDevices() ([]e.Device, error)
 	UpdateDevice(
@@ -201,7 +200,7 @@ type NetServiceInt interface {
 	DeleteDeviceInterface(id string) error
 
 	// InterfacePort operations
-	AddInterfacePort(interfaceID, deviceID, modelPortID string, vlanConfigs []e.PortVlanConfig) error
+	AddInterfacePort(interfaceID, deviceID, modelPortID string, vlanConfigs []e.PortVlanConfig, ipAddresses []string) error
 	GetInterfacesForPort(deviceID, modelPortID string) ([]e.DeviceInterface, error)
 	GetPortsForInterface(interfaceID string) ([]e.DevicePort, error)
 	GetAllInterfacePorts() ([]e.InterfacePort, error)
@@ -319,9 +318,8 @@ func (ns *NetService) AddDevice(
 	zoneId string,
 	zoneName string,
 	proprietary string,
-	ips []string,
 ) error {
-	return ns.netRepo.AddDevice(label, model, zoneId, zoneName, proprietary, ips)
+	return ns.netRepo.AddDevice(label, model, zoneId, zoneName, proprietary)
 }
 
 func (ns *NetService) UpdateDeviceIPs(deviceId string, ips []string) error {
@@ -416,8 +414,8 @@ func (ns *NetService) DeleteDeviceInterface(id string) error {
 	return ns.netRepo.DeleteDeviceInterface(id)
 }
 
-func (ns *NetService) AddInterfacePort(interfaceID, deviceID, modelPortID string, vlanConfigs []e.PortVlanConfig) error {
-	return ns.netRepo.AddInterfacePort(interfaceID, deviceID, modelPortID, vlanConfigs)
+func (ns *NetService) AddInterfacePort(interfaceID, deviceID, modelPortID string, vlanConfigs []e.PortVlanConfig, ipAddresses []string) error {
+	return ns.netRepo.AddInterfacePort(interfaceID, deviceID, modelPortID, vlanConfigs, ipAddresses)
 }
 
 func (ns *NetService) GetAllInterfacePorts() ([]e.InterfacePort, error) {
@@ -975,9 +973,16 @@ func (ns *NetService) deviceExists(ip string) bool {
 	}
 
 	for _, device := range devices {
-		for _, deviceIP := range device.IPs {
-			if deviceIP == ip {
-				return true
+		// Check if IP matches any device interface
+		ifaces, err := ns.GetDeviceInterfaces(device.ID)
+		if err != nil {
+			continue
+		}
+		for _, iface := range ifaces {
+			for _, ifaceIP := range iface.IPAddresses {
+				if ifaceIP == ip {
+					return true
+				}
 			}
 		}
 	}
@@ -1007,7 +1012,6 @@ func (ns *NetService) importSingleDevice(discovered s.DiscoveredDevice, options 
 		"",
 		zoneName,
 		"Discovered",
-		[]string{discovered.Device.IP},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to add device: %w", err)
@@ -1120,7 +1124,7 @@ func (ns *NetService) createDevicePortsForDevice(deviceID string, discovered s.D
 				if err == nil {
 					for _, di := range ifaceList {
 						if di.Name == iface.Name && di.DeviceID == deviceID {
-							if err := ns.AddInterfacePort(di.ID, deviceID, modelPortID, vlanConfigs); err != nil {
+							if err := ns.AddInterfacePort(di.ID, deviceID, modelPortID, vlanConfigs, iface.IPAddresses); err != nil {
 								log.Printf("Warning: failed to link interface %s to port %s: %v", di.ID, modelPortID, err)
 							}
 							break
@@ -1661,7 +1665,6 @@ func (ns *NetService) importSingleDeviceWithPlan(discovered s.DiscoveredDevice, 
 		"",
 		zoneName,
 		"Discovered",
-		[]string{discovered.Device.IP},
 	)
 	if err != nil {
 		return fmt.Errorf("failed to add device: %w", err)
@@ -1908,7 +1911,7 @@ func (ns *NetService) createDevicePortsWithPlan(deviceID string, discovered s.Di
 				if err == nil {
 					for _, di := range ifaceList {
 						if di.Name == iface.Name && di.DeviceID == deviceID {
-							if err := ns.AddInterfacePort(di.ID, deviceID, modelPortID, vlanConfigs); err != nil {
+							if err := ns.AddInterfacePort(di.ID, deviceID, modelPortID, vlanConfigs, iface.IPAddresses); err != nil {
 								log.Printf("Warning: failed to link interface %s to port %s: %v", di.ID, modelPortID, err)
 							}
 							break

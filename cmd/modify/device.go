@@ -56,7 +56,7 @@ Examples:
 		// Get zone information (either by ID or name)
 		zoneId, _ := cmd.Flags().GetString("zone-id")
 		zoneName, _ := cmd.Flags().GetString("zone-name")
-		
+
 		if zoneId == "" && zoneName == "" {
 			fmt.Fprintf(os.Stderr, "Zone is required. Use either --zone-id or --zone-name flag.\n")
 			os.Exit(1)
@@ -69,9 +69,6 @@ Examples:
 			os.Exit(1)
 		}
 
-		// Get optional IPs
-		ips, _ := cmd.Flags().GetStringSlice("ips")
-
 		// Get service connection
 		service, err := util.ServiceConnection()
 		if err != nil {
@@ -80,7 +77,7 @@ Examples:
 		}
 
 		// Create the device
-		err = service.AddDevice(deviceLabel, modelName, zoneId, zoneName, proprietaryName, ips)
+		err = service.AddDevice(deviceLabel, modelName, zoneId, zoneName, proprietaryName)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error creating device: %v\n", err)
 			os.Exit(1)
@@ -104,8 +101,7 @@ func init() {
 	DeviceModCmd.Flags().String("zone-id", "", "Zone ID where device will be deployed")
 	DeviceModCmd.Flags().String("zone-name", "", "Zone name where device will be deployed")
 	DeviceModCmd.Flags().String("proprietary", "", "Proprietary owner of the device (required)")
-	DeviceModCmd.Flags().StringSlice("ips", []string{}, "IP addresses for the device (comma-separated, e.g., '192.168.1.1,10.0.0.1')")
-	
+
 	DeviceModCmd.MarkFlagRequired("label")
 	DeviceModCmd.MarkFlagRequired("model")
 	DeviceModCmd.MarkFlagRequired("proprietary")

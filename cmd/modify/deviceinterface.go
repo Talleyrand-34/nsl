@@ -94,7 +94,7 @@ var interfacePortModCmd = &cobra.Command{
 		if err != nil {
 			return
 		}
-		err = service.AddInterfacePort(interfaceid, deviceid, modelportid, nil)
+		err = service.AddInterfacePort(interfaceid, deviceid, modelportid, nil, nil)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error adding interface-port link: %v\n", err)
 			os.Exit(1)

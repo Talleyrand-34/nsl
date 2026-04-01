@@ -37,6 +37,7 @@ type VerboseInterfacePort struct {
 	ModelPortID   string             `json:"model_port_id"`
 	PortName      string             `json:"port_name,omitempty"`
 	VlanConfigs   []e.PortVlanConfig `json:"vlan_configs,omitempty"`
+	IPAddresses   []string           `json:"ip_addresses,omitempty"`
 }
 
 var deviceInterfacePrintCmd = &cobra.Command{
@@ -173,6 +174,7 @@ Without flags, prints all interface-port links.`,
 					ModelPortID:   p.ModelPortID,
 					PortName:      portNameMap[p.ModelPortID],
 					VlanConfigs:   p.VlanConfigs,
+					IPAddresses:   p.IPAddresses,
 				}
 			}
 		}

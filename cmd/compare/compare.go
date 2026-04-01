@@ -204,9 +204,19 @@ func extractData(dbPath, hostIP string) (*ExtractedData, error) {
 
 	var targetDevice e.Device
 	for _, d := range devices {
-		for _, ip := range d.IPs {
-			if ip == hostIP {
-				targetDevice = d
+		// Search by interface IPs
+		ifaces, err := service.GetDeviceInterfaces(d.ID)
+		if err != nil {
+			continue
+		}
+		for _, iface := range ifaces {
+			for _, ip := range iface.IPAddresses {
+				if ip == hostIP {
+					targetDevice = d
+					break
+				}
+			}
+			if targetDevice.ID != "" {
 				break
 			}
 		}

@@ -53,15 +53,14 @@ type ModelPort struct {
 
 // Device This struct contains the info about a device
 type Device struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"label"`
-	Model       string   `json:"model"`
-	Brand       string   `json:"brand"`
-	ZoneID      string   `json:"zoneid"`
-	ZoneName    string   `json:"zonename"`
-	ZoneFather  string   `json:"zonefathername"`
-	Proprietary string   `json:"proprietary"`
-	IPs         []string `json:"ips"` // List of IP addresses (e.g., "192.168.1.1")
+	ID          string `json:"id"`
+	Name        string `json:"label"`
+	Model       string `json:"model"`
+	Brand       string `json:"brand"`
+	ZoneID      string `json:"zoneid"`
+	ZoneName    string `json:"zonename"`
+	ZoneFather  string `json:"zonefathername"`
+	Proprietary string `json:"proprietary"`
 }
 
 // PortVlanConfig represents a VLAN configuration on a port (tagged or untagged)
@@ -98,13 +97,14 @@ type DeviceInterface struct {
 }
 
 // InterfacePort is a join record linking a DeviceInterface to a physical DevicePort.
-// It also stores the VLAN configurations for that specific interface-to-port link.
+// It also stores the VLAN configurations and IP addresses for that specific interface-to-port link.
 type InterfacePort struct {
 	ID          string           `json:"id"`
 	InterfaceID string           `json:"interface_id"`
 	DeviceID    string           `json:"device_id"`
 	ModelPortID string           `json:"model_port_id"`
 	VlanConfigs []PortVlanConfig `json:"vlan_configs"`
+	IPAddresses []string         `json:"ip_addresses"`
 }
 
 // Connection This struct contains the info about a connection

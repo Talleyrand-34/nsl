@@ -31,10 +31,10 @@ func TestConnection_AddAndGet(t *testing.T) {
 	if err := repo.AddModelPort("Gi1/0/2", "1", "0", "Catalyst 9300", false, "", ""); err != nil {
 		t.Fatalf("failed to add model port 2: %v", err)
 	}
-	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", "", []string{}); err != nil {
+	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", ""); err != nil {
 		t.Fatalf("failed to add device 1: %v", err)
 	}
-	if err := repo.AddDevice("SW-02", "Catalyst 9300", "", "", "", []string{}); err != nil {
+	if err := repo.AddDevice("SW-02", "Catalyst 9300", "", "", ""); err != nil {
 		t.Fatalf("failed to add device 2: %v", err)
 	}
 
@@ -109,13 +109,13 @@ func TestConnection_AddDuplicatePort(t *testing.T) {
 	if err := repo.AddModelPort("Gi1/0/3", "2", "0", "Catalyst 9300", false, "", ""); err != nil {
 		t.Fatalf("failed to add model port 3: %v", err)
 	}
-	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", "", []string{}); err != nil {
+	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", ""); err != nil {
 		t.Fatalf("failed to add device 1: %v", err)
 	}
-	if err := repo.AddDevice("SW-02", "Catalyst 9300", "", "", "", []string{}); err != nil {
+	if err := repo.AddDevice("SW-02", "Catalyst 9300", "", "", ""); err != nil {
 		t.Fatalf("failed to add device 2: %v", err)
 	}
-	if err := repo.AddDevice("SW-03", "Catalyst 9300", "", "", "", []string{}); err != nil {
+	if err := repo.AddDevice("SW-03", "Catalyst 9300", "", "", ""); err != nil {
 		t.Fatalf("failed to add device 3: %v", err)
 	}
 
@@ -189,10 +189,10 @@ func TestConnection_Delete(t *testing.T) {
 	if err := repo.AddModelPort("Gi1/0/2", "1", "0", "Catalyst 9300", false, "", ""); err != nil {
 		t.Fatalf("failed to add model port 2: %v", err)
 	}
-	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", "", []string{}); err != nil {
+	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", ""); err != nil {
 		t.Fatalf("failed to add device 1: %v", err)
 	}
-	if err := repo.AddDevice("SW-02", "Catalyst 9300", "", "", "", []string{}); err != nil {
+	if err := repo.AddDevice("SW-02", "Catalyst 9300", "", "", ""); err != nil {
 		t.Fatalf("failed to add device 2: %v", err)
 	}
 

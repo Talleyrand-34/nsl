@@ -32,7 +32,6 @@ func (r BasicOpsCloverRepository) AddDevice(
 	zoneId string,
 	zoneName string,
 	proprietary string,
-	ips []string,
 ) error {
 	// Get proprietary ID
 	spropid := r.getProprietaryID(proprietary)
@@ -54,9 +53,6 @@ func (r BasicOpsCloverRepository) AddDevice(
 	}
 	if szoneid != "" {
 		doc.Set("zone_id", szoneid)
-	}
-	if len(ips) > 0 {
-		doc.Set("ips", ips)
 	}
 
 	_, err = r.db.InsertOne(devicesCollection, doc)
@@ -118,16 +114,6 @@ func (r BasicOpsCloverRepository) GetDevices() ([]e.Device, error) {
 			proprietaryDoc, err := r.db.FindById(proprietariesCollection, proprietaryID)
 			if err == nil && proprietaryDoc != nil {
 				device.Proprietary = proprietaryDoc.Get("proprietary").(string)
-			}
-		}
-
-		// Get IPs if they exist
-		device.IPs = make([]string, 0)
-		if ips, ok := doc.Get("ips").([]interface{}); ok && len(ips) > 0 {
-			for _, ipInterface := range ips {
-				if ip, ok := ipInterface.(string); ok && ip != "" {
-					device.IPs = append(device.IPs, ip)
-				}
 			}
 		}
 

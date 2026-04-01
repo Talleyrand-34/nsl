@@ -128,8 +128,8 @@ func (r BasicOpsCloverRepository) DeleteDeviceInterface(id string) error {
 	return nil
 }
 
-// AddInterfacePort links a logical interface to a physical device port with VLAN configurations
-func (r BasicOpsCloverRepository) AddInterfacePort(interfaceID, deviceID, modelPortID string, vlanConfigs []e.PortVlanConfig) error {
+// AddInterfacePort links a logical interface to a physical device port with VLAN configurations and IP addresses
+func (r BasicOpsCloverRepository) AddInterfacePort(interfaceID, deviceID, modelPortID string, vlanConfigs []e.PortVlanConfig, ipAddresses []string) error {
 	id := uuid.New().String()
 
 	doc := d.NewDocument()
@@ -147,6 +147,10 @@ func (r BasicOpsCloverRepository) AddInterfacePort(interfaceID, deviceID, modelP
 			}
 		}
 		doc.Set("vlan_configs", vlansMap)
+	}
+
+	if len(ipAddresses) > 0 {
+		doc.Set("ip_addresses", ipAddresses)
 	}
 
 	_, err := r.db.InsertOne(interfacePortsCollection, doc)
@@ -295,6 +299,16 @@ func (r BasicOpsCloverRepository) docsToInterfacePorts(docs []*d.Document) []e.I
 						vc.Tagged = t
 					}
 					ip.VlanConfigs = append(ip.VlanConfigs, vc)
+				}
+			}
+		}
+
+		// Parse IP addresses
+		ip.IPAddresses = make([]string, 0)
+		if raw, ok := doc.Get("ip_addresses").([]interface{}); ok {
+			for _, item := range raw {
+				if ipStr, ok := item.(string); ok && ipStr != "" {
+					ip.IPAddresses = append(ip.IPAddresses, ipStr)
 				}
 			}
 		}

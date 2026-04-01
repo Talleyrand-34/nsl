@@ -141,9 +141,6 @@ func TestNetService_ScanningMethods(t *testing.T) {
 		for _, device := range allDevices {
 			if device.Name == "TEST-200" {
 				found = true
-				if len(device.IPs) == 0 || device.IPs[0] != "192.168.1.200" {
-					t.Errorf("Device IP not set correctly: %v", device.IPs)
-				}
 				break
 			}
 		}
@@ -197,10 +194,35 @@ func TestDeviceExists_Check(t *testing.T) {
 	service.AddBrand("TestBrand")
 	service.AddDeviceClass("TestClass")
 	service.AddModel("TestModel", "TestBrand", "TestClass")
+	service.AddModelPort("eth0", "0", "0", "TestModel", false, "", "")
 
-	if err := service.AddDevice("TestDevice", "TestModel", "", "", "", []string{"192.168.1.100"}); err != nil {
+	if err := service.AddDevice("TestDevice", "TestModel", "", "", ""); err != nil {
 		t.Fatalf("Failed to add test device: %v", err)
 	}
+
+	// Get device ID
+	devices, _ := service.GetDevices()
+	var deviceID string
+	for _, d := range devices {
+		if d.Name == "TestDevice" {
+			deviceID = d.ID
+			break
+		}
+	}
+
+	// Add device port and interface with IP
+	modelPorts, _ := service.GetModelPorts()
+	var portID string
+	for _, mp := range modelPorts {
+		if mp.Name == "eth0" {
+			portID = mp.ID
+			break
+		}
+	}
+	service.AddDevicePort(deviceID, portID, "", nil)
+
+	// Add interface with IP
+	service.AddDeviceInterface(deviceID, "eth0", "", "", nil, []string{"192.168.1.100"}, "", "")
 
 	netService := service.(*NetService)
 

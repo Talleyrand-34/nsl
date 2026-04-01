@@ -26,9 +26,7 @@ func (dd *DeviceDiscoverer) ClassifyDevice(device SNMPDevice) (brand, model, dev
 		return "OpenWrt", "OpenWrt Router", "Router"
 	case strings.Contains(descr, "fortinet") || strings.Contains(descr, "fortinet-config"):
 		return "Fortinet", "FortiGate", "Firewall"
-	case strings.Contains(descr, "cisco") || strings.Contains(descr, "cisco-config"):
-		return "Cisco", "Cisco Device", "Switch"
-	// SNMP sysDescr patterns
+	// SNMP sysDescr patterns - more specific patterns first
 	case strings.Contains(descr, "cisco ios xe"):
 		return "Cisco", "IOS XE Device", "Router"
 	case strings.Contains(descr, "cisco ios xr"):
@@ -37,6 +35,8 @@ func (dd *DeviceDiscoverer) ClassifyDevice(device SNMPDevice) (brand, model, dev
 		return "Cisco", "NX-OS Device", "Switch"
 	case strings.Contains(descr, "cisco ios"):
 		return "Cisco", "IOS Device", "Router"
+	case strings.Contains(descr, "cisco") || strings.Contains(descr, "cisco-config"):
+		return "Cisco", "Cisco Device", "Switch"
 	case strings.Contains(descr, "juniper"):
 		return "Juniper", "Juniper Device", "Router"
 	case strings.Contains(descr, "aruba"):
