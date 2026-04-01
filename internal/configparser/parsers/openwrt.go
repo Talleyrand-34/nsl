@@ -405,7 +405,7 @@ func (p *OpenWrtParser) parseNetworkInterfaces(config *UCIConfig, switchPorts []
 			for _, port := range strings.Fields(section.Options["ports"]) {
 				parts := strings.SplitN(port, ".", 2)
 				base := parts[0]
-				if base == "" || base == "lo" {
+				if base == "" || base == "lo" || base == "eth0" {
 					continue
 				}
 				physicalDevs[base] = true
@@ -446,7 +446,7 @@ func (p *OpenWrtParser) parseNetworkInterfaces(config *UCIConfig, switchPorts []
 			if strings.Contains(physRoot, ".") {
 				physRoot = strings.Split(physRoot, ".")[0]
 			}
-			if physRoot != "" && physRoot != "lo" {
+			if physRoot != "" && physRoot != "lo" && physRoot != "eth0" {
 				physicalDevs[physRoot] = true
 			}
 		}
@@ -469,6 +469,9 @@ func (p *OpenWrtParser) parseNetworkInterfaces(config *UCIConfig, switchPorts []
 	// Emit physical/bridge devices referenced by interface sections
 	// (ensures they get DevicePorts during import)
 	for devName := range physicalDevs {
+		if devName == "eth0" {
+			continue
+		}
 		// Skip if already emitted as a "device" section
 		alreadyEmitted := false
 		for _, iface := range interfaces {
