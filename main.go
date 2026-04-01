@@ -18,6 +18,7 @@ package main
 
 import (
 	"nsl-graph/cmd"
+	_ "nsl-graph/cmd/compare"
 	_ "nsl-graph/cmd/delete"
 	_ "nsl-graph/cmd/diagram"
 	_ "nsl-graph/cmd/export"
