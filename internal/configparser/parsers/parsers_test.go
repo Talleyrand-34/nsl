@@ -531,3 +531,99 @@ func TestOPNsenseParser_ParseConfig(t *testing.T) {
 	assert.Len(t, configData.VLANs, 1)
 	assert.Equal(t, "10", configData.VLANs[0].ID)
 }
+
+func TestOpenWrtParser_ParseBoardJSON(t *testing.T) {
+	const boardJSONFixture = `# uci show
+network.loopback=interface
+network.loopback.device='lo'
+network.loopback.proto='static'
+# cat /etc/board.json
+{
+	"model": {
+		"id": "ubnt,aircube-ac",
+		"name": "Ubiquiti airCube AC"
+	},
+	"switch": {
+		"switch0": {
+			"enable": true,
+			"reset": true,
+			"ports": [
+				{
+					"num": 0,
+					"device": "eth0",
+					"need_tag": false,
+					"want_untag": false
+				},
+				{
+					"num": 2,
+					"role": "lan",
+					"index": 1
+				},
+				{
+					"num": 3,
+					"role": "lan",
+					"index": 2
+				},
+				{
+					"num": 5,
+					"role": "lan",
+					"index": 3
+				},
+				{
+					"num": 4,
+					"role": "wan"
+				}
+			],
+			"roles": [
+				{
+					"role": "lan",
+					"ports": "2 3 5 0t",
+					"device": "eth0.1"
+				},
+				{
+					"role": "wan",
+					"ports": "4 0t",
+					"device": "eth0.2"
+				}
+			]
+		}
+	},
+	"network": {
+		"lan": {
+			"device": "eth0.1",
+			"protocol": "static"
+		},
+		"wan": {
+			"device": "eth0.2",
+			"protocol": "dhcp"
+		}
+	}
+}`
+
+	parser := parsers.NewOpenWrtParser()
+	device := createTestDevice("Linux AircubeAC 6.6.93", "HeartOfGold")
+
+	configData, err := parser.ParseConfig(boardJSONFixture, device)
+	assert.NoError(t, err)
+	assert.NotNil(t, configData)
+
+	assert.Len(t, configData.SwitchPorts, 4)
+
+	portByName := make(map[string]configparser.SwitchPortInfo)
+	for _, port := range configData.SwitchPorts {
+		portByName[port.PortName] = port
+	}
+
+	assert.Contains(t, portByName, "lan1")
+	assert.Contains(t, portByName, "lan2")
+	assert.Contains(t, portByName, "lan3")
+	assert.Contains(t, portByName, "wan0")
+
+	for _, port := range configData.SwitchPorts {
+		assert.NotEqual(t, "eth0", port.PortName, "CPU port eth0 should not be included")
+		assert.NotEqual(t, 0, port.PortNumber, "CPU port should not be included")
+	}
+
+	assert.Equal(t, "lan", portByName["lan1"].Role)
+	assert.Equal(t, "wan", portByName["wan0"].Role)
+}

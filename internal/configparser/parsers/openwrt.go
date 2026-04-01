@@ -1,6 +1,7 @@
 package parsers
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -50,10 +51,10 @@ func (p *OpenWrtParser) ParseConfig(rawConfig string, deviceInfo s.SNMPDevice) (
 		Raw:           rawConfig,
 	}
 
-	// Parse switch ports from swconfig output
-	switchPorts, err := p.parseSwconfigOutput(rawConfig)
-	if err == nil && len(switchPorts) > 0 {
-		configData.SwitchPorts = switchPorts
+	// Extract board.json for physical port information
+	boardPorts, _ := p.parseBoardJSON(rawConfig)
+	if len(boardPorts) > 0 {
+		configData.SwitchPorts = boardPorts
 	}
 
 	// Parse interfaces
@@ -108,6 +109,7 @@ func (p *OpenWrtParser) GetConfigViaSSH(ip string, creds configparser.SSHCredent
 		"uci show firewall",
 		"uci show system",
 		"uci show dhcp",
+		"cat /etc/board.json",
 	}
 
 	var allConfig strings.Builder
@@ -122,130 +124,97 @@ func (p *OpenWrtParser) GetConfigViaSSH(ip string, creds configparser.SSHCredent
 		allConfig.WriteString("\n")
 	}
 
-	// Get switch port info via swconfig
-	switchOutput, err := p.getSwitchConfigViaSSH(client, "switch0")
-	if err != nil {
-		allConfig.WriteString(fmt.Sprintf("# swconfig error: %v\n", err))
-	} else {
-		allConfig.WriteString("# swconfig\n")
-		allConfig.WriteString(switchOutput)
-		allConfig.WriteString("\n")
-	}
-
 	return allConfig.String(), nil
 }
 
-// getSwitchConfigViaSSH executes swconfig commands to get physical switch port info
-func (p *OpenWrtParser) getSwitchConfigViaSSH(client *configparser.SSHClient, switchName string) (string, error) {
-	var output strings.Builder
-
-	// Get switch info to find max port and CPU port
-	showOutput, err := client.Execute(fmt.Sprintf("swconfig dev %s show", switchName))
-	if err != nil {
-		return "", fmt.Errorf("swconfig show failed: %w", err)
-	}
-
-	// Parse CPU port from first 5 lines
-	cpuPort := ""
-	for _, line := range strings.Split(showOutput, "\n")[:5] {
-		if strings.Contains(line, "cpu @") {
-			re := regexp.MustCompile(`cpu @ \((\d+)\)`)
-			if matches := re.FindStringSubmatch(line); len(matches) == 2 {
-				cpuPort = matches[1]
-				break
-			}
-		}
-	}
-
-	// Get max port
-	maxPort := 0
-	portRegex := regexp.MustCompile(`port:(\d+)`)
-	for _, line := range strings.Split(showOutput, "\n") {
-		if matches := portRegex.FindStringSubmatch(line); len(matches) == 2 {
-			if port, err := strconv.Atoi(matches[1]); err == nil && port > maxPort {
-				maxPort = port
-			}
-		}
-	}
-
-	// Iterate through ports 0 to maxPort
-	for i := 0; i <= maxPort; i++ {
-		linkOutput, _ := client.Execute(fmt.Sprintf("swconfig dev %s port %d get link", switchName, i))
-		pvidOutput, _ := client.Execute(fmt.Sprintf("swconfig dev %s port %d get pvid", switchName, i))
-
-		role := "physical"
-		if cpuPort != "" && strconv.Itoa(i) == cpuPort {
-			role = "cpu"
-		} else if linkOutput != "" {
-			// Check script logic: internal/SerDes if link:up AND no auto AND no txflow/rxflow
-			hasUp := strings.Contains(linkOutput, "link:up")
-			hasAuto := strings.Contains(linkOutput, "auto")
-			hasFlow := strings.Contains(linkOutput, "txflow") || strings.Contains(linkOutput, "rxflow")
-			if hasUp && !hasAuto && !hasFlow {
-				role = "internal"
-			}
-		}
-
-		output.WriteString(fmt.Sprintf("# Port %d role=%s\n", i, role))
-		output.WriteString(fmt.Sprintf("port %d link: %s", i, strings.TrimSpace(linkOutput)))
-		output.WriteString(fmt.Sprintf(" pvid: %s\n", strings.TrimSpace(pvidOutput)))
-	}
-
-	return output.String(), nil
-}
-
-// parseSwconfigOutput parses swconfig output and returns physical switch ports
-func (p *OpenWrtParser) parseSwconfigOutput(swconfigOutput string) ([]configparser.SwitchPortInfo, error) {
+// parseBoardJSON parses /etc/board.json and returns physical switch ports.
+// It extracts physical port information from the switch configuration.
+func (p *OpenWrtParser) parseBoardJSON(rawConfig string) ([]configparser.SwitchPortInfo, error) {
 	var ports []configparser.SwitchPortInfo
 
-	lines := strings.Split(swconfigOutput, "\n")
-	i := 0
-	for i < len(lines) {
-		line := strings.TrimSpace(lines[i])
-		if strings.HasPrefix(line, "# Port ") && strings.HasSuffix(line, " role=physical") {
-			// Parse port number and following data line
-			parts := strings.Split(strings.TrimPrefix(strings.TrimSuffix(line, " role=physical"), "# Port "), " ")
-			if len(parts) >= 1 {
-				portNum, err := strconv.Atoi(parts[0])
-				if err != nil {
-					i++
-					continue
-				}
+	lines := strings.Split(rawConfig, "\n")
+	var jsonLines []string
+	collecting := false
 
-				// Read the actual data line
-				i++
-				var linkStatus, pvid string
-				for i < len(lines) && strings.HasPrefix(lines[i], "port ") {
-					dataLine := lines[i]
-					if idx := strings.Index(dataLine, "link:"); idx != -1 {
-						linkPart := dataLine[idx+5:]
-						if spaceIdx := strings.IndexAny(linkPart, " \n"); spaceIdx != -1 {
-							linkStatus = strings.TrimSpace(linkPart[:spaceIdx])
-						} else {
-							linkStatus = strings.TrimSpace(linkPart)
-						}
-					}
-					if idx := strings.Index(dataLine, "pvid:"); idx != -1 {
-						pvidPart := dataLine[idx+5:]
-						if spaceIdx := strings.IndexAny(pvidPart, " \n"); spaceIdx != -1 {
-							pvid = strings.TrimSpace(pvidPart[:spaceIdx])
-						} else {
-							pvid = strings.TrimSpace(pvidPart)
-						}
-					}
-					i++
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.Contains(trimmed, "cat /etc/board.json") {
+			collecting = true
+			continue
+		}
+		if collecting {
+			if trimmed == "" || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "network.") || strings.HasPrefix(trimmed, "wireless.") {
+				if len(jsonLines) > 0 {
+					break
 				}
-
-				ports = append(ports, configparser.SwitchPortInfo{
-					PortNumber: portNum,
-					LinkStatus: linkStatus,
-					PVID:       pvid,
-					Role:       "physical",
-				})
 				continue
 			}
+			jsonLines = append(jsonLines, line)
 		}
-		i++
+	}
+
+	if len(jsonLines) == 0 {
+		return ports, nil
+	}
+
+	jsonStr := strings.Join(jsonLines, "\n")
+
+	var board struct {
+		Switch map[string]struct {
+			Ports []struct {
+				Num       int    `json:"num"`
+				Device    string `json:"device"`
+				NeedTag   bool   `json:"need_tag"`
+				WantUntag bool   `json:"want_untag"`
+				Role      string `json:"role"`
+				Index     int    `json:"index"`
+			} `json:"ports"`
+			Roles []struct {
+				Role   string `json:"role"`
+				Ports  string `json:"ports"`
+				Device string `json:"device"`
+			} `json:"roles"`
+		} `json:"switch"`
+	}
+
+	if err := json.Unmarshal([]byte(jsonStr), &board); err != nil {
+		return ports, nil
+	}
+
+	portIndex := 0
+	for switchName, sw := range board.Switch {
+		_ = switchName
+		for _, port := range sw.Ports {
+			if port.Device == "eth0" {
+				continue
+			}
+			if port.Role == "" {
+				continue
+			}
+
+			portName := port.Role
+			if port.Index > 0 {
+				portName = fmt.Sprintf("%s%d", port.Role, port.Index)
+			} else {
+				portName = fmt.Sprintf("%s%d", port.Role, portIndex)
+				portIndex++
+			}
+
+			linkStatus := "down"
+			for _, role := range sw.Roles {
+				if strings.Contains(role.Ports, strconv.Itoa(port.Num)) {
+					linkStatus = "up"
+					break
+				}
+			}
+
+			ports = append(ports, configparser.SwitchPortInfo{
+				PortNumber: port.Num,
+				PortName:   portName,
+				LinkStatus: linkStatus,
+				Role:       port.Role,
+			})
+		}
 	}
 
 	return ports, nil
@@ -518,29 +487,19 @@ func (p *OpenWrtParser) parseNetworkInterfaces(config *UCIConfig, switchPorts []
 		})
 	}
 
-	// Add physical switch ports from swconfig as eth* devices
-	// Switch ports 0,1,2,3 → eth0,eth1,eth2,eth3 (port 4 is CPU)
+	// Add physical switch ports from board.json as named devices (lan0, lan1, wan0, etc.)
 	for _, port := range switchPorts {
-		if port.Role != "physical" {
+		if port.Role == "" || port.Role == "cpu" {
 			continue
 		}
-		// Map switch port number to eth* device name
-		ethName := fmt.Sprintf("eth%d", port.PortNumber)
 
-		// Skip if already emitted
-		alreadyEmitted := false
-		for _, iface := range interfaces {
-			if iface.Name == ethName {
-				alreadyEmitted = true
-				break
-			}
-		}
-		if alreadyEmitted {
-			continue
+		portName := port.PortName
+		if portName == "" {
+			portName = fmt.Sprintf("%s%d", port.Role, port.PortNumber)
 		}
 
 		interfaces = append(interfaces, configparser.ConfigInterface{
-			Name:    ethName,
+			Name:    portName,
 			Enabled: port.LinkStatus == "up",
 			Type:    "physical",
 		})

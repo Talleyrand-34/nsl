@@ -117,6 +117,7 @@ type ConfigFirewallRule struct {
 // SwitchPortInfo represents physical switch port information from swconfig
 type SwitchPortInfo struct {
 	PortNumber int    `json:"port_number"` // Port index (0, 1, 2, etc.)
+	PortName   string `json:"port_name"`   // Human-readable name (e.g., "lan1", "wan0")
 	LinkStatus string `json:"link_status"` // "up", "down"
 	PVID       string `json:"pvid"`        // Port VLAN ID (untagged)
 	Role       string `json:"role"`        // "physical", "cpu", "internal"
