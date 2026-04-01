@@ -24,78 +24,182 @@ import (
 
 	cmd "nsl-graph/cmd/root"
 	util "nsl-graph/cmd/utils"
+	application "nsl-graph/internal/repository/application"
 )
 
 // connectionModCmd represents the connection creation command
 var connectionModCmd = &cobra.Command{
 	Use:   "connection",
 	Short: "Create a new network connection between two device ports",
-	Long: `Create a connection between two device ports by specifying device IDs and model port IDs.
-	
-A connection represents a physical link between two network devices through their specific ports.
-All device and port IDs must exist in the database before creating the connection.
+	Long: `Create a connection between two device ports.
 
-Example:
-  nsl-graph modify connection --from-device-id 1 --from-modelport-id 2 --to-device-id 3 --to-modelport-id 4`,
+Identify endpoints by name (device label or IP + port name):
+  nsl-graph modify connection --from-device 10.0.0.245 --from-modelport eth0 \
+                              --to-device router.local --to-modelport igc1
+
+Or by database IDs (legacy):
+  nsl-graph modify connection --from-device-id <id> --from-modelport-id <id> \
+                              --to-device-id <id> --to-modelport-id <id>`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// Get required parameters with meaningful names
-		fromDeviceId, err := cmd.Flags().GetString("from-device-id")
-		if err != nil || fromDeviceId == "" {
-			fmt.Fprintf(os.Stderr, "Source device ID is required. Use --from-device-id flag.\n")
-			os.Exit(1)
-		}
-
-		fromModelPortId, err := cmd.Flags().GetString("from-modelport-id")
-		if err != nil || fromModelPortId == "" {
-			fmt.Fprintf(os.Stderr, "Source model port ID is required. Use --from-modelport-id flag.\n")
-			os.Exit(1)
-		}
-
-		toDeviceId, err := cmd.Flags().GetString("to-device-id")
-		if err != nil || toDeviceId == "" {
-			fmt.Fprintf(os.Stderr, "Destination device ID is required. Use --to-device-id flag.\n")
-			os.Exit(1)
-		}
-
-		toModelPortId, err := cmd.Flags().GetString("to-modelport-id")
-		if err != nil || toModelPortId == "" {
-			fmt.Fprintf(os.Stderr, "Destination model port ID is required. Use --to-modelport-id flag.\n")
-			os.Exit(1)
-		}
-
-		// Get optional VLAN union flag
-		allowVLANUnion, _ := cmd.Flags().GetBool("allow-vlan-union")
-
-		// Get service connection
 		service, err := util.ServiceConnection()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error connecting to service: %v\n", err)
 			os.Exit(1)
 		}
 
-		// Create the connection
+		fromDeviceName, _ := cmd.Flags().GetString("from-device")
+		fromPortName, _ := cmd.Flags().GetString("from-modelport")
+		toDeviceName, _ := cmd.Flags().GetString("to-device")
+		toPortName, _ := cmd.Flags().GetString("to-modelport")
+
+		fromDeviceId, _ := cmd.Flags().GetString("from-device-id")
+		fromModelPortId, _ := cmd.Flags().GetString("from-modelport-id")
+		toDeviceId, _ := cmd.Flags().GetString("to-device-id")
+		toModelPortId, _ := cmd.Flags().GetString("to-modelport-id")
+
+		// Resolve source device
+		if fromDeviceName != "" {
+			fromDeviceId, err = resolveDeviceID(service, fromDeviceName)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error resolving source device: %v\n", err)
+				os.Exit(1)
+			}
+		}
+		if fromDeviceId == "" {
+			fmt.Fprintf(os.Stderr, "Source device is required. Use --from-device (name/IP) or --from-device-id.\n")
+			os.Exit(1)
+		}
+
+		// Resolve source port
+		if fromPortName != "" {
+			fromModelPortId, err = resolveModelPortID(service, fromPortName, fromDeviceId)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error resolving source port: %v\n", err)
+				os.Exit(1)
+			}
+		}
+		if fromModelPortId == "" {
+			fmt.Fprintf(os.Stderr, "Source model port is required. Use --from-modelport (name) or --from-modelport-id.\n")
+			os.Exit(1)
+		}
+
+		// Resolve destination device
+		if toDeviceName != "" {
+			toDeviceId, err = resolveDeviceID(service, toDeviceName)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error resolving destination device: %v\n", err)
+				os.Exit(1)
+			}
+		}
+		if toDeviceId == "" {
+			fmt.Fprintf(os.Stderr, "Destination device is required. Use --to-device (name/IP) or --to-device-id.\n")
+			os.Exit(1)
+		}
+
+		// Resolve destination port
+		if toPortName != "" {
+			toModelPortId, err = resolveModelPortID(service, toPortName, toDeviceId)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error resolving destination port: %v\n", err)
+				os.Exit(1)
+			}
+		}
+		if toModelPortId == "" {
+			fmt.Fprintf(os.Stderr, "Destination model port is required. Use --to-modelport (name) or --to-modelport-id.\n")
+			os.Exit(1)
+		}
+
+		allowVLANUnion, _ := cmd.Flags().GetBool("allow-vlan-union")
+
 		err = service.AddConnection(fromDeviceId, fromModelPortId, toDeviceId, toModelPortId, allowVLANUnion)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error creating connection: %v\n", err)
 			os.Exit(1)
 		}
 
-		fmt.Printf("Successfully created connection from device %s (port %s) to device %s (port %s)\n", 
-			fromDeviceId, fromModelPortId, toDeviceId, toModelPortId)
+		fromLabel := fromDeviceName
+		if fromLabel == "" {
+			fromLabel = fromDeviceId
+		}
+		toLabel := toDeviceName
+		if toLabel == "" {
+			toLabel = toDeviceId
+		}
+		fromPortLabel := fromPortName
+		if fromPortLabel == "" {
+			fromPortLabel = fromModelPortId
+		}
+		toPortLabel := toPortName
+		if toPortLabel == "" {
+			toPortLabel = toModelPortId
+		}
+		fmt.Printf("Successfully created connection from %s (%s) to %s (%s)\n",
+			fromLabel, fromPortLabel, toLabel, toPortLabel)
 	},
 }
 
 func init() {
 	cmd.ModifyCmd.AddCommand(connectionModCmd)
 
-	connectionModCmd.Flags().String("from-device-id", "", "ID of the source device (required)")
-	connectionModCmd.Flags().String("from-modelport-id", "", "ID of the source device's model port (required)")
-	connectionModCmd.Flags().String("to-device-id", "", "ID of the destination device (required)")
-	connectionModCmd.Flags().String("to-modelport-id", "", "ID of the destination device's model port (required)")
-	connectionModCmd.Flags().Bool("allow-vlan-union", false, "Allow connection if VLANs have any overlap (default: strict matching)")
+	// Name-based flags (preferred)
+	connectionModCmd.Flags().String("from-device", "", "Label or IP of the source device")
+	connectionModCmd.Flags().String("from-modelport", "", "Port name of the source device")
+	connectionModCmd.Flags().String("to-device", "", "Label or IP of the destination device")
+	connectionModCmd.Flags().String("to-modelport", "", "Port name of the destination device")
 
-	connectionModCmd.MarkFlagRequired("from-device-id")
-	connectionModCmd.MarkFlagRequired("from-modelport-id")
-	connectionModCmd.MarkFlagRequired("to-device-id")
-	connectionModCmd.MarkFlagRequired("to-modelport-id")
+	// ID-based flags (legacy)
+	connectionModCmd.Flags().String("from-device-id", "", "ID of the source device")
+	connectionModCmd.Flags().String("from-modelport-id", "", "ID of the source device's model port")
+	connectionModCmd.Flags().String("to-device-id", "", "ID of the destination device")
+	connectionModCmd.Flags().String("to-modelport-id", "", "ID of the destination device's model port")
+
+	connectionModCmd.Flags().Bool("allow-vlan-union", false, "Allow connection if VLANs have any overlap (default: strict matching)")
+}
+
+// resolveDeviceID finds a device by label or IP and returns its database ID.
+func resolveDeviceID(service application.NetServiceInt, nameOrIP string) (string, error) {
+	devices, err := service.GetDevices()
+	if err != nil {
+		return "", fmt.Errorf("could not fetch devices: %w", err)
+	}
+	for _, d := range devices {
+		if d.Name == nameOrIP {
+			return d.ID, nil
+		}
+		for _, ip := range d.IPs {
+			if ip == nameOrIP {
+				return d.ID, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("device not found: %s", nameOrIP)
+}
+
+// resolveModelPortID finds a model port by name that belongs to the model of the given device.
+func resolveModelPortID(service application.NetServiceInt, portName string, deviceID string) (string, error) {
+	devices, err := service.GetDevices()
+	if err != nil {
+		return "", fmt.Errorf("could not fetch devices: %w", err)
+	}
+	var modelName string
+	for _, d := range devices {
+		if d.ID == deviceID {
+			modelName = d.Model
+			break
+		}
+	}
+	if modelName == "" {
+		return "", fmt.Errorf("device ID not found or has no model: %s", deviceID)
+	}
+
+	ports, err := service.GetModelPorts()
+	if err != nil {
+		return "", fmt.Errorf("could not fetch model ports: %w", err)
+	}
+	for _, p := range ports {
+		if p.Name == portName && p.Model == modelName {
+			return p.ID, nil
+		}
+	}
+	return "", fmt.Errorf("port %q not found on model %q", portName, modelName)
 }
