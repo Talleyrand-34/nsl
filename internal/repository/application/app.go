@@ -1712,6 +1712,54 @@ func (ns *NetService) createDevicePortsWithPlan(deviceID string, discovered s.Di
 		}
 	}
 
+	// First pass: collect WiFi radio names from phy*-ap* interfaces
+	// OpenWrt doesn't expose physical radios in SNMP, so we infer them
+	wifiRadios := ns.collectWifiRadios(discovered.Device.Interfaces)
+
+	// Create physical WiFi radio ports and DevicePort records
+	for radioIdx, radioName := range wifiRadios {
+		// Determine band from AP interfaces (heuristic: check if any AP on this radio has 5GHz or 6GHz)
+		band := "2.4GHz" // default
+		// Find the MAC address from the first AP interface on this radio
+		var radioMAC string
+		for _, iface := range discovered.Device.Interfaces {
+			if strings.HasPrefix(iface.Name, radioName+"-ap") {
+				if iface.WifiBand != "" {
+					band = iface.WifiBand
+				}
+				if radioMAC == "" && iface.MAC != "" {
+					radioMAC = iface.MAC
+				}
+				break
+			}
+		}
+
+		if err := ns.AddModelPort(radioName, fmt.Sprintf("%d", radioIdx), "0", modelName, false, "wifi", band); err != nil {
+			if !strings.Contains(err.Error(), "already exists") {
+				return err
+			}
+		}
+
+		// Create DevicePort for the WiFi radio
+		modelPorts, _ := ns.GetModelPorts()
+		var modelPortID string
+		for _, mp := range modelPorts {
+			if mp.Name == radioName && mp.Model == modelName {
+				modelPortID = mp.ID
+				break
+			}
+		}
+
+		if modelPortID != "" {
+			if err := ns.AddDevicePort(deviceID, modelPortID, radioMAC, nil); err != nil {
+				if !strings.Contains(err.Error(), "already exists") {
+					return err
+				}
+			}
+		}
+	}
+
+	// Process physical ports
 	portIdx := 0
 	for _, iface := range discovered.Device.Interfaces {
 		if !iface.IsPhysicalPort() {
@@ -1826,6 +1874,26 @@ func (ns *NetService) createDevicePortsWithPlan(deviceID string, discovered s.Di
 	}
 
 	return nil
+}
+
+// collectWifiRadios extracts WiFi radio names from phy*-ap* interface patterns
+// e.g., from [phy0-ap0, phy0-ap1, phy1-ap0] returns ["phy0", "phy1"]
+func (ns *NetService) collectWifiRadios(interfaces []s.DeviceInterface) []string {
+	radioSet := make(map[string]bool)
+	for _, iface := range interfaces {
+		if strings.HasPrefix(iface.Name, "phy") {
+			parts := strings.Split(iface.Name, "-")
+			if len(parts) >= 1 {
+				radioSet[parts[0]] = true
+			}
+		}
+	}
+
+	radios := make([]string, 0, len(radioSet))
+	for radio := range radioSet {
+		radios = append(radios, radio)
+	}
+	return radios
 }
 
 // vlanExists checks if a VLAN number exists in the provided slice of existing VLANs

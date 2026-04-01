@@ -1,6 +1,9 @@
 package scanner
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 type SNMPOptions struct {
 	Community string `json:"community"` // default "public"
@@ -42,13 +45,136 @@ type DeviceInterface struct {
 }
 
 // IsPhysicalPort returns true if the interface represents a physical port.
+// It checks both ifType AND interface naming conventions since some devices
+// (e.g., OpenWrt) report all interfaces with the same ifType.
 func (d *DeviceInterface) IsPhysicalPort() bool {
-	return d.IfType == IfTypeEthernetCsmacd || d.IfType == IfTypeLag || d.IfType == IfTypeIEEE80211
+	// First check ifType for devices that properly classify interfaces
+	if d.IfType == IfTypeEthernetCsmacd || d.IfType == IfTypeLag || d.IfType == IfTypeIEEE80211 {
+		// Further validate by checking naming conventions for known non-physical patterns
+		if isLogicalInterfaceName(d.Name) {
+			return false
+		}
+		return true
+	}
+	return false
+}
+
+// isLogicalInterfaceName checks if an interface name follows logical/virtual patterns
+func isLogicalInterfaceName(name string) bool {
+	// Bridge interfaces (Linux/OpenWrt)
+	if strings.HasPrefix(name, "br-") || strings.HasPrefix(name, "bridge") {
+		return true
+	}
+	// VLAN subinterfaces (e.g., eth0.10, eth1.20, ens0.100)
+	if strings.Contains(name, ".") && isVLANSubinterface(name) {
+		return true
+	}
+	// OpenVPN interfaces
+	if strings.HasPrefix(name, "ovpns") || strings.HasPrefix(name, "tun") || strings.HasPrefix(name, "tap") {
+		return true
+	}
+	// WireGuard
+	if strings.HasPrefix(name, "wg") {
+		return true
+	}
+	// ZeroTier
+	if strings.HasPrefix(name, "zt") || strings.HasPrefix(name, "zt+") {
+		return true
+	}
+	// Vlan prefix (BSD-style: vlan0, vlan10)
+	if strings.HasPrefix(name, "vlan") {
+		return true
+	}
+	// GRE/GRE6 tunnels
+	if strings.HasPrefix(name, "gre") || strings.HasPrefix(name, "gretap") {
+		return true
+	}
+	// VXLAN
+	if strings.HasPrefix(name, "vxlan") {
+		return true
+	}
+	// Bond interfaces (not LAG, but bonding slaves)
+	if strings.HasPrefix(name, "bond") || strings.HasPrefix(name, "sl") {
+		return true
+	}
+	// WiFi AP interfaces (e.g., phy0-ap0, phy1-ap1) - these are logical, not physical
+	if isWifiAPInterface(name) {
+		return true
+	}
+	return false
+}
+
+// isWifiAPInterface checks if the interface name is a WiFi AP interface
+// e.g., phy0-ap0, phy1-ap1, wlan0, wlan0-1
+func isWifiAPInterface(name string) bool {
+	// OpenWrt WiFi AP interfaces: phy0-ap0, phy1-ap1, etc.
+	if strings.HasPrefix(name, "phy") {
+		// Match pattern: phy[0-9]-ap[0-9]+
+		parts := strings.Split(name, "-")
+		if len(parts) == 2 && strings.HasPrefix(parts[1], "ap") {
+			return true
+		}
+	}
+	// Standard wireless interfaces: wlan0, wlan0-1, wl0, etc.
+	if strings.HasPrefix(name, "wlan") || strings.HasPrefix(name, "wl") || strings.HasPrefix(name, "wifi") {
+		return true
+	}
+	return false
+}
+
+// isWifiRadioName checks if the interface name is a WiFi radio (physical)
+// e.g., phy0, phy1, wlan0, wlan0-1 (without -ap suffix)
+func isWifiRadioName(name string) bool {
+	// OpenWrt WiFi radios: phy0, phy1, etc.
+	if strings.HasPrefix(name, "phy") && !strings.Contains(name, "-") {
+		return true
+	}
+	// Standard wireless interfaces without AP suffix
+	if strings.HasPrefix(name, "wlan") || strings.HasPrefix(name, "wl") || strings.HasPrefix(name, "wifi") {
+		// Exclude interfaces that are AP interfaces
+		if !strings.Contains(name, "-ap") {
+			return true
+		}
+	}
+	return false
+}
+
+// isVLANSubinterface checks if the dot-separated name represents a VLAN subinterface
+func isVLANSubinterface(name string) bool {
+	parts := strings.Split(name, ".")
+	if len(parts) != 2 {
+		return false
+	}
+	// First part should look like a physical interface name
+	baseName := parts[0]
+	vlanID := parts[1]
+
+	// Base name should not be empty and should look like an interface
+	if baseName == "" || len(baseName) < 2 {
+		return false
+	}
+
+	// VLAN ID should be numeric
+	for _, c := range vlanID {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 // IsWifiRadio returns true if the interface is a WiFi radio port.
+// It checks both ifType and naming conventions (e.g., phy0, phy1).
 func (d *DeviceInterface) IsWifiRadio() bool {
-	return d.IfType == IfTypeIEEE80211
+	// Check ifType for devices that properly classify WiFi
+	if d.IfType == IfTypeIEEE80211 {
+		return true
+	}
+	// Also check naming conventions for OpenWrt-style radios
+	if isWifiRadioName(d.Name) {
+		return true
+	}
+	return false
 }
 
 // VLANMembership describes a VLAN assignment on an interface.
