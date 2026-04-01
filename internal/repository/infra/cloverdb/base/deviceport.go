@@ -39,7 +39,6 @@ func (r BasicOpsCloverRepository) DevicePortExists(deviceid string, modelportid 
 }
 
 // AddDevicePort adds a new device port to the database.
-// vlanConfigs is accepted but ignored — VLAN data is now stored on DeviceInterface.
 func (r BasicOpsCloverRepository) AddDevicePort(deviceid string, modelportid string, macAddress string, vlanConfigs []e.PortVlanConfig) error {
 	// Validate that the model port belongs to the device's model
 	deviceDoc, err := r.db.FindById(devicesCollection, deviceid)
@@ -67,6 +66,17 @@ func (r BasicOpsCloverRepository) AddDevicePort(deviceid string, modelportid str
 	doc.Set("model_port_id", modelportid)
 	if macAddress != "" {
 		doc.Set("mac_address", macAddress)
+	}
+
+	if len(vlanConfigs) > 0 {
+		vlansMap := make([]map[string]interface{}, len(vlanConfigs))
+		for i, vc := range vlanConfigs {
+			vlansMap[i] = map[string]interface{}{
+				"vlan_number": vc.VlanNumber,
+				"tagged":      vc.Tagged,
+			}
+		}
+		doc.Set("vlan_configs", vlansMap)
 	}
 
 	_, err = r.db.InsertOne(deviceportsCollection, doc)
@@ -149,8 +159,30 @@ func (r BasicOpsCloverRepository) GetDevicePorts() ([]e.DevicePort, error) {
 				}
 			}
 
-			// Collect VLAN configs from all InterfacePorts linked to this port
+			// Collect VLAN configs from all InterfacePorts linked to this port AND from DevicePort's own vlan_configs
 			seen := make(map[string]struct{})
+			// First add VLANs from DevicePort's own vlan_configs field
+			if raw, ok := doc.Get("vlan_configs").([]interface{}); ok {
+				for _, item := range raw {
+					if m, ok := item.(map[string]interface{}); ok {
+						vc := e.PortVlanConfig{}
+						if vn, ok := m["vlan_number"].(string); ok {
+							vc.VlanNumber = vn
+						}
+						if t, ok := m["tagged"].(bool); ok {
+							vc.Tagged = t
+						}
+						if vc.VlanNumber != "" {
+							key := vc.VlanNumber + ":" + fmt.Sprintf("%v", vc.Tagged)
+							if _, exists := seen[key]; !exists {
+								seen[key] = struct{}{}
+								devicePort.VlanConfigs = append(devicePort.VlanConfigs, vc)
+							}
+						}
+					}
+				}
+			}
+			// Then add VLANs from InterfacePorts
 			for _, vc := range portToVlanConfigs[devicePort.DeviceID+":"+modelPortID] {
 				key := vc.VlanNumber + ":" + fmt.Sprintf("%v", vc.Tagged)
 				if _, exists := seen[key]; !exists {

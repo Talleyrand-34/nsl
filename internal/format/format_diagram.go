@@ -415,12 +415,16 @@ func getPortUntaggedVlan(
 	allInterfaces []e.DeviceInterface,
 	ifacePorts []e.InterfacePort,
 ) string {
-	// Step 1: identify the DevicePort
+	// Step 1: identify the DevicePort and collect VLANs from it first (physical port's own VLANs)
 	var deviceID, modelPortID string
+	portVlans := make(map[string]bool) // vlanNumber -> tagged
 	for _, dp := range devicePorts {
 		if dp.DevLabel == deviceLabel && dp.PortName == portName {
 			deviceID = dp.DeviceID
 			modelPortID = dp.ModelID
+			for _, vc := range dp.VlanConfigs {
+				portVlans[vc.VlanNumber] = vc.Tagged
+			}
 			break
 		}
 	}
@@ -447,6 +451,14 @@ func getPortUntaggedVlan(
 			}
 		}
 	}
+
+	// Step 4: if no untagged VLAN found via InterfacePorts, check DevicePort's own VLANs
+	for vlanNum, tagged := range portVlans {
+		if !tagged {
+			return vlanNum
+		}
+	}
+
 	return ""
 }
 
@@ -495,6 +507,10 @@ func getConnectionVlansIntersection(
 			if dp.DevLabel == deviceLabel && dp.PortName == portName {
 				deviceID = dp.DeviceID
 				modelPortID = dp.ModelID
+				// Also check DevicePort's own VlanConfigs (physical ports with implicit VLANs)
+				for _, vc := range dp.VlanConfigs {
+					set[vc.VlanNumber] = true
+				}
 				break
 			}
 		}
@@ -508,11 +524,18 @@ func getConnectionVlansIntersection(
 			}
 		}
 		for _, iface := range allInterfaces {
-			if _, ok := ifaceIDSet[iface.ID]; !ok {
-				continue
+			// Match either via InterfacePort OR by DeviceID + name matching the physical port
+			matched := false
+			if _, ok := ifaceIDSet[iface.ID]; ok {
+				matched = true
+			} else if iface.DeviceID == deviceID && iface.Name == portName {
+				// Physical interface - check if it matches this port
+				matched = true
 			}
-			for _, vc := range iface.VlanConfigs {
-				set[vc.VlanNumber] = true
+			if matched {
+				for _, vc := range iface.VlanConfigs {
+					set[vc.VlanNumber] = true
+				}
 			}
 		}
 		return set

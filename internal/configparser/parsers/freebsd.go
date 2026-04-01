@@ -181,6 +181,31 @@ func parseIfconfigOutput(output string) ([]configparser.ConfigInterface, []confi
 		vlans = append(vlans, v)
 	}
 
+	// Post-process: add implicit VLAN 1 untagged to physical interfaces
+	// that are parents of VLAN subinterfaces. On FreeBSD/OPNsense, physical
+	// interfaces are implicitly members of VLAN 1 as untagged (native VLAN).
+	vlanParents := make(map[string]bool)
+	for _, iface := range interfaces {
+		if iface.Type == "vlan" && iface.Parent != "" {
+			vlanParents[iface.Parent] = true
+		}
+	}
+	for i := range interfaces {
+		if interfaces[i].Type == "physical" && vlanParents[interfaces[i].Name] {
+			hasVlan1 := false
+			for _, v := range interfaces[i].VLANs {
+				if v.ID == "1" {
+					hasVlan1 = true
+					break
+				}
+			}
+			if !hasVlan1 {
+				interfaces[i].VLANs = append(interfaces[i].VLANs,
+					configparser.ConfigVLAN{ID: "1", Tagged: false, Enabled: true})
+			}
+		}
+	}
+
 	return interfaces, vlans, nil
 }
 

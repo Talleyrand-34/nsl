@@ -28,9 +28,9 @@ import (
 
 func createTestDevice(sysDescr, sysName string) s.SNMPDevice {
 	return s.SNMPDevice{
-		IP:       "192.168.1.1",
-		SysName:  sysName,
-		SysDescr: sysDescr,
+		IP:        "192.168.1.1",
+		SysName:   sysName,
+		SysDescr:  sysDescr,
 		Reachable: true,
 	}
 }
@@ -111,14 +111,17 @@ func TestFreeBSDParser_ParseConfig(t *testing.T) {
 		ifaceByName[iface.Name] = iface
 	}
 
-	// igc0 — physical, UP, has IP and MAC
+	// igc0 — physical, UP, has IP and MAC, also has implicit VLAN 1 untagged
+	// (physical interfaces that are parents of VLAN subinterfaces are implicitly in VLAN 1)
 	igc0, ok := ifaceByName["igc0"]
 	assert.True(t, ok, "igc0 should be present")
 	assert.Equal(t, "physical", igc0.Type)
 	assert.True(t, igc0.Enabled)
 	assert.Equal(t, "aa:bb:cc:dd:ee:ff", igc0.MACAddress)
 	assert.Contains(t, igc0.IPAddresses, "10.0.0.1/24")
-	assert.Empty(t, igc0.VLANs)
+	assert.Len(t, igc0.VLANs, 1)
+	assert.Equal(t, "1", igc0.VLANs[0].ID)
+	assert.False(t, igc0.VLANs[0].Tagged) // untagged
 
 	// igc0.10 — VLAN subinterface
 	vlanIface, ok := ifaceByName["igc0.10"]
