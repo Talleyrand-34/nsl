@@ -1917,6 +1917,7 @@ func (ns *NetService) createDevicePortsWithPlan(deviceID string, discovered s.Di
 	// Create DeviceInterface records for virtual interfaces (wifi-iface SSIDs and logical/VLAN UCI interfaces)
 	// Build a map of physical port names to modelPortIDs for linking
 	physicalPortMap := make(map[string]string) // port name -> modelPortID
+	modelPorts, _ := ns.GetModelPorts()
 	for _, iface := range discovered.Device.Interfaces {
 		if !iface.IsPhysicalPort() {
 			continue
@@ -1930,7 +1931,21 @@ func (ns *NetService) createDevicePortsWithPlan(deviceID string, discovered s.Di
 			}
 		}
 		// Find the modelPortID for this physical port
-		modelPorts, _ := ns.GetModelPorts()
+		for _, mp := range modelPorts {
+			if mp.Name == portName && mp.Model == modelName {
+				physicalPortMap[portName] = mp.ID
+				break
+			}
+		}
+	}
+
+	// Add SwitchPorts (from board.json) to physicalPortMap so bridges can link via parent chain
+	for _, port := range discovered.Device.SwitchPorts {
+		portName := port.Name
+		if portName == "" {
+			portName = fmt.Sprintf("%s%d", port.Role, port.PortNumber)
+		}
+		// Find the modelPortID for this switch port
 		for _, mp := range modelPorts {
 			if mp.Name == portName && mp.Model == modelName {
 				physicalPortMap[portName] = mp.ID
@@ -1941,10 +1956,6 @@ func (ns *NetService) createDevicePortsWithPlan(deviceID string, discovered s.Di
 
 	for _, iface := range discovered.Device.Interfaces {
 		if iface.IsPhysicalPort() {
-			continue
-		}
-		hasData := iface.WifiSSID != "" || len(iface.IPAddresses) > 0 || len(iface.VLANs) > 0
-		if !hasData {
 			continue
 		}
 		vlanConfigs := buildVlanConfigs(iface.VLANs)

@@ -497,6 +497,22 @@ func (p *OpenWrtParser) parseNetworkInterfaces(config *UCIConfig, switchPorts []
 
 				// If base is eth0 and we have a VLAN suffix (e.g., eth0.4), emit the VLAN subinterface
 				if base == "eth0" && len(parts) == 2 && parts[1] != "" {
+					// Emit eth0 as a logical interface if not already emitted (it's the CPU port)
+					eth0Exists := false
+					for _, iface := range interfaces {
+						if iface.Name == "eth0" {
+							eth0Exists = true
+							break
+						}
+					}
+					if !eth0Exists {
+						interfaces = append(interfaces, configparser.ConfigInterface{
+							Name:   "eth0",
+							Type:   "logical",
+							Parent: "",
+						})
+					}
+
 					vlanIfaceName := port // e.g., "eth0.4"
 					// Only emit if not already emitted
 					alreadyEmitted := false
