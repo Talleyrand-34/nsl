@@ -294,6 +294,11 @@ func (m *ConfigurationMerger) mergeConfigIntoDevice(
 			if merged.Device.Interfaces[i].Parent == "" && configIface.Parent != "" {
 				merged.Device.Interfaces[i].Parent = configIface.Parent
 			}
+
+			// Propagate IsBridge from config if the config says this is a bridge interface.
+			if configIface.Type == "bridge" {
+				merged.Device.Interfaces[i].IsBridge = true
+			}
 		}
 	}
 

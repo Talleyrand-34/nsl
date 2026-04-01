@@ -42,12 +42,16 @@ type DeviceInterface struct {
 	WifiBand     string            `json:"wifi_band,omitempty"`     // "2.4GHz", "5GHz", "6GHz" for wifi radios
 	WifiSSID     string            `json:"wifi_ssid,omitempty"`     // SSID for wifi-iface type
 	WifiSecurity string            `json:"wifi_security,omitempty"` // "open", "wpa2", "wpa3"
+	IsBridge     bool              `json:"is_bridge,omitempty"`     // true if this is a bridge interface (e.g., eth0 on OpenWrt DSA)
 }
 
 // IsPhysicalPort returns true if the interface represents a physical port.
 // It checks both ifType AND interface naming conventions since some devices
 // (e.g., OpenWrt) report all interfaces with the same ifType.
 func (d *DeviceInterface) IsPhysicalPort() bool {
+	if d.IsBridge {
+		return false
+	}
 	// First check ifType for devices that properly classify interfaces
 	if d.IfType == IfTypeEthernetCsmacd || d.IfType == IfTypeLag || d.IfType == IfTypeIEEE80211 {
 		// Further validate by checking naming conventions for known non-physical patterns
