@@ -224,7 +224,22 @@ Display all device ports.
 ```bash
 nsl-graph print connection
 ```
-Display all connections.
+Display all connections. Each connection includes computed VLAN information:
+- `vlans`: Array of VLANs present on **both** port ends (intersection)
+- `missing_vlans`: Array of VLANs present on **only one** port end (symmetric difference)
+
+Example output:
+```json
+{
+  "id": "abc123",
+  "fromdevice": "switch01",
+  "frommodel": "lan1",
+  "todevice": "router01",
+  "tomodel": "wan0",
+  "vlans": [{"vlan_id": "1", "tagged": false}],
+  "missing_vlans": [{"vlan_id": "2", "tagged": false}]
+}
+```
 
 #### print possibleports
 ```bash

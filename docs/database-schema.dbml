@@ -1,0 +1,205 @@
+// NSL-Graph Database Schema
+// Database: CloverDB (Document Store)
+// Schema Version: 1.0
+
+Project nsl_graph {
+  database_type: 'CloverDB'
+  note: 'Document-based database for network topology management'
+}
+
+// ============================================
+// Base Entity Collections
+// ============================================
+
+// Equipment manufacturers (Cisco, Juniper, HP, etc.)
+Table brands {
+  _id string [pk]
+  name string
+}
+
+// Types of network equipment (router, switch, firewall, etc.)
+Table devclasses {
+  _id string [pk]
+  name string
+}
+
+// Ownership/management entities (TDS, Navantia, etc.)
+Table proprietaries {
+  _id string [pk]
+  proprietary string
+}
+
+// Zone classification types (physical, logical, security, management, etc.)
+Table zonetypes {
+  _id string [pk]
+  location_type string
+}
+
+// ============================================
+// Zone Hierarchy
+// ============================================
+
+// Network segments with hierarchical relationships
+// Zones can contain sub-zones (self-referencing)
+Table zones {
+  _id string [pk]
+  name string
+  father string [null]
+  proprietary string [null]
+  location_type string [null]
+  granularity int [null]
+}
+
+// ============================================
+// VLAN Collections
+// ============================================
+
+// Global VLAN definitions with IP segments
+Table vlans {
+  _id string [pk]
+  vlan_id string
+  vlan_name string
+  ip_segment string
+}
+
+// Device-specific VLAN name mappings
+Table localvlans {
+  _id string [pk]
+  vlan_id string
+  device_id string
+  vlan_name string
+}
+
+// ============================================
+// Model/Template Collections
+// ============================================
+
+// Device model specifications
+Table models {
+  _id string [pk]
+  model string
+  brand string
+  class_id string
+}
+
+// Port layouts for device models
+Table modelports {
+  _id string [pk]
+  name string
+  position_x int
+  position_y int
+  port_type string
+  band string [null]
+  allow_multiple_connections bool
+  model_id string
+}
+
+// ============================================
+// Device Collections
+// ============================================
+
+// Individual equipment instances
+Table devices {
+  _id string [pk]
+  label string
+  model_id string
+  zone_id string [null]
+  proprietary string [null]
+}
+
+// Physical port instances on devices with VLAN configurations
+Table deviceports {
+  _id string [pk]
+  device_id string
+  model_port_id string
+  mac_address string
+  vlan_configs string [note: 'JSON array: [{vlan_number: string, tagged: bool}]']
+}
+
+// Logical interfaces on devices (VLAN subinterfaces, bridges, WiFi SSIDs, etc.)
+Table device_interfaces {
+  _id string [pk]
+  device_id string
+  name string
+  description string
+  parent string [null]
+  vlan_configs string [note: 'JSON array: [{vlan_number: string, tagged: bool}]']
+  ip_addresses string [note: 'JSON array: [string]']
+  wifi_ssid string [null]
+  wifi_security string [null]
+}
+
+// Join table: Maps logical interfaces to physical device ports
+Table interface_ports {
+  _id string [pk]
+  interface_id string
+  device_id string
+  model_port_id string
+  vlan_configs string [note: 'JSON array: [{vlan_number: string, tagged: bool}]']
+  ip_addresses string [note: 'JSON array: [string]']
+}
+
+// ============================================
+// Connection Collections
+// ============================================
+
+// Physical/logical connections between device ports
+Table connections {
+  _id string [pk]
+  from_device_id string
+  from_model_port_id string
+  to_device_id string
+  to_model_port_id string
+  connection_type string [null]
+}
+
+// Connection type definitions (ethernet, fiber, wireless, etc.)
+Table connectiontypes {
+  _id string [pk]
+  connection_type string
+}
+
+// ============================================
+// Relationships
+// ============================================
+
+// Zone self-hierarchy
+Ref: zones.father > zones._id
+
+// Zone references
+Ref: zones.proprietary > proprietaries._id
+Ref: zones.location_type > zonetypes._id
+
+// Model references
+Ref: models.brand > brands._id
+Ref: models.class_id > devclasses._id
+
+// ModelPort -> Model
+Ref: modelports.model_id > models._id
+
+// Device references
+Ref: devices.model_id > models._id
+Ref: devices.zone_id > zones._id
+Ref: devices.proprietary > proprietaries._id
+
+// DevicePort references
+Ref: deviceports.device_id > devices._id
+Ref: deviceports.model_port_id > modelports._id
+
+// DeviceInterface -> Device
+Ref: device_interfaces.device_id > devices._id
+
+// InterfacePort references
+Ref: interface_ports.interface_id > device_interfaces._id
+Ref: interface_ports.device_id > devices._id
+Ref: interface_ports.model_port_id > modelports._id
+
+// Connection references
+Ref: connections.from_device_id > devices._id
+Ref: connections.from_model_port_id > modelports._id
+Ref: connections.to_device_id > devices._id
+Ref: connections.to_model_port_id > modelports._id
+Ref: connections.connection_type > connectiontypes._id
+
+// LocalVlan -> Device
+Ref: localvlans.device_id > devices._id
