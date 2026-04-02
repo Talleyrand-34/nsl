@@ -99,6 +99,8 @@ type NetServiceInt interface {
 		zoneId string,
 		zoneName string,
 		proprietaryName string,
+		isUnmanaged bool,
+		isInvisible bool,
 	) error
 	GetDevices() ([]e.Device, error)
 	UpdateDevice(
@@ -133,7 +135,7 @@ type NetServiceInt interface {
 	DeleteModelPort(modelPortId string) error
 
 	// DevicePort operations
-	AddDevicePort(deviceId string, modelPortId string, macAddress string, vlanConfigs []e.PortVlanConfig) error
+	AddDevicePort(deviceId string, modelPortId string, macAddress string, vlanConfigs []e.PortVlanConfig) (string, error)
 	GetDevicePorts() ([]e.DevicePort, error)
 	UpdateDevicePort(deviceId string, modelPortId string, macAddress string, vlanConfigs []e.PortVlanConfig) error
 	DeleteDevicePort(deviceId string, modelPortId string) error
@@ -146,20 +148,14 @@ type NetServiceInt interface {
 
 	// Connection operations
 	AddConnection(
-		fromDeviceId string,
-		fromModelPortId string,
-		toDeviceId string,
-		toModelPortId string,
-		allowVLANUnion bool,
+		fromDeviceportID string,
+		toDeviceportID string,
 	) error
 	GetConnections() ([]e.Connection, error)
 	UpdateConnection(
 		connectionId string,
-		newFromDeviceId string,
-		newFromModelPortId string,
-		newToDeviceId string,
-		newToModelPortId string,
-		allowVLANUnion bool,
+		newFromDeviceportID string,
+		newToDeviceportID string,
 	) error
 	DeleteConnection(connectionId string) error
 
@@ -308,8 +304,44 @@ func (ns *NetService) AddDevice(
 	zoneId string,
 	zoneName string,
 	proprietary string,
+	isUnmanaged bool,
+	isInvisible bool,
 ) error {
-	return ns.netRepo.AddDevice(label, model, zoneId, zoneName, proprietary)
+	// Generate name for unmanaged devices if not provided
+	if isUnmanaged && label == "" {
+		generatedLabel, err := ns.generateUnmanagedName()
+		if err != nil {
+			return err
+		}
+		label = generatedLabel
+	}
+	return ns.netRepo.AddDevice(label, model, zoneId, zoneName, proprietary, isUnmanaged, isInvisible)
+}
+
+func (ns *NetService) generateUnmanagedName() (string, error) {
+	devices, err := ns.netRepo.GetDevices()
+	if err != nil {
+		return "", fmt.Errorf("failed to get devices for name generation: %w", err)
+	}
+
+	// Collect existing "unmanagedXX" names
+	existingNumbers := make(map[int]bool)
+	for _, d := range devices {
+		if len(d.Name) > 9 && d.Name[:9] == "unmanaged" {
+			var num int
+			_, err := fmt.Sscanf(d.Name[9:], "%d", &num)
+			if err == nil {
+				existingNumbers[num] = true
+			}
+		}
+	}
+
+	// Find the first available number starting from 1
+	for i := 1; ; i++ {
+		if !existingNumbers[i] {
+			return fmt.Sprintf("unmanaged%02d", i), nil
+		}
+	}
 }
 
 func (ns *NetService) UpdateDeviceIPs(deviceId string, ips []string) error {
@@ -326,7 +358,7 @@ func (ns *NetService) AddDevicePort(
 	modelportid string,
 	macAddress string,
 	vlanConfigs []e.PortVlanConfig,
-) error {
+) (string, error) {
 	return ns.netRepo.AddDevicePort(deviceid, modelportid, macAddress, vlanConfigs)
 }
 
@@ -362,39 +394,10 @@ func (ns *NetService) GetConnections() ([]e.Connection, error) {
 }
 
 func (ns *NetService) AddConnection(
-	fromDevice string,
-	fromModelPort string,
-	toDevice string,
-	toModelPort string,
-	allowVLANUnion bool,
+	fromDeviceportID string,
+	toDeviceportID string,
 ) error {
-	// Business logic: Ensure device ports exist before creating connection
-	// Check if "from" device port exists, create if it doesn't
-	fromExists, err := ns.netRepo.DevicePortExists(fromDevice, fromModelPort)
-	if err != nil {
-		return fmt.Errorf("error checking from device port: %w", err)
-	}
-	if !fromExists {
-		// Try to create the device port with empty VLANs
-		if err := ns.netRepo.AddDevicePort(fromDevice, fromModelPort, "", nil); err != nil {
-			return fmt.Errorf("error creating from device port: %w", err)
-		}
-	}
-
-	// Check if "to" device port exists, create if it doesn't
-	toExists, err := ns.netRepo.DevicePortExists(toDevice, toModelPort)
-	if err != nil {
-		return fmt.Errorf("error checking to device port: %w", err)
-	}
-	if !toExists {
-		// Try to create the device port with empty VLANs
-		if err := ns.netRepo.AddDevicePort(toDevice, toModelPort, "", nil); err != nil {
-			return fmt.Errorf("error creating to device port: %w", err)
-		}
-	}
-
-	// Create the connection (VLAN validation happens in repository layer)
-	return ns.netRepo.AddConnection(fromDevice, fromModelPort, toDevice, toModelPort, allowVLANUnion)
+	return ns.netRepo.AddConnection(fromDeviceportID, toDeviceportID)
 }
 
 func (ns *NetService) GetAllPortsAll() ([]e.DevicePort, error) {
@@ -592,39 +595,10 @@ func (ns *NetService) DeleteConnectionType(connectionTypeName string) error {
 
 func (ns *NetService) UpdateConnection(
 	connectionId string,
-	newFromDeviceId string,
-	newFromModelPortId string,
-	newToDeviceId string,
-	newToModelPortId string,
-	allowVLANUnion bool,
+	newFromDeviceportID string,
+	newToDeviceportID string,
 ) error {
-	// Business logic: Ensure device ports exist before updating connection
-	// Check if "from" device port exists, create if it doesn't
-	fromExists, err := ns.netRepo.DevicePortExists(newFromDeviceId, newFromModelPortId)
-	if err != nil {
-		return fmt.Errorf("error checking from device port: %w", err)
-	}
-	if !fromExists {
-		// Try to create the device port with empty VLANs
-		if err := ns.netRepo.AddDevicePort(newFromDeviceId, newFromModelPortId, "", nil); err != nil {
-			return fmt.Errorf("error creating from device port: %w", err)
-		}
-	}
-
-	// Check if "to" device port exists, create if it doesn't
-	toExists, err := ns.netRepo.DevicePortExists(newToDeviceId, newToModelPortId)
-	if err != nil {
-		return fmt.Errorf("error checking to device port: %w", err)
-	}
-	if !toExists {
-		// Try to create the device port with empty VLANs
-		if err := ns.netRepo.AddDevicePort(newToDeviceId, newToModelPortId, "", nil); err != nil {
-			return fmt.Errorf("error creating to device port: %w", err)
-		}
-	}
-
-	// Update the connection (VLAN validation happens in repository layer)
-	return ns.netRepo.UpdateConnection(connectionId, newFromDeviceId, newFromModelPortId, newToDeviceId, newToModelPortId, allowVLANUnion)
+	return ns.netRepo.UpdateConnection(connectionId, newFromDeviceportID, newToDeviceportID)
 }
 
 func (ns *NetService) AddVlan(vlanID string, vlanName string, ipSegment string) error {
@@ -980,6 +954,8 @@ func (ns *NetService) importSingleDevice(discovered s.DiscoveredDevice, options 
 		"",
 		zoneName,
 		"Discovered",
+		false,
+		false,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to add device: %w", err)
@@ -1073,7 +1049,7 @@ func (ns *NetService) createDevicePortsForDevice(deviceID string, discovered s.D
 		}
 
 		// Create the physical port (no VLAN configs on the port itself)
-		if err := ns.AddDevicePort(deviceID, modelPortID, iface.MAC, nil); err != nil {
+		if _, err := ns.AddDevicePort(deviceID, modelPortID, iface.MAC, nil); err != nil {
 			if !strings.Contains(err.Error(), "already exists") {
 				return err
 			}
@@ -1629,6 +1605,8 @@ func (ns *NetService) importSingleDeviceWithPlan(discovered s.DiscoveredDevice, 
 		"",
 		zoneName,
 		"Discovered",
+		false,
+		false,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to add device: %w", err)
@@ -1717,7 +1695,7 @@ func (ns *NetService) createDevicePortsWithPlan(deviceID string, discovered s.Di
 		}
 
 		if modelPortID != "" {
-			if err := ns.AddDevicePort(deviceID, modelPortID, radioMAC, nil); err != nil {
+			if _, err := ns.AddDevicePort(deviceID, modelPortID, radioMAC, nil); err != nil {
 				if !strings.Contains(err.Error(), "already exists") {
 					return err
 				}
@@ -1764,7 +1742,7 @@ func (ns *NetService) createDevicePortsWithPlan(deviceID string, discovered s.Di
 					Tagged:     vlan.Tagged,
 				})
 			}
-			if err := ns.AddDevicePort(deviceID, modelPortID, port.MAC, vlanConfigs); err != nil {
+			if _, err := ns.AddDevicePort(deviceID, modelPortID, port.MAC, vlanConfigs); err != nil {
 				if !strings.Contains(err.Error(), "already exists") {
 					return err
 				}
@@ -1852,7 +1830,7 @@ func (ns *NetService) createDevicePortsWithPlan(deviceID string, discovered s.Di
 			})
 		}
 
-		if err := ns.AddDevicePort(deviceID, modelPortID, iface.MAC, vlanConfigs); err != nil {
+		if _, err := ns.AddDevicePort(deviceID, modelPortID, iface.MAC, vlanConfigs); err != nil {
 			if !strings.Contains(err.Error(), "already exists") {
 				return err
 			}

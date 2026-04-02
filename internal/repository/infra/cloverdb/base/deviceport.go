@@ -39,26 +39,26 @@ func (r BasicOpsCloverRepository) DevicePortExists(deviceid string, modelportid 
 }
 
 // AddDevicePort adds a new device port to the database.
-func (r BasicOpsCloverRepository) AddDevicePort(deviceid string, modelportid string, macAddress string, vlanConfigs []e.PortVlanConfig) error {
+func (r BasicOpsCloverRepository) AddDevicePort(deviceid string, modelportid string, macAddress string, vlanConfigs []e.PortVlanConfig) (string, error) {
 	// Validate that the model port belongs to the device's model
 	deviceDoc, err := r.db.FindById(devicesCollection, deviceid)
 	if err != nil {
-		return fmt.Errorf("device not found: %v", err)
+		return "", fmt.Errorf("device not found: %v", err)
 	}
 
 	modelID, ok := deviceDoc.Get("model_id").(string)
 	if !ok {
-		return fmt.Errorf("device has no model")
+		return "", fmt.Errorf("device has no model")
 	}
 
 	modelPortDoc, err := r.db.FindById(modelportsCollection, modelportid)
 	if err != nil {
-		return fmt.Errorf("model port not found: %v", err)
+		return "", fmt.Errorf("model port not found: %v", err)
 	}
 
 	portModelID, ok := modelPortDoc.Get("model_id").(string)
 	if !ok || portModelID != modelID {
-		return fmt.Errorf("model port does not belong to device's model")
+		return "", fmt.Errorf("model port does not belong to device's model")
 	}
 
 	doc := d.NewDocument()
@@ -79,11 +79,162 @@ func (r BasicOpsCloverRepository) AddDevicePort(deviceid string, modelportid str
 		doc.Set("vlan_configs", vlansMap)
 	}
 
-	_, err = r.db.InsertOne(deviceportsCollection, doc)
+	docID, err := r.db.InsertOne(deviceportsCollection, doc)
 	if err != nil {
-		return fmt.Errorf("AddDevicePort failed: %w", err)
+		return "", fmt.Errorf("AddDevicePort failed: %w", err)
 	}
-	return nil
+	return docID, nil
+}
+
+// getUnmanagedDevicePortVLANs computes VLANs for an unmanaged deviceport dynamically.
+// It recursively follows connections to collect all VLANs from connected deviceports.
+func (r BasicOpsCloverRepository) getUnmanagedDevicePortVLANs(deviceportID string, visited map[string]struct{}) ([]e.PortVlanConfig, error) {
+	// Mark as visited to prevent cycles
+	visited[deviceportID] = struct{}{}
+
+	// Find all connections where this deviceport is an endpoint
+	fromConns, err := r.db.FindAll(q.NewQuery(connectionsCollection).Where(
+		q.Field("from_deviceport_id").Eq(deviceportID)))
+	if err != nil {
+		return nil, fmt.Errorf("failed to find connections: %w", err)
+	}
+	toConns, err := r.db.FindAll(q.NewQuery(connectionsCollection).Where(
+		q.Field("to_deviceport_id").Eq(deviceportID)))
+	if err != nil {
+		return nil, fmt.Errorf("failed to find connections: %w", err)
+	}
+
+	// Collect all connected deviceport IDs
+	type connInfo struct {
+		otherDeviceportID string
+		isFrom            bool
+	}
+	var connectedPorts []connInfo
+	for _, c := range fromConns {
+		if toID, ok := c.Get("to_deviceport_id").(string); ok {
+			connectedPorts = append(connectedPorts, connInfo{otherDeviceportID: toID, isFrom: false})
+		}
+	}
+	for _, c := range toConns {
+		if fromID, ok := c.Get("from_deviceport_id").(string); ok {
+			connectedPorts = append(connectedPorts, connInfo{otherDeviceportID: fromID, isFrom: true})
+		}
+	}
+
+	// Collect VLANs from all connected deviceports
+	result := make([]e.PortVlanConfig, 0)
+	seen := make(map[string]struct{})
+
+	for _, conn := range connectedPorts {
+		otherID := conn.otherDeviceportID
+
+		// Check if already visited (cycle)
+		if _, wasVisited := visited[otherID]; wasVisited {
+			continue
+		}
+
+		// Get the other deviceport
+		otherDoc, err := r.db.FindById(deviceportsCollection, otherID)
+		if err != nil || otherDoc == nil {
+			continue
+		}
+
+		// Get the parent device of the other deviceport
+		otherDeviceID, _ := otherDoc.Get("device_id").(string)
+		otherDeviceDoc, err := r.db.FindById(devicesCollection, otherDeviceID)
+		if err != nil || otherDeviceDoc == nil {
+			continue
+		}
+
+		// Check if the other device is unmanaged
+		isUnmanaged, _ := otherDeviceDoc.Get("is_unmanaged").(bool)
+
+		if isUnmanaged {
+			// Recursively get VLANs from the unmanaged deviceport
+			subVLANs, err := r.getUnmanagedDevicePortVLANs(otherID, visited)
+			if err != nil {
+				continue
+			}
+			for _, vc := range subVLANs {
+				key := vc.VlanNumber + ":" + fmt.Sprintf("%v", vc.Tagged)
+				if _, exists := seen[key]; !exists {
+					seen[key] = struct{}{}
+					result = append(result, vc)
+				}
+			}
+		} else {
+			// Get VLANs from the regular deviceport (stored VLANs + InterfacePorts)
+			vlans := r.getStoredVLANsForDeviceport(otherDoc, otherDeviceID)
+			for _, vc := range vlans {
+				key := vc.VlanNumber + ":" + fmt.Sprintf("%v", vc.Tagged)
+				if _, exists := seen[key]; !exists {
+					seen[key] = struct{}{}
+					result = append(result, vc)
+				}
+			}
+		}
+	}
+
+	return result, nil
+}
+
+// getStoredVLANsForDeviceport returns the stored VLAN configs for a deviceport document
+func (r BasicOpsCloverRepository) getStoredVLANsForDeviceport(doc *d.Document, deviceID string) []e.PortVlanConfig {
+	var vlans []e.PortVlanConfig
+	seen := make(map[string]struct{})
+
+	modelPortID, _ := doc.Get("model_port_id").(string)
+
+	// First add VLANs from DevicePort's own vlan_configs field
+	if raw, ok := doc.Get("vlan_configs").([]interface{}); ok {
+		for _, item := range raw {
+			if m, ok := item.(map[string]interface{}); ok {
+				vc := e.PortVlanConfig{}
+				if vn, ok := m["vlan_number"].(string); ok {
+					vc.VlanNumber = vn
+				}
+				if t, ok := m["tagged"].(bool); ok {
+					vc.Tagged = t
+				}
+				if vc.VlanNumber != "" {
+					key := vc.VlanNumber + ":" + fmt.Sprintf("%v", vc.Tagged)
+					if _, exists := seen[key]; !exists {
+						seen[key] = struct{}{}
+						vlans = append(vlans, vc)
+					}
+				}
+			}
+		}
+	}
+
+	// Add VLANs from InterfacePorts
+	ifacePortDocs, _ := r.db.FindAll(q.NewQuery(interfacePortsCollection).
+		Where(q.Field("device_id").Eq(deviceID)).
+		Where(q.Field("model_port_id").Eq(modelPortID)))
+	for _, ipDoc := range ifacePortDocs {
+		if raw, ok := ipDoc.Get("vlan_configs").([]interface{}); ok {
+			for _, item := range raw {
+				if m, ok := item.(map[string]interface{}); ok {
+					vc := e.PortVlanConfig{}
+					if vn, ok := m["vlan_number"].(string); ok {
+						vc.VlanNumber = vn
+					}
+					if t, ok := m["tagged"].(bool); ok {
+						vc.Tagged = t
+					}
+					if vc.VlanNumber != "" {
+						key := vc.VlanNumber + ":" + fmt.Sprintf("%v", vc.Tagged)
+						if _, exists := seen[key]; !exists {
+							seen[key] = struct{}{}
+							vlans = append(vlans, vc)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return vlans
 }
 
 // GetDevicePorts gets all the device ports available
@@ -124,9 +275,12 @@ func (r BasicOpsCloverRepository) GetDevicePorts() ([]e.DevicePort, error) {
 
 	result := make([]e.DevicePort, 0, len(docs))
 	for _, doc := range docs {
-		devicePort := e.DevicePort{}
+		devicePort := e.DevicePort{
+			ID: doc.ObjectId(),
+		}
 
-		// Get device ID
+		// Get device ID and check if unmanaged
+		var isUnmanaged bool
 		if deviceID, ok := doc.Get("device_id").(string); ok {
 			devicePort.DeviceID = deviceID
 
@@ -134,6 +288,7 @@ func (r BasicOpsCloverRepository) GetDevicePorts() ([]e.DevicePort, error) {
 			deviceDoc, err := r.db.FindById(devicesCollection, deviceID)
 			if err == nil && deviceDoc != nil {
 				devicePort.DevLabel = deviceDoc.Get("label").(string)
+				isUnmanaged, _ = deviceDoc.Get("is_unmanaged").(bool)
 			}
 		}
 
@@ -159,39 +314,47 @@ func (r BasicOpsCloverRepository) GetDevicePorts() ([]e.DevicePort, error) {
 				}
 			}
 
-			// Collect VLAN configs from all InterfacePorts linked to this port AND from DevicePort's own vlan_configs
-			seen := make(map[string]struct{})
-			// First add VLANs from DevicePort's own vlan_configs field
-			if raw, ok := doc.Get("vlan_configs").([]interface{}); ok {
-				for _, item := range raw {
-					if m, ok := item.(map[string]interface{}); ok {
-						vc := e.PortVlanConfig{}
-						if vn, ok := m["vlan_number"].(string); ok {
-							vc.VlanNumber = vn
-						}
-						if t, ok := m["tagged"].(bool); ok {
-							vc.Tagged = t
-						}
-						if vc.VlanNumber != "" {
-							key := vc.VlanNumber + ":" + fmt.Sprintf("%v", vc.Tagged)
-							if _, exists := seen[key]; !exists {
-								seen[key] = struct{}{}
-								devicePort.VlanConfigs = append(devicePort.VlanConfigs, vc)
+			// For unmanaged devices, compute VLANs dynamically
+			if isUnmanaged {
+				devicePort.VlanConfigs, err = r.getUnmanagedDevicePortVLANs(devicePort.ID, make(map[string]struct{}))
+				if err != nil {
+					devicePort.VlanConfigs = []e.PortVlanConfig{}
+				}
+			} else {
+				// Collect VLAN configs from all InterfacePorts linked to this port AND from DevicePort's own vlan_configs
+				seen := make(map[string]struct{})
+				// First add VLANs from DevicePort's own vlan_configs field
+				if raw, ok := doc.Get("vlan_configs").([]interface{}); ok {
+					for _, item := range raw {
+						if m, ok := item.(map[string]interface{}); ok {
+							vc := e.PortVlanConfig{}
+							if vn, ok := m["vlan_number"].(string); ok {
+								vc.VlanNumber = vn
+							}
+							if t, ok := m["tagged"].(bool); ok {
+								vc.Tagged = t
+							}
+							if vc.VlanNumber != "" {
+								key := vc.VlanNumber + ":" + fmt.Sprintf("%v", vc.Tagged)
+								if _, exists := seen[key]; !exists {
+									seen[key] = struct{}{}
+									devicePort.VlanConfigs = append(devicePort.VlanConfigs, vc)
+								}
 							}
 						}
 					}
 				}
-			}
-			// Then add VLANs from InterfacePorts
-			for _, vc := range portToVlanConfigs[devicePort.DeviceID+":"+modelPortID] {
-				key := vc.VlanNumber + ":" + fmt.Sprintf("%v", vc.Tagged)
-				if _, exists := seen[key]; !exists {
-					seen[key] = struct{}{}
-					devicePort.VlanConfigs = append(devicePort.VlanConfigs, vc)
+				// Then add VLANs from InterfacePorts
+				for _, vc := range portToVlanConfigs[devicePort.DeviceID+":"+modelPortID] {
+					key := vc.VlanNumber + ":" + fmt.Sprintf("%v", vc.Tagged)
+					if _, exists := seen[key]; !exists {
+						seen[key] = struct{}{}
+						devicePort.VlanConfigs = append(devicePort.VlanConfigs, vc)
+					}
 				}
-			}
-			if devicePort.VlanConfigs == nil {
-				devicePort.VlanConfigs = []e.PortVlanConfig{}
+				if devicePort.VlanConfigs == nil {
+					devicePort.VlanConfigs = []e.PortVlanConfig{}
+				}
 			}
 		}
 
@@ -208,15 +371,30 @@ func (r BasicOpsCloverRepository) GetDevicePorts() ([]e.DevicePort, error) {
 
 // DeleteDevicePort deletes a device port from the database by device and model port IDs
 func (r BasicOpsCloverRepository) DeleteDevicePort(deviceid string, modelportid string) error {
+	// First, find the deviceport document to get its ID
+	query := q.NewQuery(deviceportsCollection).
+		Where(q.Field("device_id").Eq(deviceid)).
+		Where(q.Field("model_port_id").Eq(modelportid))
+
+	doc, err := r.db.FindFirst(query)
+	if err != nil {
+		return fmt.Errorf("DeleteDevicePort: failed to find deviceport: %w", err)
+	}
+	if doc == nil {
+		return fmt.Errorf("DeleteDevicePort: device port not found")
+	}
+
+	deviceportID := doc.ObjectId()
+
 	// Check for dependent connections (from side)
 	fromExists, err := r.db.Exists(q.NewQuery(connectionsCollection).Where(
-		q.Field("from_device_id").Eq(deviceid).And(q.Field("from_model_port_id").Eq(modelportid))))
+		q.Field("from_deviceport_id").Eq(deviceportID)))
 	if err != nil {
 		return err
 	}
 	// Check for dependent connections (to side)
 	toExists, err := r.db.Exists(q.NewQuery(connectionsCollection).Where(
-		q.Field("to_device_id").Eq(deviceid).And(q.Field("to_model_port_id").Eq(modelportid))))
+		q.Field("to_deviceport_id").Eq(deviceportID)))
 	if err != nil {
 		return err
 	}
@@ -230,10 +408,6 @@ func (r BasicOpsCloverRepository) DeleteDevicePort(deviceid string, modelportid 
 		Where(q.Field("model_port_id").Eq(modelportid))); err != nil {
 		return fmt.Errorf("DeleteDevicePort: failed to delete interface ports: %w", err)
 	}
-
-	query := q.NewQuery(deviceportsCollection).
-		Where(q.Field("device_id").Eq(deviceid)).
-		Where(q.Field("model_port_id").Eq(modelportid))
 
 	err = r.db.Delete(query)
 	if err != nil {
@@ -278,6 +452,7 @@ func (r BasicOpsCloverRepository) GetDevicePortByIDs(deviceid string, modelporti
 	}
 
 	devicePort := &e.DevicePort{
+		ID:       doc.ObjectId(),
 		DeviceID: deviceid,
 		ModelID:  modelportid,
 	}

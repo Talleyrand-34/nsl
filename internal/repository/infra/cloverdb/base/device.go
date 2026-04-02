@@ -32,7 +32,20 @@ func (r BasicOpsCloverRepository) AddDevice(
 	zoneId string,
 	zoneName string,
 	proprietary string,
+	isUnmanaged bool,
+	isInvisible bool,
 ) error {
+	// Check for name collision with existing devices
+	existingDevices, err := r.GetDevices()
+	if err != nil {
+		return fmt.Errorf("failed to check existing devices: %w", err)
+	}
+	for _, d := range existingDevices {
+		if d.Name == label {
+			return fmt.Errorf("device with name %q already exists", label)
+		}
+	}
+
 	// Get proprietary ID
 	spropid := r.getProprietaryID(proprietary)
 
@@ -48,6 +61,8 @@ func (r BasicOpsCloverRepository) AddDevice(
 	doc := d.NewDocument()
 	doc.Set("label", label)
 	doc.Set("model_id", smodelid)
+	doc.Set("is_unmanaged", isUnmanaged)
+	doc.Set("is_invisible", isInvisible)
 	if spropid != "" {
 		doc.Set("proprietary", spropid)
 	}
@@ -74,6 +89,14 @@ func (r BasicOpsCloverRepository) GetDevices() ([]e.Device, error) {
 		device := e.Device{
 			ID:   doc.ObjectId(),
 			Name: doc.Get("label").(string),
+		}
+
+		// Get unmanaged and invisible flags
+		if isUnmanaged, ok := doc.Get("is_unmanaged").(bool); ok {
+			device.IsUnmanaged = isUnmanaged
+		}
+		if isInvisible, ok := doc.Get("is_invisible").(bool); ok {
+			device.IsInvisible = isInvisible
 		}
 
 		// Get model name and brand if model ID exists

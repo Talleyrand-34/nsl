@@ -86,6 +86,8 @@ type repository interface {
 		zoneId string,
 		zoneName string,
 		proprietaryName string,
+		isUnmanaged bool,
+		isInvisible bool,
 	) error
 	GetDevices() ([]e.Device, error)
 	UpdateDevice(
@@ -121,7 +123,7 @@ type repository interface {
 
 	// DevicePort interaction
 	DevicePortExists(deviceId string, modelPortId string) (bool, error)
-	AddDevicePort(deviceId string, modelPortId string, macAddress string, vlanConfigs []e.PortVlanConfig) error
+	AddDevicePort(deviceId string, modelPortId string, macAddress string, vlanConfigs []e.PortVlanConfig) (string, error)
 	GetDevicePorts() ([]e.DevicePort, error)
 	GetDevicePortByIDs(deviceId string, modelPortId string) (*e.DevicePort, error)
 	UpdateDevicePort(deviceId string, modelPortId string, macAddress string, vlanConfigs []e.PortVlanConfig) error
@@ -135,20 +137,14 @@ type repository interface {
 
 	// Connection interaction
 	AddConnection(
-		fromDeviceId string,
-		fromModelPortId string,
-		toDeviceId string,
-		toModelPortId string,
-		allowVLANUnion bool,
+		fromDeviceportID string,
+		toDeviceportID string,
 	) error
 	GetConnections() ([]e.Connection, error)
 	UpdateConnection(
 		connectionId string,
-		newFromDeviceId string,
-		newFromModelPortId string,
-		newToDeviceId string,
-		newToModelPortId string,
-		allowVLANUnion bool,
+		newFromDeviceportID string,
+		newToDeviceportID string,
 	) error
 	DeleteConnection(connectionId string) error
 

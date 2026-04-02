@@ -61,6 +61,8 @@ type Device struct {
 	ZoneName    string `json:"zonename"`
 	ZoneFather  string `json:"zonefathername"`
 	Proprietary string `json:"proprietary"`
+	IsUnmanaged bool   `json:"is_unmanaged"`
+	IsInvisible bool   `json:"is_invisible"`
 }
 
 // PortVlanConfig represents a VLAN configuration on a port (tagged or untagged)
@@ -71,6 +73,7 @@ type PortVlanConfig struct {
 
 // DevicePort This struct contains the info about ports asociated to a device since the information is contained in the model
 type DevicePort struct {
+	ID          string           `json:"id"`
 	DeviceID    string           `json:"devid"`
 	ModelID     string           `json:"modelid"`
 	MacAddress  string           `json:"mac_address"`

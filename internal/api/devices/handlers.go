@@ -995,7 +995,59 @@ func DeleteModelHandler(service q.NetServiceInt) http.HandlerFunc {
 
 func AddDeviceHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotImplemented)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		if r.Method != "POST" {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			json.NewEncoder(w).Encode(map[string]string{"error": "method_not_allowed", "message": "Only POST method is allowed"})
+			return
+		}
+
+		var req struct {
+			Label       string `json:"label"`
+			ModelName   string `json:"model_name"`
+			ZoneID      string `json:"zone_id"`
+			ZoneName    string `json:"zone_name"`
+			Proprietary string `json:"proprietary"`
+			IsUnmanaged bool   `json:"is_unmanaged"`
+			IsInvisible bool   `json:"is_invisible"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid_json", "message": err.Error()})
+			return
+		}
+
+		if req.Label == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "missing_label", "message": "label is required"})
+			return
+		}
+
+		if req.ModelName == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "missing_model", "message": "model_name is required"})
+			return
+		}
+
+		err := service.AddDevice(req.Label, req.ModelName, req.ZoneID, req.ZoneName, req.Proprietary, req.IsUnmanaged, req.IsInvisible)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"error": "creation_failed", "message": err.Error()})
+			return
+		}
+
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Device created successfully", "label": req.Label})
 	}
 }
 
@@ -1327,8 +1379,7 @@ func AddDevicePortHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		err := service.AddDevicePort(req.DeviceID, req.ModelPortID, req.MacAddress, req.VlanConfigs)
-		if err != nil {
+		if _, err := service.AddDevicePort(req.DeviceID, req.ModelPortID, req.MacAddress, req.VlanConfigs); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": "creation_failed", "message": err.Error()})
 			return

@@ -77,7 +77,9 @@ Examples:
 		}
 
 		// Create the device
-		err = service.AddDevice(deviceLabel, modelName, zoneId, zoneName, proprietaryName)
+		isUnmanaged, _ := cmd.Flags().GetBool("is-unmanaged")
+		isInvisible, _ := cmd.Flags().GetBool("is-invisible")
+		err = service.AddDevice(deviceLabel, modelName, zoneId, zoneName, proprietaryName, isUnmanaged, isInvisible)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error creating device: %v\n", err)
 			os.Exit(1)
@@ -90,6 +92,12 @@ Examples:
 			fmt.Printf(" in zone '%s'", zoneName)
 		}
 		fmt.Printf(" owned by '%s'\n", proprietaryName)
+		if isUnmanaged {
+			fmt.Printf("  Device is marked as unmanaged\n")
+		}
+		if isInvisible {
+			fmt.Printf("  Device is marked as invisible\n")
+		}
 	},
 }
 
@@ -101,6 +109,8 @@ func init() {
 	DeviceModCmd.Flags().String("zone-id", "", "Zone ID where device will be deployed")
 	DeviceModCmd.Flags().String("zone-name", "", "Zone name where device will be deployed")
 	DeviceModCmd.Flags().String("proprietary", "", "Proprietary owner of the device (required)")
+	DeviceModCmd.Flags().Bool("is-unmanaged", false, "Device is unmanaged (replicates all VLANs through all ports)")
+	DeviceModCmd.Flags().Bool("is-invisible", false, "Device is invisible in network scope (no IP)")
 
 	DeviceModCmd.MarkFlagRequired("label")
 	DeviceModCmd.MarkFlagRequired("model")

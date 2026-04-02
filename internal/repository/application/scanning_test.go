@@ -196,7 +196,7 @@ func TestDeviceExists_Check(t *testing.T) {
 	service.AddModel("TestModel", "TestBrand", "TestClass")
 	service.AddModelPort("eth0", "0", "0", "TestModel", false, "", "")
 
-	if err := service.AddDevice("TestDevice", "TestModel", "", "", ""); err != nil {
+	if err := service.AddDevice("TestDevice", "TestModel", "", "", "", false, false); err != nil {
 		t.Fatalf("Failed to add test device: %v", err)
 	}
 
@@ -219,7 +219,9 @@ func TestDeviceExists_Check(t *testing.T) {
 			break
 		}
 	}
-	service.AddDevicePort(deviceID, portID, "", nil)
+	if _, err := service.AddDevicePort(deviceID, portID, "", nil); err != nil {
+		t.Fatalf("failed to add device port: %v", err)
+	}
 
 	// Add interface with IP
 	service.AddDeviceInterface(deviceID, "eth0", "", "", nil, []string{"192.168.1.100"}, "", "")
