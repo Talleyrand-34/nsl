@@ -109,9 +109,19 @@ Or by database IDs (legacy):
 			os.Exit(1)
 		}
 
-		allowVLANUnion, _ := cmd.Flags().GetBool("allow-vlan-union")
+		// Get deviceport IDs
+		fromDeviceportId, err := resolveDeviceportID(service, fromDeviceId, fromModelPortId)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error finding source deviceport: %v\n", err)
+			os.Exit(1)
+		}
+		toDeviceportId, err := resolveDeviceportID(service, toDeviceId, toModelPortId)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error finding destination deviceport: %v\n", err)
+			os.Exit(1)
+		}
 
-		err = service.AddConnection(fromDeviceId, fromModelPortId, toDeviceId, toModelPortId, allowVLANUnion)
+		err = service.AddConnection(fromDeviceportId, toDeviceportId)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error creating connection: %v\n", err)
 			os.Exit(1)
@@ -209,4 +219,18 @@ func resolveModelPortID(service application.NetServiceInt, portName string, devi
 		}
 	}
 	return "", fmt.Errorf("port %q not found on model %q", portName, modelName)
+}
+
+// resolveDeviceportID finds a deviceport by device ID and model port ID.
+func resolveDeviceportID(service application.NetServiceInt, deviceID string, modelPortID string) (string, error) {
+	deviceports, err := service.GetDevicePorts()
+	if err != nil {
+		return "", fmt.Errorf("could not fetch device ports: %w", err)
+	}
+	for _, dp := range deviceports {
+		if dp.DeviceID == deviceID && dp.ModelID == modelPortID {
+			return dp.ID, nil
+		}
+	}
+	return "", fmt.Errorf("deviceport not found for device %s and model port %s", deviceID, modelPortID)
 }

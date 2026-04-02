@@ -138,10 +138,8 @@ Table interface_ports {
 // Physical/logical connections between device ports
 Table connections {
   _id string [pk]
-  from_device_id string
-  from_model_port_id string
-  to_device_id string
-  to_model_port_id string
+  from_deviceport_id string
+  to_deviceport_id string
   connection_type string [null]
 }
 
@@ -187,8 +185,6 @@ Ref: interface_ports.device_id > devices._id
 Ref: interface_ports.model_port_id > modelports._id
 
 // Connection references
-Ref: connections.from_device_id > devices._id
-Ref: connections.from_model_port_id > modelports._id
-Ref: connections.to_device_id > devices._id
-Ref: connections.to_model_port_id > modelports._id
+Ref: connections.from_deviceport_id > deviceports._id
+Ref: connections.to_deviceport_id > deviceports._id
 Ref: connections.connection_type > connectiontypes._id

@@ -59,11 +59,8 @@ func AddConnectionHandler(service q.NetServiceInt) http.HandlerFunc {
 		}
 
 		var req struct {
-			FromDeviceID    string `json:"from_device_id"`
-			FromModelPortID string `json:"from_model_port_id"`
-			ToDeviceID      string `json:"to_device_id"`
-			ToModelPortID   string `json:"to_model_port_id"`
-			AllowVLANUnion  bool   `json:"allow_vlan_union"`
+			FromDeviceportID string `json:"from_deviceport_id"`
+			ToDeviceportID   string `json:"to_deviceport_id"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -72,13 +69,13 @@ func AddConnectionHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		if req.FromDeviceID == "" || req.FromModelPortID == "" || req.ToDeviceID == "" || req.ToModelPortID == "" {
+		if req.FromDeviceportID == "" || req.ToDeviceportID == "" {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]string{"error": "missing_fields", "message": "All device and port fields are required"})
+			json.NewEncoder(w).Encode(map[string]string{"error": "missing_fields", "message": "from_deviceport_id and to_deviceport_id are required"})
 			return
 		}
 
-		err := service.AddConnection(req.FromDeviceID, req.FromModelPortID, req.ToDeviceID, req.ToModelPortID, req.AllowVLANUnion)
+		err := service.AddConnection(req.FromDeviceportID, req.ToDeviceportID)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": "creation_failed", "message": err.Error()})
@@ -132,12 +129,9 @@ func UpdateConnectionHandler(service q.NetServiceInt) http.HandlerFunc {
 		}
 
 		var req struct {
-			ConnectionID      string `json:"connection_id"`
-			NewFromDeviceID   string `json:"new_from_device_id"`
-			NewFromModelPortID string `json:"new_from_model_port_id"`
-			NewToDeviceID     string `json:"new_to_device_id"`
-			NewToModelPortID  string `json:"new_to_model_port_id"`
-			AllowVLANUnion    bool   `json:"allow_vlan_union"`
+			ConnectionID        string `json:"connection_id"`
+			NewFromDeviceportID string `json:"new_from_deviceport_id"`
+			NewToDeviceportID   string `json:"new_to_deviceport_id"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -152,7 +146,7 @@ func UpdateConnectionHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		err := service.UpdateConnection(req.ConnectionID, req.NewFromDeviceID, req.NewFromModelPortID, req.NewToDeviceID, req.NewToModelPortID, req.AllowVLANUnion)
+		err := service.UpdateConnection(req.ConnectionID, req.NewFromDeviceportID, req.NewToDeviceportID)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": "update_failed", "message": err.Error()})
