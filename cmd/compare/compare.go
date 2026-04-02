@@ -148,7 +148,6 @@ type ExtractedData struct {
 	Interfaces  []InterfaceData
 	DevicePorts []DevicePortData
 	VLANs       []VLANData
-	LocalVlans  []LocalVlanData
 }
 
 type InterfaceData struct {
@@ -177,12 +176,6 @@ type DevicePortData struct {
 type VLANData struct {
 	VlanID string
 	Name   string
-}
-
-type LocalVlanData struct {
-	VlanID   string
-	VlanName string
-	DeviceID string
 }
 
 func extractData(dbPath, hostIP string) (*ExtractedData, error) {

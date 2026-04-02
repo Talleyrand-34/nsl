@@ -20,8 +20,6 @@ import (
 	"fmt"
 	"log"
 
-	q "github.com/ostafen/clover/v2/query"
-
 	e "nsl-graph/internal/repository/entities"
 )
 
@@ -276,11 +274,6 @@ func (r BasicOpsCloverRepository) DeleteVlanCascade(vlanId string) error {
 
 	if vlanNumber == "" {
 		return fmt.Errorf("VLAN with ID %s not found", vlanId)
-	}
-
-	// Delete all local VLAN entries referencing this VLAN number
-	if err := r.db.Delete(q.NewQuery(localvlansCollection).Where(q.Field("vlan_id").Eq(vlanNumber))); err != nil {
-		return fmt.Errorf("failed to delete local VLANs for vlan %s: %w", vlanNumber, err)
 	}
 
 	// Update all DeviceInterfaces that reference this VLAN number

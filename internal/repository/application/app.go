@@ -170,17 +170,6 @@ type NetServiceInt interface {
 	UpdateVlanIPSegment(vlanId string, ipSegment string) error
 	DeleteVlan(vlanId string) error
 
-	// Local VLAN operations
-	AddLocalVlan(vlanID string, deviceID string, vlanName string) error
-	GetLocalVlans() ([]e.LocalVlan, error)
-	GetLocalVlansByDevice(deviceID string) ([]e.LocalVlan, error)
-	GetLocalVlansByVlanID(vlanID string) ([]e.LocalVlan, error)
-	UpdateLocalVlan(localVlanId string, newVlanID string, newDeviceID string, newVlanName string) error
-	UpdateLocalVlanByMapping(vlanID string, deviceID string, newVlanName string) error
-	DeleteLocalVlan(localVlanId string) error
-	DeleteLocalVlansByDevice(deviceID string) error
-	DeleteLocalVlansByVlanID(vlanID string) error
-
 	// Cascade deletion operations
 	DeleteBrandCascade(brandName string) error
 	DeleteDeviceClassCascade(deviceClassName string) error
@@ -658,43 +647,6 @@ func (ns *NetService) DeleteVlan(vlanId string) error {
 	return ns.netRepo.DeleteVlan(vlanId)
 }
 
-// Local VLAN method implementations
-func (ns *NetService) AddLocalVlan(vlanID string, deviceID string, vlanName string) error {
-	return ns.netRepo.AddLocalVlan(vlanID, deviceID, vlanName)
-}
-
-func (ns *NetService) GetLocalVlans() ([]e.LocalVlan, error) {
-	return ns.netRepo.GetLocalVlans()
-}
-
-func (ns *NetService) GetLocalVlansByDevice(deviceID string) ([]e.LocalVlan, error) {
-	return ns.netRepo.GetLocalVlansByDevice(deviceID)
-}
-
-func (ns *NetService) GetLocalVlansByVlanID(vlanID string) ([]e.LocalVlan, error) {
-	return ns.netRepo.GetLocalVlansByVlanID(vlanID)
-}
-
-func (ns *NetService) UpdateLocalVlan(localVlanId string, newVlanID string, newDeviceID string, newVlanName string) error {
-	return ns.netRepo.UpdateLocalVlan(localVlanId, newVlanID, newDeviceID, newVlanName)
-}
-
-func (ns *NetService) UpdateLocalVlanByMapping(vlanID string, deviceID string, newVlanName string) error {
-	return ns.netRepo.UpdateLocalVlanByMapping(vlanID, deviceID, newVlanName)
-}
-
-func (ns *NetService) DeleteLocalVlan(localVlanId string) error {
-	return ns.netRepo.DeleteLocalVlan(localVlanId)
-}
-
-func (ns *NetService) DeleteLocalVlansByDevice(deviceID string) error {
-	return ns.netRepo.DeleteLocalVlansByDevice(deviceID)
-}
-
-func (ns *NetService) DeleteLocalVlansByVlanID(vlanID string) error {
-	return ns.netRepo.DeleteLocalVlansByVlanID(vlanID)
-}
-
 // Cascade deletion method implementations
 func (ns *NetService) DeleteBrandCascade(brandName string) error {
 	return ns.netRepo.DeleteBrandCascade(brandName)
@@ -1146,16 +1098,6 @@ func (ns *NetService) createDevicePortsForDevice(deviceID string, discovered s.D
 							break
 						}
 					}
-				}
-			}
-		}
-
-		// Create local VLAN entries for this device
-		for _, v := range iface.VLANs {
-			localVlanName := fmt.Sprintf("VLAN_%s", v.VLANNumber)
-			if err := ns.AddLocalVlan(v.VLANNumber, deviceID, localVlanName); err != nil {
-				if !strings.Contains(err.Error(), "already exists") {
-					fmt.Printf("Warning: failed to create local VLAN mapping %s for device %s: %v\n", v.VLANNumber, deviceID, err)
 				}
 			}
 		}
@@ -1913,18 +1855,6 @@ func (ns *NetService) createDevicePortsWithPlan(deviceID string, discovered s.Di
 		if err := ns.AddDevicePort(deviceID, modelPortID, iface.MAC, vlanConfigs); err != nil {
 			if !strings.Contains(err.Error(), "already exists") {
 				return err
-			}
-		}
-
-		// Create local VLAN entries for this device
-		for _, v := range iface.VLANs {
-			// Generate a local VLAN name (in real implementation this would come from SNMP)
-			localVlanName := fmt.Sprintf("VLAN_%s", v.VLANNumber)
-			if err := ns.AddLocalVlan(v.VLANNumber, deviceID, localVlanName); err != nil {
-				if !strings.Contains(err.Error(), "already exists") {
-					// Log error but don't fail the import
-					fmt.Printf("Warning: failed to create local VLAN mapping %s for device %s: %v\n", v.VLANNumber, deviceID, err)
-				}
 			}
 		}
 	}

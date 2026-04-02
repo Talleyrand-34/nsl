@@ -62,14 +62,6 @@ Table vlans {
   ip_segment string
 }
 
-// Device-specific VLAN name mappings
-Table localvlans {
-  _id string [pk]
-  vlan_id string
-  device_id string
-  vlan_name string
-}
-
 // ============================================
 // Model/Template Collections
 // ============================================
@@ -200,6 +192,3 @@ Ref: connections.from_model_port_id > modelports._id
 Ref: connections.to_device_id > devices._id
 Ref: connections.to_model_port_id > modelports._id
 Ref: connections.connection_type > connectiontypes._id
-
-// LocalVlan -> Device
-Ref: localvlans.device_id > devices._id

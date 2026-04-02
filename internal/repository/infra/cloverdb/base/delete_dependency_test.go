@@ -701,56 +701,6 @@ func TestDeleteDevicePort_SucceedsWithoutDependents(t *testing.T) {
 
 // ---- Vlan ---- //
 
-func TestDeleteVlan_BlocksWithDependentLocalVlan(t *testing.T) {
-	repo, cleanup, err := setupTestCloverRepository(t)
-	if err != nil {
-		t.Fatalf("failed to setup repository: %v", err)
-	}
-	defer cleanup()
-
-	if err := repo.AddBrand("Cisco"); err != nil {
-		t.Fatalf("failed to add brand: %v", err)
-	}
-	if err := repo.AddDeviceClass("Switch"); err != nil {
-		t.Fatalf("failed to add device class: %v", err)
-	}
-	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
-		t.Fatalf("failed to add model: %v", err)
-	}
-	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", ""); err != nil {
-		t.Fatalf("failed to add device: %v", err)
-	}
-	if err := repo.AddVlan("10", "VLAN10", ""); err != nil {
-		t.Fatalf("failed to add VLAN: %v", err)
-	}
-
-	devices, _ := repo.GetDevices()
-	var deviceID string
-	for _, d := range devices {
-		if d.Name == "SW-01" {
-			deviceID = d.ID
-			break
-		}
-	}
-
-	if err := repo.AddLocalVlan("10", deviceID, "local VLAN 10"); err != nil {
-		t.Fatalf("failed to add local VLAN: %v", err)
-	}
-
-	vlans, _ := repo.GetVlans()
-	var vlanDocID string
-	for _, v := range vlans {
-		if v.VlanID == "10" {
-			vlanDocID = v.ID
-			break
-		}
-	}
-
-	if err := repo.DeleteVlan(vlanDocID); err == nil {
-		t.Errorf("expected error when deleting VLAN referenced by local VLANs, got nil")
-	}
-}
-
 func TestDeleteVlan_CleansDeviceInterfaceVlanConfigs(t *testing.T) {
 	repo, cleanup, err := setupTestCloverRepository(t)
 	if err != nil {
@@ -798,7 +748,7 @@ func TestDeleteVlan_CleansDeviceInterfaceVlanConfigs(t *testing.T) {
 	}
 
 	if err := repo.DeleteVlan(vlanDocID); err != nil {
-		t.Fatalf("expected VLAN delete to succeed (no local VLANs), got: %v", err)
+		t.Fatalf("expected VLAN delete to succeed, got: %v", err)
 	}
 
 	// Verify the device interface's vlan_configs no longer references VLAN 20
@@ -836,64 +786,7 @@ func TestDeleteVlan_SucceedsWithoutLocalVlans(t *testing.T) {
 	}
 
 	if err := repo.DeleteVlan(vlanDocID); err != nil {
-		t.Errorf("expected success when deleting VLAN with no local VLANs, got: %v", err)
-	}
-}
-
-func TestDeleteVlanCascade_DeletesLocalVlans(t *testing.T) {
-	repo, cleanup, err := setupTestCloverRepository(t)
-	if err != nil {
-		t.Fatalf("failed to setup repository: %v", err)
-	}
-	defer cleanup()
-
-	if err := repo.AddBrand("Cisco"); err != nil {
-		t.Fatalf("failed to add brand: %v", err)
-	}
-	if err := repo.AddDeviceClass("Switch"); err != nil {
-		t.Fatalf("failed to add device class: %v", err)
-	}
-	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
-		t.Fatalf("failed to add model: %v", err)
-	}
-	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", ""); err != nil {
-		t.Fatalf("failed to add device: %v", err)
-	}
-	if err := repo.AddVlan("40", "VLAN40", ""); err != nil {
-		t.Fatalf("failed to add VLAN: %v", err)
-	}
-
-	devices, _ := repo.GetDevices()
-	var deviceID string
-	for _, d := range devices {
-		if d.Name == "SW-01" {
-			deviceID = d.ID
-			break
-		}
-	}
-
-	if err := repo.AddLocalVlan("40", deviceID, "local VLAN 40"); err != nil {
-		t.Fatalf("failed to add local VLAN: %v", err)
-	}
-
-	vlans, _ := repo.GetVlans()
-	var vlanDocID string
-	for _, v := range vlans {
-		if v.VlanID == "40" {
-			vlanDocID = v.ID
-			break
-		}
-	}
-
-	if err := repo.DeleteVlanCascade(vlanDocID); err != nil {
-		t.Errorf("expected cascade delete to succeed, got: %v", err)
-	}
-
-	vlansAfter, _ := repo.GetVlans()
-	for _, v := range vlansAfter {
-		if v.VlanID == "40" {
-			t.Errorf("VLAN should have been deleted")
-		}
+		t.Errorf("expected success when deleting VLAN, got: %v", err)
 	}
 }
 

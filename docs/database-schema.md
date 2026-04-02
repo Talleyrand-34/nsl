@@ -4,10 +4,10 @@ NSL-Graph uses **CloverDB** as its database backend - a document-based (NoSQL) s
 
 ## Database Structure
 
-The database consists of **15 collections** organized to represent a complete network topology:
+The database consists of **14 collections** organized to represent a complete network topology:
 
 - **Base entities**: brands, devclasses, proprietaries, zonetypes
-- **VLAN definitions**: vlans, localvlans
+- **VLAN definitions**: vlans
 - **Zone hierarchy**: zones
 - **Model/Template collections**: models, modelports
 - **Device collections**: devices, deviceports, deviceinterfaces, interfaceports
@@ -93,7 +93,6 @@ devices ─────┬──── models (device instance of model)
              └──── localvlans (device-specific VLAN names)
 
 connections ──┴──── deviceports (from/to port connections)
-```
 
 ## Data Integrity
 
@@ -120,7 +119,6 @@ connections ──┴──── deviceports (from/to port connections)
 - Zone → Devices
 - Device → DevicePorts
 - Device → DeviceInterfaces
-- Device → LocalVlans
 
 ### Many-to-Many
 - DevicePorts ↔ Connections (via from/to references)

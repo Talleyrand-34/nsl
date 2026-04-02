@@ -112,13 +112,7 @@ func (r BasicOpsCloverRepository) DeleteVlan(vlanId string) error {
 	}
 
 	// Block if local VLAN entries reference this VLAN
-	localVlanExists, err := r.db.Exists(q.NewQuery(localvlansCollection).Where(q.Field("vlan_id").Eq(vlanNumber)))
-	if err != nil {
-		return err
-	}
-	if localVlanExists {
-		return fmt.Errorf("cannot delete VLAN '%s': referenced by local VLANs; use --cascade to delete all dependents", vlanNumber)
-	}
+	// (removed - localvlans collection no longer exists)
 
 	// Auto-clean: remove this VLAN from DeviceInterface vlan_configs (set-null behaviour)
 	allInterfaces, err := r.GetAllDeviceInterfaces()

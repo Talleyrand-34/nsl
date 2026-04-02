@@ -159,17 +159,6 @@ type repository interface {
 	UpdateVlanIPSegment(vlanId string, ipSegment string) error
 	DeleteVlan(vlanId string) error
 
-	// Local VLAN interaction
-	AddLocalVlan(vlanID string, deviceID string, vlanName string) error
-	GetLocalVlans() ([]e.LocalVlan, error)
-	GetLocalVlansByDevice(deviceID string) ([]e.LocalVlan, error)
-	GetLocalVlansByVlanID(vlanID string) ([]e.LocalVlan, error)
-	UpdateLocalVlan(localVlanId string, newVlanID string, newDeviceID string, newVlanName string) error
-	UpdateLocalVlanByMapping(vlanID string, deviceID string, newVlanName string) error
-	DeleteLocalVlan(localVlanId string) error
-	DeleteLocalVlansByDevice(deviceID string) error
-	DeleteLocalVlansByVlanID(vlanID string) error
-
 	// Cascade deletion methods
 	DeleteBrandCascade(brandName string) error
 	DeleteDeviceClassCascade(deviceClassName string) error
