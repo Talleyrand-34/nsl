@@ -492,30 +492,34 @@ func generateD2DeviceBlocksWithPortColors(deviceMap map[string]*DeviceD2, device
 	return d2Devices.String()
 }
 
-// getConnectionVlansIntersection returns VLANs present on BOTH ports of a connection
-// via the DeviceInterface layer (intersection, not union).
-func getConnectionVlansIntersection(
+// GetConnectionVlanInfo returns VLAN information for a connection.
+// Returns: intersection VLANs (present on BOTH ports) and missing VLANs (present on ONLY ONE port).
+func GetConnectionVlanInfo(
 	conn e.Connection,
 	devicePorts []e.DevicePort,
 	allInterfaces []e.DeviceInterface,
 	ifacePorts []e.InterfacePort,
-) []string {
-	getPortVlans := func(deviceLabel, portName string) map[string]bool {
-		set := make(map[string]bool)
+) ([]e.ConnectionVlanInfo, []e.ConnectionVlanInfo) {
+	type vlanEntry struct {
+		vlanID string
+		tagged bool
+	}
+
+	getPortVlanMap := func(deviceLabel, portName string) map[string]vlanEntry {
+		result := make(map[string]vlanEntry)
 		var deviceID, modelPortID string
 		for _, dp := range devicePorts {
 			if dp.DevLabel == deviceLabel && dp.PortName == portName {
 				deviceID = dp.DeviceID
 				modelPortID = dp.ModelID
-				// Also check DevicePort's own VlanConfigs (physical ports with implicit VLANs)
 				for _, vc := range dp.VlanConfigs {
-					set[vc.VlanNumber] = true
+					result[vc.VlanNumber] = vlanEntry{vlanID: vc.VlanNumber, tagged: vc.Tagged}
 				}
 				break
 			}
 		}
 		if deviceID == "" {
-			return set
+			return result
 		}
 		ifaceIDSet := make(map[string]struct{})
 		for _, ip := range ifacePorts {
@@ -524,34 +528,43 @@ func getConnectionVlansIntersection(
 			}
 		}
 		for _, iface := range allInterfaces {
-			// Match either via InterfacePort OR by DeviceID + name matching the physical port
 			matched := false
 			if _, ok := ifaceIDSet[iface.ID]; ok {
 				matched = true
 			} else if iface.DeviceID == deviceID && iface.Name == portName {
-				// Physical interface - check if it matches this port
 				matched = true
 			}
 			if matched {
 				for _, vc := range iface.VlanConfigs {
-					set[vc.VlanNumber] = true
+					if _, exists := result[vc.VlanNumber]; !exists {
+						result[vc.VlanNumber] = vlanEntry{vlanID: vc.VlanNumber, tagged: vc.Tagged}
+					}
 				}
 			}
 		}
-		return set
+		return result
 	}
 
-	fromVlans := getPortVlans(conn.FromDevice, conn.FromModelPort)
-	toVlans := getPortVlans(conn.ToDevice, conn.ToModelPort)
+	fromMap := getPortVlanMap(conn.FromDevice, conn.FromModelPort)
+	toMap := getPortVlanMap(conn.ToDevice, conn.ToModelPort)
 
-	var intersection []string
-	for vlan := range fromVlans {
-		if toVlans[vlan] {
-			intersection = append(intersection, vlan)
+	var intersection, missing []e.ConnectionVlanInfo
+	for id, entry := range fromMap {
+		if _, exists := toMap[id]; exists {
+			intersection = append(intersection, e.ConnectionVlanInfo{VLANID: entry.vlanID, Tagged: entry.tagged})
+		} else {
+			missing = append(missing, e.ConnectionVlanInfo{VLANID: entry.vlanID, Tagged: entry.tagged})
 		}
 	}
-	sort.Strings(intersection)
-	return intersection
+	for id, entry := range toMap {
+		if _, exists := fromMap[id]; !exists {
+			missing = append(missing, e.ConnectionVlanInfo{VLANID: entry.vlanID, Tagged: entry.tagged})
+		}
+	}
+
+	sort.Slice(intersection, func(i, j int) bool { return intersection[i].VLANID < intersection[j].VLANID })
+	sort.Slice(missing, func(i, j int) bool { return missing[i].VLANID < missing[j].VLANID })
+	return intersection, missing
 }
 
 // getConnectionVlans returns the union of VLANs from both device ports in a connection
@@ -641,12 +654,12 @@ func generateD2ConnectionStringsWithVlans(connections []e.Connection, deviceMap 
 		to := fmt.Sprintf("%s.%s", toPath, toPortNum)
 
 		if vlanScope == "all" {
-			vlans := getConnectionVlansIntersection(c, devicePorts, allInterfaces, ifacePorts)
+			vlans, _ := GetConnectionVlanInfo(c, devicePorts, allInterfaces, ifacePorts)
 			if len(vlans) == 0 {
 				d2Connections.WriteString(fmt.Sprintf("%s -- %s\n", from, to))
 			} else {
 				for _, vlan := range vlans {
-					color := getVlanColor(vlan, vlanColorMap)
+					color := getVlanColor(vlan.VLANID, vlanColorMap)
 					d2Connections.WriteString(fmt.Sprintf("%s -- %s {\n", from, to))
 					d2Connections.WriteString(fmt.Sprintf("    style.stroke: %s\n", color))
 					d2Connections.WriteString("}\n")

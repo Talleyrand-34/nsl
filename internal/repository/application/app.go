@@ -24,6 +24,7 @@ import (
 	"net"
 	"strings"
 
+	fmtd2 "nsl-graph/internal/format"
 	d "nsl-graph/internal/repository/domain"
 	e "nsl-graph/internal/repository/entities"
 	s "nsl-graph/internal/scanner"
@@ -353,7 +354,22 @@ func (ns *NetService) GetConnectionTypes() ([]e.ConnectionType, error) {
 }
 
 func (ns *NetService) GetConnections() ([]e.Connection, error) {
-	return ns.netRepo.GetConnections()
+	connections, err := ns.netRepo.GetConnections()
+	if err != nil {
+		return nil, err
+	}
+
+	devicePorts, _ := ns.GetDevicePorts()
+	allInterfaces, _ := ns.GetAllDeviceInterfaces()
+	ifacePorts, _ := ns.GetAllInterfacePorts()
+
+	for i := range connections {
+		vlans, missing := fmtd2.GetConnectionVlanInfo(connections[i], devicePorts, allInterfaces, ifacePorts)
+		connections[i].Vlans = vlans
+		connections[i].MissingVlans = missing
+	}
+
+	return connections, nil
 }
 
 func (ns *NetService) AddConnection(

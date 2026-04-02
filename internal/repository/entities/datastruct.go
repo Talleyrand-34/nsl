@@ -107,17 +107,25 @@ type InterfacePort struct {
 	IPAddresses []string         `json:"ip_addresses"`
 }
 
+// ConnectionVlanInfo represents a VLAN with its tagging status on a connection
+type ConnectionVlanInfo struct {
+	VLANID string `json:"vlan_id"` // VLAN number (e.g., "1", "2")
+	Tagged bool   `json:"tagged"`  // true=tagged, false=untagged
+}
+
 // Connection This struct contains the info about a connection
 type Connection struct {
-	ID            string `json:"id"`
-	FromDevice    string `json:"fromdevice"` // Name of the FromDevice
-	FromModelPort string `json:"frommodel"`  // Name of the port on the model
-	FromZoneName  string `json:"fromzonename"`
-	FromZoneID    string `json:"fromzoneid"`
-	ToDevice      string `json:"todevice"` // Name of the ToDevice
-	ToModelPort   string `json:"tomodel"`  // Name of the port on the model
-	ToZoneName    string `json:"tozonename"`
-	ToZoneID      string `json:"tozoneid"`
+	ID            string               `json:"id"`
+	FromDevice    string               `json:"fromdevice"` // Name of the FromDevice
+	FromModelPort string               `json:"frommodel"`  // Name of the port on the model
+	FromZoneName  string               `json:"fromzonename"`
+	FromZoneID    string               `json:"fromzoneid"`
+	ToDevice      string               `json:"todevice"` // Name of the ToDevice
+	ToModelPort   string               `json:"tomodel"`  // Name of the port on the model
+	ToZoneName    string               `json:"tozonename"`
+	ToZoneID      string               `json:"tozoneid"`
+	Vlans         []ConnectionVlanInfo `json:"vlans,omitempty"`         // Intersection: VLANs present on BOTH ports
+	MissingVlans  []ConnectionVlanInfo `json:"missing_vlans,omitempty"` // Symmetric difference: VLANs on ONLY ONE port (not both)
 }
 
 type Vlan struct {
