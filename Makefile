@@ -7,7 +7,6 @@ BUILD_DIR=bin
 API_PORT=8081
 PHP_PORT=8091
 DB_FILE=test.db
-DEFAULT_PLUGIN_CONFIG=plugins.yaml
 
 # Go build flags
 LDFLAGS=-ldflags "-s -w"
@@ -290,17 +289,6 @@ db-reset: ## Reset database (WARNING: deletes all data)
 	@read
 	rm -f $(DB_FILE)
 	@echo "Database reset. Run 'make db-init' to reinitialize."
-
-## Plugin management
-plugins-list: build ## List available plugins
-	./$(BUILD_DIR)/$(BINARY_NAME) print plugins || echo "Plugin listing not implemented in CLI"
-
-plugins-config: ## Show current plugin configuration
-	@if [ -f $(DEFAULT_PLUGIN_CONFIG) ]; then \
-		cat $(DEFAULT_PLUGIN_CONFIG); \
-	else \
-		echo "No plugin configuration found at $(DEFAULT_PLUGIN_CONFIG)"; \
-	fi
 
 ## Release and deployment
 version: ## Show version information

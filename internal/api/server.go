@@ -19,7 +19,6 @@ package api
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -30,15 +29,12 @@ import (
 
 	q "nsl-graph/internal/repository/application"
 	infra "nsl-graph/internal/repository/infra/cloverdb/base"
-	"nsl-graph/internal/repository/plugins"
-	"nsl-graph/internal/repository/plugins/builtin"
 
+	"nsl-graph/internal/api/connections"
 	"nsl-graph/internal/api/core"
 	"nsl-graph/internal/api/devices"
-	"nsl-graph/internal/api/connections"
-	"nsl-graph/internal/api/vlans"
-	apiplugins "nsl-graph/internal/api/plugins"
 	"nsl-graph/internal/api/scanning"
+	"nsl-graph/internal/api/vlans"
 )
 
 func StartServer(dbPath string, port int) {
@@ -87,37 +83,8 @@ func serviceConnection(path string) (q.NetServiceInt, error) {
 		return nil, fmt.Errorf("Error creating repository: %w", err)
 	}
 
-	// Load plugin configuration
-	pluginConfig, err := plugins.LoadConfig("plugins.yaml")
-	if err != nil {
-		log.Printf("Warning: Failed to load plugin config: %v. Using defaults.", err)
-		pluginConfig, _ = plugins.LoadConfig("") // Get default config
-	}
-
-	// Create and configure plugin registry
-	registry := plugins.NewRegistry()
-
-	// Register all built-in plugins
-	registry.RegisterSorter(builtin.NewInsertionOrderSorter())
-	registry.RegisterSorter(builtin.NewZoneNameSorter())
-	registry.RegisterSorter(builtin.NewDeviceNameSorter())
-	registry.RegisterSorter(builtin.NewReverseIDSorter())
-
-	// Set active sorter from configuration
-	if err := registry.SetActiveSorter(pluginConfig.Plugins.ConnectionSorters.Active); err != nil {
-		log.Printf("Warning: Failed to set active sorter '%s': %v. Using insertion_order.",
-			pluginConfig.Plugins.ConnectionSorters.Active, err)
-		registry.SetActiveSorter("insertion_order")
-	}
-
-	// Initialize global plugin manager for runtime configuration
-	plugins.InitializeGlobalPluginManager(registry)
-
-	// Wrap repository with plugin decorator
-	pluginRepo := plugins.NewPluginAwareRepository(baseRepo, registry)
-
-	// Create service with plugin-aware repository
-	service := q.NewNetService(pluginRepo)
+	// Create service with base repository
+	service := q.NewNetService(baseRepo)
 	return service, nil
 }
 
@@ -134,9 +101,6 @@ func registerAllRoutes(r *mux.Router, service q.NetServiceInt) {
 
 	// VLAN-related routes
 	vlans.RegisterRoutes(r, service)
-
-	// Plugin management routes
-	apiplugins.RegisterRoutes(r)
 
 	// Network scanning routes
 	registerScanningRoutes(r, service)

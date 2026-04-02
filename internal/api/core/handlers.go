@@ -115,10 +115,6 @@ func RootHandler() http.HandlerFunc {
 			// /diagram
 			"GET    /diagram",
 
-			// /plugins
-			"GET    /plugins",
-			"POST   /plugins/active",
-
 			// Network scanning
 			"POST   /scan/network",
 			"POST   /scan/host",

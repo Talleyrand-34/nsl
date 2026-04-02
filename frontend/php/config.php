@@ -20,8 +20,6 @@ define('CONNECTIONS_ENDPOINT', API_BASE_URL . '/connections');
 define('CONNECTIONTYPES_ENDPOINT', API_BASE_URL . '/connectiontypes');
 define('DEVICEPORTS_ENDPOINT', API_BASE_URL . '/deviceports');
 define('VLANS_ENDPOINT', API_BASE_URL . '/vlans');
-define('PLUGINS_ENDPOINT', API_BASE_URL . '/plugins');
-define('PLUGINS_ACTIVE_ENDPOINT', API_BASE_URL . '/plugins/active');
 // Add other endpoints as needed, e.g.:
 // define('DEVICECLASSES_ENDPOINT', API_BASE_URL . '/deviceclasses');
 //

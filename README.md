@@ -1,6 +1,6 @@
 # NSL-Graph
 
-Network Specification and Layout Graph - A comprehensive network infrastructure management tool with visualization, VLAN support, multi-vendor device configuration integration, and a flexible plugin system.
+Network Specification and Layout Graph - A comprehensive network infrastructure management tool with visualization, VLAN support, and multi-vendor device configuration integration.
 
 ## Overview
 
@@ -13,7 +13,6 @@ NSL-Graph is a network specification management tool designed to help you docume
 ### Key Features
 
 - **Network Visualization**: Generate D2-based diagrams showing devices, connections, and VLANs
-- **Plugin System**: Extensible architecture for custom connection sorting strategies
 - **VLAN Support**: Tagged and untagged VLAN configurations with color-coded visualization
 - **WiFi Support**: WiFi radio ports and SSID interface entities
 - **Device Configuration Integration**: SSH, file, and manual config parsing for OPNsense, OpenWrt, Fortinet, and Cisco devices
@@ -120,14 +119,6 @@ curl -X POST http://localhost:8081/devices \
   -H "Content-Type: application/json" \
   -d '{"label":"Switch-1","model":"XC206","zoneid":"<zone-id>"}'
 
-# Get available plugins
-curl http://localhost:8081/plugins
-
-# Change active plugin (no restart required)
-curl -X POST http://localhost:8081/plugins/active \
-  -H "Content-Type: application/json" \
-  -d '{"plugin_id":"zone_name"}'
-
 # Get diagram
 curl "http://localhost:8081/diagram?format=connections&vlan=true&colorports=true" > network.svg
 ```
@@ -139,7 +130,6 @@ Access the web interface at `http://localhost:8091/main.php`
 Features:
 - Add, update, delete all network entities
 - Visual diagram with resizable viewer
-- Real-time plugin switching
 - VLAN configuration per port
 - Dynamic API endpoint configuration
 
@@ -157,41 +147,6 @@ Zone Type → Zone → Device → Device Ports → Connections
                WiFi Radio Ports → SSID Interfaces
 ```
 
-### Plugin System
-
-NSL-Graph includes a flexible plugin system for customizing connection sorting behavior:
-
-#### Available Built-in Plugins
-
-1. **insertion_order** (default): Maintains database insertion order
-2. **zone_name**: Sorts by zone name hierarchy
-3. **device_name**: Sorts by device name
-4. **reverse_id**: Reverses connection order
-
-#### Configuration
-
-Edit `plugins.yaml` to set the default plugin:
-
-```yaml
-plugins:
-  connection_sorters:
-    active: "zone_name"
-```
-
-#### Runtime Plugin Switching
-
-Plugins can be changed at runtime without restarting the server:
-
-**Via API:**
-```bash
-curl -X POST http://localhost:8081/plugins/active \
-  -H "Content-Type: application/json" \
-  -d '{"plugin_id":"device_name"}'
-```
-
-**Via Web UI:**
-Use the plugin selector dropdown in the main interface.
-
 ### Directory Structure
 
 ```
@@ -207,15 +162,13 @@ nsl/
 │   │   ├── application/   # Business logic service layer
 │   │   ├── domain/        # Repository interfaces
 │   │   ├── entities/      # Core data structures
-│   │   ├── infra/         # CloverDB implementation
-│   │   └── plugins/       # Plugin system
+│   │   └── infra/        # CloverDB implementation
 │   ├── configparser/      # Configuration parsing framework
 │   │   └── parsers/       # Device-specific parsers (OPNsense, OpenWrt, Fortinet, Cisco)
 │   └── format/            # Diagram generation
 ├── frontend/php/          # Web interface
 │   ├── action/            # Entity management forms
 │   └── config.php         # API endpoint configuration
-├── plugins.yaml           # Plugin configuration
 └── main.go               # Application entry point
 ```
 
@@ -316,10 +269,6 @@ go test ./internal/configparser
 - `GET/POST/PUT/DELETE /connections`
 - `GET/POST/PUT/DELETE /connectiontypes`
 - `GET/POST/PUT/DELETE /vlans`
-
-### Plugins
-- `GET /plugins` - List available plugins
-- `POST /plugins/active` - Set active plugin
 
 ### Diagrams
 - `GET /diagram?format={ports|connections}&vlan={true|false}&colorports={true|false}`

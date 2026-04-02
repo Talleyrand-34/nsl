@@ -29,8 +29,6 @@ import (
 
 	c "nsl-graph/cmd"
 	q "nsl-graph/internal/repository/application"
-	"nsl-graph/internal/repository/plugins"
-	"nsl-graph/internal/repository/plugins/builtin"
 
 	// infra "nsl-graph/internal/repository/infra/manual_cloverdb/base"
 
@@ -68,37 +66,8 @@ func GetServiceConnection(dbPath string) (q.NetServiceInt, error) {
 			log.Fatalf("Error connecting to CloverDB: %v", err)
 		}
 
-		// Load plugin configuration
-		pluginConfig, err := plugins.LoadConfig(c.PluginConfig)
-		if err != nil {
-			log.Printf("Warning: Failed to load plugin config from '%s': %v. Using defaults.", c.PluginConfig, err)
-			pluginConfig, _ = plugins.LoadConfig("") // Get default config
-		}
-
-		// Create and configure plugin registry
-		registry := plugins.NewRegistry()
-
-		// Register all built-in plugins
-		registry.RegisterSorter(builtin.NewInsertionOrderSorter())
-		registry.RegisterSorter(builtin.NewZoneNameSorter())
-		registry.RegisterSorter(builtin.NewDeviceNameSorter())
-		registry.RegisterSorter(builtin.NewReverseIDSorter())
-
-		// Set active sorter from configuration
-		if err := registry.SetActiveSorter(pluginConfig.Plugins.ConnectionSorters.Active); err != nil {
-			log.Printf("Warning: Failed to set active sorter '%s': %v. Using insertion_order.",
-				pluginConfig.Plugins.ConnectionSorters.Active, err)
-			registry.SetActiveSorter("insertion_order")
-		}
-
-		// Initialize global plugin manager for runtime configuration
-		plugins.InitializeGlobalPluginManager(registry)
-
-		// Wrap repository with plugin decorator
-		pluginRepo := plugins.NewPluginAwareRepository(baseRepo, registry)
-
-		// Create service with plugin-aware repository
-		service := q.NewNetService(pluginRepo)
+		// Create service with base repository
+		service := q.NewNetService(baseRepo)
 		return service, nil
 
 	case "sqlite", "":

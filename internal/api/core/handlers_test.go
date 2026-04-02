@@ -70,7 +70,6 @@ func TestCore_RootEndpoint(t *testing.T) {
 	assert.Contains(t, endpointStrings, "POST   /brands")
 	assert.Contains(t, endpointStrings, "GET    /devices")
 	assert.Contains(t, endpointStrings, "GET    /diagram")
-	assert.Contains(t, endpointStrings, "GET    /plugins")
 }
 
 func TestCore_DiagramEndpoint(t *testing.T) {

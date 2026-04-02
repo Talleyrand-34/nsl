@@ -29,12 +29,10 @@ var (
 	// Srcdbpath  Path to the db
 	Srcdbpath string
 	// Backend  Database backend type (sqlite or cloverdb)
-	Backend      string
-	outpath      string
-	outFile      string
-	outImage     string
-	// PluginConfig  Path to plugin configuration file
-	PluginConfig string
+	Backend  string
+	outpath  string
+	outFile  string
+	outImage string
 	// Verbose verbose
 	Verbose bool
 	// Debug debug
@@ -67,8 +65,6 @@ func init() {
 		StringVarP(&Srcdbpath, "source", "s", "test.db", "database file or directory path")
 	RootCmd.PersistentFlags().
 		StringVarP(&Backend, "backend", "b", "cloverdb", "database backend type (sqlite or cloverdb)")
-	RootCmd.PersistentFlags().
-		StringVar(&PluginConfig, "plugin-config", "plugins.yaml", "path to plugin configuration file")
 	RootCmd.PersistentFlags().
 		StringVar(&outpath, "outPath", "out/", "output path for files")
 	RootCmd.PersistentFlags().
