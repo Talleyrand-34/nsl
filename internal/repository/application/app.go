@@ -1033,7 +1033,7 @@ func (ns *NetService) importSingleDevice(discovered s.DiscoveredDevice, options 
 		return fmt.Errorf("failed to add device: %w", err)
 	}
 
-	if len(discovered.Device.Interfaces) > 0 {
+	if len(discovered.Device.Interfaces) > 0 || len(discovered.Device.SwitchPorts) > 0 {
 		devices, _ := ns.GetDevices()
 		var deviceID string
 		for _, device := range devices {
@@ -1692,7 +1692,7 @@ func (ns *NetService) importSingleDeviceWithPlan(discovered s.DiscoveredDevice, 
 		return fmt.Errorf("failed to add device: %w", err)
 	}
 
-	if len(discovered.Device.Interfaces) > 0 {
+	if len(discovered.Device.Interfaces) > 0 || len(discovered.Device.SwitchPorts) > 0 {
 		devices, _ := ns.GetDevices()
 		var deviceID string
 		for _, device := range devices {
@@ -1701,7 +1701,6 @@ func (ns *NetService) importSingleDeviceWithPlan(discovered s.DiscoveredDevice, 
 				break
 			}
 		}
-
 		if deviceID != "" {
 			if err := ns.createDevicePortsWithPlan(deviceID, discovered, plan); err != nil {
 				log.Printf("Failed to create ports for device %s: %v", discovered.SuggestedName, err)

@@ -120,12 +120,7 @@ func (p *OpenWrtParser) GetConfigViaSSH(ip string, creds configparser.SSHCredent
 		"uci show system",
 		"uci show dhcp",
 		"cat /etc/board.json",
-		"swconfig dev switch0 vlan 1 get ports",
-		"swconfig dev switch0 vlan 2 get ports",
-		"swconfig dev switch0 vlan 4 get ports",
-		"swconfig dev switch0 vlan 5 get ports",
-		"swconfig dev switch0 vlan 6 get ports",
-		"swconfig dev switch0 vlan 7 get ports",
+		"swconfig dev switch0 show",
 	}
 
 	var allConfig strings.Builder
@@ -240,53 +235,75 @@ func (p *OpenWrtParser) parseBoardJSON(rawConfig string) ([]configparser.SwitchP
 // Output format from command: "VLAN 1: ports: 0t 2 4"
 // Returns: map[portNumber][]PortVLANInfo where VID is the actual VLAN ID
 func (p *OpenWrtParser) parseSwconfigVLANs(rawConfig string) map[int][]configparser.PortVLANInfo {
-	// map[portNumber]map[vid]tagged for intermediate storage
 	portVLANs := make(map[int]map[int]bool)
 
 	lines := strings.Split(rawConfig, "\n")
+	currentVlan := 0
+
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" {
 			continue
 		}
 
-		// Match "VLAN 1: ports: 0t 2 4" format
-		if !strings.HasPrefix(trimmed, "VLAN ") {
+		// Skip lines starting with # (comments/errors) and Port lines
+		if strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "Port ") || strings.HasPrefix(trimmed, "switch0:") {
 			continue
 		}
 
-		// Extract VLAN number: "VLAN 1:" -> "1"
-		vlanPart := strings.TrimPrefix(trimmed, "VLAN ")
-		vlanParts := strings.Split(vlanPart, ":")
-		if len(vlanParts) < 2 {
-			continue
-		}
-		vlanNum, err := strconv.Atoi(strings.TrimSpace(vlanParts[0]))
-		if err != nil {
+		// Detect start of VLAN block: "VLAN 1:" or "VLAN 10:"
+		if strings.HasPrefix(trimmed, "VLAN ") {
+			parts := strings.Split(trimmed, " ")
+			if len(parts) >= 2 {
+				vlanNum, err := strconv.Atoi(parts[1][:len(parts[1])-1]) // Remove trailing :
+				if err == nil {
+					currentVlan = vlanNum
+				}
+			}
 			continue
 		}
 
-		// Extract ports: "ports: 0t 2 4" -> "0t 2 4"
-		portsPart := strings.Join(vlanParts[1:], ":")
-		portsIdx := strings.Index(portsPart, "ports:")
-		if portsIdx == -1 {
+		// Within VLAN block, look for "vid: N" line
+		if strings.HasPrefix(trimmed, "vid:") {
+			vidStr := strings.TrimPrefix(trimmed, "vid:")
+			vidStr = strings.TrimSpace(vidStr)
+			vlanNum, err := strconv.Atoi(vidStr)
+			if err == nil {
+				currentVlan = vlanNum
+			}
 			continue
 		}
-		portsStr := strings.TrimSpace(strings.TrimPrefix(portsPart[portsIdx:], "ports:"))
 
-		// Parse port list - each port has optional 't' suffix for tagged
-		portList := strings.Fields(portsStr)
-		for _, portEntry := range portList {
-			tagged := strings.HasSuffix(portEntry, "t")
-			portNum, err := strconv.Atoi(strings.TrimSuffix(portEntry, "t"))
-			if err != nil {
+		// Within VLAN block, look for "ports: \"0t 2 4\"" line
+		if strings.HasPrefix(trimmed, "ports:") {
+			if currentVlan == 0 {
 				continue
 			}
+			portsStr := strings.TrimPrefix(trimmed, "ports:")
+			portsStr = strings.TrimSpace(portsStr)
+			// Remove surrounding quotes if present: "\"0t 2 4\"" -> "0t 2 4"
+			portsStr = strings.Trim(portsStr, "\"")
 
-			if portVLANs[portNum] == nil {
-				portVLANs[portNum] = make(map[int]bool)
+			portList := strings.Fields(portsStr)
+			for _, portEntry := range portList {
+				tagged := strings.HasSuffix(portEntry, "t")
+				portNumStr := strings.TrimSuffix(portEntry, "t")
+				portNum, err := strconv.Atoi(portNumStr)
+				if err != nil {
+					continue
+				}
+
+				// Skip port 0 (CPU port)
+				if portNum == 0 {
+					continue
+				}
+
+				if portVLANs[portNum] == nil {
+					portVLANs[portNum] = make(map[int]bool)
+				}
+				portVLANs[portNum][currentVlan] = tagged
 			}
-			portVLANs[portNum][vlanNum] = tagged
+			currentVlan = 0 // Reset after processing ports
 		}
 	}
 
