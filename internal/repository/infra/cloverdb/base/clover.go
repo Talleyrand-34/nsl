@@ -14,6 +14,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 package basicops
 
 import (
+	"fmt"
+	"log"
+	"os"
+
 	c "github.com/ostafen/clover/v2"
 )
 
@@ -71,8 +75,24 @@ func NewCloverRepositoryFromDB(db *c.DB) (BasicOpsCloverRepository, error) {
 	return BasicOpsCloverRepository{db: db}, nil
 }
 
-// NewCloverRepository creates a repository with a new CloverDB instance at the specified path
+// NewCloverRepository creates a repository with a new CloverDB instance at the
+// specified directory path. The directory is created if it does not exist;
+// either way the outcome is reported via a log message.
 func NewCloverRepository(dirPath string) (BasicOpsCloverRepository, error) {
+	if info, err := os.Stat(dirPath); err != nil {
+		if !os.IsNotExist(err) {
+			return BasicOpsCloverRepository{}, fmt.Errorf("failed to access database directory %q: %w", dirPath, err)
+		}
+		if err := os.MkdirAll(dirPath, 0o755); err != nil {
+			return BasicOpsCloverRepository{}, fmt.Errorf("failed to create database directory %q: %w", dirPath, err)
+		}
+		log.Printf("Created new database directory %q", dirPath)
+	} else if !info.IsDir() {
+		return BasicOpsCloverRepository{}, fmt.Errorf("database path %q exists but is not a directory", dirPath)
+	} else {
+		log.Printf("Using existing database directory %q", dirPath)
+	}
+
 	db, err := c.Open(dirPath)
 	if err != nil {
 		return BasicOpsCloverRepository{}, err

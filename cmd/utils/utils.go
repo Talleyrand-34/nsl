@@ -46,8 +46,8 @@ func GetServiceConnection(dbPath string) (q.NetServiceInt, error) {
 
 	switch backend {
 	case "cloverdb", "clover", "":
-		// Use CloverDB backend (the only supported backend)
-		os.Mkdir(dbPath, 0755)
+		// Use CloverDB backend (the only supported backend).
+		// NewCloverRepository creates the directory if needed and logs the outcome.
 		baseRepo, err := infra.NewCloverRepository(dbPath)
 		if err != nil {
 			log.Fatalf("Error connecting to CloverDB: %v", err)
