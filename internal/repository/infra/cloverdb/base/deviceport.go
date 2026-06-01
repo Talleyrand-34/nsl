@@ -27,9 +27,11 @@ import (
 
 // DevicePortExists checks if a device port already exists
 func (r BasicOpsCloverRepository) DevicePortExists(deviceid string, modelportid string) (bool, error) {
-	query := q.NewQuery(deviceportsCollection).
-		Where(q.Field("device_id").Eq(deviceid)).
-		Where(q.Field("model_port_id").Eq(modelportid))
+	query := q.NewQuery(deviceportsCollection).Where(
+		q.Field("device_id").Eq(deviceid).And(
+			q.Field("model_port_id").Eq(modelportid),
+		),
+	)
 
 	exists, err := r.db.Exists(query)
 	if err != nil {
@@ -208,9 +210,11 @@ func (r BasicOpsCloverRepository) getStoredVLANsForDeviceport(doc *d.Document, d
 	}
 
 	// Add VLANs from InterfacePorts
-	ifacePortDocs, _ := r.db.FindAll(q.NewQuery(interfacePortsCollection).
-		Where(q.Field("device_id").Eq(deviceID)).
-		Where(q.Field("model_port_id").Eq(modelPortID)))
+	ifacePortDocs, _ := r.db.FindAll(q.NewQuery(interfacePortsCollection).Where(
+		q.Field("device_id").Eq(deviceID).And(
+			q.Field("model_port_id").Eq(modelPortID),
+		),
+	))
 	for _, ipDoc := range ifacePortDocs {
 		if raw, ok := ipDoc.Get("vlan_configs").([]interface{}); ok {
 			for _, item := range raw {
@@ -372,9 +376,11 @@ func (r BasicOpsCloverRepository) GetDevicePorts() ([]e.DevicePort, error) {
 // DeleteDevicePort deletes a device port from the database by device and model port IDs
 func (r BasicOpsCloverRepository) DeleteDevicePort(deviceid string, modelportid string) error {
 	// First, find the deviceport document to get its ID
-	query := q.NewQuery(deviceportsCollection).
-		Where(q.Field("device_id").Eq(deviceid)).
-		Where(q.Field("model_port_id").Eq(modelportid))
+	query := q.NewQuery(deviceportsCollection).Where(
+		q.Field("device_id").Eq(deviceid).And(
+			q.Field("model_port_id").Eq(modelportid),
+		),
+	)
 
 	doc, err := r.db.FindFirst(query)
 	if err != nil {
@@ -403,9 +409,11 @@ func (r BasicOpsCloverRepository) DeleteDevicePort(deviceid string, modelportid 
 	}
 
 	// Cascade-delete InterfacePort entries for this physical port
-	if err := r.db.Delete(q.NewQuery(interfacePortsCollection).
-		Where(q.Field("device_id").Eq(deviceid)).
-		Where(q.Field("model_port_id").Eq(modelportid))); err != nil {
+	if err := r.db.Delete(q.NewQuery(interfacePortsCollection).Where(
+		q.Field("device_id").Eq(deviceid).And(
+			q.Field("model_port_id").Eq(modelportid),
+		),
+	)); err != nil {
 		return fmt.Errorf("DeleteDevicePort: failed to delete interface ports: %w", err)
 	}
 
@@ -416,9 +424,7 @@ func (r BasicOpsCloverRepository) DeleteDevicePort(deviceid string, modelportid 
 	return nil
 }
 
-// UpdateDevicePort updates a device port's MAC address.
-// vlanConfigs is accepted for interface compatibility but ignored — VLAN data
-// is now managed via DeviceInterface.
+// UpdateDevicePort updates a device port's MAC address and VLAN configurations.
 func (r BasicOpsCloverRepository) UpdateDevicePort(deviceid string, modelportid string, macAddress string, vlanConfigs []e.PortVlanConfig) error {
 	query := q.NewQuery(deviceportsCollection).Where(
 		q.Field("device_id").Eq(deviceid).And(
@@ -426,8 +432,24 @@ func (r BasicOpsCloverRepository) UpdateDevicePort(deviceid string, modelportid 
 		),
 	)
 
-	updates := map[string]interface{}{
-		"mac_address": macAddress,
+	updates := map[string]interface{}{}
+	if macAddress != "" {
+		updates["mac_address"] = macAddress
+	}
+
+	if len(vlanConfigs) > 0 {
+		vlansMap := make([]map[string]interface{}, len(vlanConfigs))
+		for i, vc := range vlanConfigs {
+			vlansMap[i] = map[string]interface{}{
+				"vlan_number": vc.VlanNumber,
+				"tagged":      vc.Tagged,
+			}
+		}
+		updates["vlan_configs"] = vlansMap
+	}
+
+	if len(updates) == 0 {
+		return nil
 	}
 
 	err := r.db.Update(query, updates)
@@ -439,16 +461,18 @@ func (r BasicOpsCloverRepository) UpdateDevicePort(deviceid string, modelportid 
 
 // GetDevicePortByIDs retrieves a device port by device and model port IDs
 func (r BasicOpsCloverRepository) GetDevicePortByIDs(deviceid string, modelportid string) (*e.DevicePort, error) {
-	query := q.NewQuery(deviceportsCollection).
-		Where(q.Field("device_id").Eq(deviceid)).
-		Where(q.Field("model_port_id").Eq(modelportid))
+	query := q.NewQuery(deviceportsCollection).Where(
+		q.Field("device_id").Eq(deviceid).And(
+			q.Field("model_port_id").Eq(modelportid),
+		),
+	)
 
 	doc, err := r.db.FindFirst(query)
 	if err != nil {
 		return nil, fmt.Errorf("GetDevicePortByIDs failed: %w", err)
 	}
 	if doc == nil {
-		return nil, fmt.Errorf("device port not found")
+		return nil, nil
 	}
 
 	devicePort := &e.DevicePort{

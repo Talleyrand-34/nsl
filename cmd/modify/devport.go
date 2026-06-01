@@ -1,18 +1,18 @@
 /*
-	Copyright © 2025 Talleyrand-34 (t34@t34.dev)
+Copyright © 2025 Talleyrand-34 (t34@t34.dev)
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as published
-	by the Free Software Foundation, either version 3 of the License, or
-	(at your option) any later version.
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-	GNU Affero General Public License for more details.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program. If not, see <https://www.gnu.org/licenses/>.
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 package cmd_modify
 
@@ -70,9 +70,28 @@ var devicePortModCmd = &cobra.Command{
 		if err != nil {
 			return
 		}
-		if _, err := service.AddDevicePort(deviceid, modelportid, macaddress, vlanConfigs); err != nil {
-			fmt.Fprintf(os.Stderr, "Error writing deviceport: %v\n", err)
+
+		// Check if deviceport already exists
+		existingPort, err := service.GetDevicePortByIDs(deviceid, modelportid)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error checking deviceport: %v\n", err)
 			os.Exit(1)
+		}
+
+		if existingPort != nil {
+			// Update existing deviceport
+			if err := service.UpdateDevicePort(deviceid, modelportid, macaddress, vlanConfigs); err != nil {
+				fmt.Fprintf(os.Stderr, "Error updating deviceport: %v\n", err)
+				os.Exit(1)
+			}
+			fmt.Printf("Updated deviceport %s:%s\n", existingPort.DevLabel, existingPort.PortName)
+		} else {
+			// Create new deviceport
+			if _, err := service.AddDevicePort(deviceid, modelportid, macaddress, vlanConfigs); err != nil {
+				fmt.Fprintf(os.Stderr, "Error writing deviceport: %v\n", err)
+				os.Exit(1)
+			}
+			fmt.Printf("Created deviceport %s:%s\n", deviceid, modelportid)
 		}
 	},
 }

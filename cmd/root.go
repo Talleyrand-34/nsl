@@ -41,9 +41,10 @@ var (
 
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
-	Use:   "nsl-graph",
-	Short: "Manages networks specifications in nsl",
-	Long:  `i`,
+	Use:     "nsl-graph",
+	Short:   "Manages networks specifications in nsl",
+	Long:    `i`,
+	Version: "0.1v",
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {

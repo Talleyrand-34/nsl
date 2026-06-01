@@ -137,6 +137,7 @@ type NetServiceInt interface {
 	// DevicePort operations
 	AddDevicePort(deviceId string, modelPortId string, macAddress string, vlanConfigs []e.PortVlanConfig) (string, error)
 	GetDevicePorts() ([]e.DevicePort, error)
+	GetDevicePortByIDs(deviceId string, modelPortId string) (*e.DevicePort, error)
 	UpdateDevicePort(deviceId string, modelPortId string, macAddress string, vlanConfigs []e.PortVlanConfig) error
 	DeleteDevicePort(deviceId string, modelPortId string) error
 
@@ -351,6 +352,10 @@ func (ns *NetService) UpdateDeviceIPs(deviceId string, ips []string) error {
 func (ns *NetService) GetDevicePorts() ([]e.DevicePort, error) {
 	zones, err := ns.netRepo.GetDevicePorts()
 	return zones, err
+}
+
+func (ns *NetService) GetDevicePortByIDs(deviceid string, modelportid string) (*e.DevicePort, error) {
+	return ns.netRepo.GetDevicePortByIDs(deviceid, modelportid)
 }
 
 func (ns *NetService) AddDevicePort(
