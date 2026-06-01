@@ -67,14 +67,21 @@ get_interface_id() {
 }
 
 add_interface() {
-    # add_interface <device_id> <iface_name> <vlan_configs...>
+    # add_interface <device_id> <iface_name> [ip=<addr>] <vlan_configs...>
     # vlan_configs format: "10:tagged" "20:untagged" ...
+    # IPs now live on the interface (the device no longer takes --ips); pass
+    # them with an "ip=<addr>" token anywhere in the arg list.
     local devid="$1"; shift
     local name="$1"; shift
+    local ip=""
     local args=()
-    for vc in "$@"; do
-        args+=(--vlan-configs "$vc")
+    for tok in "$@"; do
+        case "$tok" in
+            ip=*) ip="${tok#ip=}" ;;
+            *)    args+=(--vlan-configs "$tok") ;;
+        esac
     done
+    [ -n "$ip" ] && args+=(--ips "$ip")
     $NSL modify deviceinterface --deviceid "$devid" --name "$name" "${args[@]}" -s "$DB"
 }
 
@@ -156,12 +163,13 @@ $NSL modify vlan --vlan-id 60 --name "VoIP"       --ip-segment "10.60.0.0/24"   
 
 echo ""
 echo "--- Devices ---"
-$NSL modify device --label "FW-01"      --model "FW-Model"        --zone-name "DMZ"        --proprietary "NetCorp" --ips "10.0.0.1"    -s "$DB"
-$NSL modify device --label "SW-CORE"   --model "Core-SW-Model"   --zone-name "DataCenter" --proprietary "NetCorp" --ips "10.0.0.2"    -s "$DB"
-$NSL modify device --label "SW-F1"     --model "Access-SW-Model" --zone-name "Floor1"     --proprietary "NetCorp" --ips "10.0.0.3"    -s "$DB"
-$NSL modify device --label "SW-F2"     --model "Access-SW-Model" --zone-name "Floor2"     --proprietary "NetCorp" --ips "10.0.0.4"    -s "$DB"
-$NSL modify device --label "SRV-01"    --model "Server-Model"    --zone-name "DataCenter" --proprietary "NetCorp" --ips "10.20.0.100" -s "$DB"
-$NSL modify device --label "SRV-STORE" --model "Server-Model"    --zone-name "DataCenter" --proprietary "NetCorp" --ips "10.50.0.100" -s "$DB"
+# Devices no longer carry IPs directly; IPs are assigned per interface below.
+$NSL modify device --label "FW-01"      --model "FW-Model"        --zone-name "DMZ"        --proprietary "NetCorp" -s "$DB"
+$NSL modify device --label "SW-CORE"   --model "Core-SW-Model"   --zone-name "DataCenter" --proprietary "NetCorp" -s "$DB"
+$NSL modify device --label "SW-F1"     --model "Access-SW-Model" --zone-name "Floor1"     --proprietary "NetCorp" -s "$DB"
+$NSL modify device --label "SW-F2"     --model "Access-SW-Model" --zone-name "Floor2"     --proprietary "NetCorp" -s "$DB"
+$NSL modify device --label "SRV-01"    --model "Server-Model"    --zone-name "DataCenter" --proprietary "NetCorp" -s "$DB"
+$NSL modify device --label "SRV-STORE" --model "Server-Model"    --zone-name "DataCenter" --proprietary "NetCorp" -s "$DB"
 
 # ── Capture IDs ───────────────────────────────────────────────────────────────
 
@@ -245,23 +253,23 @@ echo ""
 echo "--- Device interfaces ---"
 
 add_interface "$FW01_ID"     "fw-lan"      "10:tagged" "20:tagged" "30:tagged" "40:tagged" "50:tagged" "60:tagged"
-add_interface "$FW01_ID"     "fw-dmz"      "10:untagged"
+add_interface "$FW01_ID"     "fw-dmz"      ip=10.0.0.1 "10:untagged"
 
-add_interface "$SWCORE_ID"   "core-uplfw"  "10:tagged" "20:tagged" "30:tagged" "40:tagged" "50:tagged" "60:tagged"
+add_interface "$SWCORE_ID"   "core-uplfw"  ip=10.0.0.2 "10:tagged" "20:tagged" "30:tagged" "40:tagged" "50:tagged" "60:tagged"
 add_interface "$SWCORE_ID"   "core-uplf1"  "10:tagged" "30:tagged" "60:tagged"
 add_interface "$SWCORE_ID"   "core-uplf2"  "10:tagged" "40:tagged"
 add_interface "$SWCORE_ID"   "core-srv"    "20:untagged" "10:tagged"
 add_interface "$SWCORE_ID"   "core-store"  "50:untagged" "10:tagged"
 
-add_interface "$SWF1_ID"     "f1-uplink"   "10:tagged" "30:tagged" "60:tagged"
+add_interface "$SWF1_ID"     "f1-uplink"   ip=10.0.0.3 "10:tagged" "30:tagged" "60:tagged"
 add_interface "$SWF1_ID"     "f1-access"   "30:untagged"
 add_interface "$SWF1_ID"     "f1-voip"     "60:untagged"
 
-add_interface "$SWF2_ID"     "f2-uplink"   "10:tagged" "40:tagged"
+add_interface "$SWF2_ID"     "f2-uplink"   ip=10.0.0.4 "10:tagged" "40:tagged"
 add_interface "$SWF2_ID"     "f2-access"   "40:untagged"
 
-add_interface "$SRV01_ID"    "srv-eth0"    "20:untagged" "10:tagged"
-add_interface "$SRVSTORE_ID" "store-eth0"  "50:untagged" "10:tagged"
+add_interface "$SRV01_ID"    "srv-eth0"    ip=10.20.0.100 "20:untagged" "10:tagged"
+add_interface "$SRVSTORE_ID" "store-eth0"  ip=10.50.0.100 "50:untagged" "10:tagged"
 
 # ── Link interfaces to physical ports ─────────────────────────────────────────
 

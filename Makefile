@@ -14,7 +14,7 @@ BUILD_FLAGS=-trimpath
 
 .PHONY: help build build-release clean test test-verbose test-coverage lint fmt vet deps-update
 .PHONY: run run-server run-cli run-fullstack dev-server
-.PHONY: generate db-generate install check
+.PHONY: install check
 .PHONY: docker-build docker-run
 .PHONY: docs serve-docs
 
@@ -116,13 +116,6 @@ vet: ## Run go vet
 
 check: fmt vet lint ## Run all code quality checks
 
-## Database and generation targets
-generate: ## Generate code from schema (SQLC)
-	@echo "Generating SQLC code..."
-	@cd internal/repository/infra/sqlc_sqlite && sqlc generate
-
-db-generate: generate ## Alias for generate
-
 ## Dependency management
 deps-update: ## Update Go dependencies
 	@echo "Updating dependencies..."
@@ -140,7 +133,6 @@ install: build ## Install binary to GOPATH/bin
 install-tools: ## Install development tools
 	@echo "Installing development tools..."
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-	go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
 	@if command -v npm > /dev/null; then \
 		echo "Installing air for hot reload..."; \
 		go install github.com/cosmtrek/air@latest; \
@@ -302,7 +294,7 @@ release: clean test build-release ## Create a release build
 	@ls -lh $(BUILD_DIR)/$(BINARY_NAME)
 
 ## Example workflows
-example-setup: deps-update install-tools generate build db-init check-nmap ## Complete setup for new developers
+example-setup: deps-update install-tools build db-init check-nmap ## Complete setup for new developers
 	@echo ""
 	@echo "✅ Setup complete! Try these commands:"
 	@echo "  make run-fullstack  # Start full application"

@@ -17,33 +17,20 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 package cmd_utils
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"strings"
 
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/cobra"
 
 	c "nsl-graph/cmd"
 	q "nsl-graph/internal/repository/application"
 
-	// infra "nsl-graph/internal/repository/infra/manual_cloverdb/base"
-
 	infra "nsl-graph/internal/repository/infra/cloverdb/base"
-	// sqliteInfra "nsl-graph/internal/repository/infra/sqlc_sqlite/base"
 )
 
-// openDatabaseConnection establishes and returns a database connection.
-func OpenDatabaseConnectionSqlite() (*sql.DB, error) {
-	db, err := sql.Open("sqlite3", c.Srcdbpath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open SQLite database: %w", err)
-	}
-	return db, nil
-}
 func OpenDatabaseConnectionClover() {
 	os.Mkdir(c.Srcdbpath, 0755)
 }
@@ -58,8 +45,8 @@ func GetServiceConnection(dbPath string) (q.NetServiceInt, error) {
 	backend := strings.ToLower(c.Backend)
 
 	switch backend {
-	case "cloverdb", "clover":
-		// Use CloverDB backend
+	case "cloverdb", "clover", "":
+		// Use CloverDB backend (the only supported backend)
 		os.Mkdir(dbPath, 0755)
 		baseRepo, err := infra.NewCloverRepository(dbPath)
 		if err != nil {
@@ -70,23 +57,8 @@ func GetServiceConnection(dbPath string) (q.NetServiceInt, error) {
 		service := q.NewNetService(baseRepo)
 		return service, nil
 
-	case "sqlite", "":
-		// SQLite backend not yet fully supported
-		// Use SQLite backend (default)
-		// 66 -      db, err := OpenDatabaseConnectionSqlite()
-		// 67 -      if err != nil {
-		// 68 -        log.Fatalf("Error connecting to SQLite database: %v", err)
-		// 69 -      }
-		// 70 -      repository, err := sqliteInfra.NewSQLiteRepositoryFromDB(db)
-		// 71 -      if err != nil {
-		// 72 -        log.Fatalf("Error initializing SQLite repository: %v", err)
-		// 73 -      }
-		// 74 -      service := q.NewNetService(repository)
-		// 75 -      return service, nil
-		return nil, fmt.Errorf("SQLite backend is not yet fully supported - please use 'cloverdb' backend instead")
-
 	default:
-		return nil, fmt.Errorf("unsupported backend type: %s (supported: sqlite, cloverdb)", backend)
+		return nil, fmt.Errorf("unsupported backend type: %s (supported: cloverdb)", backend)
 	}
 }
 

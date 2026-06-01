@@ -28,7 +28,7 @@ import (
 var (
 	// Srcdbpath  Path to the db
 	Srcdbpath string
-	// Backend  Database backend type (sqlite or cloverdb)
+	// Backend  Database backend type (cloverdb)
 	Backend  string
 	outpath  string
 	outFile  string
@@ -64,7 +64,7 @@ func init() {
 	RootCmd.PersistentFlags().
 		StringVarP(&Srcdbpath, "source", "s", "test.db", "database file or directory path")
 	RootCmd.PersistentFlags().
-		StringVarP(&Backend, "backend", "b", "cloverdb", "database backend type (sqlite or cloverdb)")
+		StringVarP(&Backend, "backend", "b", "cloverdb", "database backend type (cloverdb)")
 	RootCmd.PersistentFlags().
 		StringVar(&outpath, "outPath", "out/", "output path for files")
 	RootCmd.PersistentFlags().
