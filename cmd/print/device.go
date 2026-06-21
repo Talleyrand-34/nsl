@@ -61,20 +61,6 @@ var devicePrintCmd = &cobra.Command{
 			return
 		}
 
-		// Get all interface ports for IP lookups
-		allIPs, err := service.GetAllInterfacePorts()
-		if err != nil {
-			fmt.Println("Error getting InterfacePorts:", err)
-			return
-		}
-		// Build IP lookup: interfaceID -> IP address
-		ifaceIPMap := make(map[string]string)
-		for _, ip := range allIPs {
-			if len(ip.IPAddresses) > 0 {
-				ifaceIPMap[ip.InterfaceID] = ip.IPAddresses[0]
-			}
-		}
-
 		// Build result with interfaces
 		result := make([]DeviceWithInterfaces, len(devs))
 		for i, d := range devs {
@@ -96,10 +82,9 @@ var devicePrintCmd = &cobra.Command{
 				continue
 			}
 			for _, iface := range ifaces {
+				// IPs are owned by the DeviceInterface.
 				var ip string
-				if p, ok := ifaceIPMap[iface.ID]; ok {
-					ip = p
-				} else if len(iface.IPAddresses) > 0 {
+				if len(iface.IPAddresses) > 0 {
 					ip = iface.IPAddresses[0]
 				}
 				result[i].Interfaces = append(result[i].Interfaces, InterfaceNameIP{

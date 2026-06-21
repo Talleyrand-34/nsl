@@ -106,8 +106,11 @@ Without flags, prints all interface-port links.`,
 			portNameMap[mp.ID] = mp.Name
 		}
 		ifaceNameMap := make(map[string]string)
+		// VLANs and IPs are owned by the DeviceInterface; resolve them by interface ID.
+		ifaceByID := make(map[string]e.DeviceInterface)
 		for _, iface := range interfaces {
 			ifaceNameMap[iface.ID] = iface.Name
+			ifaceByID[iface.ID] = iface
 		}
 
 		if interfaceid != "" {
@@ -135,7 +138,8 @@ Without flags, prints all interface-port links.`,
 				fmt.Println("Error getting interfaces for port:", err)
 				return
 			}
-			// Get InterfacePorts to find VLANs
+			// List the join records for this physical port; VLANs/IPs come from
+			// the linked DeviceInterface.
 			allIPs, _ := service.GetAllInterfacePorts()
 			ifaceNameMap2 := make(map[string]string)
 			for _, di := range deviceIfaces {
@@ -144,6 +148,7 @@ Without flags, prints all interface-port links.`,
 			verbosePorts = make([]VerboseInterfacePort, 0)
 			for _, ip := range allIPs {
 				if ip.DeviceID == deviceid && ip.ModelPortID == modelportid {
+					iface := ifaceByID[ip.InterfaceID]
 					verbosePorts = append(verbosePorts, VerboseInterfacePort{
 						ID:            ip.ID,
 						InterfaceID:   ip.InterfaceID,
@@ -152,7 +157,8 @@ Without flags, prints all interface-port links.`,
 						DeviceName:    deviceNameMap[ip.DeviceID],
 						ModelPortID:   ip.ModelPortID,
 						PortName:      portNameMap[ip.ModelPortID],
-						VlanConfigs:   ip.VlanConfigs,
+						VlanConfigs:   iface.VlanConfigs,
+						IPAddresses:   iface.IPAddresses,
 					})
 				}
 			}
@@ -165,6 +171,7 @@ Without flags, prints all interface-port links.`,
 			}
 			verbosePorts = make([]VerboseInterfacePort, len(ports))
 			for i, p := range ports {
+				iface := ifaceByID[p.InterfaceID]
 				verbosePorts[i] = VerboseInterfacePort{
 					ID:            p.ID,
 					InterfaceID:   p.InterfaceID,
@@ -173,8 +180,8 @@ Without flags, prints all interface-port links.`,
 					DeviceName:    deviceNameMap[p.DeviceID],
 					ModelPortID:   p.ModelPortID,
 					PortName:      portNameMap[p.ModelPortID],
-					VlanConfigs:   p.VlanConfigs,
-					IPAddresses:   p.IPAddresses,
+					VlanConfigs:   iface.VlanConfigs,
+					IPAddresses:   iface.IPAddresses,
 				}
 			}
 		}

@@ -123,3 +123,9 @@ connections ──┴──── deviceports (from/to port connections)
 ### Many-to-Many
 - DevicePorts ↔ Connections (via from/to references)
 - DeviceInterfaces ↔ DevicePorts (via InterfacePorts join table)
+
+> **Note:** `interface_ports` is a *pure join* table. VLAN configurations and IP
+> addresses are owned exclusively by `device_interfaces` and are resolved via
+> `interface_id`; they are not duplicated on the join. (`device_id` is kept on the
+> join only as a denormalized query key, since `model_port_id` is shared across
+> devices of the same model.)

@@ -128,8 +128,10 @@ func (r BasicOpsCloverRepository) DeleteDeviceInterface(id string) error {
 	return nil
 }
 
-// AddInterfacePort links a logical interface to a physical device port with VLAN configurations and IP addresses
-func (r BasicOpsCloverRepository) AddInterfacePort(interfaceID, deviceID, modelPortID string, vlanConfigs []e.PortVlanConfig, ipAddresses []string) error {
+// AddInterfacePort links a logical interface to a physical device port.
+// VLAN configurations and IP addresses are NOT stored here; they belong to the
+// DeviceInterface and are resolved via interface_id.
+func (r BasicOpsCloverRepository) AddInterfacePort(interfaceID, deviceID, modelPortID string) error {
 	id := uuid.New().String()
 
 	doc := d.NewDocument()
@@ -137,21 +139,6 @@ func (r BasicOpsCloverRepository) AddInterfacePort(interfaceID, deviceID, modelP
 	doc.Set("interface_id", interfaceID)
 	doc.Set("device_id", deviceID)
 	doc.Set("model_port_id", modelPortID)
-
-	if len(vlanConfigs) > 0 {
-		vlansMap := make([]map[string]interface{}, len(vlanConfigs))
-		for i, vc := range vlanConfigs {
-			vlansMap[i] = map[string]interface{}{
-				"vlan_number": vc.VlanNumber,
-				"tagged":      vc.Tagged,
-			}
-		}
-		doc.Set("vlan_configs", vlansMap)
-	}
-
-	if len(ipAddresses) > 0 {
-		doc.Set("ip_addresses", ipAddresses)
-	}
 
 	_, err := r.db.InsertOne(interfacePortsCollection, doc)
 	if err != nil {
@@ -171,9 +158,11 @@ func (r BasicOpsCloverRepository) GetInterfacePortsByInterface(interfaceID strin
 
 // GetInterfacePortsByPort returns all InterfacePort entries for a given device+model-port combination
 func (r BasicOpsCloverRepository) GetInterfacePortsByPort(deviceID, modelPortID string) ([]e.InterfacePort, error) {
-	docs, err := r.db.FindAll(q.NewQuery(interfacePortsCollection).
-		Where(q.Field("device_id").Eq(deviceID)).
-		Where(q.Field("model_port_id").Eq(modelPortID)))
+	docs, err := r.db.FindAll(q.NewQuery(interfacePortsCollection).Where(
+		q.Field("device_id").Eq(deviceID).And(
+			q.Field("model_port_id").Eq(modelPortID),
+		),
+	))
 	if err != nil {
 		return nil, fmt.Errorf("GetInterfacePortsByPort failed: %w", err)
 	}
@@ -192,10 +181,13 @@ func (r BasicOpsCloverRepository) GetAllInterfacePorts() ([]e.InterfacePort, err
 // DeleteInterfacePort removes a single InterfacePort entry identified by
 // interface ID, device ID and model port ID.
 func (r BasicOpsCloverRepository) DeleteInterfacePort(interfaceID, deviceID, modelPortID string) error {
-	err := r.db.Delete(q.NewQuery(interfacePortsCollection).
-		Where(q.Field("interface_id").Eq(interfaceID)).
-		Where(q.Field("device_id").Eq(deviceID)).
-		Where(q.Field("model_port_id").Eq(modelPortID)))
+	err := r.db.Delete(q.NewQuery(interfacePortsCollection).Where(
+		q.Field("interface_id").Eq(interfaceID).And(
+			q.Field("device_id").Eq(deviceID).And(
+				q.Field("model_port_id").Eq(modelPortID),
+			),
+		),
+	))
 	if err != nil {
 		return fmt.Errorf("DeleteInterfacePort failed: %w", err)
 	}
@@ -284,33 +276,6 @@ func (r BasicOpsCloverRepository) docsToInterfacePorts(docs []*d.Document) []e.I
 		}
 		if v, ok := doc.Get("model_port_id").(string); ok {
 			ip.ModelPortID = v
-		}
-
-		// Parse VLAN configs
-		ip.VlanConfigs = make([]e.PortVlanConfig, 0)
-		if raw, ok := doc.Get("vlan_configs").([]interface{}); ok {
-			for _, item := range raw {
-				if m, ok := item.(map[string]interface{}); ok {
-					vc := e.PortVlanConfig{}
-					if vn, ok := m["vlan_number"].(string); ok {
-						vc.VlanNumber = vn
-					}
-					if t, ok := m["tagged"].(bool); ok {
-						vc.Tagged = t
-					}
-					ip.VlanConfigs = append(ip.VlanConfigs, vc)
-				}
-			}
-		}
-
-		// Parse IP addresses
-		ip.IPAddresses = make([]string, 0)
-		if raw, ok := doc.Get("ip_addresses").([]interface{}); ok {
-			for _, item := range raw {
-				if ipStr, ok := item.(string); ok && ipStr != "" {
-					ip.IPAddresses = append(ip.IPAddresses, ipStr)
-				}
-			}
 		}
 
 		result = append(result, ip)

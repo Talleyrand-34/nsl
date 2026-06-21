@@ -180,6 +180,46 @@ func (r BasicOpsCloverRepository) getUnmanagedDevicePortVLANs(deviceportID strin
 	return result, nil
 }
 
+// parseVlanConfigsRaw parses a clover `vlan_configs` field into []e.PortVlanConfig,
+// skipping entries without a VLAN number.
+func parseVlanConfigsRaw(raw interface{}) []e.PortVlanConfig {
+	var out []e.PortVlanConfig
+	items, ok := raw.([]interface{})
+	if !ok {
+		return out
+	}
+	for _, item := range items {
+		m, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		vc := e.PortVlanConfig{}
+		if vn, ok := m["vlan_number"].(string); ok {
+			vc.VlanNumber = vn
+		}
+		if t, ok := m["tagged"].(bool); ok {
+			vc.Tagged = t
+		}
+		if vc.VlanNumber != "" {
+			out = append(out, vc)
+		}
+	}
+	return out
+}
+
+// getInterfaceVLANConfigs resolves the VLAN configs of a logical interface by its
+// ID. VLANs are owned by the DeviceInterface; InterfacePort is only a join.
+func (r BasicOpsCloverRepository) getInterfaceVLANConfigs(interfaceID string) []e.PortVlanConfig {
+	if interfaceID == "" {
+		return nil
+	}
+	doc, err := r.db.FindById(deviceInterfacesCollection, interfaceID)
+	if err != nil || doc == nil {
+		return nil
+	}
+	return parseVlanConfigsRaw(doc.Get("vlan_configs"))
+}
+
 // getStoredVLANsForDeviceport returns the stored VLAN configs for a deviceport document
 func (r BasicOpsCloverRepository) getStoredVLANsForDeviceport(doc *d.Document, deviceID string) []e.PortVlanConfig {
 	var vlans []e.PortVlanConfig
@@ -209,31 +249,20 @@ func (r BasicOpsCloverRepository) getStoredVLANsForDeviceport(doc *d.Document, d
 		}
 	}
 
-	// Add VLANs from InterfacePorts
+	// Add VLANs from the logical interfaces linked to this physical port.
+	// VLANs are owned by the DeviceInterface, resolved via the InterfacePort join.
 	ifacePortDocs, _ := r.db.FindAll(q.NewQuery(interfacePortsCollection).Where(
 		q.Field("device_id").Eq(deviceID).And(
 			q.Field("model_port_id").Eq(modelPortID),
 		),
 	))
 	for _, ipDoc := range ifacePortDocs {
-		if raw, ok := ipDoc.Get("vlan_configs").([]interface{}); ok {
-			for _, item := range raw {
-				if m, ok := item.(map[string]interface{}); ok {
-					vc := e.PortVlanConfig{}
-					if vn, ok := m["vlan_number"].(string); ok {
-						vc.VlanNumber = vn
-					}
-					if t, ok := m["tagged"].(bool); ok {
-						vc.Tagged = t
-					}
-					if vc.VlanNumber != "" {
-						key := vc.VlanNumber + ":" + fmt.Sprintf("%v", vc.Tagged)
-						if _, exists := seen[key]; !exists {
-							seen[key] = struct{}{}
-							vlans = append(vlans, vc)
-						}
-					}
-				}
+		interfaceID, _ := ipDoc.Get("interface_id").(string)
+		for _, vc := range r.getInterfaceVLANConfigs(interfaceID) {
+			key := vc.VlanNumber + ":" + fmt.Sprintf("%v", vc.Tagged)
+			if _, exists := seen[key]; !exists {
+				seen[key] = struct{}{}
+				vlans = append(vlans, vc)
 			}
 		}
 	}
@@ -248,32 +277,29 @@ func (r BasicOpsCloverRepository) GetDevicePorts() ([]e.DevicePort, error) {
 		return []e.DevicePort{}, err
 	}
 
-	// Pre-load interface ports with their VLAN configs
-	// key = "deviceID:modelPortID" → []e.PortVlanConfig (aggregated from all InterfacePorts on that port)
+	// Pre-load each logical interface's VLAN configs, keyed by interface ID.
+	// VLANs are owned by the DeviceInterface, not the InterfacePort join.
+	ifaceVlans := make(map[string][]e.PortVlanConfig)
+	ifaceDocs, _ := r.db.FindAll(q.NewQuery(deviceInterfacesCollection))
+	for _, ifDoc := range ifaceDocs {
+		ifaceID, _ := ifDoc.Get("_id").(string)
+		if ifaceID == "" {
+			ifaceID = ifDoc.ObjectId()
+		}
+		ifaceVlans[ifaceID] = parseVlanConfigsRaw(ifDoc.Get("vlan_configs"))
+	}
+
+	// Map each physical port ("deviceID:modelPortID") to the VLANs of the logical
+	// interfaces linked to it via InterfacePort join records.
 	ifacePortDocs, _ := r.db.FindAll(q.NewQuery(interfacePortsCollection))
 	portToVlanConfigs := make(map[string][]e.PortVlanConfig)
 	for _, ipDoc := range ifacePortDocs {
 		devID, _ := ipDoc.Get("device_id").(string)
 		mpID, _ := ipDoc.Get("model_port_id").(string)
+		ifaceID, _ := ipDoc.Get("interface_id").(string)
 		if devID != "" && mpID != "" {
 			key := devID + ":" + mpID
-			// Parse VLAN configs from InterfacePort
-			if raw, ok := ipDoc.Get("vlan_configs").([]interface{}); ok {
-				for _, item := range raw {
-					if m, ok := item.(map[string]interface{}); ok {
-						vc := e.PortVlanConfig{}
-						if vn, ok := m["vlan_number"].(string); ok {
-							vc.VlanNumber = vn
-						}
-						if t, ok := m["tagged"].(bool); ok {
-							vc.Tagged = t
-						}
-						if vc.VlanNumber != "" {
-							portToVlanConfigs[key] = append(portToVlanConfigs[key], vc)
-						}
-					}
-				}
-			}
+			portToVlanConfigs[key] = append(portToVlanConfigs[key], ifaceVlans[ifaceID]...)
 		}
 	}
 

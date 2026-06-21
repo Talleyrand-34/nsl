@@ -99,15 +99,15 @@ type DeviceInterface struct {
 	WifiSecurity string           `json:"wifi_security,omitempty"` // "open", "wpa2", "wpa3"
 }
 
-// InterfacePort is a join record linking a DeviceInterface to a physical DevicePort.
-// It also stores the VLAN configurations and IP addresses for that specific interface-to-port link.
+// InterfacePort is a pure join record linking a DeviceInterface to a physical
+// DevicePort. VLAN configurations and IP addresses belong to the DeviceInterface
+// (resolved via InterfaceID); they are intentionally NOT stored here to avoid
+// duplicating the logical interface's data.
 type InterfacePort struct {
-	ID          string           `json:"id"`
-	InterfaceID string           `json:"interface_id"`
-	DeviceID    string           `json:"device_id"`
-	ModelPortID string           `json:"model_port_id"`
-	VlanConfigs []PortVlanConfig `json:"vlan_configs"`
-	IPAddresses []string         `json:"ip_addresses"`
+	ID          string `json:"id"`
+	InterfaceID string `json:"interface_id"`
+	DeviceID    string `json:"device_id"`
+	ModelPortID string `json:"model_port_id"`
 }
 
 // ConnectionVlanInfo represents a VLAN with its tagging status on a connection

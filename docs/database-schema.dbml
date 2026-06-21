@@ -121,14 +121,15 @@ Table device_interfaces {
   wifi_security string [null]
 }
 
-// Join table: Maps logical interfaces to physical device ports
+// Pure join table: maps logical interfaces to physical device ports.
+// VLANs and IPs are owned by device_interfaces (resolved via interface_id) and
+// are intentionally NOT duplicated here. device_id is a denormalized query key
+// (model_port_id is shared across devices of the same model).
 Table interface_ports {
   _id string [pk]
   interface_id string
   device_id string
   model_port_id string
-  vlan_configs string [note: 'JSON array: [{vlan_number: string, tagged: bool}]']
-  ip_addresses string [note: 'JSON array: [string]']
 }
 
 // ============================================
