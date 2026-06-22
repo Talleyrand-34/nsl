@@ -29,6 +29,7 @@ import (
 	cmd_root "nsl-graph/cmd/root"
 	util "nsl-graph/cmd/utils"
 	q "nsl-graph/internal/repository/application"
+	e "nsl-graph/internal/repository/entities"
 	s "nsl-graph/internal/scanner"
 )
 
@@ -46,6 +47,9 @@ var (
 	scanDefaultZone string
 	scanDefaultBrand string
 	scanSkipExisting bool
+
+	scanProfile     string
+	scanSaveProfile string
 )
 
 var networkScanCmd = &cobra.Command{
@@ -69,6 +73,45 @@ Examples:
 		if err != nil {
 			fmt.Printf("Error connecting to database: %v\n", err)
 			os.Exit(1)
+		}
+
+		// Apply a saved scan profile (explicit --profile, else auto-matched by
+		// subnet). SNMP-only fields; explicit flags override.
+		if p, ok := service.ResolveScanProfile(subnet, scanProfile); ok {
+			fl := cmd.Flags()
+			if !fl.Changed("community") && p.SNMPCommunity != "" {
+				scanCommunity = p.SNMPCommunity
+			}
+			if !fl.Changed("snmp-version") && p.SNMPVersion != "" {
+				scanSNMPVersion = p.SNMPVersion
+			}
+			if !fl.Changed("snmp-port") && p.SNMPPort != 0 {
+				scanSNMPPort = uint16(p.SNMPPort)
+			}
+			if !fl.Changed("timeout") && p.TimeoutSec != 0 {
+				scanTimeout = p.TimeoutSec
+			}
+			fmt.Printf("Applied scan profile %q\n", p.Name)
+		} else if scanProfile != "" {
+			fmt.Printf("Error: no scan profile named %q\n", scanProfile)
+			os.Exit(1)
+		}
+
+		if scanSaveProfile != "" {
+			p := e.ScanProfile{
+				Name:          scanSaveProfile,
+				Host:          subnet,
+				SNMPCommunity: scanCommunity,
+				SNMPVersion:   scanSNMPVersion,
+				SNMPPort:      int(scanSNMPPort),
+				TimeoutSec:    scanTimeout,
+				ScanSource:    "snmp",
+			}
+			if err := service.AddScanProfile(p); err != nil {
+				fmt.Printf("Error saving profile: %v\n", err)
+				os.Exit(1)
+			}
+			fmt.Printf("Saved scan profile %q (host %s).\n", scanSaveProfile, subnet)
 		}
 
 		options := s.ScanOptions{
@@ -219,4 +262,7 @@ func init() {
 	networkScanCmd.Flags().StringVar(&scanDefaultZone, "default-zone", "Discovered", "Default zone for discovered devices")
 	networkScanCmd.Flags().StringVar(&scanDefaultBrand, "default-brand", "", "Default brand for unidentified devices")
 	networkScanCmd.Flags().BoolVar(&scanSkipExisting, "skip-existing", true, "Skip devices with existing IP addresses")
+
+	networkScanCmd.Flags().StringVar(&scanProfile, "profile", "", "Use a saved scan profile by name (else auto-matched by subnet)")
+	networkScanCmd.Flags().StringVar(&scanSaveProfile, "save-profile", "", "Save the effective SNMP parameters as a profile with this name")
 }

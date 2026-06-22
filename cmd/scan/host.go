@@ -34,7 +34,9 @@ import (
 	configparser "nsl-graph/internal/configparser"
 	_ "nsl-graph/internal/configparser/parsers" // side-effect: registers all parsers
 	q "nsl-graph/internal/repository/application"
+	e "nsl-graph/internal/repository/entities"
 	s "nsl-graph/internal/scanner"
+	"nsl-graph/internal/secret"
 )
 
 var (
@@ -61,6 +63,9 @@ var (
 	hostDiscrepancyAction string
 	hostMergeConfig       bool
 	hostConfigTimeout     int
+
+	hostProfile     string // use a named saved profile
+	hostSaveProfile string // persist effective params as a profile
 )
 
 var hostScanCmd = &cobra.Command{
@@ -133,6 +138,78 @@ Examples:
 			os.Exit(1)
 		}
 
+		// Apply a saved scan profile (explicit --profile, else auto-matched by
+		// host). A field is taken from the profile only when its flag was not set
+		// explicitly; SSH string fields already resolved from ~/.ssh/config are
+		// kept (alias > profile > default).
+		var profile *e.ScanProfile
+		if p, ok := service.ResolveScanProfile(ip, hostProfile); ok {
+			profile = p
+			fl := cmd.Flags()
+			if !fl.Changed("snmp-community") && profile.SNMPCommunity != "" {
+				hostCommunity = profile.SNMPCommunity
+			}
+			if !fl.Changed("snmp-version") && profile.SNMPVersion != "" {
+				hostSNMPVersion = profile.SNMPVersion
+			}
+			if !fl.Changed("snmp-port") && profile.SNMPPort != 0 {
+				hostSNMPPort = uint16(profile.SNMPPort)
+			}
+			if !fl.Changed("timeout") && profile.TimeoutSec != 0 {
+				hostTimeout = profile.TimeoutSec
+			}
+			if !fl.Changed("scan-source") && profile.ScanSource != "" {
+				hostScanSource = profile.ScanSource
+			}
+			if !fl.Changed("config-source") && profile.ConfigSource != "" {
+				hostConfigSource = profile.ConfigSource
+			}
+			if !fl.Changed("config-file") && profile.ConfigFile != "" {
+				hostConfigFile = profile.ConfigFile
+			}
+			if !fl.Changed("device-type") && profile.DeviceType != "" {
+				hostDeviceType = profile.DeviceType
+			}
+			if !fl.Changed("ssh-user") && hostSSHUsername == "" {
+				hostSSHUsername = profile.SSHUser
+			}
+			if !fl.Changed("ssh-key") && hostSSHKeyFile == "" {
+				hostSSHKeyFile = profile.SSHKeyFile
+			}
+			if !fl.Changed("ssh-port") && profile.SSHPort != 0 {
+				hostSSHPort = profile.SSHPort
+			}
+			if !fl.Changed("discrepancy-action") && profile.DiscrepancyAction != "" {
+				hostDiscrepancyAction = profile.DiscrepancyAction
+			}
+			if !fl.Changed("merge-configs") && profile.MergeConfigs {
+				hostMergeConfig = true
+			}
+			if !fl.Changed("config-timeout") && profile.ConfigTimeout != 0 {
+				hostConfigTimeout = profile.ConfigTimeout
+			}
+			if !fl.Changed("vlan-accuracy") && profile.VLANAccuracy != 0 {
+				hostVLANAccuracy = profile.VLANAccuracy
+			}
+			if hostProfile != "" {
+				fmt.Printf("Using scan profile %q\n", profile.Name)
+			} else {
+				fmt.Printf("Auto-applied scan profile %q (host %s)\n", profile.Name, profile.Host)
+			}
+		} else if hostProfile != "" {
+			fmt.Printf("Error: no scan profile named %q\n", hostProfile)
+			os.Exit(1)
+		}
+
+		// Persist the effective parameters as a profile if requested.
+		if hostSaveProfile != "" {
+			if err := saveHostProfile(service, hostSaveProfile, ip); err != nil {
+				fmt.Printf("Error saving profile: %v\n", err)
+				os.Exit(1)
+			}
+			fmt.Printf("Saved scan profile %q (host %s).\n", hostSaveProfile, ip)
+		}
+
 		var device *s.SNMPDevice
 
 		switch hostScanSource {
@@ -151,6 +228,21 @@ Examples:
 				fmt.Printf("Error: unknown device type %q\n  Supported: %s\n",
 					hostDeviceType, strings.Join(configparser.DefaultRegistry.ListParsers(), ", "))
 				os.Exit(1)
+			}
+			// A profile may carry an encrypted SSH password; unlock it with a
+			// passphrase instead of prompting for the raw password.
+			if hostSSHKeyFile == "" && hostSSHPassword == "" && profile != nil && profile.SSHPassword != "" {
+				passphrase, err := readSecret(fmt.Sprintf("Passphrase to unlock profile %q: ", profile.Name))
+				if err != nil {
+					fmt.Printf("Failed to read passphrase: %v\n", err)
+					os.Exit(1)
+				}
+				pw, err := secret.Decrypt(profile.SSHPassword, passphrase)
+				if err != nil {
+					fmt.Printf("%v\n", err)
+					os.Exit(1)
+				}
+				hostSSHPassword = pw
 			}
 			if hostSSHKeyFile == "" && hostSSHPassword == "" {
 				fmt.Printf("Password for %s@%s: ", hostSSHUsername, ip)
@@ -663,6 +755,43 @@ func importSingleDeviceWithVLANMapping(
 	return nil
 }
 
+// saveHostProfile persists the effective scan parameters as a named profile.
+// If an SSH password was provided explicitly, it is encrypted with a prompted
+// passphrase before storage.
+func saveHostProfile(service q.NetServiceInt, name, host string) error {
+	p := e.ScanProfile{
+		Name:              name,
+		Host:              host,
+		SNMPCommunity:     hostCommunity,
+		SNMPVersion:       hostSNMPVersion,
+		SNMPPort:          int(hostSNMPPort),
+		TimeoutSec:        hostTimeout,
+		ScanSource:        hostScanSource,
+		ConfigSource:      hostConfigSource,
+		ConfigFile:        hostConfigFile,
+		DeviceType:        hostDeviceType,
+		SSHUser:           hostSSHUsername,
+		SSHKeyFile:        hostSSHKeyFile,
+		SSHPort:           hostSSHPort,
+		DiscrepancyAction: hostDiscrepancyAction,
+		MergeConfigs:      hostMergeConfig,
+		ConfigTimeout:     hostConfigTimeout,
+		VLANAccuracy:      hostVLANAccuracy,
+	}
+	if hostSSHPassword != "" {
+		passphrase, err := readPassphraseConfirmed()
+		if err != nil {
+			return err
+		}
+		blob, err := secret.Encrypt(hostSSHPassword, passphrase)
+		if err != nil {
+			return err
+		}
+		p.SSHPassword = blob
+	}
+	return service.AddScanProfile(p)
+}
+
 func init() {
 	cmd_root.ScanCmd.AddCommand(hostScanCmd)
 
@@ -708,4 +837,9 @@ func init() {
 		BoolVar(&hostMergeConfig, "merge-configs", false, "Merge SNMP data with configuration data")
 	hostScanCmd.Flags().
 		IntVar(&hostConfigTimeout, "config-timeout", 60, "Configuration parsing timeout in seconds")
+
+	hostScanCmd.Flags().
+		StringVar(&hostProfile, "profile", "", "Use a saved scan profile by name (else auto-matched by host)")
+	hostScanCmd.Flags().
+		StringVar(&hostSaveProfile, "save-profile", "", "Save the effective scan parameters as a profile with this name")
 }

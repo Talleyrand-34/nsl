@@ -44,7 +44,7 @@ func (c *SSHClient) Connect(host string) error {
 		config.Auth = append(config.Auth, ssh.Password(c.creds.Password))
 	}
 
-	if c.creds.KeyFile != "" {
+	if c.creds.PrivateKey != "" || c.creds.KeyFile != "" {
 		signer, err := c.loadPrivateKey()
 		if err != nil {
 			return fmt.Errorf("failed to load private key: %w", err)
@@ -218,11 +218,18 @@ func (c *SSHClient) GetDeviceInfo() (map[string]string, error) {
 	return info, nil
 }
 
-// loadPrivateKey loads and parses the SSH private key
+// loadPrivateKey loads and parses the SSH private key, preferring in-memory PEM
+// content (c.creds.PrivateKey) over a key file path (c.creds.KeyFile).
 func (c *SSHClient) loadPrivateKey() (ssh.Signer, error) {
-	keyBytes, err := ioutil.ReadFile(c.creds.KeyFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read private key file: %w", err)
+	var keyBytes []byte
+	var err error
+	if c.creds.PrivateKey != "" {
+		keyBytes = []byte(c.creds.PrivateKey)
+	} else {
+		keyBytes, err = ioutil.ReadFile(c.creds.KeyFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read private key file: %w", err)
+		}
 	}
 
 	var signer ssh.Signer

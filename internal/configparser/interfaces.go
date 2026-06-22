@@ -55,6 +55,7 @@ type SSHCredentials struct {
 	Username      string        `json:"username"`
 	Password      string        `json:"password,omitempty"`
 	KeyFile       string        `json:"key_file,omitempty"`
+	PrivateKey    string        `json:"private_key,omitempty"` // PEM key content (in-memory; takes precedence over KeyFile)
 	KeyPassphrase string        `json:"key_passphrase,omitempty"`
 	Port          int           `json:"port"`
 	Timeout       time.Duration `json:"timeout"`

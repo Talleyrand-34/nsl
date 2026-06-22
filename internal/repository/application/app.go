@@ -24,6 +24,7 @@ import (
 	"net"
 	"strings"
 
+	configparser "nsl-graph/internal/configparser"
 	fmtd2 "nsl-graph/internal/format"
 	d "nsl-graph/internal/repository/domain"
 	e "nsl-graph/internal/repository/entities"
@@ -201,20 +202,89 @@ type NetServiceInt interface {
 	// Network scanning operations
 	ScanNetwork(subnet string, options s.ScanOptions) (*s.ScanResult, error)
 	ScanDevice(ip string, options s.ScanOptions) (*s.SNMPDevice, error)
+	ScanDeviceViaSSH(ip, deviceType string, creds configparser.SSHCredentials) (*s.SNMPDevice, error)
 	DiscoverDevices(scanResult *s.ScanResult) ([]s.DiscoveredDevice, error)
 	ImportScanResults(devices []s.DiscoveredDevice, options s.ImportOptions) error
 	ImportDiscoveredDevices(devices []s.DiscoveredDevice, options s.ImportOptions) error
 
 	// New interactive VLAN mapping methods
 	AnalyzeDeviceForImport(discovered s.DiscoveredDevice) (s.DeviceImportPlan, error)
+	RegenerateVLANPlans(plan s.DeviceImportPlan) s.DeviceImportPlan
 	ExecuteApprovedImportPlan(plan s.DeviceImportPlan, options s.ImportOptions) error
 
 	// Model management
 	EnsureModelExists(modelName, brandName, defaultBrand string) error
+
+	// Scan profiles. Encryption/decryption of the SSH password happens at the
+	// edges (CLI/API) where the passphrase is gathered; the service stores the
+	// blob as-is and sanitizes it out of listings.
+	AddScanProfile(p e.ScanProfile) error
+	UpdateScanProfile(p e.ScanProfile) error
+	GetScanProfiles() ([]e.ScanProfile, error)              // SSHPassword blanked, HasSSHPassword set
+	GetScanProfileByName(name string) (*e.ScanProfile, error) // raw (with blob) — in-process use
+	ResolveScanProfile(target, name string) (*e.ScanProfile, bool) // by name, else auto-match by host
+	DeleteScanProfile(name string) error
 }
 
 func NewNetService(netRepository d.NetRepository) NetServiceInt {
 	return &NetService{netRepo: netRepository}
+}
+
+// --- Scan profiles ----------------------------------------------------------
+
+func (ns *NetService) AddScanProfile(p e.ScanProfile) error {
+	return ns.netRepo.AddScanProfile(p)
+}
+
+func (ns *NetService) UpdateScanProfile(p e.ScanProfile) error {
+	return ns.netRepo.UpdateScanProfile(p)
+}
+
+// GetScanProfiles returns all profiles with the encrypted SSH password removed
+// and HasSSHPassword set, suitable for API/UI listing.
+func (ns *NetService) GetScanProfiles() ([]e.ScanProfile, error) {
+	profiles, err := ns.netRepo.GetScanProfiles()
+	if err != nil {
+		return nil, err
+	}
+	for i := range profiles {
+		profiles[i].HasSSHPassword = profiles[i].SSHPassword != ""
+		profiles[i].HasSSHKey = profiles[i].SSHKey != ""
+		profiles[i].SSHPassword = ""
+		profiles[i].SSHKey = ""
+	}
+	return profiles, nil
+}
+
+// GetScanProfileByName returns the raw stored profile (including the encrypted
+// SSH password blob) for in-process use by the CLI.
+func (ns *NetService) GetScanProfileByName(name string) (*e.ScanProfile, error) {
+	return ns.netRepo.GetScanProfileByName(name)
+}
+
+func (ns *NetService) DeleteScanProfile(name string) error {
+	return ns.netRepo.DeleteScanProfile(name)
+}
+
+// ResolveScanProfile loads a profile by explicit name, or — when name is empty —
+// auto-matches one whose Host equals target. Returns the raw profile (the caller
+// decrypts the SSH password only if/when an SSH scan needs it).
+func (ns *NetService) ResolveScanProfile(target, name string) (*e.ScanProfile, bool) {
+	if name != "" {
+		p, err := ns.netRepo.GetScanProfileByName(name)
+		if err != nil || p == nil {
+			return nil, false
+		}
+		return p, true
+	}
+	if target == "" {
+		return nil, false
+	}
+	p, err := ns.netRepo.GetScanProfileByHost(target)
+	if err != nil || p == nil {
+		return nil, false
+	}
+	return p, true
 }
 
 func (ns *NetService) AddBrand(brandName string) error {
@@ -1149,6 +1219,49 @@ func (ns *NetService) AnalyzeDeviceForImport(discovered s.DiscoveredDevice) (s.D
 
 	plan.Summary = ns.generateImportSummary(plan)
 	return plan, nil
+}
+
+// ScanDeviceViaSSH retrieves and parses a device's configuration over SSH and
+// returns it as an SNMPDevice (interfaces, VLANs, IPs). This mirrors the CLI
+// `--scan-source ssh` path but is free of stdin/stdout, so it is usable from an
+// API handler.
+func (ns *NetService) ScanDeviceViaSSH(ip, deviceType string, creds configparser.SSHCredentials) (*s.SNMPDevice, error) {
+	parser, found := configparser.DefaultRegistry.GetParser(deviceType)
+	if !found {
+		return nil, fmt.Errorf("unsupported device type %q (supported: %s)",
+			deviceType, strings.Join(configparser.DefaultRegistry.ListParsers(), ", "))
+	}
+	rawConfig, err := parser.GetConfigViaSSH(ip, creds)
+	if err != nil {
+		return nil, fmt.Errorf("SSH connection failed: %w", err)
+	}
+	stub := s.SNMPDevice{IP: ip, Reachable: true, SysName: ip}
+	configData, err := parser.ParseConfig(rawConfig, stub)
+	if err != nil {
+		return nil, fmt.Errorf("config parsing failed: %w", err)
+	}
+	return configparser.ConfigDataToSNMPDevice(configData, ip), nil
+}
+
+// RegenerateVLANPlans recomputes each interface plan's VLANsToCreate/Update from
+// its (possibly user-edited) IPMappings, so changes to vlan-id / ip-segment made
+// by a client stay consistent with the VLANs actually created on execute.
+func (ns *NetService) RegenerateVLANPlans(plan s.DeviceImportPlan) s.DeviceImportPlan {
+	existingVLANs, err := ns.GetVlans()
+	if err != nil {
+		return plan
+	}
+	existingVLANMap := make(map[string]e.Vlan)
+	for _, vlan := range existingVLANs {
+		existingVLANMap[vlan.VlanID] = vlan
+	}
+	for i := range plan.InterfacePlans {
+		plan.InterfacePlans[i].VLANsToCreate = make([]s.VLANPlan, 0)
+		plan.InterfacePlans[i].VLANsToUpdate = make([]s.VLANPlan, 0)
+		ns.generateVLANPlans(&plan.InterfacePlans[i], existingVLANMap)
+	}
+	plan.Summary = ns.generateImportSummary(plan)
+	return plan
 }
 
 // analyzeInterfaceForImport analyzes a single interface and suggests IP-VLAN mappings

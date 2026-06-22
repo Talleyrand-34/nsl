@@ -188,6 +188,14 @@ type repository interface {
 	GetAllPortsDevice(deviceid string) ([]e.DevicePort, error)
 	// Export info
 	ExportAllStructs() (e.All, error)
+
+	// ScanProfile interaction
+	AddScanProfile(p e.ScanProfile) error
+	GetScanProfiles() ([]e.ScanProfile, error)
+	GetScanProfileByName(name string) (*e.ScanProfile, error)
+	GetScanProfileByHost(host string) (*e.ScanProfile, error)
+	UpdateScanProfile(p e.ScanProfile) error
+	DeleteScanProfile(name string) error
 }
 
 // type NetRepository exposes the interface for implementation

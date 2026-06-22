@@ -111,8 +111,12 @@ func registerScanningRoutes(r *mux.Router, service q.NetServiceInt) {
 	// Network scanning endpoints
 	r.HandleFunc("/scan/network", scanning.ScanNetworkHandler(service)).Methods("POST", "OPTIONS")
 	r.HandleFunc("/scan/host", scanning.ScanHostHandler(service)).Methods("POST", "OPTIONS")
+	r.HandleFunc("/scan/host-ssh", scanning.ScanHostSSHHandler(service)).Methods("POST", "OPTIONS")
+	r.HandleFunc("/scan/analyze", scanning.AnalyzeDeviceHandler(service)).Methods("POST", "OPTIONS")
+	r.HandleFunc("/scan/execute", scanning.ExecuteImportPlanHandler(service)).Methods("POST", "OPTIONS")
 	r.HandleFunc("/scan/import", scanning.ImportDevicesHandler(service)).Methods("POST", "OPTIONS")
 	r.HandleFunc("/scan/import-file", scanning.ImportScanFileHandler(service)).Methods("POST", "OPTIONS")
+	r.HandleFunc("/scan/profiles", scanning.ScanProfilesHandler(service)).Methods("GET", "POST", "PUT", "DELETE", "OPTIONS")
 	r.HandleFunc("/scan/status", scanning.GetScanStatusHandler()).Methods("GET", "OPTIONS")
 	r.HandleFunc("/scan/validate", scanning.ValidateSubnetHandler()).Methods("GET", "OPTIONS")
 }

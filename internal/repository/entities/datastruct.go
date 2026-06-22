@@ -144,6 +144,40 @@ type Brand struct {
 	Name string `json:"name"`
 }
 
+// ScanProfile stores reusable per-host scanning parameters so they need not be
+// re-entered on every scan. All fields are stored in clear except SSHPassword,
+// which holds an AES-256-GCM blob (key derived from a user passphrase via
+// scrypt) and is never serialized to API clients (json:"-").
+type ScanProfile struct {
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	Host          string `json:"host"`
+	SNMPCommunity string `json:"snmp_community"`
+	SNMPVersion   string `json:"snmp_version"`
+	SNMPPort      int    `json:"snmp_port"`
+	TimeoutSec    int    `json:"timeout_sec"`
+	ScanSource    string `json:"scan_source"`  // "snmp" | "ssh"
+	ConfigSource  string `json:"config_source"` // "none" | "ssh" | "file" | "manual"
+	ConfigFile    string `json:"config_file"`
+	DeviceType    string `json:"device_type"` // opnsense | openwrt | fortinet | cisco
+	SSHUser       string `json:"ssh_user"`
+	SSHPassword   string `json:"-"` // encrypted blob; never exposed to clients
+	SSHKeyFile    string `json:"ssh_key_file"`
+	SSHKey        string `json:"-"` // encrypted PEM private-key content (uploaded); never exposed
+	SSHPort       int    `json:"ssh_port"`
+
+	DiscrepancyAction string `json:"discrepancy_action"`
+	MergeConfigs      bool   `json:"merge_configs"`
+	ConfigTimeout     int    `json:"config_timeout"`
+	VLANAccuracy      int    `json:"vlan_accuracy"`
+
+	// HasSSHPassword / HasSSHKey are computed, read-only flags for listing — true
+	// when an encrypted SSH password / private key is stored. Set by the service
+	// on sanitized reads (the secrets themselves are never serialized).
+	HasSSHPassword bool `json:"has_ssh_password"`
+	HasSSHKey      bool `json:"has_ssh_key"`
+}
+
 // DevClass represents the class of a device
 type DevClass struct {
 	ID   string `json:"id"`
