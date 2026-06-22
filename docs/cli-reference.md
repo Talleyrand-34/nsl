@@ -151,6 +151,12 @@ Create a connection between device ports.
 nsl-graph add connection --from-device 1 --from-model-port-id 1 --to-device 2 --to-model-port-id 1
 ```
 
+#### add connectiontype
+```bash
+nsl-graph add connectiontype --name <name>
+```
+Add a connection type (e.g. ethernet, fiber, wireless).
+
 ### print
 
 Display information about network entities in JSON format.
@@ -193,20 +199,9 @@ Display all device models.
 
 #### print device
 ```bash
-nsl-graph print device
+nsl-graph print device      # alias: nsl-graph print devices
 ```
-Display all devices.
-
-#### print devices
-```bash
-nsl-graph print devices [flags]
-```
-Display devices with optional detailed information.
-
-**Flags:**
-- `-a, --all-model-ports`: Include all available ports
-- `-i, --info-ports`: Include port usage information
-- `-p, --possible-ports`: Show cartesian product of possible ports
+Display all devices with their interfaces.
 
 #### print modelport
 ```bash
@@ -219,6 +214,12 @@ Display all model ports.
 nsl-graph print devport
 ```
 Display all device ports.
+
+#### print connectiontype
+```bash
+nsl-graph print connectiontype
+```
+Display all connection types.
 
 #### print connection
 ```bash
