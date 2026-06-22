@@ -45,11 +45,12 @@ type InterfaceNameIP struct {
 	IP   string `json:"ip"`
 }
 
-// devicesCmd represents the devices command
+// devicePrintCmd represents the "print device" command (aliased "devices").
 var devicePrintCmd = &cobra.Command{
-	Use:   "device",
-	Short: "Print the devices",
-	Long:  ``,
+	Use:     "device",
+	Aliases: []string{"devices"},
+	Short:   "Print all devices (with their interfaces)",
+	Long:    ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		service, err := util.ServiceConnection()
 		if err != nil {
