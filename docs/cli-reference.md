@@ -320,6 +320,37 @@ nsl-graph diagram port-vlan --color-target ports -s demo.db
 nsl-graph diagram port-vlan --vlan-scope all --color-target both -s demo.db
 ```
 
+### scan
+
+Query devices via SNMP (and optionally SSH config). See the README for full
+scanning usage; the subcommands below manage **scan profiles** — reusable
+per-host parameters that are auto-applied when a host matches.
+
+#### scan profile
+
+```bash
+nsl-graph scan profile add <name> --host <ip> [--snmp-community ...] [--ssh-user ...] \
+                                  [--ssh-password ...] [--device-type ...] [--scan-source ssh]
+nsl-graph scan profile list
+nsl-graph scan profile show <name>     # SSH password is never printed
+nsl-graph scan profile delete <name>
+```
+
+If `--ssh-password` is given, you are prompted for a **passphrase** that encrypts
+it (AES-256-GCM, scrypt); it is never stored in clear. SNMP-only profiles need
+no passphrase.
+
+#### scan host / scan network profile flags
+
+```bash
+nsl-graph scan host <ip> --profile <name>        # use a named profile
+nsl-graph scan host <ip>                         # auto-applies a profile whose host matches
+nsl-graph scan host <ip> --save-profile <name>   # persist the effective parameters
+```
+
+Explicit flags always override profile values. When an SSH scan uses a stored
+password you are prompted for its passphrase; a wrong passphrase fails.
+
 ### server
 
 Start the HTTP API server.

@@ -4,7 +4,7 @@ NSL-Graph uses **CloverDB** as its database backend - a document-based (NoSQL) s
 
 ## Database Structure
 
-The database consists of **14 collections** organized to represent a complete network topology:
+The database consists of **15 collections** organized to represent a complete network topology, plus scan profiles:
 
 - **Base entities**: brands, devclasses, proprietaries, zonetypes
 - **VLAN definitions**: vlans
@@ -12,6 +12,7 @@ The database consists of **14 collections** organized to represent a complete ne
 - **Model/Template collections**: models, modelports
 - **Device collections**: devices, deviceports, deviceinterfaces, interfaceports
 - **Connection collections**: connections, connectiontypes
+- **Scan profiles**: scanprofiles (reusable per-host scan parameters; `ssh_password` is AES-256-GCM encrypted with a user passphrase via scrypt, never stored in clear)
 
 ## Schema Definition
 

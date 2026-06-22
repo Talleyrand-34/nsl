@@ -151,6 +151,35 @@ Table connectiontypes {
 }
 
 // ============================================
+// Scan Profiles
+// ============================================
+
+// Reusable per-host scanning parameters (SNMP + optional SSH/config), so the
+// data is entered once and auto-applied when scanning a matching host.
+Table scanprofiles {
+  _id string [pk]
+  name string [note: 'unique profile name']
+  host string [note: 'IP / subnet / SSH alias the profile applies to (auto-match key)']
+  snmp_community string
+  snmp_version string
+  snmp_port int
+  timeout_sec int
+  scan_source string [note: 'snmp | ssh']
+  config_source string [note: 'none | ssh | file | manual']
+  config_file string [null]
+  device_type string [note: 'opnsense | openwrt | fortinet | cisco', null]
+  ssh_user string [null]
+  ssh_password string [note: 'AES-256-GCM blob, key = scrypt(user passphrase); never stored in clear', null]
+  ssh_key_file string [note: 'path to a key file (CLI)', null]
+  ssh_key string [note: 'uploaded PEM private-key content; AES-256-GCM encrypted (user passphrase); never stored in clear', null]
+  ssh_port int
+  discrepancy_action string [note: 'fail | prefer-snmp | prefer-config']
+  merge_configs bool
+  config_timeout int
+  vlan_accuracy int [note: '1 = interface names only, 2 = include IP heuristics']
+}
+
+// ============================================
 // Relationships
 // ============================================
 

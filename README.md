@@ -106,6 +106,38 @@ The CLI provides commands for managing all network entities:
 ./nsl-graph scan host 10.0.0.1 --config-source ssh --ssh-user admin --device-type opnsense --discrepancy-action prefer-config --auto-import
 ```
 
+### Scan Profiles
+
+Store the scan parameters for a host once, then reuse them. A profile is
+**auto-applied** when you scan a host whose IP matches it; explicit flags always
+override.
+
+```bash
+# Save a profile (SNMP only — no passphrase needed)
+./nsl-graph scan profile add ow --host 10.0.2.245 --snmp-community public --device-type openwrt
+
+# Save one with an SSH password — you are prompted for a passphrase that encrypts it
+./nsl-graph scan profile add fw --host 10.0.0.1 --ssh-user admin --ssh-password '***' \
+  --scan-source ssh --device-type opnsense
+
+# List / show (the SSH password is never printed) / delete
+./nsl-graph scan profile list
+./nsl-graph scan profile show fw
+./nsl-graph scan profile delete ow
+
+# Scan — the matching profile is applied automatically
+./nsl-graph scan host 10.0.2.245
+# Or save the current flags as a profile while scanning
+./nsl-graph scan host 10.0.2.245 --snmp-community public --save-profile ow
+```
+
+**Security:** the SSH password is the only secret; it is encrypted at rest with
+**AES-256-GCM** using a key derived (scrypt) from a **passphrase you supply** —
+there is **no environment variable** and it is never stored in clear. The
+passphrase is asked when you save the password and again whenever an SSH scan
+uses it; a wrong passphrase fails. SNMP-only profiles need no passphrase. The web
+UI (Import page) and the API (`/scan/profiles`) manage SNMP profiles too.
+
 ### HTTP API
 
 The API exposes RESTful endpoints for all operations:
@@ -132,6 +164,12 @@ Features:
 - Visual diagram with resizable viewer
 - VLAN configuration per port
 - Dynamic API endpoint configuration
+- **Device import** (`import.php`):
+  - **SNMP** scan (host or subnet) and **SSH** scan (via a saved profile + passphrase).
+  - A per-device **report with an editable VLAN table** — adjust the
+    **vlan-id / ip-segment** for each interface IP before importing (no edits = accept
+    the suggested mapping).
+  - Upload a scan-result JSON file; save/load/delete scan profiles.
 
 ## Architecture
 

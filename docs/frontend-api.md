@@ -282,6 +282,62 @@ Returns SVG network diagram.
 curl http://localhost:8081/diagram > network.svg
 ```
 
+#### Network Scanning
+
+```http
+POST /scan/host          {"ip": "...", "community": "...", "snmp_version": "...", "snmp_port": 0, "profile": "..."}
+POST /scan/network       {"subnet": "...", "community": "...", ..., "profile": "..."}
+POST /scan/host-ssh      {"profile": "...", "passphrase": "...", "ip": "...(optional override)"}
+POST /scan/analyze       {"device": <DiscoveredDevice>}
+POST /scan/execute       {"plan": <DeviceImportPlan>, "options": {...}}
+POST /scan/import        {"devices": [...], "options": {...}}
+POST /scan/import-file   <raw scanner.ScanResult JSON>
+```
+
+The optional **`profile`** field on `/scan/host` and `/scan/network` applies a saved scan
+profile (see below). When omitted, a profile whose `host` matches the `ip`/`subnet` is
+auto-applied. Any SNMP field present in the request overrides the profile. The SNMP scan path
+never uses the SSH password.
+
+**SSH scan + interactive VLAN import** (used by the web UI's editable flow):
+
+- `POST /scan/host-ssh` — scans a host over **SSH/config**. Credentials come from a saved
+  profile (it must set `device_type`, `ssh_user`, and an encrypted `ssh_password`); the
+  `passphrase` decrypts the password server-side. Returns a `DiscoveredDevice`. Errors: `404`
+  unknown profile, `400` incorrect passphrase / missing `device_type`.
+- `POST /scan/analyze` — returns the `DeviceImportPlan` for a discovered device: per-interface
+  **IP / ip-segment(subnet) / VLAN-id** mappings (`ip_mappings`) plus suggested VLAN create/update
+  plans, with a confidence/reason per mapping.
+- `POST /scan/execute` — imports a (possibly **edited**) plan. The server recomputes the VLAN
+  create/update plans from the final `ip_mappings`, so edits to vlan-id / ip-segment are applied
+  consistently, then creates the device, ports, interfaces and VLANs.
+
+#### Scan Profiles
+
+Reusable per-host scan parameters. `GET` never returns the SSH password — only a
+`has_ssh_password` boolean.
+
+```http
+GET    /scan/profiles                      # list (no passwords)
+POST   /scan/profiles   {profile fields}   # create
+PUT    /scan/profiles   {profile fields}   # update (omit ssh_password to keep existing)
+DELETE /scan/profiles?name=<name>          # delete
+```
+
+To store an SSH password, send `ssh_password` together with a one-time
+`passphrase`; the server encrypts the password (AES-256-GCM, key = scrypt(passphrase))
+and stores only the ciphertext. The passphrase is never persisted.
+
+```bash
+# create an SNMP profile
+curl -X POST http://localhost:8081/scan/profiles \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"ow","host":"10.0.2.245","snmp_community":"public"}'
+
+# scan using it (auto-matched by ip)
+curl -X POST http://localhost:8081/scan/host -d '{"ip":"10.0.2.245"}'
+```
+
 ### Error Responses
 
 The API returns standard HTTP status codes:
