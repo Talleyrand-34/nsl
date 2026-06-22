@@ -29,7 +29,7 @@ import (
 // devicesCmd represents the devices command
 var deviceclassPrintCmd = &cobra.Command{
 	Use:   "deviceclass",
-	Short: "Print the deviceclasss",
+	Short: "Print the device classes",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		service, err := util.ServiceConnection()

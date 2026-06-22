@@ -28,7 +28,7 @@ import (
 // exportJsonCmd represents the port command
 var exportJsonCmd = &cobra.Command{
 	Use:   "json",
-	Short: "brand modifications subcommand",
+	Short: "Export all network data as JSON",
 	Long: `Specify a brand which consists on a name.
 
 		A brand is the commercial name of a hardware provider

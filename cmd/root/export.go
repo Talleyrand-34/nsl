@@ -29,7 +29,7 @@ import (
 // rootCmd represents the base command when called without any subcommands
 var ExportCmd = &cobra.Command{
 	Use:   "export",
-	Short: "Generates a diagram from an nsl especification",
+	Short: "Export network data (e.g. JSON)",
 	Long:  `.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:

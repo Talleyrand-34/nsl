@@ -36,7 +36,7 @@ var port int
 // printCmd represents the print command
 var serverCmd = &cobra.Command{
 	Use:   "server",
-	Short: "Gets information about the network",
+	Short: "Start the HTTP API server",
 	Long:  `Print info about any table in the db`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// start http server
