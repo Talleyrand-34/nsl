@@ -130,14 +130,15 @@ nsl-graph add modelport --name "GigE0/0/1" --posx 1 --posy 0 --modelname "ISR443
 
 #### add deviceport
 ```bash
-nsl-graph add deviceport --deviceid <device-id> --modelportid <port-id>
+nsl-graph add deviceport --deviceid <device-id> --modelportid <port-id> [--macaddress <mac>] [--vlan-configs 100:tagged,200:untagged]
 ```
-Associate a model port with a device instance.
+Associate a model port with a device instance. **Create-only**: errors if the port
+already exists — use `update deviceport` to change it.
 
 **Example:**
 ```bash
 nsl-graph add deviceport --deviceid 1 --modelportid 1
-nsl-graph add deviceport --deviceid 1 --modelportid 2
+nsl-graph add deviceport --deviceid 1 --modelportid 2 --vlan-configs 100:tagged
 ```
 
 #### add connection
@@ -156,6 +157,23 @@ nsl-graph add connection --from-device 1 --from-model-port-id 1 --to-device 2 --
 nsl-graph add connectiontype --name <name>
 ```
 Add a connection type (e.g. ethernet, fiber, wireless).
+
+### update
+
+Update existing entities (the counterpart of `add`). Most entities are updated by
+`--id`; run `nsl-graph update <entity> --help` for the exact flags. Two examples
+relevant to ports/interfaces:
+
+```bash
+# Change a device port's MAC and/or VLANs (identified by device + model-port IDs)
+nsl-graph update deviceport --deviceid <id> --modelportid <id> --vlan-configs 100:tagged
+
+# Change a device interface's VLAN configs (identified by interface ID)
+nsl-graph update deviceinterface --id <id> --vlan-configs 10:untagged,20:tagged
+```
+
+> Note: `interfaceport` is a pure link (interface↔port) with no editable fields —
+> there is no `update interfaceport`; delete and re-add instead.
 
 ### print
 
@@ -261,64 +279,41 @@ Export all network data as JSON.
 ### diagram
 
 Generate network diagrams. Output files default to `out/out.d2` and `out/out.svg`.
-
-#### diagram simple
-```bash
-nsl-graph diagram simple
-```
-Basic diagram with all devices and connections.
+There are two focuses — `connection` and `port` — each with an optional `--vlan`
+mode for VLAN coloring.
 
 #### diagram connection
 ```bash
-nsl-graph diagram connection [--all-ports]
+nsl-graph diagram connection [--all-ports] [--vlan [--vlan-scope <s>] [--color-target <t>]]
 ```
-Sorted connection diagram. `--all-ports` includes ports with no connections.
+Sorted connection diagram. With `--vlan` the connections are colored per VLAN and
+a legend is added.
 
 #### diagram port
 ```bash
-nsl-graph diagram port [--all-ports]
+nsl-graph diagram port [--all-ports] [--vlan [--vlan-scope <s>] [--color-target <t>]]
 ```
-Port-focused diagram (lists all ports per device).
-
-#### diagram connection-vlan
-```bash
-nsl-graph diagram connection-vlan [flags]
-```
-Connection diagram with VLAN coloring and a legend.
+Port-focused diagram (lists all ports per device). Same flags as `connection`.
 
 **Flags:**
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--vlan-scope` | `untagged` | `untagged`: one line per link colored by source port's untagged VLAN. `all`: one colored line per VLAN in the **intersection** of both port ends (multiple lines per trunk). |
-| `--color-target` | `both` | What to color: `both` (connections + port nodes), `connections` (port nodes plain), `ports` (connection lines plain). |
 | `--all-ports` | `false` | Include ports with no connections. |
+| `--vlan` | `false` | Color by VLAN and add a legend. |
+| `--vlan-scope` | `untagged` | With `--vlan`: `untagged` (one line per link, colored by the source port's untagged VLAN) or `all` (one colored line per VLAN in the **intersection** of both port ends). |
+| `--color-target` | `both` | With `--vlan`: `both` (connections + port nodes), `connections` (port nodes plain), or `ports` (connection lines plain). |
 
 **Examples:**
 ```bash
-# Default: untagged scope, color both connections and ports
-nsl-graph diagram connection-vlan -s demo.db
+# Plain connection diagram
+nsl-graph diagram connection -s demo.db
 
-# Show every shared VLAN as a separate colored line per trunk link
-nsl-graph diagram connection-vlan --vlan-scope all -s demo.db
+# VLAN-colored, every shared VLAN as a separate line per trunk link
+nsl-graph diagram connection --vlan --vlan-scope all -s demo.db
 
-# All VLANs, color connection lines only
-nsl-graph diagram connection-vlan --vlan-scope all --color-target connections -s demo.db
-```
-
-#### diagram port-vlan
-```bash
-nsl-graph diagram port-vlan [flags]
-```
-Port diagram with VLAN coloring and a legend. Accepts the same `--vlan-scope`, `--color-target`, and `--all-ports` flags as `connection-vlan`.
-
-**Examples:**
-```bash
-# Color port nodes by their untagged VLAN, leave connection lines plain
-nsl-graph diagram port-vlan --color-target ports -s demo.db
-
-# All VLANs (intersection), color both
-nsl-graph diagram port-vlan --vlan-scope all --color-target both -s demo.db
+# Port diagram, color port nodes only
+nsl-graph diagram port --vlan --color-target ports -s demo.db
 ```
 
 ### scan

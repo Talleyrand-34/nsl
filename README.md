@@ -83,8 +83,8 @@ The CLI provides commands for managing all network entities:
 # List all devices
 ./nsl-graph print devices
 
-# Generate a network diagram
-./nsl-graph diagram --format connections --vlan true --colorports true
+# Generate a network diagram (add --vlan for VLAN colors)
+./nsl-graph diagram connection --vlan
 ```
 
 ### Device Scanning with Configuration Integration
