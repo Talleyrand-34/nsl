@@ -17,6 +17,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['api_base_url'])) {
         table { border-collapse: collapse; }
         h2, h3 { margin-top: 20px; }
         label { display: inline-block; margin: 4px 0; }
+        /* Same look as the CRUD/diagram boxes in main.php */
+        .grid2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            align-items: start;
+            margin-top: 8px;
+        }
+        .box {
+            padding: 16px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            background: #f9f9f9;
+            resize: horizontal;
+            overflow: auto;
+            min-width: 150px;
+            max-width: 80vw;
+        }
+        .box h3 { margin-top: 0; }
     </style>
 </head>
 <body>
