@@ -27,8 +27,8 @@ import (
 // rootCmd represents the base command when called without any subcommands
 var DiagramCmd = &cobra.Command{
 	Use:   "diagram",
-	Short: "Generates a diagram from an nsl especification",
-	Long:  `.`,
+	Short: "Generate a network diagram",
+	Long:  `Generate a D2/SVG network diagram. Use a subcommand to choose the focus: "connection" or "port" (add --vlan for VLAN coloring).`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
