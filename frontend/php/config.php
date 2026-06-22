@@ -20,6 +20,11 @@ define('CONNECTIONS_ENDPOINT', API_BASE_URL . '/connections');
 define('CONNECTIONTYPES_ENDPOINT', API_BASE_URL . '/connectiontypes');
 define('DEVICEPORTS_ENDPOINT', API_BASE_URL . '/deviceports');
 define('VLANS_ENDPOINT', API_BASE_URL . '/vlans');
+// Network scanning / device import
+define('SCAN_NETWORK_ENDPOINT', API_BASE_URL . '/scan/network');
+define('SCAN_HOST_ENDPOINT', API_BASE_URL . '/scan/host');
+define('SCAN_IMPORT_ENDPOINT', API_BASE_URL . '/scan/import');
+define('SCAN_IMPORT_FILE_ENDPOINT', API_BASE_URL . '/scan/import-file');
 // Add other endpoints as needed, e.g.:
 // define('DEVICECLASSES_ENDPOINT', API_BASE_URL . '/deviceclasses');
 //

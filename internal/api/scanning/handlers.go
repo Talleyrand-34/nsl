@@ -253,6 +253,85 @@ func ImportDevicesHandler(service q.NetServiceInt) http.HandlerFunc {
 	}
 }
 
+// ImportScanFileHandler imports devices from a raw SNMP scan-result file (the
+// same JSON format consumed by `nsl-graph scan import <file>`). The body is a
+// scanner.ScanResult; the handler classifies the devices server-side via
+// DiscoverDevices and then imports them, mirroring the CLI's --auto-import path.
+func ImportScanFileHandler(service q.NetServiceInt) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		if r.Method != "POST" {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			json.NewEncoder(w).Encode(ErrorResponse{Error: "method_not_allowed", Message: "Only POST method is allowed"})
+			return
+		}
+
+		var scanResult s.ScanResult
+		if err := json.NewDecoder(r.Body).Decode(&scanResult); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid_json", Message: err.Error()})
+			return
+		}
+
+		if len(scanResult.Devices) == 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(ErrorResponse{Error: "no_devices", Message: "Scan result contains no devices"})
+			return
+		}
+
+		devices, err := service.DiscoverDevices(&scanResult)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(ErrorResponse{Error: "discovery_failed", Message: err.Error()})
+			return
+		}
+
+		if len(devices) == 0 {
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success":          true,
+				"imported_devices": 0,
+				"message":          "No reachable devices to import",
+			})
+			return
+		}
+
+		// Defaults mirror the CLI `scan import --auto-import` behaviour.
+		options := s.ImportOptions{
+			AutoImport:        true,
+			CreateZones:       true,
+			DefaultZone:       "Discovered",
+			SkipExisting:      true,
+			InteractiveVLANs:  false,
+			VLANAccuracyLevel: 2,
+		}
+
+		log.Printf("Importing %d devices from uploaded scan file", len(devices))
+
+		if err := service.ImportScanResults(devices, options); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(ErrorResponse{Error: "import_failed", Message: err.Error()})
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success":          true,
+			"imported_devices": len(devices),
+			"message":          fmt.Sprintf("Successfully imported %d devices", len(devices)),
+		})
+	}
+}
+
 func GetScanStatusHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
