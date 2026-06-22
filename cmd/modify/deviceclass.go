@@ -30,8 +30,8 @@ import (
 // brandModCmd represents the port command
 var deviceclassModCmd = &cobra.Command{
 	Use:   "deviceclass",
-	Short: "deviceclass modifications subcommand",
-	Long: `Specify the class of a device which consists on a name.
+	Short: "Add a device class",
+	Long: `Specify the class of a device which consists of a name.
 
 		A deviceclass is the type of device for example router, switch...`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -54,7 +54,7 @@ var deviceclassModCmd = &cobra.Command{
 }
 
 func init() {
-	cmd.ModifyCmd.AddCommand(deviceclassModCmd)
+	cmd.AddCmd.AddCommand(deviceclassModCmd)
 
 	deviceclassModCmd.Flags().
 		String("name", "", "Sets the name of the deviceclass")

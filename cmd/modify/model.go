@@ -30,15 +30,15 @@ import (
 // modelDeviceModCmd represents the model creation command
 var modelDeviceModCmd = &cobra.Command{
 	Use:   "model",
-	Short: "Create a new device model",
+	Short: "Add a device model",
 	Long: `Create a new device model with a specified name, brand, and device class.
 	
 A model represents a specific network device template (like "ISR4431" or "Catalyst2960") 
 that defines the capabilities and characteristics of devices.
 
 Examples:
-  nsl-graph modify model --name "ISR4431" --brand "Cisco" --class "Router"
-  nsl-graph modify model --name "Catalyst2960" --brand "Cisco" --class "Switch"`,
+  nsl-graph add model --name "ISR4431" --brand "Cisco" --class "Router"
+  nsl-graph add model --name "Catalyst2960" --brand "Cisco" --class "Switch"`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Get required model name
 		modelName, err := cmd.Flags().GetString("name")
@@ -81,7 +81,7 @@ Examples:
 }
 
 func init() {
-	cmd.ModifyCmd.AddCommand(modelDeviceModCmd)
+	cmd.AddCmd.AddCommand(modelDeviceModCmd)
 
 	modelDeviceModCmd.Flags().String("name", "", "Model name/identifier (required)")
 	modelDeviceModCmd.Flags().String("brand", "", "Brand name for the model (required)")

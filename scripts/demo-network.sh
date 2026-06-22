@@ -82,7 +82,7 @@ add_interface() {
         esac
     done
     [ -n "$ip" ] && args+=(--ips "$ip")
-    $NSL modify deviceinterface --deviceid "$devid" --name "$name" "${args[@]}" -s "$DB"
+    $NSL add deviceinterface --deviceid "$devid" --name "$name" "${args[@]}" -s "$DB"
 }
 
 link_interface_port() {
@@ -92,32 +92,32 @@ link_interface_port() {
     local mpid="$3"
     local ifid
     ifid=$(get_interface_id "$devid" "$name")
-    $NSL modify interfaceport --deviceid "$devid" --interfaceid "$ifid" --modelportid "$mpid" -s "$DB"
+    $NSL add interfaceport --deviceid "$devid" --interfaceid "$ifid" --modelportid "$mpid" -s "$DB"
 }
 
 # ── Infrastructure ────────────────────────────────────────────────────────────
 
 echo "--- Infrastructure ---"
-$NSL modify brand        --name "Cisco"        -s "$DB"
-$NSL modify brand        --name "Fortinet"     -s "$DB"
-$NSL modify brand        --name "Generic"      -s "$DB"
+$NSL add brand        --name "Cisco"        -s "$DB"
+$NSL add brand        --name "Fortinet"     -s "$DB"
+$NSL add brand        --name "Generic"      -s "$DB"
 
-$NSL modify deviceclass  --name "Firewall"     -s "$DB"
-$NSL modify deviceclass  --name "CoreSwitch"   -s "$DB"
-$NSL modify deviceclass  --name "AccessSwitch" -s "$DB"
-$NSL modify deviceclass  --name "Server"       -s "$DB"
+$NSL add deviceclass  --name "Firewall"     -s "$DB"
+$NSL add deviceclass  --name "CoreSwitch"   -s "$DB"
+$NSL add deviceclass  --name "AccessSwitch" -s "$DB"
+$NSL add deviceclass  --name "Server"       -s "$DB"
 
-$NSL modify zonetype     --name "physical"     -s "$DB"
-$NSL modify proprietary  --name "NetCorp"      -s "$DB"
+$NSL add zonetype     --name "physical"     -s "$DB"
+$NSL add proprietary  --name "NetCorp"      -s "$DB"
 
 # ── Zones ─────────────────────────────────────────────────────────────────────
 
 echo ""
 echo "--- Zones ---"
-$NSL modify zone --name "DataCenter" --zonetype "physical" --proprietary "NetCorp" -s "$DB"
-$NSL modify zone --name "DMZ"        --zonetype "physical" --proprietary "NetCorp" -s "$DB"
-$NSL modify zone --name "Floor1"     --zonetype "physical" --proprietary "NetCorp" -s "$DB"
-$NSL modify zone --name "Floor2"     --zonetype "physical" --proprietary "NetCorp" -s "$DB"
+$NSL add zone --name "DataCenter" --zonetype "physical" --proprietary "NetCorp" -s "$DB"
+$NSL add zone --name "DMZ"        --zonetype "physical" --proprietary "NetCorp" -s "$DB"
+$NSL add zone --name "Floor1"     --zonetype "physical" --proprietary "NetCorp" -s "$DB"
+$NSL add zone --name "Floor2"     --zonetype "physical" --proprietary "NetCorp" -s "$DB"
 
 # ── Models and model ports ────────────────────────────────────────────────────
 
@@ -125,51 +125,51 @@ echo ""
 echo "--- Models ---"
 
 # Firewall: WAN (outside), LAN (trunk to core), DMZ-port (DMZ segment)
-$NSL modify model --name "FW-Model"        --brand "Fortinet" --class "Firewall"     -s "$DB"
-$NSL modify modelport --modelname "FW-Model" --name "WAN"      --posx 0 --posy 0 -s "$DB"
-$NSL modify modelport --modelname "FW-Model" --name "LAN"      --posx 1 --posy 0 -s "$DB"
-$NSL modify modelport --modelname "FW-Model" --name "DMZ-port" --posx 2 --posy 0 -s "$DB"
+$NSL add model --name "FW-Model"        --brand "Fortinet" --class "Firewall"     -s "$DB"
+$NSL add modelport --modelname "FW-Model" --name "WAN"      --posx 0 --posy 0 -s "$DB"
+$NSL add modelport --modelname "FW-Model" --name "LAN"      --posx 1 --posy 0 -s "$DB"
+$NSL add modelport --modelname "FW-Model" --name "DMZ-port" --posx 2 --posy 0 -s "$DB"
 
 # Core switch: uplink-fw, uplink-f1, uplink-f2, srv-port, store-port
-$NSL modify model --name "Core-SW-Model"   --brand "Cisco"    --class "CoreSwitch"  -s "$DB"
-$NSL modify modelport --modelname "Core-SW-Model" --name "uplink-fw"  --posx 0 --posy 0 -s "$DB"
-$NSL modify modelport --modelname "Core-SW-Model" --name "uplink-f1"  --posx 1 --posy 0 -s "$DB"
-$NSL modify modelport --modelname "Core-SW-Model" --name "uplink-f2"  --posx 2 --posy 0 -s "$DB"
-$NSL modify modelport --modelname "Core-SW-Model" --name "srv-port"   --posx 3 --posy 0 -s "$DB"
-$NSL modify modelport --modelname "Core-SW-Model" --name "store-port" --posx 4 --posy 0 -s "$DB"
+$NSL add model --name "Core-SW-Model"   --brand "Cisco"    --class "CoreSwitch"  -s "$DB"
+$NSL add modelport --modelname "Core-SW-Model" --name "uplink-fw"  --posx 0 --posy 0 -s "$DB"
+$NSL add modelport --modelname "Core-SW-Model" --name "uplink-f1"  --posx 1 --posy 0 -s "$DB"
+$NSL add modelport --modelname "Core-SW-Model" --name "uplink-f2"  --posx 2 --posy 0 -s "$DB"
+$NSL add modelport --modelname "Core-SW-Model" --name "srv-port"   --posx 3 --posy 0 -s "$DB"
+$NSL add modelport --modelname "Core-SW-Model" --name "store-port" --posx 4 --posy 0 -s "$DB"
 
 # Access switch: uplink (trunk), access1 (users access), access2 (VoIP access)
-$NSL modify model --name "Access-SW-Model" --brand "Cisco"    --class "AccessSwitch" -s "$DB"
-$NSL modify modelport --modelname "Access-SW-Model" --name "uplink"  --posx 0 --posy 0 -s "$DB"
-$NSL modify modelport --modelname "Access-SW-Model" --name "access1" --posx 1 --posy 0 -s "$DB"
-$NSL modify modelport --modelname "Access-SW-Model" --name "access2" --posx 2 --posy 0 -s "$DB"
+$NSL add model --name "Access-SW-Model" --brand "Cisco"    --class "AccessSwitch" -s "$DB"
+$NSL add modelport --modelname "Access-SW-Model" --name "uplink"  --posx 0 --posy 0 -s "$DB"
+$NSL add modelport --modelname "Access-SW-Model" --name "access1" --posx 1 --posy 0 -s "$DB"
+$NSL add modelport --modelname "Access-SW-Model" --name "access2" --posx 2 --posy 0 -s "$DB"
 
 # Server: single NIC
-$NSL modify model --name "Server-Model"    --brand "Generic"  --class "Server"       -s "$DB"
-$NSL modify modelport --modelname "Server-Model" --name "eth0" --posx 0 --posy 0 -s "$DB"
+$NSL add model --name "Server-Model"    --brand "Generic"  --class "Server"       -s "$DB"
+$NSL add modelport --modelname "Server-Model" --name "eth0" --posx 0 --posy 0 -s "$DB"
 
 # ── VLANs ─────────────────────────────────────────────────────────────────────
 
 echo ""
 echo "--- VLANs ---"
-$NSL modify vlan --vlan-id 10 --name "Management" --ip-segment "192.168.10.0/24" -s "$DB"
-$NSL modify vlan --vlan-id 20 --name "Servers"    --ip-segment "10.20.0.0/24"   -s "$DB"
-$NSL modify vlan --vlan-id 30 --name "Users-F1"   --ip-segment "10.30.0.0/24"   -s "$DB"
-$NSL modify vlan --vlan-id 40 --name "Users-F2"   --ip-segment "10.40.0.0/24"   -s "$DB"
-$NSL modify vlan --vlan-id 50 --name "Storage"    --ip-segment "10.50.0.0/24"   -s "$DB"
-$NSL modify vlan --vlan-id 60 --name "VoIP"       --ip-segment "10.60.0.0/24"   -s "$DB"
+$NSL add vlan --vlan-id 10 --name "Management" --ip-segment "192.168.10.0/24" -s "$DB"
+$NSL add vlan --vlan-id 20 --name "Servers"    --ip-segment "10.20.0.0/24"   -s "$DB"
+$NSL add vlan --vlan-id 30 --name "Users-F1"   --ip-segment "10.30.0.0/24"   -s "$DB"
+$NSL add vlan --vlan-id 40 --name "Users-F2"   --ip-segment "10.40.0.0/24"   -s "$DB"
+$NSL add vlan --vlan-id 50 --name "Storage"    --ip-segment "10.50.0.0/24"   -s "$DB"
+$NSL add vlan --vlan-id 60 --name "VoIP"       --ip-segment "10.60.0.0/24"   -s "$DB"
 
 # ── Devices ───────────────────────────────────────────────────────────────────
 
 echo ""
 echo "--- Devices ---"
 # Devices no longer carry IPs directly; IPs are assigned per interface below.
-$NSL modify device --label "FW-01"      --model "FW-Model"        --zone-name "DMZ"        --proprietary "NetCorp" -s "$DB"
-$NSL modify device --label "SW-CORE"   --model "Core-SW-Model"   --zone-name "DataCenter" --proprietary "NetCorp" -s "$DB"
-$NSL modify device --label "SW-F1"     --model "Access-SW-Model" --zone-name "Floor1"     --proprietary "NetCorp" -s "$DB"
-$NSL modify device --label "SW-F2"     --model "Access-SW-Model" --zone-name "Floor2"     --proprietary "NetCorp" -s "$DB"
-$NSL modify device --label "SRV-01"    --model "Server-Model"    --zone-name "DataCenter" --proprietary "NetCorp" -s "$DB"
-$NSL modify device --label "SRV-STORE" --model "Server-Model"    --zone-name "DataCenter" --proprietary "NetCorp" -s "$DB"
+$NSL add device --label "FW-01"      --model "FW-Model"        --zone-name "DMZ"        --proprietary "NetCorp" -s "$DB"
+$NSL add device --label "SW-CORE"   --model "Core-SW-Model"   --zone-name "DataCenter" --proprietary "NetCorp" -s "$DB"
+$NSL add device --label "SW-F1"     --model "Access-SW-Model" --zone-name "Floor1"     --proprietary "NetCorp" -s "$DB"
+$NSL add device --label "SW-F2"     --model "Access-SW-Model" --zone-name "Floor2"     --proprietary "NetCorp" -s "$DB"
+$NSL add device --label "SRV-01"    --model "Server-Model"    --zone-name "DataCenter" --proprietary "NetCorp" -s "$DB"
+$NSL add device --label "SRV-STORE" --model "Server-Model"    --zone-name "DataCenter" --proprietary "NetCorp" -s "$DB"
 
 # ── Capture IDs ───────────────────────────────────────────────────────────────
 
@@ -208,25 +208,25 @@ echo "SRV-STORE:  $SRVSTORE_ID"
 echo ""
 echo "--- Device ports ---"
 
-$NSL modify deviceport --deviceid "$FW01_ID"    --modelportid "$MP_FW_WAN"      -s "$DB"
-$NSL modify deviceport --deviceid "$FW01_ID"    --modelportid "$MP_FW_LAN"      -s "$DB"
-$NSL modify deviceport --deviceid "$FW01_ID"    --modelportid "$MP_FW_DMZ"      -s "$DB"
+$NSL add deviceport --deviceid "$FW01_ID"    --modelportid "$MP_FW_WAN"      -s "$DB"
+$NSL add deviceport --deviceid "$FW01_ID"    --modelportid "$MP_FW_LAN"      -s "$DB"
+$NSL add deviceport --deviceid "$FW01_ID"    --modelportid "$MP_FW_DMZ"      -s "$DB"
 
-$NSL modify deviceport --deviceid "$SWCORE_ID"  --modelportid "$MP_CORE_UPLFW"  -s "$DB"
-$NSL modify deviceport --deviceid "$SWCORE_ID"  --modelportid "$MP_CORE_UPLF1"  -s "$DB"
-$NSL modify deviceport --deviceid "$SWCORE_ID"  --modelportid "$MP_CORE_UPLF2"  -s "$DB"
-$NSL modify deviceport --deviceid "$SWCORE_ID"  --modelportid "$MP_CORE_SRV"    -s "$DB"
-$NSL modify deviceport --deviceid "$SWCORE_ID"  --modelportid "$MP_CORE_STORE"  -s "$DB"
+$NSL add deviceport --deviceid "$SWCORE_ID"  --modelportid "$MP_CORE_UPLFW"  -s "$DB"
+$NSL add deviceport --deviceid "$SWCORE_ID"  --modelportid "$MP_CORE_UPLF1"  -s "$DB"
+$NSL add deviceport --deviceid "$SWCORE_ID"  --modelportid "$MP_CORE_UPLF2"  -s "$DB"
+$NSL add deviceport --deviceid "$SWCORE_ID"  --modelportid "$MP_CORE_SRV"    -s "$DB"
+$NSL add deviceport --deviceid "$SWCORE_ID"  --modelportid "$MP_CORE_STORE"  -s "$DB"
 
-$NSL modify deviceport --deviceid "$SWF1_ID"    --modelportid "$MP_ACC_UPL"     -s "$DB"
-$NSL modify deviceport --deviceid "$SWF1_ID"    --modelportid "$MP_ACC_ACC1"    -s "$DB"
-$NSL modify deviceport --deviceid "$SWF1_ID"    --modelportid "$MP_ACC_ACC2"    -s "$DB"
+$NSL add deviceport --deviceid "$SWF1_ID"    --modelportid "$MP_ACC_UPL"     -s "$DB"
+$NSL add deviceport --deviceid "$SWF1_ID"    --modelportid "$MP_ACC_ACC1"    -s "$DB"
+$NSL add deviceport --deviceid "$SWF1_ID"    --modelportid "$MP_ACC_ACC2"    -s "$DB"
 
-$NSL modify deviceport --deviceid "$SWF2_ID"    --modelportid "$MP_ACC_UPL"     -s "$DB"
-$NSL modify deviceport --deviceid "$SWF2_ID"    --modelportid "$MP_ACC_ACC1"    -s "$DB"
+$NSL add deviceport --deviceid "$SWF2_ID"    --modelportid "$MP_ACC_UPL"     -s "$DB"
+$NSL add deviceport --deviceid "$SWF2_ID"    --modelportid "$MP_ACC_ACC1"    -s "$DB"
 
-$NSL modify deviceport --deviceid "$SRV01_ID"   --modelportid "$MP_SRV_ETH0"    -s "$DB"
-$NSL modify deviceport --deviceid "$SRVSTORE_ID" --modelportid "$MP_SRV_ETH0"   -s "$DB"
+$NSL add deviceport --deviceid "$SRV01_ID"   --modelportid "$MP_SRV_ETH0"    -s "$DB"
+$NSL add deviceport --deviceid "$SRVSTORE_ID" --modelportid "$MP_SRV_ETH0"   -s "$DB"
 
 # ── Device interfaces with VLAN configs ───────────────────────────────────────
 #
@@ -300,27 +300,27 @@ link_interface_port "$SRVSTORE_ID" "store-eth0"  "$MP_SRV_ETH0"
 echo ""
 echo "--- Connections ---"
 
-$NSL modify connection \
+$NSL add connection \
     --from-device-id "$FW01_ID"   --from-modelport-id "$MP_FW_LAN" \
     --to-device-id   "$SWCORE_ID" --to-modelport-id   "$MP_CORE_UPLFW" \
     --allow-vlan-union -s "$DB"
 
-$NSL modify connection \
+$NSL add connection \
     --from-device-id "$SWCORE_ID" --from-modelport-id "$MP_CORE_UPLF1" \
     --to-device-id   "$SWF1_ID"   --to-modelport-id   "$MP_ACC_UPL" \
     --allow-vlan-union -s "$DB"
 
-$NSL modify connection \
+$NSL add connection \
     --from-device-id "$SWCORE_ID" --from-modelport-id "$MP_CORE_UPLF2" \
     --to-device-id   "$SWF2_ID"   --to-modelport-id   "$MP_ACC_UPL" \
     --allow-vlan-union -s "$DB"
 
-$NSL modify connection \
+$NSL add connection \
     --from-device-id "$SWCORE_ID"  --from-modelport-id "$MP_CORE_SRV" \
     --to-device-id   "$SRV01_ID"   --to-modelport-id   "$MP_SRV_ETH0" \
     --allow-vlan-union -s "$DB"
 
-$NSL modify connection \
+$NSL add connection \
     --from-device-id "$SWCORE_ID"   --from-modelport-id "$MP_CORE_STORE" \
     --to-device-id   "$SRVSTORE_ID" --to-modelport-id   "$MP_SRV_ETH0" \
     --allow-vlan-union -s "$DB"

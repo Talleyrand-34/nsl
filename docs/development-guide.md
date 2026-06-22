@@ -36,7 +36,7 @@ go build -o nsl-graph main.go
 ### 2. Development Database
 ```bash
 # Create test database (auto-generated on first use)
-go run main.go modify brand --name "TestBrand"
+go run main.go add brand --name "TestBrand"
 
 # Verify database creation
 ls -la test.db
@@ -268,7 +268,7 @@ ls internal/repository/infra/sqlc_sqlite/basicops/test.db
 ### Manual Testing
 ```bash
 # Test CLI commands
-go run main.go modify brand --name "TestBrand"
+go run main.go add brand --name "TestBrand"
 go run main.go print brand
 
 # Test API endpoints
@@ -314,7 +314,7 @@ logrus.WithFields(logrus.Fields{
 
 Enable verbose logging:
 ```bash
-go run main.go -v modify device --name "test"
+go run main.go -v add device --name "test"
 ```
 
 ### Code Generation
@@ -372,7 +372,7 @@ go mod tidy
 ```bash
 # Reset database
 rm test.db
-go run main.go modify brand --name "FirstBrand"
+go run main.go add brand --name "FirstBrand"
 ```
 
 ### Port Conflicts

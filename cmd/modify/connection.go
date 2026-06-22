@@ -30,15 +30,15 @@ import (
 // connectionModCmd represents the connection creation command
 var connectionModCmd = &cobra.Command{
 	Use:   "connection",
-	Short: "Create a new network connection between two device ports",
+	Short: "Add a connection between two device ports",
 	Long: `Create a connection between two device ports.
 
 Identify endpoints by name (device label or IP + port name):
-  nsl-graph modify connection --from-device 10.0.0.245 --from-modelport eth0 \
+  nsl-graph add connection --from-device 10.0.0.245 --from-modelport eth0 \
                               --to-device router.local --to-modelport igc1
 
 Or by database IDs (legacy):
-  nsl-graph modify connection --from-device-id <id> --from-modelport-id <id> \
+  nsl-graph add connection --from-device-id <id> --from-modelport-id <id> \
                               --to-device-id <id> --to-modelport-id <id>`,
 	Run: func(cmd *cobra.Command, args []string) {
 		service, err := util.ServiceConnection()
@@ -149,7 +149,7 @@ Or by database IDs (legacy):
 }
 
 func init() {
-	cmd.ModifyCmd.AddCommand(connectionModCmd)
+	cmd.AddCmd.AddCommand(connectionModCmd)
 
 	// Name-based flags (preferred)
 	connectionModCmd.Flags().String("from-device", "", "Label or IP of the source device")

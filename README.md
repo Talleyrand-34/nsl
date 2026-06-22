@@ -66,19 +66,19 @@ The CLI provides commands for managing all network entities:
 
 ```bash
 # Add a brand
-./nsl-graph modify brand --name "Siemens"
+./nsl-graph add brand --name "Siemens"
 
 # Add a device class
-./nsl-graph modify devclass --name "Switch"
+./nsl-graph add devclass --name "Switch"
 
 # Add a zone
-./nsl-graph modify zone --name "DMZ" --zonetype "Security"
+./nsl-graph add zone --name "DMZ" --zonetype "Security"
 
 # Add a device model
-./nsl-graph modify model --name "XC206" --brand "Siemens" --devclass "Switch"
+./nsl-graph add model --name "XC206" --brand "Siemens" --devclass "Switch"
 
 # Add a device
-./nsl-graph modify device --label "Switch-Main" --model "XC206" --zone "DMZ"
+./nsl-graph add device --label "Switch-Main" --model "XC206" --zone "DMZ"
 
 # List all devices
 ./nsl-graph print devices

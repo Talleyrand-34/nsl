@@ -30,8 +30,8 @@ import (
 // zonetypeModCmd represents the port command
 var zonetypeModCmd = &cobra.Command{
 	Use:   "zonetype",
-	Short: "zonetype modifications subcommand",
-	Long: `Specify a zonetype which consists on a name
+	Short: "Add a zone type",
+	Long: `Specify a zonetype which consists of a name
 
 	A zonetype is the kind of zone a zone is, mainly this would be physical or logical`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -54,7 +54,7 @@ var zonetypeModCmd = &cobra.Command{
 }
 
 func init() {
-	cmd.ModifyCmd.AddCommand(zonetypeModCmd)
+	cmd.AddCmd.AddCommand(zonetypeModCmd)
 
 	zonetypeModCmd.Flags().
 		String("name", "", "Sets the name of the zonetype")

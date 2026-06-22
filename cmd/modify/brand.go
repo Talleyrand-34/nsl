@@ -30,8 +30,8 @@ import (
 // brandModCmd represents the port command
 var brandModCmd = &cobra.Command{
 	Use:   "brand",
-	Short: "brand modifications subcommand",
-	Long: `Specify a brand which consists on a name.
+	Short: "Add a brand",
+	Long: `Specify a brand which consists of a name.
 
 		A brand is the commercial name of a hardware provider
 		`,
@@ -55,7 +55,7 @@ var brandModCmd = &cobra.Command{
 }
 
 func init() {
-	cmd.ModifyCmd.AddCommand(brandModCmd)
+	cmd.AddCmd.AddCommand(brandModCmd)
 
 	brandModCmd.Flags().
 		String("name", "", "Sets the name of the brand")

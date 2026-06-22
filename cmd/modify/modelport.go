@@ -30,8 +30,13 @@ import (
 // modelDeviceModCmd represents the port command
 var modelPortModCmd = &cobra.Command{
 	Use:   "modelport",
-	Short: "model modifications subcommand",
-	Long:  `.`,
+	Short: "Add a model port",
+	Long: `Add a port to a device model, defining the model's port layout: a name, a
+grid position (--posx/--posy), the type (wired by default, or 'wifi') and whether
+the port allows multiple connections.
+
+Example:
+  nsl-graph add modelport --modelname "ISR4431" --name "GigE0/0/0" --posx 0 --posy 0`,
 	Run: func(cmd *cobra.Command, args []string) {
 		flagNames := []string{"name", "posx", "posy", "modelname"}
 		vals := util.Flagproc(
@@ -58,7 +63,7 @@ var modelPortModCmd = &cobra.Command{
 }
 
 func init() {
-	cmd.ModifyCmd.AddCommand(modelPortModCmd)
+	cmd.AddCmd.AddCommand(modelPortModCmd)
 
 	modelPortModCmd.Flags().
 		String("name", "", "Sets the name of the modelPort")

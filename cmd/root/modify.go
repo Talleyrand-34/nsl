@@ -25,16 +25,23 @@ import (
 	cmd "nsl-graph/cmd"
 )
 
-// ModifyCmd represents the modify command
-var ModifyCmd = &cobra.Command{
-	Use:   "modify",
-	Short: "Make modificatons into the network structure",
-	Long:  `.`,
+// AddCmd represents the add command. It creates network entities (brands,
+// devices, zones, connections, …); use the separate `update` command to change
+// existing ones. `modify` is kept as a backward-compatible alias.
+var AddCmd = &cobra.Command{
+	Use:     "add",
+	Aliases: []string{"modify"},
+	Short:   "Add entities to the network (brands, devices, zones, connections, …)",
+	Long: `Add new entities to the network model: brands, device classes, zones,
+models, devices, ports, connections, VLANs and interfaces.
+
+To change an existing entity, use the "update" command instead. The old name
+"modify" still works as an alias.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		cmd.Help()
 	},
 }
 
 func init() {
-	cmd.RootCmd.AddCommand(ModifyCmd)
+	cmd.RootCmd.AddCommand(AddCmd)
 }

@@ -30,16 +30,16 @@ import (
 // zoneModCmd represents the zone creation command
 var zoneModCmd = &cobra.Command{
 	Use:   "zone",
-	Short: "Create a new network zone",
+	Short: "Add a network zone",
 	Long: `Create a new network zone with specified hierarchy and ownership.
 	
 A zone represents a logical or physical grouping of network devices (like a datacenter, building, or rack).
 Zones can have parent-child relationships to model hierarchical network structures.
 
 Examples:
-  nsl-graph modify zone --name "DataCenter-1" --proprietary "IT Department" --zonetype "Datacenter"
-  nsl-graph modify zone --name "Rack-A1" --father-name "DataCenter-1" --proprietary "IT Department" --zonetype "Rack"
-  nsl-graph modify zone --name "Floor-2" --father-id 1 --proprietary "IT Department" --zonetype "Floor"`,
+  nsl-graph add zone --name "DataCenter-1" --proprietary "IT Department" --zonetype "Datacenter"
+  nsl-graph add zone --name "Rack-A1" --father-name "DataCenter-1" --proprietary "IT Department" --zonetype "Rack"
+  nsl-graph add zone --name "Floor-2" --father-id 1 --proprietary "IT Department" --zonetype "Floor"`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Get required zone name
 		zoneName, err := cmd.Flags().GetString("name")
@@ -92,7 +92,7 @@ Examples:
 }
 
 func init() {
-	cmd.ModifyCmd.AddCommand(zoneModCmd)
+	cmd.AddCmd.AddCommand(zoneModCmd)
 
 	zoneModCmd.Flags().String("name", "", "Zone name/identifier (required)")
 	zoneModCmd.Flags().String("father-name", "", "Parent zone name (optional)")

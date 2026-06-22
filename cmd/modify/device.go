@@ -29,15 +29,15 @@ import (
 // DeviceModCmd represents the device creation command
 var DeviceModCmd = &cobra.Command{
 	Use:   "device",
-	Short: "Create a new network device",
+	Short: "Add a network device",
 	Long: `Create a new network device with a specified model, zone, and ownership.
 	
 A device is an instance of a model (like a specific router or switch) deployed in a particular zone.
 You can specify the zone either by ID (--zone-id) or by name (--zone-name).
 
 Examples:
-  nsl-graph modify device --label "Router-01" --model "ISR4431" --zone-name "DataCenter" --proprietary "IT Department"
-  nsl-graph modify device --label "Switch-Core-01" --model "Catalyst2960" --zone-id 1 --proprietary "Network Team"`,
+  nsl-graph add device --label "Router-01" --model "ISR4431" --zone-name "DataCenter" --proprietary "IT Department"
+  nsl-graph add device --label "Switch-Core-01" --model "Catalyst2960" --zone-id 1 --proprietary "Network Team"`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Get required device label
 		deviceLabel, err := cmd.Flags().GetString("label")
@@ -102,7 +102,7 @@ Examples:
 }
 
 func init() {
-	cmd.ModifyCmd.AddCommand(DeviceModCmd)
+	cmd.AddCmd.AddCommand(DeviceModCmd)
 
 	DeviceModCmd.Flags().String("label", "", "Device identifier/name (required)")
 	DeviceModCmd.Flags().String("model", "", "Model name for the device (required)")

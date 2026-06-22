@@ -28,127 +28,127 @@ These flags are available for all commands:
 
 ## Commands
 
-### modify
+### add
 
-Add or update network entities.
+Add new network entities. To change an existing entity, use the `update` command. (`modify` remains as an alias.)
 
-#### modify brand
+#### add brand
 ```bash
-nsl-graph modify brand --name <brand-name>
+nsl-graph add brand --name <brand-name>
 ```
 Add a new equipment brand.
 
 **Example:**
 ```bash
-nsl-graph modify brand --name "Cisco"
-nsl-graph modify brand --name "Juniper"
+nsl-graph add brand --name "Cisco"
+nsl-graph add brand --name "Juniper"
 ```
 
-#### modify deviceclass
+#### add deviceclass
 ```bash
-nsl-graph modify deviceclass --name <class-name>
+nsl-graph add deviceclass --name <class-name>
 ```
 Add a new device class (router, switch, firewall, etc.).
 
 **Example:**
 ```bash
-nsl-graph modify deviceclass --name "router"
-nsl-graph modify deviceclass --name "switch"
+nsl-graph add deviceclass --name "router"
+nsl-graph add deviceclass --name "switch"
 ```
 
-#### modify proprietary
+#### add proprietary
 ```bash
-nsl-graph modify proprietary --name <proprietary-name>
+nsl-graph add proprietary --name <proprietary-name>
 ```
 Add a proprietary/ownership entity.
 
 **Example:**
 ```bash
-nsl-graph modify proprietary --name "TDS"
-nsl-graph modify proprietary --name "Navantia"
+nsl-graph add proprietary --name "TDS"
+nsl-graph add proprietary --name "Navantia"
 ```
 
-#### modify zonetype
+#### add zonetype
 ```bash
-nsl-graph modify zonetype --name <zonetype-name>
+nsl-graph add zonetype --name <zonetype-name>
 ```
 Add a zone type (physical, logical, etc.).
 
 **Example:**
 ```bash
-nsl-graph modify zonetype --name "physical"
-nsl-graph modify zonetype --name "logical"
+nsl-graph add zonetype --name "physical"
+nsl-graph add zonetype --name "logical"
 ```
 
-#### modify zone
+#### add zone
 ```bash
-nsl-graph modify zone --name <zone-name> --zonetype <type> --proprietary <owner> [--father <parent-zone>]
+nsl-graph add zone --name <zone-name> --zonetype <type> --proprietary <owner> [--father <parent-zone>]
 ```
 Add a network zone.
 
 **Example:**
 ```bash
-nsl-graph modify zone --name "datacenter" --zonetype "physical" --proprietary "TDS"
-nsl-graph modify zone --name "rack01" --zonetype "physical" --proprietary "TDS" --father "datacenter"
+nsl-graph add zone --name "datacenter" --zonetype "physical" --proprietary "TDS"
+nsl-graph add zone --name "rack01" --zonetype "physical" --proprietary "TDS" --father "datacenter"
 ```
 
-#### modify model
+#### add model
 ```bash
-nsl-graph modify model --name <model-name> --brand <brand> --class <device-class>
+nsl-graph add model --name <model-name> --brand <brand> --class <device-class>
 ```
 Add a device model.
 
 **Example:**
 ```bash
-nsl-graph modify model --name "ISR4431" --brand "Cisco" --class "router"
-nsl-graph modify model --name "EX4300" --brand "Juniper" --class "switch"
+nsl-graph add model --name "ISR4431" --brand "Cisco" --class "router"
+nsl-graph add model --name "EX4300" --brand "Juniper" --class "switch"
 ```
 
-#### modify device
+#### add device
 ```bash
-nsl-graph modify device --name <device-name> --model <model-name> --zonename <zone> --proprietary <owner>
+nsl-graph add device --name <device-name> --model <model-name> --zonename <zone> --proprietary <owner>
 ```
 Add a network device.
 
 **Example:**
 ```bash
-nsl-graph modify device --name "router01" --model "ISR4431" --zonename "datacenter" --proprietary "TDS"
-nsl-graph modify device --name "switch01" --model "EX4300" --zonename "datacenter" --proprietary "TDS"
+nsl-graph add device --name "router01" --model "ISR4431" --zonename "datacenter" --proprietary "TDS"
+nsl-graph add device --name "switch01" --model "EX4300" --zonename "datacenter" --proprietary "TDS"
 ```
 
-#### modify modelport
+#### add modelport
 ```bash
-nsl-graph modify modelport --name <port-name> --posx <x-position> --posy <y-position> --modelname <model>
+nsl-graph add modelport --name <port-name> --posx <x-position> --posy <y-position> --modelname <model>
 ```
 Add a port to a device model.
 
 **Example:**
 ```bash
-nsl-graph modify modelport --name "GigE0/0/0" --posx 0 --posy 0 --modelname "ISR4431"
-nsl-graph modify modelport --name "GigE0/0/1" --posx 1 --posy 0 --modelname "ISR4431"
+nsl-graph add modelport --name "GigE0/0/0" --posx 0 --posy 0 --modelname "ISR4431"
+nsl-graph add modelport --name "GigE0/0/1" --posx 1 --posy 0 --modelname "ISR4431"
 ```
 
-#### modify deviceport
+#### add deviceport
 ```bash
-nsl-graph modify deviceport --deviceid <device-id> --modelportid <port-id>
+nsl-graph add deviceport --deviceid <device-id> --modelportid <port-id>
 ```
 Associate a model port with a device instance.
 
 **Example:**
 ```bash
-nsl-graph modify deviceport --deviceid 1 --modelportid 1
-nsl-graph modify deviceport --deviceid 1 --modelportid 2
+nsl-graph add deviceport --deviceid 1 --modelportid 1
+nsl-graph add deviceport --deviceid 1 --modelportid 2
 ```
 
-#### modify connection
+#### add connection
 ```bash
-nsl-graph modify connection --from-device <device-id> --from-model-port-id <port-id> --to-device <device-id> --to-model-port-id <port-id>
+nsl-graph add connection --from-device <device-id> --from-model-port-id <port-id> --to-device <device-id> --to-model-port-id <port-id>
 ```
 Create a connection between device ports.
 
 **Example:**
 ```bash
-nsl-graph modify connection --from-device 1 --from-model-port-id 1 --to-device 2 --to-model-port-id 1
+nsl-graph add connection --from-device 1 --from-model-port-id 1 --to-device 2 --to-model-port-id 1
 ```
 
 ### print
@@ -375,31 +375,31 @@ Here's a complete example of setting up a simple network:
 
 ```bash
 # Set up basic entities
-nsl-graph modify brand --name "Cisco"
-nsl-graph modify deviceclass --name "router"
-nsl-graph modify proprietary --name "MyCompany"
-nsl-graph modify zonetype --name "physical"
+nsl-graph add brand --name "Cisco"
+nsl-graph add deviceclass --name "router"
+nsl-graph add proprietary --name "MyCompany"
+nsl-graph add zonetype --name "physical"
 
 # Create zones
-nsl-graph modify zone --name "datacenter" --zonetype "physical" --proprietary "MyCompany"
+nsl-graph add zone --name "datacenter" --zonetype "physical" --proprietary "MyCompany"
 
 # Create model and devices
-nsl-graph modify model --name "ISR4431" --brand "Cisco" --class "router"
-nsl-graph modify device --name "router01" --model "ISR4431" --zonename "datacenter" --proprietary "MyCompany"
-nsl-graph modify device --name "router02" --model "ISR4431" --zonename "datacenter" --proprietary "MyCompany"
+nsl-graph add model --name "ISR4431" --brand "Cisco" --class "router"
+nsl-graph add device --name "router01" --model "ISR4431" --zonename "datacenter" --proprietary "MyCompany"
+nsl-graph add device --name "router02" --model "ISR4431" --zonename "datacenter" --proprietary "MyCompany"
 
 # Add ports to model
-nsl-graph modify modelport --name "GigE0/0/0" --posx 0 --posy 0 --modelname "ISR4431"
-nsl-graph modify modelport --name "GigE0/0/1" --posx 1 --posy 0 --modelname "ISR4431"
+nsl-graph add modelport --name "GigE0/0/0" --posx 0 --posy 0 --modelname "ISR4431"
+nsl-graph add modelport --name "GigE0/0/1" --posx 1 --posy 0 --modelname "ISR4431"
 
 # Associate ports with devices
-nsl-graph modify deviceport --deviceid 1 --modelportid 1
-nsl-graph modify deviceport --deviceid 1 --modelportid 2
-nsl-graph modify deviceport --deviceid 2 --modelportid 1
-nsl-graph modify deviceport --deviceid 2 --modelportid 2
+nsl-graph add deviceport --deviceid 1 --modelportid 1
+nsl-graph add deviceport --deviceid 1 --modelportid 2
+nsl-graph add deviceport --deviceid 2 --modelportid 1
+nsl-graph add deviceport --deviceid 2 --modelportid 2
 
 # Create connection
-nsl-graph modify connection --from-device 1 --from-model-port-id 1 --to-device 2 --to-model-port-id 1
+nsl-graph add connection --from-device 1 --from-model-port-id 1 --to-device 2 --to-model-port-id 1
 
 # Generate diagram
 nsl-graph diagram

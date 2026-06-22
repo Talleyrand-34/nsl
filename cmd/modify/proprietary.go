@@ -30,16 +30,16 @@ import (
 // proprietaryModCmd represents the proprietary creation command
 var proprietaryModCmd = &cobra.Command{
 	Use:   "proprietary",
-	Short: "Create a new proprietary owner",
+	Short: "Add a proprietary owner",
 	Long: `Create a new proprietary owner entity.
 
 A proprietary represents the owner or responsible party for devices and zones in the network.
 This could be a department, organization, or individual responsible for network assets.
 
 Examples:
-  nsl-graph modify proprietary --name "IT Department"
-  nsl-graph modify proprietary --name "Network Operations Team"
-  nsl-graph modify proprietary --name "Security Division"`,
+  nsl-graph add proprietary --name "IT Department"
+  nsl-graph add proprietary --name "Network Operations Team"
+  nsl-graph add proprietary --name "Security Division"`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Get required proprietary name
 		proprietaryName, err := cmd.Flags().GetString("name")
@@ -67,7 +67,7 @@ Examples:
 }
 
 func init() {
-	cmd.ModifyCmd.AddCommand(proprietaryModCmd)
+	cmd.AddCmd.AddCommand(proprietaryModCmd)
 
 	proprietaryModCmd.Flags().String("name", "", "Proprietary owner name (required)")
 	

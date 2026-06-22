@@ -47,7 +47,7 @@ func TestCLI_HelpCommand(t *testing.T) {
 	assert.Contains(t, output, "Usage:")
 	assert.Contains(t, output, "Available Commands:")
 	assert.Contains(t, output, "diagram")
-	assert.Contains(t, output, "modify")
+	assert.Contains(t, output, "add")
 	assert.Contains(t, output, "print")
 	assert.Contains(t, output, "server")
 }
@@ -122,7 +122,7 @@ func TestCLI_ModifyHelpCommand(t *testing.T) {
 	binaryPath := buildCLIBinary(t)
 	defer os.Remove(binaryPath)
 
-	// Test modify subcommand help
+	// Test add subcommand help (and that the legacy "modify" alias still resolves)
 	cmd := exec.Command(binaryPath, "modify", "--help")
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -131,7 +131,7 @@ func TestCLI_ModifyHelpCommand(t *testing.T) {
 	assert.NoError(t, err)
 
 	output := out.String()
-	assert.Contains(t, output, "modify")
+	assert.Contains(t, output, "add")
 	assert.Contains(t, output, "Available Commands:")
 }
 

@@ -103,7 +103,7 @@ var interfacePortModCmd = &cobra.Command{
 }
 
 func init() {
-	cmd.ModifyCmd.AddCommand(deviceInterfaceModCmd)
+	cmd.AddCmd.AddCommand(deviceInterfaceModCmd)
 	deviceInterfaceModCmd.Flags().String("deviceid", "", "Device ID")
 	deviceInterfaceModCmd.Flags().String("name", "", "Interface name (e.g. lan, vlan10, eth0.10)")
 	deviceInterfaceModCmd.Flags().String("description", "", "Interface description (optional)")
@@ -112,7 +112,7 @@ func init() {
 	deviceInterfaceModCmd.Flags().String("ssid", "", "WiFi SSID (for wireless interfaces)")
 	deviceInterfaceModCmd.Flags().String("security-mode", "", "WiFi security mode: open, wpa2, or wpa3")
 
-	cmd.ModifyCmd.AddCommand(interfacePortModCmd)
+	cmd.AddCmd.AddCommand(interfacePortModCmd)
 	interfacePortModCmd.Flags().String("interfaceid", "", "Device interface ID")
 	interfacePortModCmd.Flags().String("deviceid", "", "Device ID")
 	interfacePortModCmd.Flags().String("modelportid", "", "Model port ID")

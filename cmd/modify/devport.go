@@ -31,8 +31,16 @@ import (
 // zoneModCmd represents the port command
 var devicePortModCmd = &cobra.Command{
 	Use:   "deviceport",
-	Short: "deviceport modifications subcommand",
-	Long:  `.`,
+	Short: "Add a device port",
+	Long: `Attach a model port to a device instance, creating a device port. The MAC
+address and VLAN configs are optional; if the (device, model-port) pair already
+exists it is updated instead of duplicated.
+
+VLAN configs accept '100:tagged,200:untagged' (or just '100,200' for tagged).
+
+Example:
+  nsl-graph add deviceport --deviceid <id> --modelportid <id> \
+    --macaddress 00:11:22:33:44:55 --vlan-configs 100:tagged,200:untagged`,
 	Run: func(cmd *cobra.Command, args []string) {
 		flagNames := []string{"deviceid", "modelportid", "macaddress"}
 		vals := util.Flagproc(
@@ -97,7 +105,7 @@ var devicePortModCmd = &cobra.Command{
 }
 
 func init() {
-	cmd.ModifyCmd.AddCommand(devicePortModCmd)
+	cmd.AddCmd.AddCommand(devicePortModCmd)
 
 	devicePortModCmd.Flags().
 		String("deviceid", "", "Sets the device ID")

@@ -29,13 +29,13 @@ import (
 // vlanModCmd represents the vlan command
 var vlanModCmd = &cobra.Command{
 	Use:   "vlan",
-	Short: "Create a new VLAN",
+	Short: "Add a VLAN",
 	Long: `Create a VLAN (Virtual LAN) by specifying a VLAN ID and name.
 
 A VLAN is a logical network segmentation that can be assigned to connections.
 
 Example:
-  nsl-graph modify vlan --vlan-id 100 --name "Management VLAN"`,
+  nsl-graph add vlan --vlan-id 100 --name "Management VLAN"`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Get required VLAN ID
 		vlanID, err := cmd.Flags().GetString("vlan-id")
@@ -73,7 +73,7 @@ Example:
 }
 
 func init() {
-	cmd.ModifyCmd.AddCommand(vlanModCmd)
+	cmd.AddCmd.AddCommand(vlanModCmd)
 
 	vlanModCmd.Flags().String("vlan-id", "", "VLAN ID (required, e.g., 100)")
 	vlanModCmd.Flags().String("name", "", "VLAN name (required, e.g., 'Management VLAN')")
