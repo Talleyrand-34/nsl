@@ -19,13 +19,11 @@ package cmd_modify
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/spf13/cobra"
 
 	cmd "nsl-graph/cmd/root"
 	util "nsl-graph/cmd/utils"
-	e "nsl-graph/internal/repository/entities"
 )
 
 // zoneModCmd represents the port command
@@ -33,8 +31,8 @@ var devicePortModCmd = &cobra.Command{
 	Use:   "deviceport",
 	Short: "Add a device port",
 	Long: `Attach a model port to a device instance, creating a device port. The MAC
-address and VLAN configs are optional; if the (device, model-port) pair already
-exists it is updated instead of duplicated.
+address and VLAN configs are optional. Errors if the (device, model-port) pair
+already exists — use 'nsl-graph update deviceport' to change it.
 
 VLAN configs accept '100:tagged,200:untagged' (or just '100,200' for tagged).
 
@@ -51,56 +49,31 @@ Example:
 		modelportid := vals[1]
 		macaddress := vals[2]
 
-		// Get optional VLAN configs
-		// Format: "100:tagged,200:untagged" or just "100,200" (defaults to tagged)
+		// Optional VLAN configs: "100:tagged,200:untagged" (or "100,200" = tagged).
 		vlanConfigsStr, _ := cmd.Flags().GetStringSlice("vlan-configs")
-
-		// Parse VLAN configs
-		var vlanConfigs []e.PortVlanConfig
-		for _, vcStr := range vlanConfigsStr {
-			if vcStr == "" {
-				continue
-			}
-			// Check if format is "number:tagged" or "number:untagged"
-			parts := strings.Split(vcStr, ":")
-			vlanNum := parts[0]
-			tagged := true // default to tagged
-			if len(parts) == 2 {
-				tagged = strings.ToLower(parts[1]) == "tagged"
-			}
-			vlanConfigs = append(vlanConfigs, e.PortVlanConfig{
-				VlanNumber: vlanNum,
-				Tagged:     tagged,
-			})
-		}
+		vlanConfigs := util.ParseVlanConfigs(vlanConfigsStr)
 
 		service, err := util.ServiceConnection()
 		if err != nil {
 			return
 		}
 
-		// Check if deviceport already exists
+		// Create-only: refuse to overwrite an existing port.
 		existingPort, err := service.GetDevicePortByIDs(deviceid, modelportid)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error checking deviceport: %v\n", err)
 			os.Exit(1)
 		}
-
 		if existingPort != nil {
-			// Update existing deviceport
-			if err := service.UpdateDevicePort(deviceid, modelportid, macaddress, vlanConfigs); err != nil {
-				fmt.Fprintf(os.Stderr, "Error updating deviceport: %v\n", err)
-				os.Exit(1)
-			}
-			fmt.Printf("Updated deviceport %s:%s\n", existingPort.DevLabel, existingPort.PortName)
-		} else {
-			// Create new deviceport
-			if _, err := service.AddDevicePort(deviceid, modelportid, macaddress, vlanConfigs); err != nil {
-				fmt.Fprintf(os.Stderr, "Error writing deviceport: %v\n", err)
-				os.Exit(1)
-			}
-			fmt.Printf("Created deviceport %s:%s\n", deviceid, modelportid)
+			fmt.Fprintf(os.Stderr, "Device port %s:%s already exists; use 'nsl-graph update deviceport' to change it.\n", deviceid, modelportid)
+			os.Exit(1)
 		}
+
+		if _, err := service.AddDevicePort(deviceid, modelportid, macaddress, vlanConfigs); err != nil {
+			fmt.Fprintf(os.Stderr, "Error writing deviceport: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("Created deviceport %s:%s\n", deviceid, modelportid)
 	},
 }
 

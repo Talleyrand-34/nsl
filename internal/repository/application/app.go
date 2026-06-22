@@ -185,6 +185,7 @@ type NetServiceInt interface {
 	AddDeviceInterface(deviceID, name, description, parent string, vlanConfigs []e.PortVlanConfig, ips []string, wifiSSID, wifiSecurity string) error
 	GetDeviceInterfaces(deviceID string) ([]e.DeviceInterface, error)
 	GetAllDeviceInterfaces() ([]e.DeviceInterface, error)
+	UpdateDeviceInterface(id string, vlanConfigs []e.PortVlanConfig) error
 	DeleteDeviceInterface(id string) error
 
 	// InterfacePort operations
@@ -491,6 +492,10 @@ func (ns *NetService) GetDeviceInterfaces(deviceID string) ([]e.DeviceInterface,
 
 func (ns *NetService) GetAllDeviceInterfaces() ([]e.DeviceInterface, error) {
 	return ns.netRepo.GetAllDeviceInterfaces()
+}
+
+func (ns *NetService) UpdateDeviceInterface(id string, vlanConfigs []e.PortVlanConfig) error {
+	return ns.netRepo.UpdateDeviceInterface(id, vlanConfigs)
 }
 
 func (ns *NetService) DeleteDeviceInterface(id string) error {

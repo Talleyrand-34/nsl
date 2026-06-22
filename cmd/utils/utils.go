@@ -27,9 +27,29 @@ import (
 
 	c "nsl-graph/cmd"
 	q "nsl-graph/internal/repository/application"
+	e "nsl-graph/internal/repository/entities"
 
 	infra "nsl-graph/internal/repository/infra/cloverdb/base"
 )
+
+// ParseVlanConfigs parses --vlan-configs entries of the form "100:tagged" /
+// "100:untagged" (or just "100", which defaults to tagged) into PortVlanConfigs.
+// Empty entries are skipped.
+func ParseVlanConfigs(specs []string) []e.PortVlanConfig {
+	var out []e.PortVlanConfig
+	for _, s := range specs {
+		if s == "" {
+			continue
+		}
+		parts := strings.Split(s, ":")
+		tagged := true
+		if len(parts) == 2 && strings.ToLower(parts[1]) == "untagged" {
+			tagged = false
+		}
+		out = append(out, e.PortVlanConfig{VlanNumber: parts[0], Tagged: tagged})
+	}
+	return out
+}
 
 func OpenDatabaseConnectionClover() {
 	os.Mkdir(c.Srcdbpath, 0755)

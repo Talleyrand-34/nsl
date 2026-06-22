@@ -19,13 +19,11 @@ package cmd_modify
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/spf13/cobra"
 
 	cmd "nsl-graph/cmd/root"
 	util "nsl-graph/cmd/utils"
-	e "nsl-graph/internal/repository/entities"
 )
 
 var deviceInterfaceModCmd = &cobra.Command{
@@ -50,22 +48,7 @@ Multiple values accepted: --vlan-configs 10:untagged --vlan-configs 20:tagged`,
 		ssid, _ := cmd.Flags().GetString("ssid")
 		securityMode, _ := cmd.Flags().GetString("security-mode")
 
-		var vlanConfigs []e.PortVlanConfig
-		for _, vcStr := range vlanConfigsStr {
-			if vcStr == "" {
-				continue
-			}
-			parts := strings.Split(vcStr, ":")
-			vlanNum := parts[0]
-			tagged := true
-			if len(parts) == 2 {
-				tagged = strings.ToLower(parts[1]) != "untagged"
-			}
-			vlanConfigs = append(vlanConfigs, e.PortVlanConfig{
-				VlanNumber: vlanNum,
-				Tagged:     tagged,
-			})
-		}
+		vlanConfigs := util.ParseVlanConfigs(vlanConfigsStr)
 
 		service, err := util.ServiceConnection()
 		if err != nil {
