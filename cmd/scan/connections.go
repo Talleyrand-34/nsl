@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -40,19 +41,25 @@ import (
 )
 
 var (
-	connFromDB     bool
-	connSubnet     string
-	connProfiles   bool
-	connSource     string
-	connCommunity  string
-	connSNMPVer    string
-	connLocal      bool
-	connLocalDev   string
-	connYes        bool
-	connDryRun     bool
-	connOutput     string
-	connTimeout    int
-	connHuman      bool
+	connFromDB         bool
+	connSubnet         string
+	connProfiles       bool
+	connSource         string
+	connCommunity      string
+	connSNMPVer        string
+	connLocal          bool
+	connLocalDev       string
+	connYes            bool
+	connDryRun         bool
+	connOutput         string
+	connTimeout        int
+	connHuman          bool
+	connSSHUser        string
+	connSSHKey         string
+	connSSHPassword    string
+	connSSHPort        int
+	connSSHConfig      string
+	connGenericProfile string
 )
 
 // ConnectionsCmd implements "scan connections": multi-source L2/L1 link discovery.
@@ -159,6 +166,12 @@ func init() {
 	f.StringVar(&connOutput, "output", "", "Write the full gather (JSON) to this file (default JSON mode prints to stdout)")
 	f.IntVar(&connTimeout, "timeout", 10, "Per-host SNMP timeout, seconds")
 	f.BoolVarP(&connHuman, "human", "H", false, "Human-readable summary + interactive review (default output is JSON)")
+	f.StringVar(&connSSHUser, "ssh-user", "", "Runtime SSH user for subnet mode (collect LLDP/FDB over SSH from SSH-reachable hosts)")
+	f.StringVar(&connSSHKey, "ssh-key", "", "Runtime SSH private-key file (with --ssh-user)")
+	f.StringVar(&connSSHPassword, "ssh-password", "", "Runtime SSH password (with --ssh-user)")
+	f.IntVar(&connSSHPort, "ssh-port", 22, "SSH port for runtime SSH and subnet SSH-reachability probing")
+	f.StringVar(&connSSHConfig, "ssh-config", "", "OpenSSH config file: resolve per-host SSH user/key by HostName/alias (keys read from disk, never re-stored)")
+	f.StringVar(&connGenericProfile, "generic-profile", "", "Name of a saved generic profile to use as the SSH fallback for hosts without their own profile")
 }
 
 // cleanIP strips a CIDR suffix and whitespace, and drops addresses unusable as
@@ -251,6 +264,71 @@ func buildTargets(service q.NetServiceInt) ([]topology.Target, error) {
 		}
 	}
 
+	// Per-host runtime SSH resolver, mirroring the service: ssh-config (keys read
+	// from local disk into memory) → inline --ssh-user → selected generic profile.
+	var sshConfigEntries []configparser.SSHConfigHost
+	sshConfigKeys := map[string]string{} // IdentityFile basename -> PEM content
+	if connSSHConfig != "" {
+		entries, err := configparser.ParseSSHConfigFile(connSSHConfig)
+		if err != nil {
+			return nil, fmt.Errorf("--ssh-config: %w", err)
+		}
+		sshConfigEntries = entries
+		for _, h := range entries {
+			if h.IdentityFile == "" {
+				continue
+			}
+			base := filepath.Base(h.IdentityFile)
+			if _, ok := sshConfigKeys[base]; ok {
+				continue
+			}
+			pem, err := os.ReadFile(h.IdentityFile)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "warning: --ssh-config: cannot read identity file %s: %v\n", h.IdentityFile, err)
+				continue
+			}
+			sshConfigKeys[base] = string(pem)
+		}
+	}
+	var inlineSSH *configparser.SSHCredentials
+	if connSSHUser != "" {
+		inlineSSH = &configparser.SSHCredentials{
+			Username: connSSHUser, KeyFile: connSSHKey,
+			Password: connSSHPassword, Port: connSSHPort,
+		}
+	}
+	var genericSSH *configparser.SSHCredentials
+	if connGenericProfile != "" {
+		gp, err := service.GetScanProfileByName(connGenericProfile)
+		if err != nil || gp == nil {
+			return nil, fmt.Errorf("--generic-profile: no profile named %q", connGenericProfile)
+		}
+		if gp.Kind != "generic" {
+			return nil, fmt.Errorf("--generic-profile: profile %q is not a generic profile", connGenericProfile)
+		}
+		genericSSH = genericProfileCreds(gp)
+	}
+	resolveRuntimeSSH := func(ip string) *configparser.SSHCredentials {
+		if entry := configparser.MatchSSHConfig(sshConfigEntries, ip); entry != nil && entry.IdentityFile != "" {
+			base := filepath.Base(entry.IdentityFile)
+			pem, ok := sshConfigKeys[base]
+			if !ok {
+				fmt.Fprintf(os.Stderr, "warning: ssh-config: no key for %s (identity %q unreadable); skipping SSH\n", ip, base)
+				return nil
+			}
+			return &configparser.SSHCredentials{Username: entry.User, PrivateKey: pem, Port: entry.Port}
+		}
+		if inlineSSH != nil {
+			c := *inlineSSH
+			return &c
+		}
+		if genericSSH != nil {
+			c := *genericSSH
+			return &c
+		}
+		return nil
+	}
+
 	// --from-db: ONE target per device, using a single management IP. Prefer an
 	// IP that matches a scan profile (the known mgmt address); otherwise the
 	// first usable IPv4. Devices with no usable IP are skipped.
@@ -288,8 +366,17 @@ func buildTargets(service q.NetServiceInt) ([]topology.Target, error) {
 			t.DeviceLabel = devName[devID]
 			if profile != nil {
 				applyProfile(t, profile)
-			} else if t.SNMP == nil {
-				t.SNMP = defaultSNMP()
+			} else {
+				if t.SNMP == nil {
+					t.SNMP = defaultSNMP()
+				}
+				// No device profile pins this host — fall back to runtime SSH
+				// credentials (ssh-config / inline / generic profile) if any.
+				if t.SSH == nil {
+					if creds := resolveRuntimeSSH(chosen); creds != nil {
+						t.SSH = creds
+					}
+				}
 			}
 		}
 	}
@@ -315,39 +402,31 @@ func buildTargets(service q.NetServiceInt) ([]topology.Target, error) {
 		}
 	}
 
-	// --subnet: profile-matched hosts in the subnet (covers SSH-only devices with
-	// no SNMP), then an SNMP sweep for everything else that responds.
+	// --subnet: DB-agnostic. Discover hosts purely by SNMP-sweeping the segment at
+	// runtime — no scan profiles, no DB labels for targeting — so the same scan of
+	// two different DBs yields the same gather. (SSH-only hosts that don't answer
+	// SNMP aren't reachable here.)
 	if connSubnet != "" {
-		for _, ip := range q.EnumerateCIDR(connSubnet) {
-			if p, ok := service.ResolveScanProfile(ip, ""); ok {
-				t := get(ip)
-				t.Profile = p.Name
-				if lbl := ipToLabel[ip]; lbl != "" {
-					t.DeviceLabel = lbl
-				}
-				applyProfile(t, p)
-			}
-		}
 		sweepTimeout := time.Duration(connTimeout) * time.Second
 		if sweepTimeout > 3*time.Second {
 			sweepTimeout = 3 * time.Second
 		}
-		res, err := s.NewSNMPScanner().Scan(s.ScanOptions{
-			Subnet:  connSubnet,
-			Timeout: sweepTimeout,
-			SNMP:    s.SNMPOptions{Community: connCommunity, Version: connSNMPVer},
-		})
-		if err != nil {
-			return nil, fmt.Errorf("subnet sweep: %w", err)
-		}
-		for _, dev := range res.Devices {
-			t := get(dev.IP)
-			if lbl := ipToLabel[dev.IP]; lbl != "" {
-				t.DeviceLabel = lbl
-			}
-			if t.SNMP == nil {
+		sshNoCreds := 0
+		for _, h := range q.SweepSubnet(connSubnet, connCommunity, connSNMPVer, sweepTimeout, connSSHPort) {
+			t := get(h.IP)
+			if h.SNMP && t.SNMP == nil {
 				t.SNMP = defaultSNMP()
 			}
+			if h.SSH && t.SSH == nil {
+				if creds := resolveRuntimeSSH(h.IP); creds != nil {
+					t.SSH = creds
+				} else if !h.SNMP {
+					sshNoCreds++
+				}
+			}
+		}
+		if sshNoCreds > 0 {
+			fmt.Fprintf(os.Stderr, "warning: %d host(s) have SSH open but answer no SNMP — their LLDP/FDB can only be read over SSH. Pass --ssh-user/--ssh-key, --ssh-config or --generic-profile to collect them and form their edges.\n", sshNoCreds)
 		}
 	}
 
@@ -408,11 +487,48 @@ func applyProfile(t *topology.Target, p *e.ScanProfile) {
 	t.SSH = &creds
 }
 
+// genericProfileCreds builds SSH credentials from a generic profile, prompting
+// once (cached) for the passphrase that unlocks an encrypted key/password.
+// Returns nil when the profile carries no usable SSH secret.
+func genericProfileCreds(p *e.ScanProfile) *configparser.SSHCredentials {
+	if p.SSHUser == "" {
+		return nil
+	}
+	creds := configparser.SSHCredentials{Username: p.SSHUser, Port: p.SSHPort}
+	switch {
+	case p.SSHKeyFile != "":
+		creds.KeyFile = p.SSHKeyFile
+	case p.SSHKey != "":
+		pk, err := unlockProfileSecret(p.SSHKey)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "  (skipping generic SSH: %v)\n", err)
+			return nil
+		}
+		creds.PrivateKey = pk
+	case p.SSHPassword != "":
+		pw, err := unlockProfileSecret(p.SSHPassword)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "  (skipping generic SSH: %v)\n", err)
+			return nil
+		}
+		creds.Password = pw
+	default:
+		return nil
+	}
+	return &creds
+}
+
 // passphraseCache memoizes the user's passphrase across profiles in one run.
 var passphraseCache string
 var passphraseAsked bool
 
 func unlockProfilePassword(p *e.ScanProfile) (string, error) {
+	return unlockProfileSecret(p.SSHPassword)
+}
+
+// unlockProfileSecret decrypts an encrypted profile secret (SSH password or
+// private key) with the user's passphrase, prompted once and cached for the run.
+func unlockProfileSecret(blob string) (string, error) {
 	if !passphraseAsked {
 		pass, err := readSecret("Passphrase to unlock SSH credentials: ")
 		if err != nil {
@@ -421,7 +537,7 @@ func unlockProfilePassword(p *e.ScanProfile) (string, error) {
 		passphraseCache = pass
 		passphraseAsked = true
 	}
-	return secret.Decrypt(p.SSHPassword, passphraseCache)
+	return secret.Decrypt(blob, passphraseCache)
 }
 
 func printGatherSummary(result *topology.ConnectionScanResult) {
@@ -458,14 +574,7 @@ func printGatherSummary(result *topology.ConnectionScanResult) {
 
 	fmt.Printf("\n=== Derived edges (%d) ===\n", len(result.Edges))
 	for _, edge := range result.Edges {
-		mark := edge.Confidence
-		if !edge.RemoteResolved {
-			if strings.HasPrefix(edge.ToLabel, "unknown(") {
-				mark = "unresolved" // neither end identified in the DB
-			} else {
-				mark = "possible" // one end identified (by stored MAC), not importable
-			}
-		}
+		mark := edgeMark(edge)
 		fmt.Printf("  [%-10s] %s <-> %s\n", mark, edge.FromLabel, edge.ToLabel)
 		if len(edge.Provenance) > 0 {
 			fmt.Printf("               via %s\n", strings.Join(edge.Provenance, ", "))
@@ -473,6 +582,23 @@ func printGatherSummary(result *topology.ConnectionScanResult) {
 	}
 
 	renderTopology(result)
+}
+
+// edgeMark labels an edge: its confidence (confirmed/candidate/weak) when both
+// ends are DB ports; "unresolved" for an unknown remote; "possible" when one end
+// was identified only by a stored MAC; otherwise the confidence of a DB-agnostic
+// edge derived from LLDP evidence (shown but not directly importable).
+func edgeMark(e topology.ConnectionEdge) string {
+	if e.RemoteResolved {
+		return e.Confidence
+	}
+	if strings.HasPrefix(e.ToLabel, "unknown(") {
+		return "unresolved"
+	}
+	if e.FromDevicePortID != "" || e.ToDevicePortID != "" {
+		return "possible"
+	}
+	return e.Confidence
 }
 
 // topoLink is one adjacency in the rendered topology.
@@ -536,14 +662,7 @@ func renderTopology(result *topology.ConnectionScanResult) {
 		if aDev == "" || bDev == "" || aDev == bDev {
 			continue
 		}
-		mark := e.Confidence
-		if !e.RemoteResolved {
-			if strings.HasPrefix(e.ToLabel, "unknown(") {
-				mark = "unresolved"
-			} else {
-				mark = "possible"
-			}
-		}
+		mark := edgeMark(e)
 		src := srcOf(e.Provenance)
 		tag := mark
 		if src != "" {
@@ -682,15 +801,7 @@ func reviewAndImport(service q.NetServiceInt, result *topology.ConnectionScanRes
 	needsCreate := func(edge topology.ConnectionEdge) bool {
 		return edge.FromDevicePortID == "" || edge.ToDevicePortID == ""
 	}
-	mark := func(edge topology.ConnectionEdge) string {
-		if !edge.RemoteResolved {
-			if strings.HasPrefix(edge.ToLabel, "unknown(") {
-				return "unresolved"
-			}
-			return "possible"
-		}
-		return edge.Confidence
-	}
+	mark := edgeMark
 
 	if connYes {
 		// Non-interactive: only commit fully-resolved confirmed/candidate edges

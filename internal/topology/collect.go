@@ -42,11 +42,12 @@ func CollectHost(t Target, only string) HostScan {
 		collectSNMP(t, only, &hs)
 	}
 	if t.SSH != nil && want(SourceSSHLLDP) {
-		if ev, localMAC, err := collectSSHLLDP(t); err != nil {
+		if ev, localMAC, localSysName, err := collectSSHLLDP(t); err != nil {
 			hs.Errors = append(hs.Errors, fmt.Sprintf("%s: %v", SourceSSHLLDP, err))
 		} else {
 			hs.Evidence = append(hs.Evidence, ev...)
 			hs.LocalChassisMAC = localMAC
+			hs.LocalSysName = localSysName
 		}
 	}
 	if t.SSH != nil && want(SourceSSHFDB) {
@@ -81,6 +82,9 @@ func collectSNMP(t Target, only string, hs *HostScan) {
 		return
 	}
 	hs.Device = dev
+	if hs.LocalSysName == "" {
+		hs.LocalSysName = dev.SysName
+	}
 
 	for _, n := range dev.Neighbors {
 		src := SourceSNMPLLDP
@@ -115,40 +119,43 @@ func collectSNMP(t Target, only string, hs *HostScan) {
 	}
 }
 
-func collectSSHLLDP(t Target) ([]NeighborEvidence, string, error) {
+func collectSSHLLDP(t Target) ([]NeighborEvidence, string, string, error) {
 	c := configparser.NewSSHClient(*t.SSH)
 	if err := c.Connect(t.Host); err != nil {
-		return nil, "", err
+		return nil, "", "", err
 	}
 	defer c.Close()
 	out, err := c.Execute("lldpcli -f json0 show neighbors")
 	if err != nil {
-		return nil, "", fmt.Errorf("%v: %s", err, strings.TrimSpace(out))
+		return nil, "", "", fmt.Errorf("%v: %s", err, strings.TrimSpace(out))
 	}
 	ev, err := parseLLDPCLI(out, SourceSSHLLDP, t.Host, t.DeviceLabel)
 	if err != nil {
-		return nil, "", err
+		return nil, "", "", err
 	}
-	// Also record this host's own chassis MAC so it can be excluded from
-	// intermediary detection.
-	localMAC := ""
+	// Also record this host's own chassis MAC + sysName (to exclude it from
+	// intermediary detection and to identify it across observers).
+	var localMAC, localSysName string
 	if chOut, cErr := c.Execute("lldpcli show chassis"); cErr == nil {
-		localMAC = parseLocalChassisMAC(chOut)
+		localMAC, localSysName = parseLocalChassis(chOut)
 	}
-	return ev, localMAC, nil
+	return ev, localMAC, localSysName, nil
 }
 
-// parseLocalChassisMAC pulls the "ChassisID: mac xx:.." value from
+// parseLocalChassis pulls the "ChassisID: mac .." and "SysName: .." values from
 // `lldpcli show chassis` output.
-func parseLocalChassisMAC(out string) string {
+func parseLocalChassis(out string) (mac, sysName string) {
 	for _, line := range strings.Split(out, "\n") {
 		l := strings.TrimSpace(line)
-		if strings.HasPrefix(l, "ChassisID:") && strings.Contains(l, "mac") {
+		switch {
+		case strings.HasPrefix(l, "ChassisID:") && strings.Contains(l, "mac"):
 			f := strings.Fields(l)
-			return NormalizeMAC(f[len(f)-1])
+			mac = NormalizeMAC(f[len(f)-1])
+		case strings.HasPrefix(l, "SysName:"):
+			sysName = strings.TrimSpace(strings.TrimPrefix(l, "SysName:"))
 		}
 	}
-	return ""
+	return mac, sysName
 }
 
 // collectSSHFDB reads the bridge forwarding database over SSH (`bridge fdb show`)

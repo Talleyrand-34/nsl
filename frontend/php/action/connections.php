@@ -156,30 +156,74 @@ $scanMessage = '';
 $importMessage = '';
 $result = null;
 
+// Generic profiles (reusable SSH credentials), for the fallback selector.
+$allProfiles = json_decode(@file_get_contents(SCAN_PROFILES_ENDPOINT), true);
+if (!is_array($allProfiles)) {
+    $allProfiles = [];
+}
+$genericProfiles = array_values(array_filter($allProfiles, fn($p) => ($p['kind'] ?? '') === 'generic'));
+
 $f = [
-    'mode'       => $_POST['mode'] ?? 'from-db',
-    'subnet'     => $_POST['subnet'] ?? '',
-    'community'  => $_POST['community'] ?? 'public',
-    'collector'  => $_POST['collector'] ?? '',
-    'passphrase' => $_POST['passphrase'] ?? '',
-    'timeout'    => $_POST['timeout'] ?? '10',
+    'mode'            => $_POST['mode'] ?? 'from-db',
+    'subnet'          => $_POST['subnet'] ?? '',
+    'community'       => $_POST['community'] ?? 'public',
+    'collector'       => $_POST['collector'] ?? '',
+    'passphrase'      => $_POST['passphrase'] ?? '',
+    'timeout'         => $_POST['timeout'] ?? '10',
+    'ssh_user'        => $_POST['ssh_user'] ?? '',
+    'ssh_key'         => $_POST['ssh_key'] ?? '',
+    'ssh_password'    => $_POST['ssh_password'] ?? '',
+    'generic_profile' => $_POST['generic_profile'] ?? '',
 ];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_scan'])) {
-    $opts = [
-        'from_db'     => $f['mode'] === 'from-db',
-        'profiles'    => $f['mode'] === 'profiles',
-        'subnet'      => $f['mode'] === 'subnet' ? trim($f['subnet']) : '',
-        'community'   => $f['community'],
-        'collector'   => $f['collector'],
-        'timeout_sec' => intval($f['timeout']),
-        'passphrase'  => $f['passphrase'],
-    ];
-    list($code, $body, $err) = api_post_json_conn(SCAN_CONNECTIONS_ENDPOINT, json_encode($opts), max(60, intval($f["timeout"]) * 8));
-    if ($code === 200) {
-        $result = json_decode($body, true);
+    // Uploaded OpenSSH config + key files are read into memory and sent in the
+    // request body — never written to disk on this host.
+    $sshConfig = '';
+    if (isset($_FILES['ssh_config']) && $_FILES['ssh_config']['error'] === UPLOAD_ERR_OK) {
+        $sshConfig = (string) file_get_contents($_FILES['ssh_config']['tmp_name']);
+    }
+    $sshKeys = [];
+    $keyCollision = '';
+    if (isset($_FILES['ssh_keys']) && is_array($_FILES['ssh_keys']['name'])) {
+        foreach ($_FILES['ssh_keys']['name'] as $idx => $fname) {
+            if (($_FILES['ssh_keys']['error'][$idx] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+                continue;
+            }
+            $base = basename($fname); // path ignored; match by basename (as ssh-config IdentityFile)
+            if (isset($sshKeys[$base])) {
+                $keyCollision = $base;
+                break;
+            }
+            $sshKeys[$base] = (string) file_get_contents($_FILES['ssh_keys']['tmp_name'][$idx]);
+        }
+    }
+
+    if ($keyCollision !== '') {
+        $scanMessage = 'Two uploaded key files share the basename "' . htmlspecialchars($keyCollision)
+            . '". ssh-config matches keys by basename, so names must be unique. Rename one and retry.';
     } else {
-        $scanMessage = 'Scan failed (HTTP ' . intval($code) . '): ' . htmlspecialchars($body . ' ' . $err);
+        $opts = [
+            'from_db'         => $f['mode'] === 'from-db',
+            'profiles'        => $f['mode'] === 'profiles',
+            'subnet'          => $f['mode'] === 'subnet' ? trim($f['subnet']) : '',
+            'community'       => $f['community'],
+            'collector'       => $f['collector'],
+            'timeout_sec'     => intval($f['timeout']),
+            'passphrase'      => $f['passphrase'],
+            'ssh_user'        => $f['ssh_user'],
+            'ssh_key_file'    => $f['ssh_key'],
+            'ssh_password'    => $f['ssh_password'],
+            'generic_profile' => $f['generic_profile'],
+            'ssh_config'      => $sshConfig,
+            'ssh_keys'        => $sshKeys,
+        ];
+        list($code, $body, $err) = api_post_json_conn(SCAN_CONNECTIONS_ENDPOINT, json_encode($opts), max(60, intval($f["timeout"]) * 8));
+        if ($code === 200) {
+            $result = json_decode($body, true);
+        } else {
+            $scanMessage = 'Scan failed (HTTP ' . intval($code) . '): ' . htmlspecialchars($body . ' ' . $err);
+        }
     }
 }
 
@@ -211,7 +255,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_import'])) {
   the ones you choose. The tool only reads — it never configures the targets.
 </p>
 
-<form method="post" class="box" style="max-width: 640px;">
+<form method="post" class="box" style="max-width: 640px;" enctype="multipart/form-data">
     <h3>Run discovery</h3>
     <label>Targets:
         <select name="mode">
@@ -236,7 +280,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_import'])) {
     </label><br>
     <label>SSH passphrase (only if a profile stores an SSH password):
         <input type="password" name="passphrase" value="<?= htmlspecialchars($f['passphrase']) ?>">
-    </label><br>
+    </label>
+    <fieldset style="margin:6px 0; border:1px solid #ddd;">
+        <legend style="font-size:90%;">Runtime SSH (subnet mode — collect LLDP/FDB from SSH-reachable hosts, no profile needed)</legend>
+        <label>SSH user: <input type="text" name="ssh_user" value="<?= htmlspecialchars($f['ssh_user']) ?>" placeholder="root"></label>
+        <label>SSH key file (on the API host): <input type="text" name="ssh_key" value="<?= htmlspecialchars($f['ssh_key']) ?>" placeholder="/home/.../.ssh/id_ed25519"></label>
+        <label>SSH password: <input type="password" name="ssh_password" value="<?= htmlspecialchars($f['ssh_password']) ?>"></label>
+    </fieldset>
+    <fieldset style="margin:6px 0; border:1px solid #ddd;">
+        <legend style="font-size:90%;">Bring SSH credentials at runtime (uploaded keys are held in memory only, never stored)</legend>
+        <label>Generic profile (reusable SSH credentials):
+            <select name="generic_profile">
+                <option value="">— none —</option>
+                <?php foreach ($genericProfiles as $gp): $gn = $gp['name'] ?? ''; ?>
+                    <option value="<?= htmlspecialchars($gn) ?>" <?= $f['generic_profile']===$gn?'selected':'' ?>><?= htmlspecialchars($gn) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </label><br>
+        <label>OpenSSH config file: <input type="file" name="ssh_config"></label><br>
+        <label>SSH key file(s) referenced by the config: <input type="file" name="ssh_keys[]" multiple></label>
+        <p style="margin:4px 0; color:#777; font-size:0.85em;">Keys are matched to the config by file basename, so each uploaded key must have a unique name.</p>
+    </fieldset>
     <label>Per-host SNMP timeout (s):
         <input type="number" name="timeout" value="<?= htmlspecialchars($f['timeout']) ?>" min="1" max="60" style="width:60px;">
     </label><br>
@@ -251,7 +315,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_import'])) {
 <?php endif; ?>
 
 <?php if (is_array($result)): ?>
-    <?php $hosts = $result['hosts'] ?? []; $edges = $result['edges'] ?? []; $inter = $result['intermediaries'] ?? []; $disc = $result['discrepancies'] ?? []; ?>
+    <?php
+        $hosts = $result['hosts'] ?? []; $edges = $result['edges'] ?? []; $inter = $result['intermediaries'] ?? [];
+        $allDisc = $result['discrepancies'] ?? [];
+        $notInDb = array_values(array_filter($allDisc, fn($d) => ($d['kind'] ?? '') === 'host-not-in-db'));
+        $disc    = array_values(array_filter($allDisc, fn($d) => ($d['kind'] ?? '') !== 'host-not-in-db'));
+    ?>
+
+    <?php if ($notInDb): ?>
+        <div style="border:1px solid #e0a800; background:#fff8e1; padding:10px; margin-top:12px;">
+            <b>⚠ Hosts discovered that are not in the DB</b> — add them first (Import devices) so their connections can resolve:
+            <ul>
+            <?php foreach ($notInDb as $w): ?>
+                <li><?= htmlspecialchars($w['detail'] ?? '') ?></li>
+            <?php endforeach; ?>
+            </ul>
+        </div>
+    <?php endif; ?>
 
     <h3>Gather (<?= count($hosts) ?> host(s))</h3>
     <table border="1" cellpadding="4">

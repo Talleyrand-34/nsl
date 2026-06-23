@@ -85,6 +85,7 @@ type HostScan struct {
 	DeviceLabel     string              `json:"device_label,omitempty"`
 	Profile         string              `json:"profile,omitempty"`
 	LocalChassisMAC string              `json:"local_chassis_mac,omitempty"` // this host's own LLDP chassis MAC
+	LocalSysName    string              `json:"local_sys_name,omitempty"`    // this host's own sysName/hostname
 	Device          *scanner.SNMPDevice `json:"device,omitempty"`
 	Evidence        []NeighborEvidence  `json:"evidence,omitempty"`
 	FDB             []FdbEvidence       `json:"fdb,omitempty"`

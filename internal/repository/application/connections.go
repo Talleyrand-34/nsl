@@ -19,6 +19,7 @@ package application
 import (
 	"fmt"
 	"net"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -43,6 +44,21 @@ type ConnectionScanOptions struct {
 	Collector   string `json:"collector"`
 	TimeoutSec  int    `json:"timeout_sec"`
 	Passphrase  string `json:"passphrase"`
+	// Runtime SSH credentials for subnet mode (agnostic — not from a DB profile):
+	// when set, SSH-reachable hosts found in the sweep are collected over SSH.
+	SSHUser     string `json:"ssh_user"`
+	SSHKeyFile  string `json:"ssh_key_file"`
+	SSHPassword string `json:"ssh_password"`
+	SSHPort     int    `json:"ssh_port"`
+	// Runtime SSH credentials brought in agnostically (never stored on the server):
+	//   GenericProfile — name of a saved "generic" profile, used as an SSH fallback.
+	//   SSHConfig      — raw OpenSSH config content; per-host User/IdentityFile are
+	//                    matched by HostName/alias.
+	//   SSHKeys        — uploaded private keys, keyed by IdentityFile basename; the
+	//                    PEM is held in memory only (never written to disk).
+	GenericProfile string            `json:"generic_profile"`
+	SSHConfig      string            `json:"ssh_config"`
+	SSHKeys        map[string]string `json:"ssh_keys"`
 }
 
 // DiscoverConnectionsByMode builds targets from the given options (no interactive
@@ -67,6 +83,7 @@ func (ns *NetService) DiscoverConnectionsByMode(opts ConnectionScanOptions) (*to
 
 	byHost := map[string]*topology.Target{}
 	var order []string
+	sshNoCreds := 0 // SSH-reachable hosts found in a sweep with no runtime SSH creds
 	get := func(host string) *topology.Target {
 		if t, ok := byHost[host]; ok {
 			return t
@@ -110,6 +127,54 @@ func (ns *NetService) DiscoverConnectionsByMode(opts ConnectionScanOptions) (*to
 			return
 		}
 		t.SSH = &creds
+	}
+
+	// Per-host runtime SSH resolver, used by the subnet sweep and the from-db
+	// SSH fallback (when no device profile matched). Priority, highest first:
+	//   1. ssh-config entry matched by IP (HostName/alias) — the key is taken
+	//      from the uploaded SSHKeys by IdentityFile basename, held in memory;
+	//   2. inline --ssh-user credentials;
+	//   3. a selected generic profile's SSH credentials.
+	// All are agnostic — none are written to the server's disk.
+	var sshConfigEntries []configparser.SSHConfigHost
+	if opts.SSHConfig != "" {
+		if entries, err := configparser.ParseSSHConfig(strings.NewReader(opts.SSHConfig)); err == nil {
+			sshConfigEntries = entries
+		}
+	}
+	var inlineSSH *configparser.SSHCredentials
+	if opts.SSHUser != "" {
+		inlineSSH = &configparser.SSHCredentials{
+			Username: opts.SSHUser, KeyFile: opts.SSHKeyFile,
+			Password: opts.SSHPassword, Port: opts.SSHPort,
+		}
+	}
+	var genericSSH *configparser.SSHCredentials
+	if opts.GenericProfile != "" {
+		if gp, err := ns.GetScanProfileByName(opts.GenericProfile); err == nil && gp != nil && gp.Kind == "generic" {
+			genericSSH = profileSSHCreds(gp, opts.Passphrase)
+		}
+	}
+	var keyMissing []string // ssh-config matches whose IdentityFile wasn't uploaded
+	resolveRuntimeSSH := func(ip string) *configparser.SSHCredentials {
+		if entry := configparser.MatchSSHConfig(sshConfigEntries, ip); entry != nil && entry.IdentityFile != "" {
+			base := filepath.Base(entry.IdentityFile)
+			pem, ok := opts.SSHKeys[base]
+			if !ok {
+				keyMissing = append(keyMissing, fmt.Sprintf("%s: key %q referenced by the ssh-config was not uploaded", ip, base))
+				return nil
+			}
+			return &configparser.SSHCredentials{Username: entry.User, PrivateKey: pem, Port: entry.Port}
+		}
+		if inlineSSH != nil {
+			c := *inlineSSH
+			return &c
+		}
+		if genericSSH != nil {
+			c := *genericSSH
+			return &c
+		}
+		return nil
 	}
 
 	// device IP candidates + IP->label
@@ -171,8 +236,17 @@ func (ns *NetService) DiscoverConnectionsByMode(opts ConnectionScanOptions) (*to
 			t.DeviceLabel = devName[devID]
 			if profile != nil {
 				applyProfile(t, profile)
-			} else if t.SNMP == nil {
-				t.SNMP = defaultSNMP()
+			} else {
+				if t.SNMP == nil {
+					t.SNMP = defaultSNMP()
+				}
+				// No device profile pins this host — fall back to runtime SSH
+				// credentials (ssh-config / inline / generic profile) if any.
+				if t.SSH == nil {
+					if creds := resolveRuntimeSSH(chosen); creds != nil {
+						t.SSH = creds
+					}
+				}
 			}
 		}
 	}
@@ -198,39 +272,26 @@ func (ns *NetService) DiscoverConnectionsByMode(opts ConnectionScanOptions) (*to
 	}
 
 	if opts.Subnet != "" {
-		// Profile-matched hosts in the subnet first: this covers devices that don't
-		// speak SNMP but are reachable via a profile (e.g. SSH-only OpenWrt boxes).
-		for _, ip := range EnumerateCIDR(opts.Subnet) {
-			if p, ok := ns.ResolveScanProfile(ip, ""); ok {
-				t := get(ip)
-				t.Profile = p.Name
-				if lbl := ipToLabel[ip]; lbl != "" {
-					t.DeviceLabel = lbl
-				}
-				applyProfile(t, p)
-			}
-		}
-		// SNMP sweep for everything else that responds. Use a short timeout — a
-		// live SNMP agent answers fast, and most of a subnet is usually empty.
+		// Subnet mode is DB-agnostic: discover hosts purely by SNMP-sweeping the
+		// segment at runtime — no scan profiles, no DB labels for targeting — so
+		// the same scan of two different DBs yields the same gather. (SSH-only
+		// hosts that don't answer SNMP aren't reachable here.) Use a short sweep
+		// timeout: a live agent answers fast and most of a subnet is empty.
 		sweepTimeout := timeout
 		if sweepTimeout > 3*time.Second {
 			sweepTimeout = 3 * time.Second
 		}
-		res, err := s.NewSNMPScanner().Scan(s.ScanOptions{
-			Subnet:  opts.Subnet,
-			Timeout: sweepTimeout,
-			SNMP:    s.SNMPOptions{Community: community, Version: version},
-		})
-		if err != nil {
-			return nil, fmt.Errorf("subnet sweep: %w", err)
-		}
-		for _, dev := range res.Devices {
-			t := get(dev.IP)
-			if lbl := ipToLabel[dev.IP]; lbl != "" {
-				t.DeviceLabel = lbl
-			}
-			if t.SNMP == nil {
+		for _, h := range SweepSubnet(opts.Subnet, community, version, sweepTimeout, opts.SSHPort) {
+			t := get(h.IP)
+			if h.SNMP && t.SNMP == nil {
 				t.SNMP = defaultSNMP()
+			}
+			if h.SSH && t.SSH == nil {
+				if creds := resolveRuntimeSSH(h.IP); creds != nil {
+					t.SSH = creds
+				} else if !h.SNMP {
+					sshNoCreds++ // SSH-only host we can't collect from without creds
+				}
 			}
 		}
 	}
@@ -242,12 +303,108 @@ func (ns *NetService) DiscoverConnectionsByMode(opts ConnectionScanOptions) (*to
 	if len(targets) == 0 {
 		return &topology.ConnectionScanResult{}, nil
 	}
-	return ns.DiscoverConnections(targets, opts.Collector)
+	result, err := ns.DiscoverConnections(targets, opts.Collector)
+	if err == nil && result != nil && sshNoCreds > 0 {
+		result.Discrepancies = append(result.Discrepancies, topology.Discrepancy{
+			Kind:   "ssh-no-credentials",
+			Detail: fmt.Sprintf("%d host(s) have SSH open but answer no SNMP — provide SSH credentials (ssh_user/ssh_key) to collect their LLDP/FDB and form edges", sshNoCreds),
+		})
+	}
+	if err == nil && result != nil {
+		for _, m := range keyMissing {
+			result.Discrepancies = append(result.Discrepancies, topology.Discrepancy{
+				Kind:   "ssh-key-missing",
+				Detail: m,
+			})
+		}
+	}
+	return result, err
 }
 
-// EnumerateCIDR lists the host addresses in a CIDR (capped). A bare IP (no /) is
+// profileSSHCreds builds SSH credentials from a profile, decrypting an encrypted
+// SSH password or in-memory private key with passphrase. Returns nil when the
+// profile carries no usable SSH credentials (or the passphrase is wrong).
+func profileSSHCreds(p *e.ScanProfile, passphrase string) *configparser.SSHCredentials {
+	if p.SSHUser == "" {
+		return nil
+	}
+	creds := configparser.SSHCredentials{Username: p.SSHUser, Port: p.SSHPort}
+	switch {
+	case p.SSHKeyFile != "":
+		creds.KeyFile = p.SSHKeyFile
+	case p.SSHKey != "":
+		pk, err := secret.Decrypt(p.SSHKey, passphrase)
+		if err != nil {
+			return nil
+		}
+		creds.PrivateKey = pk
+	case p.SSHPassword != "":
+		pw, err := secret.Decrypt(p.SSHPassword, passphrase)
+		if err != nil {
+			return nil
+		}
+		creds.Password = pw
+	default:
+		return nil
+	}
+	return &creds
+}
+
+// SubnetHost is a live host found by a runtime sweep and how it can be reached.
+type SubnetHost struct {
+	IP   string
+	SNMP bool // answered SNMP
+	SSH  bool // TCP port (SSH) is open
+}
+
+// SweepSubnet probes every IP in cidr at runtime for SNMP (a lightweight Get) and
+// an open SSH port, concurrently and bounded, so one slow host can't stall it.
+// The result depends only on the live network, not the DB. A host is returned if
+// it answers SNMP OR has SSH open — so LLDP-only hosts (lldpd over SSH, no SNMP)
+// are not discarded.
+func SweepSubnet(cidr, community, version string, timeout time.Duration, sshPort int) []SubnetHost {
+	if sshPort == 0 {
+		sshPort = 22
+	}
+	ss := s.NewSNMPScanner()
+	snmpOpts := s.ScanOptions{Timeout: timeout, SNMP: s.SNMPOptions{Community: community, Version: version}}
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var hosts []SubnetHost
+	sem := make(chan struct{}, 64)
+	for _, ip := range enumerateCIDR(cidr) {
+		wg.Add(1)
+		go func(ip string) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			snmpOK := ss.Probe(ip, snmpOpts)
+			sshOK := tcpOpen(ip, sshPort, timeout)
+			if snmpOK || sshOK {
+				mu.Lock()
+				hosts = append(hosts, SubnetHost{IP: ip, SNMP: snmpOK, SSH: sshOK})
+				mu.Unlock()
+			}
+		}(ip)
+	}
+	wg.Wait()
+	sort.Slice(hosts, func(i, j int) bool { return hosts[i].IP < hosts[j].IP })
+	return hosts
+}
+
+// tcpOpen reports whether a TCP connection to ip:port succeeds within timeout.
+func tcpOpen(ip string, port int, timeout time.Duration) bool {
+	c, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", ip, port), timeout)
+	if err != nil {
+		return false
+	}
+	_ = c.Close()
+	return true
+}
+
+// enumerateCIDR lists the host addresses in a CIDR (capped). A bare IP (no /) is
 // returned as a single-element list.
-func EnumerateCIDR(cidr string) []string {
+func enumerateCIDR(cidr string) []string {
 	if !strings.Contains(cidr, "/") {
 		return []string{strings.TrimSpace(cidr)}
 	}
@@ -311,14 +468,28 @@ func (ns *NetService) DiscoverConnections(targets []topology.Target, only string
 	// of summing, so a multi-host scan finishes in ~one host's time, not N×.
 	result := &topology.ConnectionScanResult{Hosts: make([]topology.HostScan, len(targets))}
 	var wg sync.WaitGroup
-	sem := make(chan struct{}, 16) // bound concurrency for large subnet sweeps
+	sem := make(chan struct{}, 64) // bound concurrency for large subnet sweeps
+	const hostDeadline = 30 * time.Second
 	for i, t := range targets {
 		wg.Add(1)
 		go func(i int, t topology.Target) {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			result.Hosts[i] = topology.CollectHost(t, only)
+			// Bound each host: a broken SNMP agent can hang a walk indefinitely;
+			// one bad host must not stall the whole scan.
+			done := make(chan topology.HostScan, 1)
+			go func() { done <- topology.CollectHost(t, only) }()
+			select {
+			case hs := <-done:
+				result.Hosts[i] = hs
+			case <-time.After(hostDeadline):
+				result.Hosts[i] = topology.HostScan{
+					Host:        t.Host,
+					DeviceLabel: t.DeviceLabel,
+					Errors:      []string{fmt.Sprintf("collection timed out after %s", hostDeadline)},
+				}
+			}
 		}(i, t)
 	}
 	wg.Wait()
@@ -507,7 +678,7 @@ func correlateEvidence(result *topology.ConnectionScanResult, ports []e.DevicePo
 	norm := topology.NormalizeMAC
 	lc := func(s string) string { return strings.ToLower(strings.TrimSpace(s)) }
 
-	portByMAC := map[string]e.DevicePort{}    // normalized MAC -> port
+	portByMAC := map[string]e.DevicePort{}     // normalized MAC -> port
 	portByDevPort := map[string]e.DevicePort{} // "devlabel|portname" -> port
 	labelByMAC := map[string]string{}          // normalized MAC -> device label
 	labelByPortID := map[string]string{}       // port id -> "device:port"
@@ -571,8 +742,8 @@ func correlateEvidence(result *topology.ConnectionScanResult, ports []e.DevicePo
 	}
 
 	edges := map[string]*edgeAgg{}
-	neighborsByPort := map[string]map[string]bool{}      // local port -> set of remote ports (discrepancy detection)
-	possible := map[string]*topology.ConnectionEdge{}    // possible connections inferred from stored port MACs
+	neighborsByPort := map[string]map[string]bool{}   // local port -> set of remote ports (discrepancy detection)
+	possible := map[string]*topology.ConnectionEdge{} // possible connections inferred from stored port MACs
 
 	touch := func(a, b endpoint, prov string, direct bool) {
 		from, to := a, b
@@ -603,6 +774,89 @@ func correlateEvidence(result *topology.ConnectionScanResult, ports []e.DevicePo
 			}
 		}
 		return hs.Host
+	}
+
+	// Network-identity maps, so edges can be derived from the evidence itself
+	// (DB-agnostic) and merged across observers: each scanned host gets a canonical
+	// node name, reachable by its IP, sysName or chassis MAC.
+	hostCanon := map[string]string{}    // host address -> canonical node name
+	identToCanon := map[string]string{} // sysname/mac/ip (lowercased) -> canonical
+	for _, hs := range result.Hosts {
+		canon := hs.LocalSysName
+		if canon == "" {
+			canon = hs.DeviceLabel
+		}
+		if canon == "" && hs.Device != nil {
+			canon = hs.Device.SysName
+		}
+		if canon == "" {
+			canon = hs.Host
+		}
+		hostCanon[hs.Host] = canon
+		if hs.Host != "" {
+			identToCanon[lc(hs.Host)] = canon
+		}
+		if hs.LocalSysName != "" {
+			identToCanon[lc(hs.LocalSysName)] = canon
+		}
+		if hs.LocalChassisMAC != "" {
+			identToCanon[norm(hs.LocalChassisMAC)] = canon
+		}
+		if hs.DeviceLabel != "" {
+			identToCanon[lc(hs.DeviceLabel)] = canon
+		}
+		if hs.Device != nil {
+			for _, iface := range hs.Device.Interfaces {
+				for _, ip := range iface.IPAddresses {
+					identToCanon[lc(stripCIDR(ip))] = canon
+				}
+			}
+		}
+	}
+	// resolveCanon maps a remote identity (chassis MAC / mgmt IP / sysName) to a
+	// scanned host's canonical name; the bool is false for an external (un-scanned)
+	// device, where the best-available identity string is returned instead.
+	resolveCanon := func(sysname, mac, ip string) (string, bool) {
+		if mac != "" {
+			if c, ok := identToCanon[norm(mac)]; ok {
+				return c, true
+			}
+		}
+		if ip != "" {
+			if c, ok := identToCanon[lc(stripCIDR(ip))]; ok {
+				return c, true
+			}
+		}
+		if sysname != "" {
+			if c, ok := identToCanon[lc(sysname)]; ok {
+				return c, true
+			}
+		}
+		return firstNonEmpty(sysname, mac, ip), false
+	}
+
+	// Warn about hosts that responded but are not devices in the DB (e.g. turned
+	// up by a subnet sweep): their connections can't resolve until they're added.
+	for _, hs := range result.Hosts {
+		if hs.Host == "" || hs.Host == "localhost" || hs.DeviceLabel != "" {
+			continue
+		}
+		if hs.Device == nil && len(hs.Evidence) == 0 && len(hs.FDB) == 0 {
+			continue // didn't actually respond
+		}
+		if hs.Device != nil {
+			if _, ok := devLabels[lc(hs.Device.SysName)]; ok {
+				continue // matched a DB device by sysname
+			}
+		}
+		who := hs.Host
+		if hs.Device != nil && hs.Device.SysName != "" {
+			who = hs.Host + " (" + hs.Device.SysName + ")"
+		}
+		result.Discrepancies = append(result.Discrepancies, topology.Discrepancy{
+			Kind:   "host-not-in-db",
+			Detail: fmt.Sprintf("%s responded but is not a device in the DB — add it first (e.g. `scan host %s`) so its connections can resolve", who, hs.Host),
+		})
 	}
 
 	// Count distinct MACs per physical port (collapsing VLAN sub-interfaces like
@@ -710,6 +964,52 @@ func correlateEvidence(result *topology.ConnectionScanResult, ports []e.DevicePo
 	for _, pe := range possible {
 		pe.Provenance = dedup(pe.Provenance)
 		result.Edges = append(result.Edges, *pe)
+	}
+
+	// DB-agnostic edges: for LLDP evidence whose local endpoint isn't a DB port
+	// (e.g. a subnet scan against an empty DB), derive the edge from the network
+	// identities themselves so the adjacency is still detected. The two directions
+	// merge via the canonical node names. These aren't tied to DB ports, so they're
+	// shown but not directly importable.
+	agn := map[string]*topology.ConnectionEdge{}
+	agnObserved := map[string]map[string]bool{}
+	for _, hs := range result.Hosts {
+		observer := hostCanon[hs.Host]
+		for _, ev := range hs.Evidence {
+			if resolveLocal(ev).ok {
+				continue // already handled by the DB-resolved path
+			}
+			rCanon, _ := resolveCanon(ev.RemoteSysName, ev.RemoteChassisMAC, ev.RemoteIP)
+			if observer == "" || rCanon == "" || observer == rCanon {
+				continue
+			}
+			epA := observer
+			if ev.LocalPort != "" {
+				epA = observer + ":" + ev.LocalPort
+			}
+			epB := rCanon
+			if ev.RemotePort != "" {
+				epB = rCanon + ":" + ev.RemotePort
+			}
+			key := epA + "|" + epB
+			if epA > epB {
+				key = epB + "|" + epA
+			}
+			if agn[key] == nil {
+				from, to := epA, epB
+				agn[key] = &topology.ConnectionEdge{FromLabel: from, ToLabel: to, Confidence: topology.ConfidenceCandidate}
+				agnObserved[key] = map[string]bool{}
+			}
+			agn[key].Provenance = append(agn[key].Provenance, provString(ev))
+			agnObserved[key][epA] = true
+		}
+	}
+	for key, e := range agn {
+		if len(agnObserved[key]) >= 2 {
+			e.Confidence = topology.ConfidenceConfirmed
+		}
+		e.Provenance = dedup(e.Provenance)
+		result.Edges = append(result.Edges, *e)
 	}
 
 	for _, agg := range edges {
