@@ -32,9 +32,23 @@ function edge_mark($e) {
     return (strpos($e['to'] ?? '', 'unknown(') === 0) ? 'unresolved' : 'possible';
 }
 
-/** edge_importable: a resolved edge with both device-port ids. */
+/** endpoint_port returns the port name from a "device:port" label ('' if device-level/unknown). */
+function endpoint_port($label) {
+    if (strpos($label, 'unknown(') === 0) return '';
+    $i = strrpos($label, ':');
+    return ($i !== false && $i + 1 < strlen($label)) ? substr($label, $i + 1) : '';
+}
+
+/** edge_importable: both endpoints name a port (existing or creatable on import). */
 function edge_importable($e) {
-    return !empty($e['remote_resolved']) && !empty($e['from_deviceport_id']) && !empty($e['to_deviceport_id']);
+    $hasFrom = !empty($e['from_deviceport_id']) || endpoint_port($e['from'] ?? '') !== '';
+    $hasTo   = !empty($e['to_deviceport_id'])   || endpoint_port($e['to'] ?? '') !== '';
+    return $hasFrom && $hasTo;
+}
+
+/** edge_needs_create: a missing device port will be created on import. */
+function edge_needs_create($e) {
+    return empty($e['from_deviceport_id']) || empty($e['to_deviceport_id']);
 }
 
 /** render_topology builds the ASCII tree from the discovered edges (port of the CLI). */
@@ -287,7 +301,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_import'])) {
                             <span title="not importable">—</span>
                         <?php endif; ?>
                     </td>
-                    <td><?= htmlspecialchars($mark) ?></td>
+                    <td><?= htmlspecialchars($mark) ?><?php if ($imp && edge_needs_create($e)): ?><br><small style="color:#a60;">(creates port)</small><?php endif; ?></td>
                     <td><?= htmlspecialchars($e['from'] ?? '') ?></td>
                     <td><?= htmlspecialchars($e['to'] ?? '') ?></td>
                     <td style="font-size:90%; color:#555;"><?= htmlspecialchars(implode(', ', $e['provenance'] ?? [])) ?></td>

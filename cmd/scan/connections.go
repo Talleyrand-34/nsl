@@ -662,13 +662,42 @@ func reviewAndImport(service q.NetServiceInt, result *topology.ConnectionScanRes
 	}
 
 	var toImport []topology.ConnectionEdge
+	// An edge is importable if both endpoints name a port (an existing device port,
+	// or one nameable from the label — created on import). Device-level / unknown
+	// endpoints (no port name) can't be imported.
+	endpointPort := func(label string) string {
+		if strings.HasPrefix(label, "unknown(") {
+			return ""
+		}
+		if i := strings.LastIndexByte(label, ':'); i >= 0 && i+1 < len(label) {
+			return label[i+1:]
+		}
+		return ""
+	}
 	importable := func(edge topology.ConnectionEdge) bool {
-		return edge.RemoteResolved && edge.FromDevicePortID != "" && edge.ToDevicePortID != ""
+		hasFrom := edge.FromDevicePortID != "" || endpointPort(edge.FromLabel) != ""
+		hasTo := edge.ToDevicePortID != "" || endpointPort(edge.ToLabel) != ""
+		return hasFrom && hasTo
+	}
+	needsCreate := func(edge topology.ConnectionEdge) bool {
+		return edge.FromDevicePortID == "" || edge.ToDevicePortID == ""
+	}
+	mark := func(edge topology.ConnectionEdge) string {
+		if !edge.RemoteResolved {
+			if strings.HasPrefix(edge.ToLabel, "unknown(") {
+				return "unresolved"
+			}
+			return "possible"
+		}
+		return edge.Confidence
 	}
 
 	if connYes {
+		// Non-interactive: only commit fully-resolved confirmed/candidate edges
+		// (never auto-create ports).
 		for _, edge := range result.Edges {
-			if importable(edge) && edge.Confidence != topology.ConfidenceWeak {
+			if edge.RemoteResolved && edge.FromDevicePortID != "" && edge.ToDevicePortID != "" &&
+				edge.Confidence != topology.ConfidenceWeak {
 				toImport = append(toImport, edge)
 			}
 		}
@@ -683,7 +712,7 @@ func reviewAndImport(service q.NetServiceInt, result *topology.ConnectionScanRes
 		}
 		fmt.Println("\nReview edges to import (y = yes, n = no, a = accept all remaining, q = quit):")
 		if skipped > 0 {
-			fmt.Printf("  (%d of %d edge(s) are informational only — one endpoint isn't a device port — and can't be imported)\n", skipped, len(result.Edges))
+			fmt.Printf("  (%d of %d edge(s) can't be imported — one endpoint is only a device, not a port)\n", skipped, len(result.Edges))
 		}
 		for _, edge := range result.Edges {
 			if !importable(edge) {
@@ -693,8 +722,12 @@ func reviewAndImport(service q.NetServiceInt, result *topology.ConnectionScanRes
 				toImport = append(toImport, edge)
 				continue
 			}
-			def := edge.Confidence == topology.ConfidenceConfirmed || edge.Confidence == topology.ConfidenceCandidate
-			fmt.Printf("  Import [%s] %s <-> %s? %s ", edge.Confidence, edge.FromLabel, edge.ToLabel, defaultHint(def))
+			def := mark(edge) == topology.ConfidenceConfirmed || mark(edge) == topology.ConfidenceCandidate
+			note := ""
+			if needsCreate(edge) {
+				note = " (creates a port)"
+			}
+			fmt.Printf("  Import [%s] %s <-> %s%s? %s ", mark(edge), edge.FromLabel, edge.ToLabel, note, defaultHint(def))
 			line, _ := reader.ReadString('\n')
 			switch strings.ToLower(strings.TrimSpace(line)) {
 			case "a":

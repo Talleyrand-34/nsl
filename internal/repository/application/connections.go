@@ -329,25 +329,105 @@ func (ns *NetService) DiscoverConnections(targets []topology.Target, only string
 	return result, nil
 }
 
-// ImportConnectionEdges persists every resolved edge as a Connection, recording
-// the provenance. Unresolved edges (an endpoint not in the DB) are skipped.
+// ImportConnectionEdges persists each edge as a Connection (with provenance). An
+// endpoint that isn't yet a device port but names one (e.g. a "possible" edge
+// like OpenWrt:eth0) has that port created on the fly. Endpoints that are only a
+// device (no port name) or unknown can't be imported and are reported.
 func (ns *NetService) ImportConnectionEdges(edges []topology.ConnectionEdge) (int, error) {
 	n := 0
 	var errs []string
 	for _, edge := range edges {
-		if !edge.RemoteResolved || edge.FromDevicePortID == "" || edge.ToDevicePortID == "" {
+		fromID, ferr := ns.resolveOrCreatePort(edge.FromDevicePortID, edge.FromLabel)
+		toID, terr := ns.resolveOrCreatePort(edge.ToDevicePortID, edge.ToLabel)
+		if ferr != nil || terr != nil {
+			err := ferr
+			if err == nil {
+				err = terr
+			}
+			errs = append(errs, fmt.Sprintf("%s <-> %s: %v", edge.FromLabel, edge.ToLabel, err))
 			continue
 		}
-		if err := ns.AddConnection(edge.FromDevicePortID, edge.ToDevicePortID, edge.Provenance...); err != nil {
+		if err := ns.AddConnection(fromID, toID, edge.Provenance...); err != nil {
 			errs = append(errs, fmt.Sprintf("%s <-> %s: %v", edge.FromLabel, edge.ToLabel, err))
 			continue
 		}
 		n++
 	}
 	if len(errs) > 0 {
-		return n, fmt.Errorf("%d edge(s) failed:\n  %s", len(errs), strings.Join(errs, "\n  "))
+		return n, fmt.Errorf("%d edge(s) skipped/failed:\n  %s", len(errs), strings.Join(errs, "\n  "))
 	}
 	return n, nil
+}
+
+// resolveOrCreatePort returns a device-port id for an edge endpoint. If portID is
+// already set it is returned; otherwise the "device:port" label is parsed and the
+// device port (and its model port) is created if missing. An endpoint that is only
+// a device (no port) or unknown returns an error.
+func (ns *NetService) resolveOrCreatePort(portID, label string) (string, error) {
+	if portID != "" {
+		return portID, nil
+	}
+	if label == "" || strings.HasPrefix(label, "unknown(") {
+		return "", fmt.Errorf("unidentified endpoint %q", label)
+	}
+	i := strings.LastIndexByte(label, ':')
+	if i < 0 || i+1 >= len(label) {
+		return "", fmt.Errorf("device-level endpoint %q (no port to connect)", label)
+	}
+	devLabel, portName := label[:i], label[i+1:]
+
+	devs, err := ns.GetDevices()
+	if err != nil {
+		return "", err
+	}
+	var dev *e.Device
+	for k := range devs {
+		if devs[k].Name == devLabel {
+			dev = &devs[k]
+			break
+		}
+	}
+	if dev == nil {
+		return "", fmt.Errorf("device %q not found", devLabel)
+	}
+
+	ports, _ := ns.GetDevicePorts()
+	for _, p := range ports {
+		if p.DevLabel == devLabel && p.PortName == portName {
+			return p.ID, nil
+		}
+	}
+
+	// Find or create the model port, then the device port.
+	modelPortID := ""
+	if mports, err := ns.GetModelPorts(); err == nil {
+		for _, mp := range mports {
+			if mp.Model == dev.Model && mp.Name == portName {
+				modelPortID = mp.ID
+				break
+			}
+		}
+	}
+	if modelPortID == "" {
+		if err := ns.AddModelPort(portName, "0", "0", dev.Model, false, "ethernet", ""); err != nil {
+			return "", fmt.Errorf("create model port %q: %w", portName, err)
+		}
+		mports, _ := ns.GetModelPorts()
+		for _, mp := range mports {
+			if mp.Model == dev.Model && mp.Name == portName {
+				modelPortID = mp.ID
+				break
+			}
+		}
+		if modelPortID == "" {
+			return "", fmt.Errorf("model port %q not found after creation", portName)
+		}
+	}
+	id, err := ns.AddDevicePort(dev.ID, modelPortID, "", nil)
+	if err != nil {
+		return "", fmt.Errorf("create device port %s:%s: %w", devLabel, portName, err)
+	}
+	return id, nil
 }
 
 // endpoint is a device port resolved from evidence.
