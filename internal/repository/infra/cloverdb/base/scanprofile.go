@@ -25,6 +25,7 @@ import (
 func scanProfileToDoc(p e.ScanProfile) *d.Document {
 	doc := d.NewDocument()
 	doc.Set("name", p.Name)
+	doc.Set("kind", p.Kind)
 	doc.Set("host", p.Host)
 	doc.Set("snmp_community", p.SNMPCommunity)
 	doc.Set("snmp_version", p.SNMPVersion)
@@ -70,9 +71,14 @@ func docToScanProfile(doc *d.Document) e.ScanProfile {
 		}
 		return false
 	}
+	kind := getStr("kind")
+	if kind == "" {
+		kind = "device" // back-compat: profiles stored before kinds existed
+	}
 	return e.ScanProfile{
 		ID:                doc.ObjectId(),
 		Name:              getStr("name"),
+		Kind:              kind,
 		Host:              getStr("host"),
 		SNMPCommunity:     getStr("snmp_community"),
 		SNMPVersion:       getStr("snmp_version"),
@@ -149,6 +155,7 @@ func (r BasicOpsCloverRepository) GetScanProfileByHost(host string) (*e.ScanProf
 // UpdateScanProfile overwrites the stored profile identified by name.
 func (r BasicOpsCloverRepository) UpdateScanProfile(p e.ScanProfile) error {
 	updates := map[string]interface{}{
+		"kind":               p.Kind,
 		"host":               p.Host,
 		"snmp_community":     p.SNMPCommunity,
 		"snmp_version":       p.SNMPVersion,

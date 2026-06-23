@@ -150,8 +150,11 @@ type Brand struct {
 // which holds an AES-256-GCM blob (key derived from a user passphrase via
 // scrypt) and is never serialized to API clients (json:"-").
 type ScanProfile struct {
-	ID            string `json:"id"`
-	Name          string `json:"name"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	// Kind is "device" (default, IP-bound — matched by Host) or "generic" (not
+	// bound to a host: only SSH credentials, used as a fallback for any host).
+	Kind          string `json:"kind"`
 	Host          string `json:"host"`
 	SNMPCommunity string `json:"snmp_community"`
 	SNMPVersion   string `json:"snmp_version"`
