@@ -328,9 +328,13 @@ func buildTargets(service q.NetServiceInt) ([]topology.Target, error) {
 				applyProfile(t, p)
 			}
 		}
+		sweepTimeout := time.Duration(connTimeout) * time.Second
+		if sweepTimeout > 3*time.Second {
+			sweepTimeout = 3 * time.Second
+		}
 		res, err := s.NewSNMPScanner().Scan(s.ScanOptions{
 			Subnet:  connSubnet,
-			Timeout: time.Duration(connTimeout) * time.Second,
+			Timeout: sweepTimeout,
 			SNMP:    s.SNMPOptions{Community: connCommunity, Version: connSNMPVer},
 		})
 		if err != nil {
@@ -671,7 +675,16 @@ func reviewAndImport(service q.NetServiceInt, result *topology.ConnectionScanRes
 	} else {
 		reader := bufio.NewReader(os.Stdin)
 		acceptRest := false
+		skipped := 0
+		for _, edge := range result.Edges {
+			if !importable(edge) {
+				skipped++
+			}
+		}
 		fmt.Println("\nReview edges to import (y = yes, n = no, a = accept all remaining, q = quit):")
+		if skipped > 0 {
+			fmt.Printf("  (%d of %d edge(s) are informational only — one endpoint isn't a device port — and can't be imported)\n", skipped, len(result.Edges))
+		}
 		for _, edge := range result.Edges {
 			if !importable(edge) {
 				continue

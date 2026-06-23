@@ -210,10 +210,15 @@ func (ns *NetService) DiscoverConnectionsByMode(opts ConnectionScanOptions) (*to
 				applyProfile(t, p)
 			}
 		}
-		// SNMP sweep for everything else that responds.
+		// SNMP sweep for everything else that responds. Use a short timeout — a
+		// live SNMP agent answers fast, and most of a subnet is usually empty.
+		sweepTimeout := timeout
+		if sweepTimeout > 3*time.Second {
+			sweepTimeout = 3 * time.Second
+		}
 		res, err := s.NewSNMPScanner().Scan(s.ScanOptions{
 			Subnet:  opts.Subnet,
-			Timeout: timeout,
+			Timeout: sweepTimeout,
 			SNMP:    s.SNMPOptions{Community: community, Version: version},
 		})
 		if err != nil {
