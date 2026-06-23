@@ -93,16 +93,29 @@ func (ns *NetService) correlate(result *topology.ConnectionScanResult) error {
 		}
 	}
 	// IP (LLDP MgmtIP) -> device label, for resolving remote endpoints whose DB
-	// label doesn't match their advertised sysname.
+	// label doesn't match their advertised sysname. An IP held by more than one
+	// device (e.g. a default 10.1.1.1 on several OpenWrt boxes) is ambiguous and
+	// dropped, so it can't cause a misresolution.
 	ipToLabel := map[string]string{}
+	ambiguousIP := map[string]bool{}
 	if ifaces, err := ns.GetAllDeviceInterfaces(); err == nil {
 		for _, iface := range ifaces {
 			for _, raw := range iface.IPAddresses {
-				if ip := stripCIDR(raw); ip != "" {
-					ipToLabel[ip] = devLabelByID[iface.DeviceID]
+				ip := stripCIDR(raw)
+				if ip == "" {
+					continue
+				}
+				lbl := devLabelByID[iface.DeviceID]
+				if prev, ok := ipToLabel[ip]; ok && prev != lbl {
+					ambiguousIP[ip] = true
+				} else {
+					ipToLabel[ip] = lbl
 				}
 			}
 		}
+	}
+	for ip := range ambiguousIP {
+		delete(ipToLabel, ip)
 	}
 	correlateEvidence(result, ports, deviceNames, ipToLabel)
 	return nil
@@ -189,7 +202,8 @@ func correlateEvidence(result *topology.ConnectionScanResult, ports []e.DevicePo
 	}
 
 	edges := map[string]*edgeAgg{}
-	neighborsByPort := map[string]map[string]bool{} // local port -> set of remote ports (discrepancy detection)
+	neighborsByPort := map[string]map[string]bool{}      // local port -> set of remote ports (discrepancy detection)
+	possible := map[string]*topology.ConnectionEdge{}    // possible connections inferred from stored port MACs
 
 	touch := func(a, b endpoint, prov string, direct bool) {
 		from, to := a, b
@@ -208,7 +222,37 @@ func correlateEvidence(result *topology.ConnectionScanResult, ports []e.DevicePo
 		}
 	}
 
+	// canonLabel gives an observing host a consistent name: its DB label, else its
+	// scanned SysName mapped to a DB device, else the host address.
+	canonLabel := func(hs topology.HostScan) string {
+		if hs.DeviceLabel != "" {
+			return hs.DeviceLabel
+		}
+		if hs.Device != nil {
+			if c, ok := devLabels[lc(hs.Device.SysName)]; ok {
+				return c
+			}
+		}
+		return hs.Host
+	}
+
+	// Count distinct MACs per physical port (collapsing VLAN sub-interfaces like
+	// eth0.2 onto eth0). A port that has learned many MACs is an uplink/trunk —
+	// MACs behind it are NOT directly attached, so FDB matches there are ignored.
+	fdbPortMACs := map[string]map[string]bool{}
 	for _, hs := range result.Hosts {
+		for _, f := range hs.FDB {
+			k := hs.Host + "|" + physPort(f.Port)
+			if fdbPortMACs[k] == nil {
+				fdbPortMACs[k] = map[string]bool{}
+			}
+			fdbPortMACs[k][norm(f.MAC)] = true
+		}
+	}
+
+	for _, hs := range result.Hosts {
+		hostLabel := canonLabel(hs)
+
 		for _, ev := range hs.Evidence {
 			local := resolveLocal(ev)
 			remote := resolveRemote(ev)
@@ -243,17 +287,60 @@ func correlateEvidence(result *topology.ConnectionScanResult, ports []e.DevicePo
 			}
 		}
 
-		// Bridge FDB: weak corroboration. A learned MAC that matches a known port
-		// links the observing port to that port (one or more transparent hops).
+		// Bridge FDB: a learned MAC that matches a device port MAC stored in the DB
+		// (from the host-scan phase) reveals that device's adjacency — even for
+		// devices that expose no LLDP/FDB of their own (e.g. OPNsense).
 		for _, f := range hs.FDB {
-			localKey := lc(f.ObservedDevice) + "|" + lc(f.Port)
-			lp, lok := portByDevPort[localKey]
 			rp, rok := portByMAC[norm(f.MAC)]
-			if !lok || !rok || lp.ID == rp.ID || lp.DevLabel == rp.DevLabel {
+			if !rok || rp.DevLabel == hostLabel {
 				continue
 			}
-			touch(asEndpoint(lp), asEndpoint(rp), fmt.Sprintf("%s@%s:%s~%s", f.Source, f.ObservedDevice, f.Port, f.MAC), false)
+			pp := physPort(f.Port)
+			// Skip MACs learned via an uplink/trunk port (many MACs behind it):
+			// they are not directly attached to the observing device.
+			if len(fdbPortMACs[hs.Host+"|"+pp]) > fdbDirectMax {
+				continue
+			}
+			who := hostLabel
+			prov := fmt.Sprintf("%s@%s:%s matched stored MAC %s (%s:%s)", f.Source, who, pp, norm(f.MAC), rp.DevLabel, rp.PortName)
+			if lp, lok := portByDevPort[lc(hostLabel)+"|"+lc(pp)]; lok {
+				// Both ends are known device ports -> a weak, importable edge.
+				if lp.ID == rp.ID || lp.DevLabel == rp.DevLabel {
+					continue
+				}
+				touch(asEndpoint(lp), asEndpoint(rp), prov, false)
+				continue
+			}
+			// The observing switch port isn't a DB port, but the learned MAC is a
+			// known device port -> a *possible* connection (shown, not imported).
+			// If the MAC belongs to a logical/management interface (e.g. a switch's
+			// Vlan-interface), it doesn't identify a physical port — report it at
+			// device level rather than claiming that interface.
+			toLabel := rp.DevLabel + ":" + rp.PortName
+			toPortID := rp.ID
+			dedupKey := rp.ID
+			if isLogicalPortName(rp.PortName) {
+				toLabel = rp.DevLabel
+				toPortID = ""
+				dedupKey = rp.DevLabel
+			}
+			key := who + "|" + pp + "|" + dedupKey
+			if possible[key] == nil {
+				possible[key] = &topology.ConnectionEdge{
+					ToDevicePortID: toPortID,
+					FromLabel:      who + ":" + pp,
+					ToLabel:        toLabel,
+					Confidence:     topology.ConfidenceWeak,
+					RemoteResolved: false,
+				}
+			}
+			possible[key].Provenance = append(possible[key].Provenance, prov)
 		}
+	}
+
+	for _, pe := range possible {
+		pe.Provenance = dedup(pe.Provenance)
+		result.Edges = append(result.Edges, *pe)
 	}
 
 	for _, agg := range edges {
@@ -326,11 +413,7 @@ func correlateEvidence(result *topology.ConnectionScanResult, ports []e.DevicePo
 			}
 			if !fdbHosts[m][f.ObservedHost] {
 				fdbHosts[m][f.ObservedHost] = true
-				who := f.ObservedDevice
-				if who == "" {
-					who = f.ObservedHost
-				}
-				fdbWhere[m] = append(fdbWhere[m], who+":"+f.Port)
+				fdbWhere[m] = append(fdbWhere[m], canonLabel(hs)+":"+f.Port)
 			}
 		}
 	}
@@ -391,6 +474,34 @@ func isGlobalMAC(mac string) bool {
 		return false
 	}
 	return first&0x02 == 0
+}
+
+// fdbDirectMax is the most MACs a port may have learned for an FDB match on it
+// to count as a direct attachment (more than this = an uplink/trunk).
+const fdbDirectMax = 6
+
+// isLogicalPortName reports whether a port name is a logical/management interface
+// (VLAN interface, bridge, bond, loopback, tunnel) rather than a physical port.
+func isLogicalPortName(name string) bool {
+	n := strings.ToLower(name)
+	switch {
+	case strings.Contains(n, "vlan"),
+		strings.HasPrefix(n, "br-"), strings.HasPrefix(n, "bridge"),
+		n == "lo", n == "loopback",
+		strings.HasPrefix(n, "bond"), strings.HasPrefix(n, "lag"),
+		strings.HasPrefix(n, "tun"), strings.HasPrefix(n, "tap"), strings.HasPrefix(n, "gre"):
+		return true
+	}
+	return false
+}
+
+// physPort collapses a VLAN sub-interface name (eth0.2) to its physical port
+// (eth0); other names are returned unchanged.
+func physPort(p string) string {
+	if i := strings.IndexByte(p, '.'); i >= 0 {
+		return p[:i]
+	}
+	return p
 }
 
 func edgeKey(a, b string) string {

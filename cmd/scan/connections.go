@@ -52,6 +52,7 @@ var (
 	connDryRun     bool
 	connOutput     string
 	connTimeout    int
+	connHuman      bool
 )
 
 // ConnectionsCmd implements "scan connections": multi-source L2/L1 link discovery.
@@ -71,6 +72,9 @@ Targets (combine freely; default is --from-db):
 Sources: by default every available source per host is used and merged, with
 discrepancies surfaced for review. Use --collector to restrict to exactly one of:
   snmp-lldp, snmp-cdp, snmp-fdb, ssh-lldp, local-lldp
+
+Output: JSON to stdout by default (status messages go to stderr, so it pipes
+cleanly); pass -H/--human for the readable summary plus interactive review.
 
 Prerequisite: this tool only collects — it never configures the targets. LLDP
 (lldpd) and/or SNMP must already be enabled on each host (set up out of band over
@@ -107,11 +111,11 @@ Examples:
 			os.Exit(1)
 		}
 
-		fmt.Printf("Scanning %d target(s)", len(targets))
+		fmt.Fprintf(os.Stderr, "Scanning %d target(s)", len(targets))
 		if connSource != "" {
-			fmt.Printf(" (collector: %s)", connSource)
+			fmt.Fprintf(os.Stderr, " (collector: %s)", connSource)
 		}
-		fmt.Println("...")
+		fmt.Fprintln(os.Stderr, "...")
 
 		result, err := service.DiscoverConnections(targets, connSource)
 		if err != nil {
@@ -119,11 +123,22 @@ Examples:
 			os.Exit(1)
 		}
 
-		printGatherSummary(result)
-		reviewAndImport(service, result)
-
-		if err := emitGather(result); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to write gather: %v\n", err)
+		// Output format: JSON by default (scriptable); -H for the readable summary.
+		if connHuman {
+			printGatherSummary(result)
+			reviewAndImport(service, result)
+			if connOutput != "" {
+				if err := writeJSONFile(result, connOutput); err != nil {
+					fmt.Fprintf(os.Stderr, "Failed to write gather: %v\n", err)
+				} else {
+					fmt.Fprintf(os.Stderr, "Full gather written to %s\n", connOutput)
+				}
+			}
+		} else {
+			importNonInteractive(service, result) // status to stderr
+			if err := emitJSON(result); err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to write gather: %v\n", err)
+			}
 		}
 	},
 }
@@ -141,8 +156,9 @@ func init() {
 	f.StringVar(&connLocalDev, "local-device", "", "DB device label of the local machine (so local-lldp resolves to its ports)")
 	f.BoolVar(&connYes, "yes", false, "Commit resolved confirmed/candidate edges without prompting")
 	f.BoolVar(&connDryRun, "dry-run", false, "Collect and report, but never write to the DB")
-	f.StringVar(&connOutput, "output", "", "Write the full gather (JSON) to this file (default: stdout)")
+	f.StringVar(&connOutput, "output", "", "Write the full gather (JSON) to this file (default JSON mode prints to stdout)")
 	f.IntVar(&connTimeout, "timeout", 10, "Per-host SNMP timeout, seconds")
+	f.BoolVarP(&connHuman, "human", "H", false, "Human-readable summary + interactive review (default output is JSON)")
 }
 
 // cleanIP strips a CIDR suffix and whitespace, and drops addresses unusable as
@@ -396,11 +412,15 @@ func unlockProfilePassword(p *e.ScanProfile) (string, error) {
 func printGatherSummary(result *topology.ConnectionScanResult) {
 	fmt.Printf("\n=== Gather (%d host(s)) ===\n", len(result.Hosts))
 	for _, hs := range result.Hosts {
-		who := hs.DeviceLabel
-		if who == "" {
-			who = hs.Host
+		name := hs.DeviceLabel
+		if name == "" && hs.Device != nil {
+			name = hs.Device.SysName
 		}
-		fmt.Printf("  %-22s evidence=%d fdb=%d", who, len(hs.Evidence), len(hs.FDB))
+		who := hs.Host
+		if name != "" && name != hs.Host {
+			who = hs.Host + " (" + name + ")"
+		}
+		fmt.Printf("  %-34s evidence=%d fdb=%d", who, len(hs.Evidence), len(hs.FDB))
 		if len(hs.Errors) > 0 {
 			fmt.Printf("  errors: %s", strings.Join(hs.Errors, "; "))
 		}
@@ -425,7 +445,11 @@ func printGatherSummary(result *topology.ConnectionScanResult) {
 	for _, edge := range result.Edges {
 		mark := edge.Confidence
 		if !edge.RemoteResolved {
-			mark = "unresolved"
+			if strings.HasPrefix(edge.ToLabel, "unknown(") {
+				mark = "unresolved" // neither end identified in the DB
+			} else {
+				mark = "possible" // one end identified (by stored MAC), not importable
+			}
 		}
 		fmt.Printf("  [%-10s] %s <-> %s\n", mark, edge.FromLabel, edge.ToLabel)
 		if len(edge.Provenance) > 0 {
@@ -502,19 +526,56 @@ func defaultHint(def bool) string {
 	return "[y/N]"
 }
 
-// emitGather writes the full result as JSON to --output (or stdout).
-func emitGather(result *topology.ConnectionScanResult) error {
+// importNonInteractive commits resolved confirmed/candidate edges in JSON mode
+// (only with --yes); all status goes to stderr so stdout stays valid JSON.
+func importNonInteractive(service q.NetServiceInt, result *topology.ConnectionScanResult) {
+	if connDryRun {
+		fmt.Fprintln(os.Stderr, "--dry-run: nothing written to the DB.")
+		return
+	}
+	if !connYes {
+		fmt.Fprintln(os.Stderr, "note: default JSON mode is non-interactive — pass --yes to import, or -H to review interactively. Nothing written.")
+		return
+	}
+	var toImport []topology.ConnectionEdge
+	for _, edge := range result.Edges {
+		if edge.RemoteResolved && edge.FromDevicePortID != "" && edge.ToDevicePortID != "" && edge.Confidence != topology.ConfidenceWeak {
+			toImport = append(toImport, edge)
+		}
+	}
+	if len(toImport) == 0 {
+		fmt.Fprintln(os.Stderr, "No importable edges.")
+		return
+	}
+	n, err := service.ImportConnectionEdges(toImport)
+	fmt.Fprintf(os.Stderr, "Imported %d connection(s).\n", n)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Some edges were not imported:\n%v\n", err)
+	}
+}
+
+// writeJSONFile writes the full result as indented JSON to path.
+func writeJSONFile(result *topology.ConnectionScanResult, path string) error {
 	data, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
 		return err
 	}
-	if connOutput == "" {
-		fmt.Printf("\n=== Full gather (JSON) ===\n%s\n", data)
+	return os.WriteFile(path, data, 0644)
+}
+
+// emitJSON writes the result as JSON to --output, or to stdout (raw, the default).
+func emitJSON(result *topology.ConnectionScanResult) error {
+	if connOutput != "" {
+		if err := writeJSONFile(result, connOutput); err != nil {
+			return err
+		}
+		fmt.Fprintf(os.Stderr, "Full gather written to %s\n", connOutput)
 		return nil
 	}
-	if err := os.WriteFile(connOutput, data, 0644); err != nil {
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
 		return err
 	}
-	fmt.Printf("\nFull gather written to %s\n", connOutput)
+	fmt.Println(string(data))
 	return nil
 }

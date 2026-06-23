@@ -382,12 +382,19 @@ hosts (and not itself an LLDP endpoint or a scanned device) as an
 **intermediary device detected in the middle** — reported in the output (and
 the `intermediaries` array of the JSON gather), not imported.
 
+**Output format:** JSON to stdout by **default** (status messages go to stderr,
+so `scan connections ... | jq` works); pass **`-H`/`--human`** for the readable
+summary and interactive review. `--output <file>` always writes the full JSON
+gather to a file as well.
+
 **Review & commit:** edges are labelled by confidence — `confirmed` (seen from
-both ends), `candidate` (one direct observation), `weak` (FDB-only). Without
-`--yes` you confirm each edge interactively; `--yes` commits confirmed/candidate
-edges non-interactively; `--dry-run` writes nothing. Imported connections record
-their **provenance** (`discovered_via`). An observed neighbour that is not in the
-DB (e.g. an unmanaged switch) is reported as a discrepancy and never imported.
+both ends), `candidate` (one direct observation), `weak` (FDB-only), plus
+`possible` (one end identified via a stored port MAC — shown, not imported).
+With `-H` you confirm each edge interactively; in either mode `--yes` commits
+confirmed/candidate edges and `--dry-run` writes nothing. Imported connections
+record their **provenance** (`discovered_via`). An observed neighbour that is not
+in the DB (e.g. an unmanaged switch) is reported as a discrepancy and never
+imported.
 
 > **Prerequisite:** the tool only *collects* — it never configures the targets.
 > `lldpd` and/or SNMP must already be enabled on each host (set up out of band
