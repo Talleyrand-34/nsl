@@ -315,8 +315,19 @@ func buildTargets(service q.NetServiceInt) ([]topology.Target, error) {
 		}
 	}
 
-	// --subnet: SNMP sweep, then collect from responders.
+	// --subnet: profile-matched hosts in the subnet (covers SSH-only devices with
+	// no SNMP), then an SNMP sweep for everything else that responds.
 	if connSubnet != "" {
+		for _, ip := range q.EnumerateCIDR(connSubnet) {
+			if p, ok := service.ResolveScanProfile(ip, ""); ok {
+				t := get(ip)
+				t.Profile = p.Name
+				if lbl := ipToLabel[ip]; lbl != "" {
+					t.DeviceLabel = lbl
+				}
+				applyProfile(t, p)
+			}
+		}
 		res, err := s.NewSNMPScanner().Scan(s.ScanOptions{
 			Subnet:  connSubnet,
 			Timeout: time.Duration(connTimeout) * time.Second,

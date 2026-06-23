@@ -18,6 +18,7 @@ package application
 
 import (
 	"fmt"
+	"net"
 	"sort"
 	"strings"
 	"time"
@@ -196,6 +197,19 @@ func (ns *NetService) DiscoverConnectionsByMode(opts ConnectionScanOptions) (*to
 	}
 
 	if opts.Subnet != "" {
+		// Profile-matched hosts in the subnet first: this covers devices that don't
+		// speak SNMP but are reachable via a profile (e.g. SSH-only OpenWrt boxes).
+		for _, ip := range EnumerateCIDR(opts.Subnet) {
+			if p, ok := ns.ResolveScanProfile(ip, ""); ok {
+				t := get(ip)
+				t.Profile = p.Name
+				if lbl := ipToLabel[ip]; lbl != "" {
+					t.DeviceLabel = lbl
+				}
+				applyProfile(t, p)
+			}
+		}
+		// SNMP sweep for everything else that responds.
 		res, err := s.NewSNMPScanner().Scan(s.ScanOptions{
 			Subnet:  opts.Subnet,
 			Timeout: timeout,
@@ -223,6 +237,37 @@ func (ns *NetService) DiscoverConnectionsByMode(opts ConnectionScanOptions) (*to
 		return &topology.ConnectionScanResult{}, nil
 	}
 	return ns.DiscoverConnections(targets, opts.Collector)
+}
+
+// EnumerateCIDR lists the host addresses in a CIDR (capped). A bare IP (no /) is
+// returned as a single-element list.
+func EnumerateCIDR(cidr string) []string {
+	if !strings.Contains(cidr, "/") {
+		return []string{strings.TrimSpace(cidr)}
+	}
+	_, ipnet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return nil
+	}
+	var ips []string
+	ip := make(net.IP, len(ipnet.IP))
+	copy(ip, ipnet.IP)
+	for ; ipnet.Contains(ip); incIP(ip) {
+		ips = append(ips, ip.String())
+		if len(ips) >= 4096 {
+			break
+		}
+	}
+	return ips
+}
+
+func incIP(ip net.IP) {
+	for j := len(ip) - 1; j >= 0; j-- {
+		ip[j]++
+		if ip[j] > 0 {
+			break
+		}
+	}
 }
 
 // usableIP strips a CIDR suffix and rejects IPs unusable as a scan target.
