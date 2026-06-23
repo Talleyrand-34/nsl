@@ -456,6 +456,187 @@ func printGatherSummary(result *topology.ConnectionScanResult) {
 			fmt.Printf("               via %s\n", strings.Join(edge.Provenance, ", "))
 		}
 	}
+
+	renderTopology(result)
+}
+
+// topoLink is one adjacency in the rendered topology.
+type topoLink struct {
+	peer, localPort, peerPort, tag string
+}
+
+// splitEndpoint splits a "device:port" label into device and port (port "" when
+// the label is device-level or an unknown(...) placeholder).
+func splitEndpoint(s string) (string, string) {
+	if strings.HasPrefix(s, "unknown(") {
+		return s, ""
+	}
+	if i := strings.LastIndexByte(s, ':'); i >= 0 {
+		return s[:i], s[i+1:]
+	}
+	return s, ""
+}
+
+// renderTopology prints the discovered edges (and intermediaries) as an ASCII
+// tree, rooted at a gateway-like node (one reached only via FDB).
+func renderTopology(result *topology.ConnectionScanResult) {
+	adj := map[string][]topoLink{}
+	hasLLDP := map[string]bool{}
+	degree := map[string]int{}
+	realEdge := map[string]bool{} // has at least one non-intermediary edge
+	add := func(a, ap, b, bp, tag string, lldp, intermediary bool) {
+		adj[a] = append(adj[a], topoLink{b, ap, bp, tag})
+		adj[b] = append(adj[b], topoLink{a, bp, ap, tag})
+		degree[a]++
+		degree[b]++
+		if lldp {
+			hasLLDP[a] = true
+			hasLLDP[b] = true
+		}
+		if !intermediary {
+			realEdge[a] = true
+			realEdge[b] = true
+		}
+	}
+
+	srcOf := func(provs []string) string {
+		seen := map[string]bool{}
+		var order []string
+		for _, p := range provs {
+			s := p
+			if i := strings.IndexByte(p, '@'); i >= 0 {
+				s = p[:i]
+			}
+			if !seen[s] {
+				seen[s] = true
+				order = append(order, s)
+			}
+		}
+		return strings.Join(order, "+")
+	}
+
+	for _, e := range result.Edges {
+		aDev, aPort := splitEndpoint(e.FromLabel)
+		bDev, bPort := splitEndpoint(e.ToLabel)
+		if aDev == "" || bDev == "" || aDev == bDev {
+			continue
+		}
+		mark := e.Confidence
+		if !e.RemoteResolved {
+			if strings.HasPrefix(e.ToLabel, "unknown(") {
+				mark = "unresolved"
+			} else {
+				mark = "possible"
+			}
+		}
+		src := srcOf(e.Provenance)
+		tag := mark
+		if src != "" {
+			tag = mark + " " + src
+		}
+		add(aDev, aPort, bDev, bPort, tag, strings.Contains(src, "lldp"), false)
+	}
+
+	// Attach intermediary-only devices (no edge of their own) behind the hub port.
+	for _, in := range result.Intermediaries {
+		hub, hubPort, best := "", "", -1
+		for _, sb := range in.SeenBy {
+			d, p := splitEndpoint(sb)
+			if degree[d] > best {
+				best, hub, hubPort = degree[d], d, p
+			}
+		}
+		if hub == "" {
+			continue
+		}
+		tag := "via " + in.Vendor + " switch " + in.MAC
+		for _, sb := range in.SeenBy {
+			d, _ := splitEndpoint(sb)
+			if d != hub && degree[d] == 0 {
+				add(hub, hubPort, d, "", tag, false, true)
+			}
+		}
+	}
+
+	if len(adj) == 0 {
+		return
+	}
+
+	// Root: a node reached only via FDB (gateway-like), most peripheral; else any.
+	var nodes []string
+	for n := range adj {
+		nodes = append(nodes, n)
+	}
+	sort.Strings(nodes)
+	root := nodes[0]
+	bestScore := 1 << 30
+	for _, n := range nodes {
+		if !realEdge[n] {
+			continue // intermediary-only leaf — never the root
+		}
+		score := degree[n]
+		if hasLLDP[n] {
+			score += 1000 // prefer non-LLDP (router/gateway) roots
+		}
+		if score < bestScore {
+			bestScore, root = score, n
+		}
+	}
+
+	// Build a spanning tree depth-first, visiting lower-degree neighbours first so
+	// a bridge (e.g. a switch) claims a hub before the hub is reached directly —
+	// turning a transitive triangle (A–C alongside A–B–C) into a clean chain.
+	children := map[string][]topoLink{}
+	visited := map[string]bool{root: true}
+	order := func(links []topoLink) {
+		sort.Slice(links, func(i, j int) bool {
+			if di, dj := degree[links[i].peer], degree[links[j].peer]; di != dj {
+				return di < dj
+			}
+			if links[i].localPort != links[j].localPort {
+				return links[i].localPort < links[j].localPort
+			}
+			return links[i].peer < links[j].peer
+		})
+	}
+	var build func(dev string)
+	build = func(dev string) {
+		links := append([]topoLink{}, adj[dev]...)
+		order(links)
+		for _, l := range links {
+			if visited[l.peer] {
+				continue
+			}
+			visited[l.peer] = true
+			children[dev] = append(children[dev], l)
+			build(l.peer)
+		}
+	}
+	build(root)
+
+	fmt.Println("\n=== Discovered topology ===")
+	fmt.Println(root)
+	var render func(dev, prefix string)
+	render = func(dev, prefix string) {
+		kids := children[dev]
+		for i, l := range kids {
+			branch, childPrefix := "├── ", prefix+"│   "
+			if i == len(kids)-1 {
+				branch, childPrefix = "└── ", prefix+"    "
+			}
+			lp := l.localPort
+			if lp == "" {
+				lp = "·"
+			}
+			peer := l.peer
+			if l.peerPort != "" {
+				peer += ":" + l.peerPort
+			}
+			fmt.Printf("%s%s%s ─[%s]─ %s\n", prefix, branch, lp, l.tag, peer)
+			render(l.peer, childPrefix)
+		}
+	}
+	render(root, "")
 }
 
 // reviewAndImport commits the resolved edges, interactively unless --yes/--dry-run.
