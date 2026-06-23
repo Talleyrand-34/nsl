@@ -244,11 +244,38 @@ func NewNetService(netRepository d.NetRepository) NetServiceInt {
 
 // --- Scan profiles ----------------------------------------------------------
 
+// normalizeProfileKind defaults Kind to "device" and enforces the invariants of
+// each kind: a generic profile is not bound to a host (it only carries SSH
+// credentials, used as a fallback) and must name an SSH user.
+func normalizeProfileKind(p *e.ScanProfile) error {
+	if p.Kind == "" {
+		p.Kind = "device"
+	}
+	switch p.Kind {
+	case "device":
+		return nil
+	case "generic":
+		p.Host = "" // generic profiles are not IP-bound
+		if p.SSHUser == "" {
+			return fmt.Errorf("a generic profile requires an SSH user")
+		}
+		return nil
+	default:
+		return fmt.Errorf("invalid profile kind %q (want \"device\" or \"generic\")", p.Kind)
+	}
+}
+
 func (ns *NetService) AddScanProfile(p e.ScanProfile) error {
+	if err := normalizeProfileKind(&p); err != nil {
+		return err
+	}
 	return ns.netRepo.AddScanProfile(p)
 }
 
 func (ns *NetService) UpdateScanProfile(p e.ScanProfile) error {
+	if err := normalizeProfileKind(&p); err != nil {
+		return err
+	}
 	return ns.netRepo.UpdateScanProfile(p)
 }
 
@@ -295,6 +322,9 @@ func (ns *NetService) ResolveScanProfile(target, name string) (*e.ScanProfile, b
 	p, err := ns.netRepo.GetScanProfileByHost(target)
 	if err != nil || p == nil {
 		return nil, false
+	}
+	if p.Kind == "generic" {
+		return nil, false // generic profiles are never auto-matched by host
 	}
 	return p, true
 }
