@@ -886,8 +886,12 @@ func mapOpenWrtTarget(target string) string {
 }
 
 func extractHostname(config *UCIConfig) string {
-	if system, exists := config.Sections["system"]["system"]; exists {
-		return system.Options["hostname"]
+	// `uci show system` puts the hostname on an anonymous section
+	// (system.@system[0].hostname), so scan every section in the system package.
+	for _, sec := range config.Sections["system"] {
+		if h := sec.Options["hostname"]; h != "" {
+			return h
+		}
 	}
 	return ""
 }
