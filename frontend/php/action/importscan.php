@@ -79,6 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_create_profile']))
         }
         $payload = json_encode([
             'name'           => $name,
+            'kind'           => ($_POST['cp_kind'] ?? 'device') === 'generic' ? 'generic' : 'device',
             'host'           => trim($_POST['cp_host'] ?? ''),
             'snmp_community' => trim($_POST['cp_community'] ?? 'public'),
             'snmp_version'   => trim($_POST['cp_version'] ?? '2c'),
@@ -261,10 +262,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_upload'])) {
 </form>
 <?php if (!empty($profiles)): ?>
     <table border="1" cellpadding="3" cellspacing="0" style="margin-top:6px;">
-        <tr><th>Name</th><th>Host</th><th>Community</th><th>Ver</th><th>SSH pw</th><th>SSH key</th><th></th></tr>
+        <tr><th>Name</th><th>Kind</th><th>Host</th><th>Community</th><th>Ver</th><th>SSH pw</th><th>SSH key</th><th></th></tr>
         <?php foreach ($profiles as $p): ?>
             <tr>
                 <td><?= htmlspecialchars($p['name'] ?? '') ?></td>
+                <td><?= htmlspecialchars(($p['kind'] ?? '') !== '' ? $p['kind'] : 'device') ?></td>
                 <td><?= htmlspecialchars($p['host'] ?? '') ?></td>
                 <td><?= htmlspecialchars($p['snmp_community'] ?? '') ?></td>
                 <td><?= htmlspecialchars($p['snmp_version'] ?? '') ?></td>
@@ -332,6 +334,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_upload'])) {
         <h3>Create profile</h3>
         <form method="post" action="import.php" enctype="multipart/form-data">
             <label>Name: <input type="text" name="cp_name" required></label><br>
+            <label>Kind:
+                <select name="cp_kind" id="cp_kind" onchange="cpKindToggle()">
+                    <option value="device">device (bound to a host, SNMP/SSH)</option>
+                    <option value="generic">generic (reusable SSH credentials, no host)</option>
+                </select>
+            </label><br>
+            <div id="cp_device_fields">
             <label>Host / subnet: <input type="text" name="cp_host" placeholder="10.0.0.1"></label><br>
             <label>SNMP community: <input type="text" name="cp_community" value="public"></label>
             <label>Version:
@@ -344,7 +353,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_upload'])) {
             <label>Device type:
                 <input type="text" name="cp_device_type" placeholder="opnsense / openwrt / fortinet / cisco" size="20">
             </label><br>
-            <p style="margin:6px 0; color:#555;"><em>SSH credentials (optional — password and/or key):</em></p>
+            </div>
+            <p style="margin:6px 0; color:#555;"><em>SSH credentials (<span id="cp_ssh_hint">optional — password and/or key</span>):</em></p>
             <label>SSH user: <input type="text" name="cp_ssh_user"></label><br>
             <label>SSH password: <input type="password" name="cp_ssh_password"></label><br>
             <label>SSH private key file: <input type="file" name="cp_ssh_key_file"></label><br>
@@ -352,6 +362,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_upload'])) {
             <button type="submit" name="do_create_profile" value="1" style="margin-top:8px;">Create profile</button>
         </form>
         <p style="color:#777; font-size:0.85em;">The SSH password and uploaded private key are stored encrypted (AES-256-GCM); the passphrase is required again to use them in an SSH scan.</p>
+        <script>
+        function cpKindToggle() {
+            var generic = document.getElementById('cp_kind').value === 'generic';
+            document.getElementById('cp_device_fields').style.display = generic ? 'none' : '';
+            document.getElementById('cp_ssh_hint').textContent = generic
+                ? 'required for generic profiles — set an SSH user and a password and/or key'
+                : 'optional — password and/or key';
+        }
+        cpKindToggle();
+        </script>
     </div>
 </div>
 

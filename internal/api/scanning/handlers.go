@@ -385,6 +385,7 @@ func ImportScanFileHandler(service q.NetServiceInt) http.HandlerFunc {
 // neither is ever stored or returned.
 type scanProfileRequest struct {
 	Name              string `json:"name"`
+	Kind              string `json:"kind"` // "device" (default) or "generic"
 	Host              string `json:"host"`
 	SNMPCommunity     string `json:"snmp_community"`
 	SNMPVersion       string `json:"snmp_version"`
@@ -409,6 +410,7 @@ type scanProfileRequest struct {
 func (req scanProfileRequest) toEntity() (e.ScanProfile, error) {
 	p := e.ScanProfile{
 		Name:              req.Name,
+		Kind:              req.Kind,
 		Host:              req.Host,
 		SNMPCommunity:     req.SNMPCommunity,
 		SNMPVersion:       req.SNMPVersion,

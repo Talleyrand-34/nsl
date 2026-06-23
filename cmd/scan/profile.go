@@ -48,6 +48,7 @@ var (
 	profMergeConfigs  bool
 	profConfigTimeout int
 	profVLANAccuracy  int
+	profGeneric       bool
 )
 
 var profileCmd = &cobra.Command{
@@ -80,15 +81,19 @@ var profileListCmd = &cobra.Command{
 			fmt.Println("No scan profiles.")
 			return
 		}
-		fmt.Printf("%-16s %-18s %-10s %-6s %-6s %-10s %s\n",
-			"NAME", "HOST", "COMMUNITY", "VER", "PORT", "SSH-USER", "SSH-PASS")
+		fmt.Printf("%-16s %-8s %-18s %-10s %-6s %-6s %-10s %s\n",
+			"NAME", "KIND", "HOST", "COMMUNITY", "VER", "PORT", "SSH-USER", "SSH-PASS")
 		for _, p := range profiles {
 			pass := "no"
 			if p.HasSSHPassword {
 				pass = "yes (enc)"
 			}
-			fmt.Printf("%-16s %-18s %-10s %-6s %-6d %-10s %s\n",
-				p.Name, p.Host, p.SNMPCommunity, p.SNMPVersion, p.SNMPPort, p.SSHUser, pass)
+			kind := p.Kind
+			if kind == "" {
+				kind = "device"
+			}
+			fmt.Printf("%-16s %-8s %-18s %-10s %-6s %-6d %-10s %s\n",
+				p.Name, kind, p.Host, p.SNMPCommunity, p.SNMPVersion, p.SNMPPort, p.SSHUser, pass)
 		}
 	},
 }
@@ -116,7 +121,12 @@ var profileShowCmd = &cobra.Command{
 		if p.SSHPassword != "" {
 			pass = "set (encrypted)"
 		}
+		kind := p.Kind
+		if kind == "" {
+			kind = "device"
+		}
 		fmt.Printf("Name:               %s\n", p.Name)
+		fmt.Printf("Kind:               %s\n", kind)
 		fmt.Printf("Host:               %s\n", p.Host)
 		fmt.Printf("SNMP community:     %s\n", p.SNMPCommunity)
 		fmt.Printf("SNMP version:       %s\n", p.SNMPVersion)
@@ -142,6 +152,12 @@ var profileAddCmd = &cobra.Command{
 	Short: "Create a scan profile",
 	Long: `Create a scan profile storing the connection/scan parameters for a host.
 
+A "device" profile (the default) is bound to a host (--host) and auto-applied
+when that host is scanned. A "generic" profile (--generic) is not bound to a
+host: it carries only reusable SSH credentials (--ssh-user plus a key/password)
+and is used as an explicit SSH fallback for hosts without their own profile
+(e.g. 'scan connections --subnet ... --generic-profile <name>').
+
 If --ssh-password is given, you are prompted for a passphrase that encrypts it;
 the passphrase is required again whenever an SSH scan uses this profile.`,
 	Args: cobra.ExactArgs(1),
@@ -152,8 +168,13 @@ the passphrase is required again whenever an SSH scan uses this profile.`,
 			os.Exit(1)
 		}
 
+		kind := "device"
+		if profGeneric {
+			kind = "generic"
+		}
 		p := e.ScanProfile{
 			Name:              args[0],
+			Kind:              kind,
 			Host:              profHost,
 			SNMPCommunity:     profCommunity,
 			SNMPVersion:       profSNMPVersion,
@@ -190,7 +211,11 @@ the passphrase is required again whenever an SSH scan uses this profile.`,
 			fmt.Printf("Error: %v\n", err)
 			os.Exit(1)
 		}
-		fmt.Printf("Saved scan profile %q (host %s).\n", p.Name, p.Host)
+		if kind == "generic" {
+			fmt.Printf("Saved generic scan profile %q (SSH user %s).\n", p.Name, p.SSHUser)
+		} else {
+			fmt.Printf("Saved scan profile %q (host %s).\n", p.Name, p.Host)
+		}
 	},
 }
 
@@ -247,7 +272,8 @@ func init() {
 	profileCmd.AddCommand(profileDeleteCmd)
 
 	f := profileAddCmd.Flags()
-	f.StringVar(&profHost, "host", "", "Host IP / subnet / SSH alias the profile applies to")
+	f.BoolVar(&profGeneric, "generic", false, "Create a generic profile: reusable SSH credentials not bound to a host (requires --ssh-user; --host and SNMP fields are ignored)")
+	f.StringVar(&profHost, "host", "", "Host IP / subnet / SSH alias the profile applies to (device profiles only)")
 	f.StringVar(&profCommunity, "snmp-community", "public", "SNMP community string")
 	f.StringVar(&profSNMPVersion, "snmp-version", "v2c", "SNMP version (v1, v2c)")
 	f.IntVar(&profSNMPPort, "snmp-port", 161, "SNMP UDP port")
