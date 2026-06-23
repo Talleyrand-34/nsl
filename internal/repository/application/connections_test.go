@@ -158,6 +158,34 @@ func TestCorrelate_AgnosticEdgesNoDB(t *testing.T) {
 	}
 }
 
+func TestEnumerateCIDR_Multi(t *testing.T) {
+	// Two /30s (all 4 addresses each, network+broadcast included) plus a bare IP.
+	got := enumerateCIDR("10.0.0.0/30, 10.0.1.0/30, 10.0.2.5")
+	want := []string{
+		"10.0.0.0", "10.0.0.1", "10.0.0.2", "10.0.0.3",
+		"10.0.1.0", "10.0.1.1", "10.0.1.2", "10.0.1.3",
+		"10.0.2.5",
+	}
+	if len(got) != len(want) {
+		t.Fatalf("enumerateCIDR multi = %v (len %d), want len %d", got, len(got), len(want))
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("enumerateCIDR multi = %v, want %v", got, want)
+		}
+	}
+
+	// Overlapping ranges must not produce duplicates.
+	dup := enumerateCIDR("10.0.0.0/30,10.0.0.0/29")
+	seen := map[string]bool{}
+	for _, ip := range dup {
+		if seen[ip] {
+			t.Fatalf("duplicate address %s in %v", ip, dup)
+		}
+		seen[ip] = true
+	}
+}
+
 func TestProfileSSHCreds_GenericFallback(t *testing.T) {
 	// No SSH user -> no usable credentials.
 	if c := profileSSHCreds(&e.ScanProfile{Kind: "generic"}, ""); c != nil {

@@ -825,6 +825,20 @@ func ValidateSubnetHandler() http.HandlerFunc {
 }
 
 func validateSubnetFormat(subnet string) bool {
+	// Accept one or more comma/space-separated CIDRs or IPs; all must be valid.
+	tokens := s.SplitSubnets(subnet)
+	if len(tokens) == 0 {
+		return false
+	}
+	for _, tok := range tokens {
+		if !validateSingleSubnet(tok) {
+			return false
+		}
+	}
+	return true
+}
+
+func validateSingleSubnet(subnet string) bool {
 	subnet = strings.TrimSpace(subnet)
 
 	if strings.Contains(subnet, "/") {

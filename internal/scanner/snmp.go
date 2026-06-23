@@ -647,20 +647,74 @@ func NetmaskToCIDR(ip, netmask string) string {
 	return network.String()
 }
 
+// SplitSubnets splits a subnet spec into its individual CIDRs / IPs. Several
+// entries may be given separated by commas and/or whitespace (e.g.
+// "10.0.0.0/24, 10.0.1.0/24"). Blanks are dropped and duplicates removed while
+// preserving order.
+func SplitSubnets(spec string) []string {
+	fields := strings.FieldsFunc(spec, func(r rune) bool {
+		return r == ',' || r == ' ' || r == '\t' || r == '\n' || r == '\r'
+	})
+	seen := map[string]bool{}
+	out := make([]string, 0, len(fields))
+	for _, f := range fields {
+		if f == "" || seen[f] {
+			continue
+		}
+		seen[f] = true
+		out = append(out, f)
+	}
+	return out
+}
+
+// enumerateSubnet expands a subnet spec (one or more comma/space-separated CIDRs
+// or bare IPs) into the de-duplicated list of host addresses to probe.
 func enumerateSubnet(subnet string) ([]string, error) {
-	ip, ipNet, err := net.ParseCIDR(subnet)
-	if err != nil {
-		return nil, err
+	tokens := SplitSubnets(subnet)
+	if len(tokens) == 0 {
+		return nil, fmt.Errorf("no subnet specified")
 	}
 
+	seen := map[string]bool{}
 	var ips []string
-	for cur := ip.Mask(ipNet.Mask); ipNet.Contains(cur); incIP(cur) {
-		ips = append(ips, cur.String())
+	add := func(ip string) {
+		if !seen[ip] {
+			seen[ip] = true
+			ips = append(ips, ip)
+		}
 	}
-	// Remove network and broadcast addresses for IPv4 /prefix <= 30
-	ones, bits := ipNet.Mask.Size()
-	if bits == 32 && ones <= 30 && len(ips) >= 2 {
-		ips = ips[1 : len(ips)-1]
+
+	var firstErr error
+	for _, tok := range tokens {
+		ip, ipNet, err := net.ParseCIDR(tok)
+		if err != nil {
+			// Not a CIDR: accept a bare IP as a single host, else remember the error.
+			if net.ParseIP(tok) != nil {
+				add(tok)
+			} else if firstErr == nil {
+				firstErr = err
+			}
+			continue
+		}
+		var cidrIPs []string
+		for cur := ip.Mask(ipNet.Mask); ipNet.Contains(cur); incIP(cur) {
+			cidrIPs = append(cidrIPs, cur.String())
+		}
+		// Remove network and broadcast addresses for IPv4 /prefix <= 30.
+		ones, bits := ipNet.Mask.Size()
+		if bits == 32 && ones <= 30 && len(cidrIPs) >= 2 {
+			cidrIPs = cidrIPs[1 : len(cidrIPs)-1]
+		}
+		for _, c := range cidrIPs {
+			add(c)
+		}
+	}
+
+	if len(ips) == 0 {
+		if firstErr != nil {
+			return nil, firstErr
+		}
+		return nil, fmt.Errorf("no usable addresses in %q", subnet)
 	}
 	return ips, nil
 }

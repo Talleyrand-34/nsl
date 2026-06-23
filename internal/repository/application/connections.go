@@ -402,23 +402,34 @@ func tcpOpen(ip string, port int, timeout time.Duration) bool {
 	return true
 }
 
-// enumerateCIDR lists the host addresses in a CIDR (capped). A bare IP (no /) is
-// returned as a single-element list.
+// enumerateCIDR lists the host addresses across one or more comma/space-separated
+// CIDRs (capped, de-duplicated). A bare IP (no /) contributes itself.
 func enumerateCIDR(cidr string) []string {
-	if !strings.Contains(cidr, "/") {
-		return []string{strings.TrimSpace(cidr)}
-	}
-	_, ipnet, err := net.ParseCIDR(cidr)
-	if err != nil {
-		return nil
-	}
+	const max = 4096
 	var ips []string
-	ip := make(net.IP, len(ipnet.IP))
-	copy(ip, ipnet.IP)
-	for ; ipnet.Contains(ip); incIP(ip) {
-		ips = append(ips, ip.String())
-		if len(ips) >= 4096 {
+	seen := map[string]bool{}
+	add := func(ip string) {
+		if ip != "" && !seen[ip] {
+			seen[ip] = true
+			ips = append(ips, ip)
+		}
+	}
+	for _, tok := range s.SplitSubnets(cidr) {
+		if len(ips) >= max {
 			break
+		}
+		if !strings.Contains(tok, "/") {
+			add(tok)
+			continue
+		}
+		_, ipnet, err := net.ParseCIDR(tok)
+		if err != nil {
+			continue
+		}
+		ip := make(net.IP, len(ipnet.IP))
+		copy(ip, ipnet.IP)
+		for ; ipnet.Contains(ip) && len(ips) < max; incIP(ip) {
+			add(ip.String())
 		}
 	}
 	return ips
