@@ -450,6 +450,10 @@ func (p *OpenWrtParser) parseNetworkInterfaces(config *UCIConfig, switchPorts []
 	}
 
 	physicalDevs := make(map[string]bool)
+	// eth0Referenced records that eth0 is used as an uplink/bridge member. On DSA
+	// devices eth0 is the CPU/conduit port (excluded), but on single-port devices
+	// (e.g. APs) eth0 is the only real port — emitted below when no other ethN exists.
+	eth0Referenced := false
 	// Track VLANs declared on bridge devices so they can be propagated to logical interfaces
 	bridgeVLANs := make(map[string][]configparser.ConfigVLAN)
 
@@ -503,7 +507,7 @@ func (p *OpenWrtParser) parseNetworkInterfaces(config *UCIConfig, switchPorts []
 		// For bridge device sections, extract physical members from "ports" (e.g., "eth0.2")
 		// eth0.2 → base=eth0 (physical parent), vlanID=2 (VLAN membership on bridge side)
 		if section.Type == "device" && configIface.Type == "bridge" {
-			for _, port := range strings.Fields(section.Options["ports"]) {
+			for _, port := range unquotedFields(section.Options["ports"]) {
 				parts := strings.SplitN(port, ".", 2)
 				base := parts[0]
 
@@ -556,6 +560,9 @@ func (p *OpenWrtParser) parseNetworkInterfaces(config *UCIConfig, switchPorts []
 					continue
 				}
 
+				if base == "eth0" {
+					eth0Referenced = true
+				}
 				if base == "" || base == "eth0" {
 					continue
 				}
@@ -582,8 +589,8 @@ func (p *OpenWrtParser) parseNetworkInterfaces(config *UCIConfig, switchPorts []
 		if ifname == "" {
 			ifname = section.Options["device"]
 		}
-		if ifname != "" {
-			firstDev := strings.Fields(ifname)[0]
+		if devs := unquotedFields(ifname); len(devs) > 0 {
+			firstDev := devs[0]
 			if strings.Contains(firstDev, ".") {
 				// VLAN sub-interface: eth0.10
 				parts := strings.Split(firstDev, ".")
@@ -593,9 +600,12 @@ func (p *OpenWrtParser) parseNetworkInterfaces(config *UCIConfig, switchPorts []
 				configIface.Parent = firstDev
 			}
 			// Track the physical device name for later
-			physRoot := strings.Fields(ifname)[0]
+			physRoot := firstDev
 			if strings.Contains(physRoot, ".") {
 				physRoot = strings.Split(physRoot, ".")[0]
+			}
+			if physRoot == "eth0" {
+				eth0Referenced = true
 			}
 			if physRoot != "" && physRoot != "lo" && physRoot != "eth0" {
 				physicalDevs[physRoot] = true
@@ -639,6 +649,37 @@ func (p *OpenWrtParser) parseNetworkInterfaces(config *UCIConfig, switchPorts []
 			Enabled: true,
 			Type:    determineDeviceType(devName),
 		})
+	}
+
+	// On a single-port device eth0 is the real uplink, not a CPU port. When it is
+	// referenced and there is no other ethN user port, make it a physical port
+	// (converting the eth0 interface emitted as a VLAN parent, or adding one) so
+	// it becomes a DevicePort that LLDP adjacencies can resolve against.
+	if eth0Referenced {
+		hasUserEth := false
+		for _, iface := range interfaces {
+			if len(iface.Name) > 3 && strings.HasPrefix(iface.Name, "eth") && iface.Name != "eth0" &&
+				!strings.Contains(iface.Name, ".") {
+				hasUserEth = true
+			}
+		}
+		if !hasUserEth {
+			converted := false
+			for i := range interfaces {
+				if interfaces[i].Name == "eth0" {
+					interfaces[i].Type = "physical"
+					converted = true
+					break
+				}
+			}
+			if !converted {
+				interfaces = append(interfaces, configparser.ConfigInterface{
+					Name:    "eth0",
+					Enabled: true,
+					Type:    "physical",
+				})
+			}
+		}
 	}
 
 	// Add physical switch ports from board.json (lan1, lan2, lan3, wan0, etc.)
