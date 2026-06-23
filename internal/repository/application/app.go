@@ -29,6 +29,7 @@ import (
 	d "nsl-graph/internal/repository/domain"
 	e "nsl-graph/internal/repository/entities"
 	s "nsl-graph/internal/scanner"
+	"nsl-graph/internal/topology"
 )
 
 type NetService struct {
@@ -152,8 +153,15 @@ type NetServiceInt interface {
 	AddConnection(
 		fromDeviceportID string,
 		toDeviceportID string,
+		discoveredVia ...string,
 	) error
 	GetConnections() ([]e.Connection, error)
+
+	// DiscoverConnections collects multi-source L2/L1 evidence from the given
+	// targets and correlates it into connection edges; ImportConnectionEdges
+	// persists the resolved edges (with provenance).
+	DiscoverConnections(targets []topology.Target, only string) (*topology.ConnectionScanResult, error)
+	ImportConnectionEdges(edges []topology.ConnectionEdge) (int, error)
 	UpdateConnection(
 		connectionId string,
 		newFromDeviceportID string,
@@ -472,8 +480,9 @@ func (ns *NetService) GetConnections() ([]e.Connection, error) {
 func (ns *NetService) AddConnection(
 	fromDeviceportID string,
 	toDeviceportID string,
+	discoveredVia ...string,
 ) error {
-	return ns.netRepo.AddConnection(fromDeviceportID, toDeviceportID)
+	return ns.netRepo.AddConnection(fromDeviceportID, toDeviceportID, discoveredVia...)
 }
 
 func (ns *NetService) GetAllPortsAll() ([]e.DevicePort, error) {

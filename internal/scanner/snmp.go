@@ -46,6 +46,10 @@ const (
 	oidCDPCacheDeviceID   = "1.3.6.1.4.1.9.9.23.1.2.1.1.6"
 	oidCDPCacheDevicePort = "1.3.6.1.4.1.9.9.23.1.2.1.1.7"
 	oidCDPCacheAddress    = "1.3.6.1.4.1.9.9.23.1.2.1.1.4"
+
+	// Bridge forwarding database (MAC address tables)
+	oidDot1qTpFdbPort = "1.3.6.1.2.1.17.7.1.2.2.1.2" // VLAN-aware FDB: index = fdbId.MAC, value = bridge port
+	oidDot1dTpFdbPort = "1.3.6.1.2.1.17.4.3.1.2"     // classic FDB: index = MAC, value = bridge port
 )
 
 // SNMPScanner queries devices via SNMP to collect deterministic inventory.
@@ -127,7 +131,121 @@ func (ss *SNMPScanner) ScanDevice(ip string, options ScanOptions) (*SNMPDevice, 
 	}
 	device.Neighbors = neighbors
 
+	device.BridgeFDB = ss.queryFDB(client, ifaces)
+
 	return device, nil
+}
+
+// queryFDB walks the bridge forwarding database (MAC address table) and maps
+// each learned MAC to the local bridge port (ifDescr) it was seen on. It tries
+// the VLAN-aware dot1q table first and falls back to the classic dot1d table.
+func (ss *SNMPScanner) queryFDB(client *gosnmp.GoSNMP, ifaces []DeviceInterface) []FDBEntry {
+	// bridge port number → ifIndex → interface name
+	bridgePortToIfIndex := make(map[int]int)
+	_ = client.BulkWalk(oidDot1dBasePortIfIndex, func(pdu gosnmp.SnmpPDU) error {
+		bp := lastOIDInt(pdu.Name)
+		if bp > 0 {
+			if v, ok := pdu.Value.(int); ok {
+				bridgePortToIfIndex[bp] = v
+			}
+		}
+		return nil
+	})
+	ifIndexToName := make(map[int]string)
+	for _, f := range ifaces {
+		ifIndexToName[f.Index] = f.Name
+	}
+	portName := func(bp int) string {
+		if ifx, ok := bridgePortToIfIndex[bp]; ok {
+			if n := ifIndexToName[ifx]; n != "" {
+				return n
+			}
+		}
+		return fmt.Sprintf("port%d", bp)
+	}
+
+	var entries []FDBEntry
+	seen := make(map[string]bool)
+	add := func(mac, vlan string, bp int) {
+		if mac == "" || bp <= 0 {
+			return
+		}
+		key := vlan + "|" + mac
+		if seen[key] {
+			return
+		}
+		seen[key] = true
+		entries = append(entries, FDBEntry{MAC: mac, VLAN: vlan, Port: portName(bp), IfIndex: bridgePortToIfIndex[bp]})
+	}
+
+	// VLAN-aware table: suffix is "fdbId.<6 MAC octets>"
+	_ = client.BulkWalk(oidDot1qTpFdbPort, func(pdu gosnmp.SnmpPDU) error {
+		toks := strings.Split(oidSuffix(pdu.Name, oidDot1qTpFdbPort), ".")
+		if len(toks) >= 7 {
+			vlan := toks[0]
+			add(macFromOIDTokens(toks[len(toks)-6:]), vlan, toIntValue(pdu.Value))
+		}
+		return nil
+	})
+	// Classic table: suffix is "<6 MAC octets>"
+	_ = client.BulkWalk(oidDot1dTpFdbPort, func(pdu gosnmp.SnmpPDU) error {
+		toks := strings.Split(oidSuffix(pdu.Name, oidDot1dTpFdbPort), ".")
+		if len(toks) >= 6 {
+			add(macFromOIDTokens(toks[len(toks)-6:]), "", toIntValue(pdu.Value))
+		}
+		return nil
+	})
+
+	return entries
+}
+
+// macFromOIDTokens formats six decimal OID tokens as a colon MAC address.
+func macFromOIDTokens(toks []string) string {
+	if len(toks) != 6 {
+		return ""
+	}
+	octs := make([]int, 6)
+	for i, t := range toks {
+		var v int
+		if _, err := fmt.Sscanf(t, "%d", &v); err != nil || v < 0 || v > 255 {
+			return ""
+		}
+		octs[i] = v
+	}
+	return fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x", octs[0], octs[1], octs[2], octs[3], octs[4], octs[5])
+}
+
+// toIntValue coerces a gosnmp PDU value into an int (bridge port numbers).
+func toIntValue(v interface{}) int {
+	switch n := v.(type) {
+	case int:
+		return n
+	case uint:
+		return int(n)
+	case int64:
+		return int(n)
+	case uint64:
+		return int(n)
+	case uint32:
+		return int(n)
+	}
+	return 0
+}
+
+// Probe is a cheap reachability check: a single SNMP Get of sysName. It is used
+// to pick which of a multi-homed device's IPs actually answers SNMP.
+func (ss *SNMPScanner) Probe(ip string, options ScanOptions) bool {
+	client := ss.newClient(ip, options)
+	if err := client.Connect(); err != nil {
+		return false
+	}
+	defer client.Conn.Close()
+	res, err := client.Get([]string{oidSysName})
+	if err != nil || res == nil || len(res.Variables) == 0 {
+		return false
+	}
+	t := res.Variables[0].Type
+	return t != gosnmp.NoSuchObject && t != gosnmp.NoSuchInstance && t != gosnmp.Null
 }
 
 // newClient creates a configured gosnmp client.

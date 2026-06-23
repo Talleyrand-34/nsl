@@ -203,6 +203,15 @@ type DirectNeighbor struct {
 	Protocol   string `json:"protocol"` // "lldp" or "cdp"
 }
 
+// FDBEntry is one learned MAC in a bridge forwarding database: the MAC was seen
+// on the local bridge port Port (an ifDescr), optionally on VLAN.
+type FDBEntry struct {
+	MAC     string `json:"mac"`
+	Port    string `json:"port"` // local interface name (ifDescr) the MAC was learned on
+	IfIndex int    `json:"if_index,omitempty"`
+	VLAN    string `json:"vlan,omitempty"`
+}
+
 // SNMPDevice is the complete result of querying one device via SNMP.
 type SNMPDevice struct {
 	IP          string             `json:"ip"`
@@ -215,6 +224,7 @@ type SNMPDevice struct {
 	Interfaces  []DeviceInterface  `json:"interfaces"`
 	Neighbors   []DirectNeighbor   `json:"neighbors"`
 	SwitchPorts []PhysicalPortInfo `json:"switch_ports,omitempty"` // Physical switch ports (OpenWrt)
+	BridgeFDB   []FDBEntry         `json:"bridge_fdb,omitempty"`   // learned MAC→port table (managed switches)
 }
 
 // ScanResult aggregates all devices discovered in a scan.

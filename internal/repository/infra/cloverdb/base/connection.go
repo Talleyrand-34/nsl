@@ -38,6 +38,15 @@ func (r BasicOpsCloverRepository) GetConnections() ([]e.Connection, error) {
 			ID: doc.ObjectId(),
 		}
 
+		// Provenance of an auto-discovered link, if any.
+		if raw, ok := doc.Get("discovered_via").([]interface{}); ok {
+			for _, v := range raw {
+				if s, ok := v.(string); ok {
+					connection.DiscoveredVia = append(connection.DiscoveredVia, s)
+				}
+			}
+		}
+
 		// Get from deviceport info
 		if fromDeviceportID, ok := doc.Get("from_deviceport_id").(string); ok && fromDeviceportID != "" {
 			deviceportDoc, err := r.db.FindById(deviceportsCollection, fromDeviceportID)
@@ -106,10 +115,12 @@ func (r BasicOpsCloverRepository) GetConnections() ([]e.Connection, error) {
 	return result, nil
 }
 
-// AddConnection creates a new connection between two device ports
+// AddConnection creates a new connection between two device ports. Optional
+// discoveredVia strings record the provenance of an auto-discovered link.
 func (r BasicOpsCloverRepository) AddConnection(
 	fromDeviceportID string,
 	toDeviceportID string,
+	discoveredVia ...string,
 ) error {
 	fromQuery := q.NewQuery(connectionsCollection).Where(
 		q.Field("from_deviceport_id").Eq(fromDeviceportID),
@@ -139,6 +150,9 @@ func (r BasicOpsCloverRepository) AddConnection(
 	doc := d.NewDocument()
 	doc.Set("from_deviceport_id", fromDeviceportID)
 	doc.Set("to_deviceport_id", toDeviceportID)
+	if len(discoveredVia) > 0 {
+		doc.Set("discovered_via", discoveredVia)
+	}
 
 	if _, err := r.db.InsertOne(connectionsCollection, doc); err != nil {
 		return fmt.Errorf("failed to create connection: %v", err)

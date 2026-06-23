@@ -138,6 +138,27 @@ passphrase is asked when you save the password and again whenever an SSH scan
 uses it; a wrong passphrase fails. SNMP-only profiles need no passphrase. The web
 UI (Import page) and the API (`/scan/profiles`) manage SNMP profiles too.
 
+### Connection Discovery (`scan connections`)
+
+Discover the physical/L2 links between hosts and import them as connections.
+Every target is scanned with **all available sources** — LLDP (via SNMP or SSH),
+CDP, and bridge MAC tables — and the evidence is merged, correlated into edges
+(labelled `confirmed`/`candidate`/`weak`), reviewed for discrepancies, then
+committed with provenance (`discovered_via`).
+
+```bash
+# Discover links among all DB devices that have an IP + scan profile
+nsl-graph scan connections --from-db
+
+# Sweep a subnet, or use one source only, or just preview
+nsl-graph scan connections --subnet 10.0.0.0/24
+nsl-graph scan connections --collector ssh-lldp --dry-run
+```
+
+> The tool only **collects** — it never configures the targets. `lldpd`/SNMP must
+> already be enabled on each host (set up separately over SSH). See the
+> [CLI reference](docs/cli-reference.md#scan-connections) for all flags.
+
 ### HTTP API
 
 The API exposes RESTful endpoints for all operations:

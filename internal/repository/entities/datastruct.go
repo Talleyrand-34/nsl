@@ -127,8 +127,9 @@ type Connection struct {
 	ToModelPort   string               `json:"tomodel"`  // Name of the port on the model
 	ToZoneName    string               `json:"tozonename"`
 	ToZoneID      string               `json:"tozoneid"`
-	Vlans         []ConnectionVlanInfo `json:"vlans,omitempty"`         // Intersection: VLANs present on BOTH ports
-	MissingVlans  []ConnectionVlanInfo `json:"missing_vlans,omitempty"` // Symmetric difference: VLANs on ONLY ONE port (not both)
+	Vlans         []ConnectionVlanInfo `json:"vlans,omitempty"`          // Intersection: VLANs present on BOTH ports
+	MissingVlans  []ConnectionVlanInfo `json:"missing_vlans,omitempty"`  // Symmetric difference: VLANs on ONLY ONE port (not both)
+	DiscoveredVia []string             `json:"discovered_via,omitempty"` // provenance: sources that observed this link (e.g. "ssh-lldp@opnsense:igc1")
 }
 
 type Vlan struct {

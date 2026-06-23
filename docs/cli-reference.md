@@ -347,6 +347,61 @@ nsl-graph scan host <ip> --save-profile <name>   # persist the effective paramet
 Explicit flags always override profile values. When an SSH scan uses a stored
 password you are prompted for its passphrase; a wrong passphrase fails.
 
+#### scan connections
+
+Discover layer-2/1 links between hosts and import them as connections. Every
+selected host is scanned with **all available sources** (LLDP via SNMP or SSH,
+CDP, and bridge MAC tables); the evidence is merged, correlated into edges, and —
+after you review any discrepancies — committed to the DB. The full per-host
+gather is also emitted as JSON.
+
+```bash
+nsl-graph scan connections [--from-db] [--subnet <cidr>] [--profiles] \
+                           [--collector <name>] [--yes|--dry-run] [--output <file>]
+```
+
+**Targets** (combine freely; default is `--from-db`):
+
+| Flag | Description |
+|------|-------------|
+| `--from-db` | Every device with a management IP and a resolvable scan profile. |
+| `--subnet <cidr>` | SNMP-sweep the CIDR, then collect from each responder. |
+| `--profiles` | The host of every saved scan profile. |
+| `--local` | Also collect LLDP from the machine running the tool (default `true`); set `--local-device <label>` so it maps to that device's ports. |
+
+**Sources:** by default all available sources per host are used and merged.
+`--collector <name>` restricts to exactly one of `snmp-lldp`, `snmp-cdp`,
+`snmp-fdb`, `ssh-lldp`, `ssh-fdb`, `local-lldp` (no merge/review). (Note:
+`-s`/`--source` is the global database-path flag.)
+
+**Intermediary ("middle") devices:** transparent switches that don't speak
+LLDP/SNMP (e.g. a Netgear "Plus" switch) won't appear as endpoints, but the
+`ssh-fdb`/`snmp-fdb` sources read the bridge forwarding tables, and the tool
+flags any globally-administered, known-vendor MAC learned by **two or more**
+hosts (and not itself an LLDP endpoint or a scanned device) as an
+**intermediary device detected in the middle** — reported in the output (and
+the `intermediaries` array of the JSON gather), not imported.
+
+**Review & commit:** edges are labelled by confidence — `confirmed` (seen from
+both ends), `candidate` (one direct observation), `weak` (FDB-only). Without
+`--yes` you confirm each edge interactively; `--yes` commits confirmed/candidate
+edges non-interactively; `--dry-run` writes nothing. Imported connections record
+their **provenance** (`discovered_via`). An observed neighbour that is not in the
+DB (e.g. an unmanaged switch) is reported as a discrepancy and never imported.
+
+> **Prerequisite:** the tool only *collects* — it never configures the targets.
+> `lldpd` and/or SNMP must already be enabled on each host (set up out of band
+> over SSH). Hosts without them simply yield no evidence (a non-fatal per-host
+> error).
+
+**Examples:**
+```bash
+nsl-graph scan connections --from-db
+nsl-graph scan connections --subnet 10.0.0.0/24 --community public
+nsl-graph scan connections --source ssh-lldp --dry-run
+nsl-graph scan connections --from-db --yes --output gather.json
+```
+
 ### server
 
 Start the HTTP API server.

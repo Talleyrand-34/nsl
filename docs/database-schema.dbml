@@ -142,6 +142,7 @@ Table connections {
   from_deviceport_id string
   to_deviceport_id string
   connection_type string [null]
+  discovered_via "string[]" [null, note: 'provenance of an auto-discovered link, e.g. ["ssh-lldp@opnsense:igc1"]']
 }
 
 // Connection type definitions (ethernet, fiber, wireless, etc.)

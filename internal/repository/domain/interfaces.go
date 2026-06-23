@@ -139,6 +139,7 @@ type repository interface {
 	AddConnection(
 		fromDeviceportID string,
 		toDeviceportID string,
+		discoveredVia ...string,
 	) error
 	GetConnections() ([]e.Connection, error)
 	UpdateConnection(
