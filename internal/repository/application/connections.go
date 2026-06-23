@@ -21,6 +21,7 @@ import (
 	"net"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	configparser "nsl-graph/internal/configparser"
@@ -301,10 +302,22 @@ func uniqSortedStrings(in []string) []string {
 // data, evidence and FDB) is preserved in the result; only the derived edges are
 // candidates for import.
 func (ns *NetService) DiscoverConnections(targets []topology.Target, only string) (*topology.ConnectionScanResult, error) {
-	result := &topology.ConnectionScanResult{}
-	for _, t := range targets {
-		result.Hosts = append(result.Hosts, topology.CollectHost(t, only))
+	// Collect from hosts concurrently: per-host SNMP/SSH timeouts overlap instead
+	// of summing, so a multi-host scan finishes in ~one host's time, not N×.
+	result := &topology.ConnectionScanResult{Hosts: make([]topology.HostScan, len(targets))}
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, 16) // bound concurrency for large subnet sweeps
+	for i, t := range targets {
+		wg.Add(1)
+		go func(i int, t topology.Target) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			result.Hosts[i] = topology.CollectHost(t, only)
+		}(i, t)
 	}
+	wg.Wait()
+
 	if err := ns.correlate(result); err != nil {
 		return result, err
 	}

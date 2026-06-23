@@ -1,13 +1,17 @@
 <?php
 require_once __DIR__ . '/../config.php';
 
+// Connection discovery can scan many hosts; don't let PHP kill the request.
+@set_time_limit(300);
+
 /** api_post_json POSTs a JSON string; returns [httpCode, body, curlError]. */
-if (!function_exists('api_post_json')) {
-    function api_post_json($url, $jsonBody) {
+if (!function_exists('api_post_json_conn')) {
+    function api_post_json_conn($url, $jsonBody, $timeoutSec = 280) {
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
         curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonBody);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, $timeoutSec);
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
             'Content-Type: application/json',
             'Content-Length: ' . strlen($jsonBody),
@@ -157,7 +161,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_scan'])) {
         'timeout_sec' => intval($f['timeout']),
         'passphrase'  => $f['passphrase'],
     ];
-    list($code, $body, $err) = api_post_json(SCAN_CONNECTIONS_ENDPOINT, json_encode($opts));
+    list($code, $body, $err) = api_post_json_conn(SCAN_CONNECTIONS_ENDPOINT, json_encode($opts), max(60, intval($f["timeout"]) * 8));
     if ($code === 200) {
         $result = json_decode($body, true);
     } else {
@@ -175,7 +179,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_import'])) {
         if (isset($edges[$i]) && edge_importable($edges[$i])) $toImport[] = $edges[$i];
     }
     if ($toImport) {
-        list($code, $body) = api_post_json(SCAN_CONNECTIONS_IMPORT_ENDPOINT, json_encode(['edges' => $toImport]));
+        list($code, $body) = api_post_json_conn(SCAN_CONNECTIONS_IMPORT_ENDPOINT, json_encode(['edges' => $toImport]));
         $resp = json_decode($body, true);
         $importMessage = 'Imported ' . intval($resp['imported'] ?? 0) . ' connection(s).'
             . (!empty($resp['message']) ? ' Note: ' . htmlspecialchars($resp['message']) : '');
