@@ -20,10 +20,236 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
+	configparser "nsl-graph/internal/configparser"
 	e "nsl-graph/internal/repository/entities"
+	s "nsl-graph/internal/scanner"
+	"nsl-graph/internal/secret"
 	"nsl-graph/internal/topology"
 )
+
+// ConnectionScanOptions controls a non-interactive connection discovery run (used
+// by the HTTP API). Targets are selected by mode; Passphrase decrypts profiles
+// that store an SSH password (key-based / SNMP-only profiles need none).
+type ConnectionScanOptions struct {
+	FromDB      bool   `json:"from_db"`
+	Profiles    bool   `json:"profiles"`
+	Subnet      string `json:"subnet"`
+	Community   string `json:"community"`
+	SNMPVersion string `json:"snmp_version"`
+	Collector   string `json:"collector"`
+	TimeoutSec  int    `json:"timeout_sec"`
+	Passphrase  string `json:"passphrase"`
+}
+
+// DiscoverConnectionsByMode builds targets from the given options (no interactive
+// prompting) and runs discovery — the entry point used by the web API.
+func (ns *NetService) DiscoverConnectionsByMode(opts ConnectionScanOptions) (*topology.ConnectionScanResult, error) {
+	community := opts.Community
+	if community == "" {
+		community = "public"
+	}
+	version := opts.SNMPVersion
+	if version == "" {
+		version = "v2c"
+	}
+	timeout := time.Duration(opts.TimeoutSec) * time.Second
+	if opts.TimeoutSec == 0 {
+		timeout = 10 * time.Second
+	}
+
+	if !opts.FromDB && !opts.Profiles && opts.Subnet == "" {
+		opts.FromDB = true
+	}
+
+	byHost := map[string]*topology.Target{}
+	var order []string
+	get := func(host string) *topology.Target {
+		if t, ok := byHost[host]; ok {
+			return t
+		}
+		t := &topology.Target{Host: host}
+		byHost[host] = t
+		order = append(order, host)
+		return t
+	}
+	defaultSNMP := func() *s.ScanOptions {
+		return &s.ScanOptions{Timeout: timeout, SNMP: s.SNMPOptions{Community: community, Version: version}}
+	}
+	applyProfile := func(t *topology.Target, p *e.ScanProfile) {
+		comm := p.SNMPCommunity
+		if comm == "" {
+			comm = community
+		}
+		ver := p.SNMPVersion
+		if ver == "" {
+			ver = version
+		}
+		to := timeout
+		if p.TimeoutSec != 0 {
+			to = time.Duration(p.TimeoutSec) * time.Second
+		}
+		t.SNMP = &s.ScanOptions{Timeout: to, SNMP: s.SNMPOptions{Community: comm, Version: ver, Port: uint16(p.SNMPPort)}}
+		if p.SSHUser == "" {
+			return
+		}
+		creds := configparser.SSHCredentials{Username: p.SSHUser, Port: p.SSHPort}
+		switch {
+		case p.SSHKeyFile != "":
+			creds.KeyFile = p.SSHKeyFile
+		case p.SSHPassword != "":
+			pw, err := secret.Decrypt(p.SSHPassword, opts.Passphrase)
+			if err != nil {
+				return // can't unlock SSH password — skip SSH for this host
+			}
+			creds.Password = pw
+		default:
+			return
+		}
+		t.SSH = &creds
+	}
+
+	// device IP candidates + IP->label
+	ipToLabel := map[string]string{}
+	devName := map[string]string{}
+	ipsByDevice := map[string][]string{}
+	var deviceOrder []string
+	if devs, err := ns.GetDevices(); err == nil {
+		for _, d := range devs {
+			devName[d.ID] = d.Name
+		}
+	}
+	if ifaces, err := ns.GetAllDeviceInterfaces(); err == nil {
+		seenDev := map[string]bool{}
+		for _, iface := range ifaces {
+			for _, raw := range iface.IPAddresses {
+				ip := usableIP(raw)
+				if ip == "" {
+					continue
+				}
+				ipToLabel[ip] = devName[iface.DeviceID]
+				if !seenDev[iface.DeviceID] {
+					seenDev[iface.DeviceID] = true
+					deviceOrder = append(deviceOrder, iface.DeviceID)
+				}
+				ipsByDevice[iface.DeviceID] = append(ipsByDevice[iface.DeviceID], ip)
+			}
+		}
+	}
+
+	if opts.FromDB {
+		for _, devID := range deviceOrder {
+			ips := uniqSortedStrings(ipsByDevice[devID])
+			var chosen string
+			var profile *e.ScanProfile
+			for _, ip := range ips {
+				if p, ok := ns.ResolveScanProfile(ip, ""); ok {
+					chosen, profile = ip, p
+					break
+				}
+			}
+			if profile == nil {
+				ss := s.NewSNMPScanner()
+				probe := s.ScanOptions{Timeout: 2 * time.Second, SNMP: s.SNMPOptions{Community: community, Version: version}}
+				for _, ip := range ips {
+					if ss.Probe(ip, probe) {
+						chosen = ip
+						break
+					}
+				}
+			}
+			if chosen == "" && len(ips) > 0 {
+				chosen = ips[0]
+			}
+			if chosen == "" {
+				continue
+			}
+			t := get(chosen)
+			t.DeviceLabel = devName[devID]
+			if profile != nil {
+				applyProfile(t, profile)
+			} else if t.SNMP == nil {
+				t.SNMP = defaultSNMP()
+			}
+		}
+	}
+
+	if opts.Profiles {
+		profiles, err := ns.GetScanProfiles()
+		if err != nil {
+			return nil, err
+		}
+		for _, p := range profiles {
+			raw, err := ns.GetScanProfileByName(p.Name)
+			if err != nil || raw == nil {
+				continue
+			}
+			host := strings.TrimSpace(raw.Host)
+			t := get(host)
+			t.Profile = raw.Name
+			if lbl := ipToLabel[host]; lbl != "" {
+				t.DeviceLabel = lbl
+			}
+			applyProfile(t, raw)
+		}
+	}
+
+	if opts.Subnet != "" {
+		res, err := s.NewSNMPScanner().Scan(s.ScanOptions{
+			Subnet:  opts.Subnet,
+			Timeout: timeout,
+			SNMP:    s.SNMPOptions{Community: community, Version: version},
+		})
+		if err != nil {
+			return nil, fmt.Errorf("subnet sweep: %w", err)
+		}
+		for _, dev := range res.Devices {
+			t := get(dev.IP)
+			if lbl := ipToLabel[dev.IP]; lbl != "" {
+				t.DeviceLabel = lbl
+			}
+			if t.SNMP == nil {
+				t.SNMP = defaultSNMP()
+			}
+		}
+	}
+
+	targets := make([]topology.Target, 0, len(order))
+	for _, h := range order {
+		targets = append(targets, *byHost[h])
+	}
+	if len(targets) == 0 {
+		return &topology.ConnectionScanResult{}, nil
+	}
+	return ns.DiscoverConnections(targets, opts.Collector)
+}
+
+// usableIP strips a CIDR suffix and rejects IPs unusable as a scan target.
+func usableIP(raw string) string {
+	ip := stripCIDR(raw)
+	if ip == "" || strings.Contains(ip, ":") {
+		return ""
+	}
+	if strings.HasPrefix(ip, "127.") || strings.HasPrefix(ip, "169.254.") || ip == "0.0.0.0" {
+		return ""
+	}
+	return ip
+}
+
+// uniqSortedStrings returns the unique, sorted, non-empty members of in.
+func uniqSortedStrings(in []string) []string {
+	seen := map[string]bool{}
+	out := []string{}
+	for _, v := range in {
+		if v != "" && !seen[v] {
+			seen[v] = true
+			out = append(out, v)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
 
 // DiscoverConnections collects multi-source L2/L1 evidence from every target and
 // correlates it into connection edges. The full gather (each host's raw device

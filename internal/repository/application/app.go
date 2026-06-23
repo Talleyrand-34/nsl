@@ -162,6 +162,9 @@ type NetServiceInt interface {
 	// persists the resolved edges (with provenance).
 	DiscoverConnections(targets []topology.Target, only string) (*topology.ConnectionScanResult, error)
 	ImportConnectionEdges(edges []topology.ConnectionEdge) (int, error)
+	// DiscoverConnectionsByMode builds targets (from-db/profiles/subnet) and runs
+	// discovery without interactive prompts — used by the HTTP API.
+	DiscoverConnectionsByMode(opts ConnectionScanOptions) (*topology.ConnectionScanResult, error)
 	UpdateConnection(
 		connectionId string,
 		newFromDeviceportID string,

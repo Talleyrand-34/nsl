@@ -146,7 +146,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['api_base_url'])) {
 <body>
     <!-- Navigation -->
 <div style="padding: 8px 10px; border: 1px solid #ccc; background: #eef;">
-    <a href="import.php">Import devices (scan / upload)</a>
+    <a href="import.php">Import devices (scan / upload)</a> &nbsp;|&nbsp;
+    <a href="connections.php">Scan connections (discover links)</a>
 </div>
     <!-- Configuration Section -->
 <div style="margin-top: 20px; padding: 10px; border: 1px solid #ccc; background: #f0f0f0;">

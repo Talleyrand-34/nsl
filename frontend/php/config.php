@@ -29,6 +29,8 @@ define('SCAN_PROFILES_ENDPOINT', API_BASE_URL . '/scan/profiles');
 define('SCAN_HOST_SSH_ENDPOINT', API_BASE_URL . '/scan/host-ssh');
 define('SCAN_ANALYZE_ENDPOINT', API_BASE_URL . '/scan/analyze');
 define('SCAN_EXECUTE_ENDPOINT', API_BASE_URL . '/scan/execute');
+define('SCAN_CONNECTIONS_ENDPOINT', API_BASE_URL . '/scan/connections');
+define('SCAN_CONNECTIONS_IMPORT_ENDPOINT', API_BASE_URL . '/scan/connections/import');
 // Add other endpoints as needed, e.g.:
 // define('DEVICECLASSES_ENDPOINT', API_BASE_URL . '/deviceclasses');
 //
