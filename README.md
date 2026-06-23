@@ -120,6 +120,10 @@ override.
 ./nsl-graph scan profile add fw --host 10.0.0.1 --ssh-user admin --ssh-password '***' \
   --scan-source ssh --device-type opnsense
 
+# Save a GENERIC profile — reusable SSH credentials not bound to any host, used as
+# an SSH fallback (e.g. for subnet connection scans of hosts without a profile)
+./nsl-graph scan profile add lab-ssh --generic --ssh-user root --ssh-key ~/.ssh/lab_ed25519
+
 # List / show (the SSH password is never printed) / delete
 ./nsl-graph scan profile list
 ./nsl-graph scan profile show fw
@@ -153,6 +157,12 @@ nsl-graph scan connections --from-db
 # Sweep a subnet, or use one source only, or just preview
 nsl-graph scan connections --subnet 10.0.0.0/24
 nsl-graph scan connections --collector ssh-lldp --dry-run
+
+# Sweep a subnet and collect over SSH from hosts without a profile, bringing
+# credentials at runtime: an OpenSSH config (keys read into memory, never stored),
+# a generic profile, or inline --ssh-user
+nsl-graph scan connections --subnet 10.0.2.240/28 --ssh-config ~/.ssh/lab.conf
+nsl-graph scan connections --subnet 10.0.2.240/28 --generic-profile lab-ssh
 ```
 
 > The tool only **collects** — it never configures the targets. `lldpd`/SNMP must

@@ -327,10 +327,18 @@ per-host parameters that are auto-applied when a host matches.
 ```bash
 nsl-graph scan profile add <name> --host <ip> [--snmp-community ...] [--ssh-user ...] \
                                   [--ssh-password ...] [--device-type ...] [--scan-source ssh]
-nsl-graph scan profile list
+nsl-graph scan profile add <name> --generic --ssh-user <user> [--ssh-key <file>|--ssh-password ...]
+nsl-graph scan profile list            # KIND column shows device / generic
 nsl-graph scan profile show <name>     # SSH password is never printed
 nsl-graph scan profile delete <name>
 ```
+
+A profile has a **kind**:
+
+| Kind | Description |
+|------|-------------|
+| `device` (default) | Bound to a host (`--host`); auto-applied when that host is scanned (SNMP and/or SSH). |
+| `generic` (`--generic`) | Not bound to a host: carries only reusable SSH credentials (`--ssh-user` plus a key/password). Used as an explicit SSH fallback for hosts without their own profile — e.g. `scan connections --subnet ... --generic-profile <name>`. Never auto-matched by IP. |
 
 If `--ssh-password` is given, you are prompted for a **passphrase** that encrypts
 it (AES-256-GCM, scrypt); it is never stored in clear. SNMP-only profiles need
@@ -357,7 +365,9 @@ gather is also emitted as JSON.
 
 ```bash
 nsl-graph scan connections [--from-db] [--subnet <cidr>] [--profiles] \
-                           [--collector <name>] [--yes|--dry-run] [--output <file>]
+                           [--collector <name>] [--yes|--dry-run] [--output <file>] \
+                           [--ssh-user <u> [--ssh-key <f>|--ssh-password <p>]] \
+                           [--ssh-config <file>] [--generic-profile <name>]
 ```
 
 **Targets** (combine freely; default is `--from-db`):
@@ -373,6 +383,19 @@ nsl-graph scan connections [--from-db] [--subnet <cidr>] [--profiles] \
 `--collector <name>` restricts to exactly one of `snmp-lldp`, `snmp-cdp`,
 `snmp-fdb`, `ssh-lldp`, `ssh-fdb`, `local-lldp` (no merge/review). (Note:
 `-s`/`--source` is the global database-path flag.)
+
+**Runtime SSH credentials** (collect LLDP/FDB over SSH from hosts without a
+device profile — used by `--subnet`, and as the SSH fallback in `--from-db`).
+Resolved per host in priority order:
+
+1. `--ssh-config <file>` — an OpenSSH config; the per-host `User`/`IdentityFile`
+   are matched by `HostName` (the discovered IP) then alias. Referenced key files
+   are read from local disk into memory (never re-stored). A matched host whose
+   key isn't readable is reported as an `ssh-key-missing` discrepancy and skipped.
+2. `--ssh-user` (with `--ssh-key`/`--ssh-password`, `--ssh-port`) — one inline
+   credential set applied to every SSH-reachable host.
+3. `--generic-profile <name>` — a saved **generic** profile's SSH credentials
+   (its encrypted key/password is unlocked with the run's passphrase).
 
 **Intermediary ("middle") devices:** transparent switches that don't speak
 LLDP/SNMP (e.g. a Netgear "Plus" switch) won't appear as endpoints, but the

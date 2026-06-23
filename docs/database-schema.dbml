@@ -160,7 +160,8 @@ Table connectiontypes {
 Table scanprofiles {
   _id string [pk]
   name string [note: 'unique profile name']
-  host string [note: 'IP / subnet / SSH alias the profile applies to (auto-match key)']
+  kind string [note: 'device (default, IP-bound, auto-matched by host) | generic (reusable SSH credentials, no host, never auto-matched)']
+  host string [note: 'IP / subnet / SSH alias the profile applies to (auto-match key); empty for generic profiles']
   snmp_community string
   snmp_version string
   snmp_port int
