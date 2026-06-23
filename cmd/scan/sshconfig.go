@@ -20,8 +20,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
+
+	"nsl-graph/internal/configparser"
 )
 
 // sshConfigEntry holds the resolved fields for a single SSH config host alias.
@@ -43,78 +44,20 @@ func parseSSHConfigAlias(alias string) (*sshConfigEntry, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot determine home directory: %w", err)
 	}
-
 	configPath := filepath.Join(home, ".ssh", "config")
-	data, err := os.ReadFile(configPath)
+	hosts, err := configparser.ParseSSHConfigFile(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read %s: %w", configPath, err)
 	}
-
-	entry := &sshConfigEntry{}
-	inBlock := false
-	found := false
-
-	for _, rawLine := range strings.Split(string(data), "\n") {
-		line := strings.TrimSpace(rawLine)
-
-		// Skip blank lines and comments
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-
-		// Split key and value (allow '=' or whitespace as separator)
-		line = strings.ReplaceAll(line, "=", " ")
-		parts := strings.SplitN(line, " ", 2)
-		if len(parts) < 2 {
-			continue
-		}
-		key := strings.ToLower(strings.TrimSpace(parts[0]))
-		value := strings.TrimSpace(parts[1])
-
-		if key == "host" {
-			if inBlock {
-				// We've left the matched block — stop parsing
-				break
-			}
-			if strings.EqualFold(value, alias) {
-				inBlock = true
-				found = true
-			}
-			continue
-		}
-
-		if !inBlock {
-			continue
-		}
-
-		switch key {
-		case "hostname":
-			entry.HostName = value
-		case "user":
-			entry.User = value
-		case "identityfile":
-			entry.IdentityFile = expandHome(value, home)
-		case "port":
-			if p, err := strconv.Atoi(value); err == nil {
-				entry.Port = p
-			}
+	for _, h := range hosts {
+		if strings.EqualFold(h.Alias, alias) {
+			return &sshConfigEntry{
+				HostName:     h.HostName,
+				User:         h.User,
+				IdentityFile: h.IdentityFile,
+				Port:         h.Port,
+			}, nil
 		}
 	}
-
-	if !found {
-		return nil, fmt.Errorf("alias %q not found in %s", alias, configPath)
-	}
-
-	return entry, nil
-}
-
-// expandHome replaces a leading ~ with the user's home directory.
-func expandHome(path, home string) string {
-	if strings.HasPrefix(path, "~/") {
-		return filepath.Join(home, path[2:])
-	}
-	if path == "~" {
-		return home
-	}
-	return path
+	return nil, fmt.Errorf("alias %q not found in %s", alias, configPath)
 }
