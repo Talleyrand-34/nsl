@@ -1,18 +1,18 @@
 /*
-  Copyright © 2025 Talleyrand-34 (t34@t34.dev)
+Copyright © 2025 Talleyrand-34 (t34@t34.dev)
 
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU Affero General Public License as published
-  by the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-  GNU Affero General Public License for more details.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
 
-  You should have received a copy of the GNU Affero General Public License
-  along with this program. If not, see <https://www.gnu.org/licenses/>.
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 package cmd_scan
 
@@ -34,17 +34,17 @@ import (
 )
 
 var (
-	scanSubnet      string
-	scanTimeout     int
-	scanCommunity   string
-	scanSNMPVersion string
-	scanSNMPPort    uint16
-	scanOutputFile  string
-	scanAutoImport  bool
-	scanMergeIPs    bool
-	scanReviewMode  bool
-	scanCreateZones bool
-	scanDefaultZone string
+	scanSubnet       string
+	scanTimeout      int
+	scanCommunity    string
+	scanSNMPVersion  string
+	scanSNMPPort     uint16
+	scanOutputFile   string
+	scanAutoImport   bool
+	scanMergeIPs     bool
+	scanReviewMode   bool
+	scanCreateZones  bool
+	scanDefaultZone  string
 	scanDefaultBrand string
 	scanSkipExisting bool
 
@@ -53,18 +53,21 @@ var (
 )
 
 var networkScanCmd = &cobra.Command{
-	Use:   "network [subnet]",
-	Short: "Scan a network subnet to discover devices via SNMP",
-	Long: `Scan a network subnet using SNMP to collect device inventory (interfaces, MACs, VLANs).
+	Use:   "network [subnet...]",
+	Short: "Scan one or more network subnets to discover devices via SNMP",
+	Long: `Scan one or more network subnets using SNMP to collect device inventory
+(interfaces, MACs, VLANs). Pass several CIDRs as separate arguments or as a
+single comma-separated value.
 
 Examples:
   nsl-graph scan network 192.168.1.0/24
-  nsl-graph scan network 192.168.1.0/24 --community private
+  nsl-graph scan network 192.168.1.0/24 10.0.0.0/24
+  nsl-graph scan network 192.168.1.0/24,10.0.0.0/24 --community private
   nsl-graph scan network 10.0.0.0/24 --community public --auto-import
   nsl-graph scan network 172.16.1.0/24 --output scan_results.json --review`,
-	Args: cobra.ExactArgs(1),
+	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		subnet := args[0]
+		subnet := strings.Join(args, ",")
 		if scanSubnet != "" {
 			subnet = scanSubnet
 		}
@@ -243,11 +246,10 @@ func importDevicesWithVLANMapping(service q.NetServiceInt, devices []s.Discovere
 	return nil
 }
 
-
 func init() {
 	cmd_root.ScanCmd.AddCommand(networkScanCmd)
 
-	networkScanCmd.Flags().StringVar(&scanSubnet, "subnet", "", "Network subnet to scan (alternative to positional arg)")
+	networkScanCmd.Flags().StringVar(&scanSubnet, "subnet", "", "Network subnet(s) to scan, comma-separated (alternative to positional args)")
 	networkScanCmd.Flags().IntVarP(&scanTimeout, "timeout", "t", 30, "Timeout in seconds for the scan")
 	networkScanCmd.Flags().StringVar(&scanCommunity, "community", "public", "SNMP community string")
 	networkScanCmd.Flags().StringVar(&scanSNMPVersion, "snmp-version", "v2c", "SNMP version (v1, v2c)")

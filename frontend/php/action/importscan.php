@@ -297,8 +297,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_upload'])) {
                 </select>
             </label>
             <p style="margin:6px 0; color:#555;"><em>SNMP:</em></p>
-            <label>Host IP / Subnet (CIDR):
-                <input type="text" name="target" value="<?= htmlspecialchars($pf['target']) ?>" placeholder="192.168.1.1 or 192.168.1.0/24">
+            <label>Host IP / Subnet(s) (CIDR — comma-separate several for a subnet scan):
+                <input type="text" name="target" value="<?= htmlspecialchars($pf['target']) ?>" placeholder="192.168.1.0/24, 10.0.0.0/24" size="40">
             </label><br>
             <label>SNMP community: <input type="text" name="community" value="<?= htmlspecialchars($pf['community']) ?>"></label>
             <label>Version:

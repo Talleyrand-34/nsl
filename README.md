@@ -154,8 +154,9 @@ committed with provenance (`discovered_via`).
 # Discover links among all DB devices that have an IP + scan profile
 nsl-graph scan connections --from-db
 
-# Sweep a subnet, or use one source only, or just preview
+# Sweep a subnet (or several, comma-separated), or use one source only, or just preview
 nsl-graph scan connections --subnet 10.0.0.0/24
+nsl-graph scan connections --subnet 10.0.0.0/24,10.0.1.0/24
 nsl-graph scan connections --collector ssh-lldp --dry-run
 
 # Sweep a subnet and collect over SSH from hosts without a profile, bringing

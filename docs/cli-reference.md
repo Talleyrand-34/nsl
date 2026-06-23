@@ -348,12 +348,16 @@ no passphrase.
 
 ```bash
 nsl-graph scan host <ip> --profile <name>        # use a named profile
-nsl-graph scan host <ip>                         # auto-applies a profile whose host matches
+nsl-graph scan host <ip>                          # auto-applies a profile whose host matches
 nsl-graph scan host <ip> --save-profile <name>   # persist the effective parameters
+nsl-graph scan network <cidr> [<cidr>...]        # one or more subnets (space- or comma-separated)
+nsl-graph scan network 10.0.0.0/24,10.0.1.0/24
 ```
 
 Explicit flags always override profile values. When an SSH scan uses a stored
 password you are prompted for its passphrase; a wrong passphrase fails.
+`scan network` accepts several subnets (as separate arguments or one
+comma-separated value); they are swept together and de-duplicated.
 
 #### scan connections
 
@@ -364,7 +368,7 @@ after you review any discrepancies — committed to the DB. The full per-host
 gather is also emitted as JSON.
 
 ```bash
-nsl-graph scan connections [--from-db] [--subnet <cidr>] [--profiles] \
+nsl-graph scan connections [--from-db] [--subnet <cidr>[,<cidr>...]] [--profiles] \
                            [--collector <name>] [--yes|--dry-run] [--output <file>] \
                            [--ssh-user <u> [--ssh-key <f>|--ssh-password <p>]] \
                            [--ssh-config <file>] [--generic-profile <name>]
@@ -375,7 +379,7 @@ nsl-graph scan connections [--from-db] [--subnet <cidr>] [--profiles] \
 | Flag | Description |
 |------|-------------|
 | `--from-db` | Every device with a management IP and a resolvable scan profile. |
-| `--subnet <cidr>` | SNMP-sweep the CIDR, then collect from each responder. |
+| `--subnet <cidr>[,<cidr>...]` | SNMP-sweep the CIDR(s) — comma-separated for several — then collect from each responder. |
 | `--profiles` | The host of every saved scan profile. |
 | `--local` | Also collect LLDP from the machine running the tool (default `true`); set `--local-device <label>` so it maps to that device's ports. |
 
@@ -428,6 +432,7 @@ imported.
 ```bash
 nsl-graph scan connections --from-db
 nsl-graph scan connections --subnet 10.0.0.0/24 --community public
+nsl-graph scan connections --subnet 10.0.0.0/24,10.0.1.0/24   # several segments at once
 nsl-graph scan connections --source ssh-lldp --dry-run
 nsl-graph scan connections --from-db --yes --output gather.json
 ```

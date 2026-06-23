@@ -73,7 +73,7 @@ gather is also emitted as JSON for other uses.
 
 Targets (combine freely; default is --from-db):
   --from-db    every device with a management IP and a resolvable scan profile
-  --subnet     SNMP-sweep a CIDR, then collect from each responder
+  --subnet     SNMP-sweep a CIDR (or several, comma-separated), then collect from each responder
   --profiles   the host of every saved scan profile
 
 Sources: by default every available source per host is used and merged, with
@@ -154,7 +154,7 @@ func init() {
 	cmd_root.ScanCmd.AddCommand(ConnectionsCmd)
 	f := ConnectionsCmd.Flags()
 	f.BoolVar(&connFromDB, "from-db", false, "Target every DB device with a mgmt IP and a resolvable scan profile (default if no target flag)")
-	f.StringVar(&connSubnet, "subnet", "", "SNMP-sweep this CIDR and collect from responders")
+	f.StringVar(&connSubnet, "subnet", "", "SNMP-sweep this CIDR (or several, comma-separated) and collect from responders")
 	f.BoolVar(&connProfiles, "profiles", false, "Target the host of every saved scan profile")
 	f.StringVar(&connSource, "collector", "", "Restrict to a single source (snmp-lldp|snmp-cdp|snmp-fdb|ssh-lldp|local-lldp); default = all, merged")
 	f.StringVar(&connCommunity, "community", "public", "SNMP community for --subnet sweeps / fallback")

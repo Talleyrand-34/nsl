@@ -264,8 +264,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_import'])) {
             <option value="subnet"   <?= $f['mode']==='subnet'?'selected':'' ?>>Subnet sweep</option>
         </select>
     </label><br>
-    <label>Subnet (CIDR, for subnet mode):
-        <input type="text" name="subnet" value="<?= htmlspecialchars($f['subnet']) ?>" placeholder="10.0.0.0/24">
+    <label>Subnet (CIDR, for subnet mode — comma-separate several):
+        <input type="text" name="subnet" value="<?= htmlspecialchars($f['subnet']) ?>" placeholder="10.0.0.0/24, 10.0.1.0/24" size="40">
     </label><br>
     <label>SNMP community:
         <input type="text" name="community" value="<?= htmlspecialchars($f['community']) ?>">
