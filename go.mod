@@ -7,7 +7,6 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/gosnmp/gosnmp v1.43.2
 	github.com/ostafen/clover/v2 v2.0.0-alpha.3
-	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/crypto v0.49.0
