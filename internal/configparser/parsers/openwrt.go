@@ -696,7 +696,13 @@ func (p *OpenWrtParser) parseNetworkInterfaces(config *UCIConfig, switchPorts []
 	// referenced and there is no other ethN user port, make it a physical port
 	// (converting the eth0 interface emitted as a VLAN parent, or adding one) so
 	// it becomes a DevicePort that LLDP adjacencies can resolve against.
-	if eth0Referenced {
+	//
+	// Skip this when the board exposes its own switch ports: there eth0 is the CPU
+	// port *behind* the switch (the user-facing ports are lan*/wan* from board.switch,
+	// or eth0 itself already comes through as a board.network port). Promoting it
+	// would wrongly turn the airCube's internal CPU uplink into a port — on that
+	// device eth0 is an interface, not a port.
+	if eth0Referenced && len(switchPorts) == 0 {
 		hasUserEth := false
 		for _, iface := range interfaces {
 			if len(iface.Name) > 3 && strings.HasPrefix(iface.Name, "eth") && iface.Name != "eth0" &&
