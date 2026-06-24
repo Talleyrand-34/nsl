@@ -174,6 +174,15 @@ func GetDiagramHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
+		// Nothing to render — signal the client (the <img> falls back to its alt
+		// text) instead of returning a blank SVG.
+		if len(devices) == 0 {
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte("Diagram empty: No devices"))
+			return
+		}
+
 		connections, err := service.GetConnections()
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)

@@ -78,6 +78,9 @@ include __DIR__ . '/header.php';
                 <?php if (isset($_GET['colorports'])): ?>
                     <input type="hidden" name="colorports" value="<?= htmlspecialchars($_GET['colorports']) ?>">
                 <?php endif; ?>
+                <?php if (isset($_GET['allports'])): ?>
+                    <input type="hidden" name="allports" value="<?= htmlspecialchars($_GET['allports']) ?>">
+                <?php endif; ?>
 
                 <label for="actionType">Choose action:</label>
                 <select id="actionType" name="actionType" onchange="this.form.submit()">
@@ -130,14 +133,20 @@ include __DIR__ . '/header.php';
 
         <label for="vlanSelect" class="format-label" style="margin-left: 20px;">VLAN Display:</label>
         <select id="vlanSelect" name="vlan" onchange="this.form.submit()">
-            <option value="false" <?= (!isset($_GET['vlan']) || $_GET['vlan'] === 'false') ? 'selected' : '' ?>>No VLAN</option>
-            <option value="true" <?= (isset($_GET['vlan']) && $_GET['vlan'] === 'true') ? 'selected' : '' ?>>With VLANs</option>
+            <option value="false" <?= (isset($_GET['vlan']) && $_GET['vlan'] === 'false') ? 'selected' : '' ?>>No VLAN</option>
+            <option value="true" <?= (!isset($_GET['vlan']) || $_GET['vlan'] === 'true') ? 'selected' : '' ?>>With VLANs</option>
         </select>
 
         <label for="colorPortsSelect" class="format-label" style="margin-left: 20px;">Color Ports with VLANs:</label>
         <select id="colorPortsSelect" name="colorports" onchange="this.form.submit()">
-            <option value="false" <?= (!isset($_GET['colorports']) || $_GET['colorports'] === 'false') ? 'selected' : '' ?>>No</option>
-            <option value="true" <?= (isset($_GET['colorports']) && $_GET['colorports'] === 'true') ? 'selected' : '' ?>>Yes</option>
+            <option value="false" <?= (isset($_GET['colorports']) && $_GET['colorports'] === 'false') ? 'selected' : '' ?>>No</option>
+            <option value="true" <?= (!isset($_GET['colorports']) || $_GET['colorports'] === 'true') ? 'selected' : '' ?>>Yes</option>
+        </select>
+
+        <label for="allPortsSelect" class="format-label" style="margin-left: 20px;">Show All Ports:</label>
+        <select id="allPortsSelect" name="allports" onchange="this.form.submit()">
+            <option value="false" <?= (!isset($_GET['allports']) || $_GET['allports'] === 'false') ? 'selected' : '' ?>>No (only connected)</option>
+            <option value="true" <?= (isset($_GET['allports']) && $_GET['allports'] === 'true') ? 'selected' : '' ?>>Yes (all ports)</option>
         </select>
     </div>
 
@@ -145,11 +154,14 @@ include __DIR__ . '/header.php';
         <div class="resizable-img-container" style="height:500px;">
             <?php
                 $format = isset($_GET['format']) ? htmlspecialchars($_GET['format']) : 'connections';
-                $vlan = isset($_GET['vlan']) ? htmlspecialchars($_GET['vlan']) : 'false';
-                $colorports = isset($_GET['colorports']) ? htmlspecialchars($_GET['colorports']) : 'false';
-                $diagramUrl = API_BASE_URL . "/diagram?format=" . $format . "&vlan=" . $vlan . "&colorports=" . $colorports;
+                $vlan = isset($_GET['vlan']) ? htmlspecialchars($_GET['vlan']) : 'true';
+                $colorports = isset($_GET['colorports']) ? htmlspecialchars($_GET['colorports']) : 'true';
+                $allports = isset($_GET['allports']) ? htmlspecialchars($_GET['allports']) : 'false';
+                $diagramUrl = API_BASE_URL . "/diagram?format=" . $format . "&vlan=" . $vlan . "&colorports=" . $colorports . "&allports=" . $allports;
+                // The server returns a non-2xx when the diagram can't be rendered
+                // (e.g. no devices); the browser then shows the img's alt text.
             ?>
-            <img id="diagramImg" src="<?= $diagramUrl ?>" alt="Diagram">
+            <img id="diagramImg" src="<?= $diagramUrl ?>" alt="Diagram empty: No devices">
         </div>
     </div>
 </form>
