@@ -123,11 +123,12 @@ type PortVLANInfo struct {
 
 // SwitchPortInfo represents physical switch port information from board.json/swconfig
 type SwitchPortInfo struct {
-	PortNumber int            `json:"port_number"` // Port index (0, 1, 2, etc.)
-	PortName   string         `json:"port_name"`   // Human-readable name (e.g., "lan1", "wan0")
-	LinkStatus string         `json:"link_status"` // "up", "down"
-	Role       string         `json:"role"`        // "lan", "wan"
-	VLANs      []PortVLANInfo `json:"vlans"`       // VLAN membership per port (from swconfig)
+	PortNumber int            `json:"port_number"`      // Port index (0, 1, 2, etc.)
+	PortName   string         `json:"port_name"`        // Canonical name — the kernel netdev ("eth1") when known, else a role+index label ("lan1")
+	Device     string         `json:"device,omitempty"` // Kernel netdev name ("eth1") when the board exposes one
+	LinkStatus string         `json:"link_status"`      // "up", "down"
+	Role       string         `json:"role"`             // "lan", "wan"
+	VLANs      []PortVLANInfo `json:"vlans"`            // VLAN membership per port (from swconfig)
 }
 
 // ConfigData contains the parsed configuration data from a network device

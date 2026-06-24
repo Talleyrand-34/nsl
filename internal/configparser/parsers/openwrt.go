@@ -186,12 +186,20 @@ func (p *OpenWrtParser) parseBoardJSON(rawConfig string) ([]configparser.SwitchP
 				Device string `json:"device"`
 			} `json:"roles"`
 		} `json:"switch"`
+		Network map[string]struct {
+			Device   string   `json:"device"`
+			Ports    []string `json:"ports"`
+			Protocol string   `json:"protocol"`
+		} `json:"network"`
 	}
 
 	if err := json.Unmarshal([]byte(jsonStr), &board); err != nil {
 		return ports, nil
 	}
 
+	// Legacy swconfig switches (board.switch). Prefer the kernel netdev name as the
+	// canonical port name so it matches what LLDP/SNMP report; fall back to a
+	// role+index label when the board exposes no per-port device.
 	portIndex := 0
 	for switchName, sw := range board.Switch {
 		_ = switchName
@@ -203,12 +211,14 @@ func (p *OpenWrtParser) parseBoardJSON(rawConfig string) ([]configparser.SwitchP
 				continue
 			}
 
-			portName := port.Role
-			if port.Index > 0 {
-				portName = fmt.Sprintf("%s%d", port.Role, port.Index)
-			} else {
-				portName = fmt.Sprintf("%s%d", port.Role, portIndex)
-				portIndex++
+			portName := port.Device
+			if portName == "" {
+				if port.Index > 0 {
+					portName = fmt.Sprintf("%s%d", port.Role, port.Index)
+				} else {
+					portName = fmt.Sprintf("%s%d", port.Role, portIndex)
+					portIndex++
+				}
 			}
 
 			linkStatus := "down"
@@ -222,9 +232,37 @@ func (p *OpenWrtParser) parseBoardJSON(rawConfig string) ([]configparser.SwitchP
 			ports = append(ports, configparser.SwitchPortInfo{
 				PortNumber: port.Num,
 				PortName:   portName,
+				Device:     port.Device,
 				LinkStatus: linkStatus,
 				Role:       port.Role,
 			})
+		}
+	}
+
+	// Modern DSA boards expose role->netdev mappings under board.network instead of
+	// board.switch (e.g. {"lan":{"ports":["eth1","eth2"]},"wan":{"device":"eth0"}}).
+	// Emit each real netdev as a switch port keyed by its kernel name. Skip VLAN
+	// subinterfaces (e.g. "eth0.1") and loopback — those aren't physical ports.
+	if len(ports) == 0 {
+		seen := map[string]bool{}
+		for role, n := range board.Network {
+			var devs []string
+			if n.Device != "" {
+				devs = append(devs, n.Device)
+			}
+			devs = append(devs, n.Ports...)
+			for _, dev := range devs {
+				if dev == "" || dev == "lo" || strings.Contains(dev, ".") || seen[dev] {
+					continue
+				}
+				seen[dev] = true
+				ports = append(ports, configparser.SwitchPortInfo{
+					PortName:   dev,
+					Device:     dev,
+					LinkStatus: "up",
+					Role:       role,
+				})
+			}
 		}
 	}
 

@@ -1885,11 +1885,19 @@ func (ns *NetService) createDevicePortsWithPlan(deviceID string, discovered s.Di
 		}
 	}
 
+	// createdPorts tracks physical port names already created for this device so the
+	// switch-port (board.json) and interface (UCI/SNMP) passes can't create the same
+	// kernel port twice (e.g. "eth1" appearing in both sources).
+	createdPorts := make(map[string]bool)
+
 	// Process physical switch ports from configuration (e.g., OpenWrt board.json)
 	for _, port := range discovered.Device.SwitchPorts {
 		portName := port.Name
 		if portName == "" {
 			portName = fmt.Sprintf("%s%d", port.Role, port.PortNumber)
+		}
+		if createdPorts[portName] {
+			continue
 		}
 
 		portType := "ethernet"
@@ -1929,6 +1937,7 @@ func (ns *NetService) createDevicePortsWithPlan(deviceID string, discovered s.Di
 					return err
 				}
 			}
+			createdPorts[portName] = true
 		}
 	}
 
@@ -1947,6 +1956,11 @@ func (ns *NetService) createDevicePortsWithPlan(deviceID string, discovered s.Di
 				portName = fmt.Sprintf("eth%d", portIdx)
 			}
 		}
+		// Already created as a switch port (kernel name) above — don't duplicate.
+		if createdPorts[portName] {
+			continue
+		}
+		createdPorts[portName] = true
 
 		portType := ""
 		band := ""
