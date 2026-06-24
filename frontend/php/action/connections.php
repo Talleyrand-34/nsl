@@ -52,6 +52,59 @@ function endpoint_port($label) {
     return ($i !== false && $i + 1 < strlen($label)) ? substr($label, $i + 1) : '';
 }
 
+/** endpoint_device returns the device part of a "device:port" label ('' if unknown). */
+function endpoint_device($label) {
+    if ($label === '' || strpos($label, 'unknown(') === 0) return '';
+    $i = strrpos($label, ':');
+    return ($i !== false) ? substr($label, 0, $i) : $label;
+}
+
+/**
+ * render_port_editor prints the editable port chooser for one edge endpoint.
+ * Options, in priority order: the detected port (default), enter-manually, the
+ * device's existing device ports, then its model's model ports. Empty device
+ * (unknown endpoint) just shows the label.
+ */
+function render_port_editor($side, $i, $label, $modelByDevice, $portsByDevice, $modelPortsByModel) {
+    $dev = endpoint_device($label);
+    $detected = endpoint_port($label);
+    if ($dev === '') {
+        echo htmlspecialchars($label); // unknown / unresolvable endpoint
+        return;
+    }
+    $dps = $portsByDevice[$dev] ?? [];
+    $mps = $modelPortsByModel[$modelByDevice[$dev] ?? ''] ?? [];
+    $seen = [];
+    echo htmlspecialchars($dev) . ':';
+    echo '<select name="' . $side . '_port[' . $i . ']" onchange="nslPortManual(this)">';
+    if ($detected !== '') {
+        echo '<option value="' . htmlspecialchars($detected) . '" selected>detected: ' . htmlspecialchars($detected) . '</option>';
+        $seen[$detected] = true;
+    }
+    echo '<option value="__manual__"' . ($detected === '' ? ' selected' : '') . '>&#9998; enter manually&hellip;</option>';
+    if ($dps) {
+        echo '<optgroup label="Device ports">';
+        foreach ($dps as $p) {
+            if (isset($seen[$p])) continue;
+            $seen[$p] = true;
+            echo '<option value="' . htmlspecialchars($p) . '">' . htmlspecialchars($p) . '</option>';
+        }
+        echo '</optgroup>';
+    }
+    if ($mps) {
+        echo '<optgroup label="Model ports">';
+        foreach ($mps as $p) {
+            if (isset($seen[$p])) continue;
+            $seen[$p] = true;
+            echo '<option value="' . htmlspecialchars($p) . '">' . htmlspecialchars($p) . '</option>';
+        }
+        echo '</optgroup>';
+    }
+    echo '</select>';
+    echo '<input type="text" name="' . $side . '_port_manual[' . $i . ']" placeholder="port name" style="' .
+        ($detected === '' ? '' : 'display:none;') . 'width:9em;">';
+}
+
 /** edge_importable: both endpoints name a port (existing or creatable on import). */
 function edge_importable($e) {
     $hasFrom = !empty($e['from_deviceport_id']) || endpoint_port($e['from'] ?? '') !== '';
@@ -250,10 +303,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_import'])) {
     $all = json_decode($_POST['result_json'] ?? '[]', true);
     $edges = is_array($all) ? ($all['edges'] ?? []) : [];
     $sel = $_POST['edge'] ?? [];
+
+    // Resolve the port the user chose for one endpoint of an edge. Priority:
+    // an explicit manual entry, else the selected value (which defaults to the
+    // detected port, or lists existing device/model ports). Empty = unchanged.
+    $chosenPort = function ($side, $i) {
+        $v = $_POST[$side . '_port'][$i] ?? '';
+        if ($v === '__manual__') {
+            $v = trim($_POST[$side . '_port_manual'][$i] ?? '');
+        }
+        return $v;
+    };
     $toImport = [];
     foreach ($sel as $i) {
         $i = intval($i);
-        if (isset($edges[$i]) && edge_importable($edges[$i])) $toImport[] = $edges[$i];
+        if (!isset($edges[$i])) continue;
+        $edge = $edges[$i];
+
+        // Apply any port edits: rebuild "device:port" and drop the resolved
+        // deviceport id so the backend re-resolves (or creates) the chosen port.
+        foreach (['from', 'to'] as $side) {
+            $dev = endpoint_device($edge[$side] ?? '');
+            $port = $chosenPort($side, $i);
+            if ($dev !== '' && $port !== '') {
+                $edge[$side] = $dev . ':' . $port;
+                unset($edge[$side . '_deviceport_id']);
+            }
+        }
+
+        if (edge_importable($edge)) $toImport[] = $edge;
     }
     if ($toImport) {
         list($code, $body) = api_post_json_conn(SCAN_CONNECTIONS_IMPORT_ENDPOINT, json_encode(['edges' => $toImport]));
@@ -448,8 +526,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
 
     <h3>Derived edges (<?= count($edges) ?>)</h3>
     <?php if ($edges): ?>
+    <?php
+        // Lookups so each endpoint's port can be edited: detected -> manual ->
+        // the device's device ports -> its model's model ports.
+        $allDevices    = json_decode(@file_get_contents(DEVICES_ENDPOINT), true) ?: [];
+        $allDevPorts   = json_decode(@file_get_contents(DEVICEPORTS_ENDPOINT), true) ?: [];
+        $allModelPorts = json_decode(@file_get_contents(MODELPORTS_ENDPOINT), true) ?: [];
+        $modelByDevice = [];
+        foreach ($allDevices as $d) { $modelByDevice[$d['label'] ?? ''] = $d['model'] ?? ''; }
+        $portsByDevice = [];
+        foreach ($allDevPorts as $p) { $portsByDevice[$p['devname'] ?? ''][] = $p['portname'] ?? ''; }
+        $modelPortsByModel = [];
+        foreach ($allModelPorts as $mp) { $modelPortsByModel[$mp['model'] ?? ''][] = $mp['name'] ?? ''; }
+    ?>
     <form method="post">
         <input type="hidden" name="result_json" value="<?= htmlspecialchars(json_encode($result)) ?>">
+        <p style="color:#555; font-size:90%;">Each port can be edited: pick the detected port, enter one manually, or choose an existing device/model port.</p>
         <table border="1" cellpadding="4">
             <tr><th>Import</th><th>Mark</th><th>From</th><th>To</th><th>Via</th></tr>
             <?php foreach ($edges as $i => $e):
@@ -458,21 +550,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
                 $checked = ($imp && in_array($mark, ['confirmed','candidate'])) ? 'checked' : ''; ?>
                 <tr>
                     <td style="text-align:center;">
-                        <?php if ($imp): ?>
-                            <input type="checkbox" name="edge[]" value="<?= $i ?>" <?= $checked ?>>
-                        <?php else: ?>
-                            <span title="not importable">—</span>
-                        <?php endif; ?>
+                        <input type="checkbox" name="edge[]" value="<?= $i ?>" <?= $checked ?>>
                     </td>
                     <td><?= htmlspecialchars($mark) ?><?php if ($imp && edge_needs_create($e)): ?><br><small style="color:#a60;">(creates port)</small><?php endif; ?></td>
-                    <td><?= htmlspecialchars($e['from'] ?? '') ?></td>
-                    <td><?= htmlspecialchars($e['to'] ?? '') ?></td>
+                    <td><?php render_port_editor('from', $i, $e['from'] ?? '', $modelByDevice, $portsByDevice, $modelPortsByModel); ?></td>
+                    <td><?php render_port_editor('to', $i, $e['to'] ?? '', $modelByDevice, $portsByDevice, $modelPortsByModel); ?></td>
                     <td style="font-size:90%; color:#555;"><?= htmlspecialchars(implode(', ', $e['provenance'] ?? [])) ?></td>
                 </tr>
             <?php endforeach; ?>
         </table>
         <p><button type="submit" name="do_import" value="1">Import selected connections</button></p>
     </form>
+    <script>
+    function nslPortManual(sel) {
+        var inp = sel.parentNode.querySelector('input[type=text]');
+        if (!inp) return;
+        inp.style.display = sel.value === '__manual__' ? '' : 'none';
+    }
+    </script>
     <?php else: ?>
         <p>No edges derived. Ensure LLDP/SNMP is enabled on the targets and that they have scan profiles.</p>
     <?php endif; ?>
