@@ -108,6 +108,19 @@ func (r BasicOpsCloverRepository) AddModelPort(
 		return fmt.Errorf("model not found: %s", modelName)
 	}
 
+	// A model port name is unique within its model — two ports with the same name
+	// on the same model ARE the same port, so don't create a duplicate. Idempotent
+	// importers look for the "already exists" substring and reuse the existing port.
+	exists, err := r.db.Exists(q.NewQuery(modelportsCollection).Where(
+		q.Field("model_id").Eq(modelID).And(q.Field("name").Eq(name)),
+	))
+	if err != nil {
+		return fmt.Errorf("failed to check existing model port: %w", err)
+	}
+	if exists {
+		return fmt.Errorf("model port %q already exists for model %q", name, modelName)
+	}
+
 	iposx, err := strconv.Atoi(posx)
 	if err != nil {
 		return fmt.Errorf("invalid position x: %v", err)
