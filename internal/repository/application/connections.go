@@ -551,7 +551,12 @@ func (ns *NetService) ImportConnectionEdges(edges []topology.ConnectionEdge) (in
 			errs = append(errs, fmt.Sprintf("%s <-> %s: %v", edge.FromLabel, edge.ToLabel, err))
 			continue
 		}
-		if err := ns.AddConnection(fromID, toID, edge.Provenance...); err != nil {
+		connType := inferConnectionType(edge.FromLabel, edge.ToLabel)
+		if err := ns.ensureConnectionType(connType); err != nil {
+			errs = append(errs, fmt.Sprintf("%s <-> %s: %v", edge.FromLabel, edge.ToLabel, err))
+			continue
+		}
+		if err := ns.AddConnection(fromID, toID, connType, edge.Provenance...); err != nil {
 			errs = append(errs, fmt.Sprintf("%s <-> %s: %v", edge.FromLabel, edge.ToLabel, err))
 			continue
 		}
@@ -561,6 +566,25 @@ func (ns *NetService) ImportConnectionEdges(edges []topology.ConnectionEdge) (in
 		return n, fmt.Errorf("%d edge(s) skipped/failed:\n  %s", len(errs), strings.Join(errs, "\n  "))
 	}
 	return n, nil
+}
+
+// inferConnectionType picks a connection type from the endpoint port names: wifi
+// when either endpoint is a wireless port (phy*-ap*, radio*, wlan*/wlp*), else
+// ethernet. Used to type auto-discovered links.
+func inferConnectionType(labels ...string) string {
+	for _, l := range labels {
+		port := l
+		if i := strings.LastIndexByte(l, ':'); i >= 0 && i+1 < len(l) {
+			port = l[i+1:]
+		}
+		p := strings.ToLower(port)
+		if strings.HasPrefix(p, "phy") || strings.Contains(p, "-ap") ||
+			strings.HasPrefix(p, "radio") || strings.HasPrefix(p, "wlan") ||
+			strings.HasPrefix(p, "wlp") || strings.Contains(p, "wifi") {
+			return "wifi"
+		}
+	}
+	return "ethernet"
 }
 
 // resolveOrCreatePort returns a device-port id for an edge endpoint. If portID is

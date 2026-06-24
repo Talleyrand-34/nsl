@@ -36,11 +36,18 @@ func (r BasicOpsCloverRepository) AddZone(
 	// Get father ID (handles all cases)
 	sfatherid := r.getFatherID(fatherid, father)
 
-	// Get proprietary ID
+	// Get proprietary ID. Strict: a named proprietary must exist (never silently
+	// drop an unresolved dependency).
 	spropid := r.getProprietaryID(proprietary)
+	if proprietary != "" && spropid == "" {
+		return fmt.Errorf("proprietary %q does not exist", proprietary)
+	}
 
-	// Get zone type ID
+	// Get zone type ID. Strict: a named zone type must exist.
 	szonetypeid := r.getZoneTypeID(zonename)
+	if zonename != "" && szonetypeid == "" {
+		return fmt.Errorf("zone type %q does not exist", zonename)
+	}
 
 	doc := d.NewDocument()
 	doc.Set("name", name)

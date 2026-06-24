@@ -238,15 +238,15 @@ DELETE /connections
 PUT    /connections
 ```
 
-**POST Example:**
+**POST Example** (`connection_type` is required and must already exist; create one
+via `POST /connectiontypes`):
 ```bash
 curl -X POST http://localhost:8081/connections \
   -H "Content-Type: application/json" \
   -d '{
-    "from_device": "1",
-    "from_model_port_id": "1",
-    "to_device": "2",
-    "to_model_port_id": "1"
+    "from_deviceport_id": "<deviceport-id>",
+    "to_deviceport_id": "<deviceport-id>",
+    "connection_type": "ethernet"
   }'
 ```
 

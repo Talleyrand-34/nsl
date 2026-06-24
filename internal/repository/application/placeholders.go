@@ -74,10 +74,14 @@ func (ns *NetService) CreatePlaceholderForIntermediaries(intermediaries []topolo
 	}
 	res.Zone = placeholderZoneName
 
-	// 2. Ensure the placeholder model exists.
+	// 2. Ensure the placeholder model and the "ethernet" connection type exist
+	// (strict AddConnection requires the type to be present).
 	if err := ns.AddModel(placeholderModelName, "Unknown", "Switch"); err != nil &&
 		!strings.Contains(err.Error(), "already exists") {
 		return res, fmt.Errorf("create placeholder model: %w", err)
+	}
+	if err := ns.ensureConnectionType("ethernet"); err != nil {
+		return res, fmt.Errorf("ensure connection type: %w", err)
 	}
 
 	// 3. Create the shared placeholder device (unmanaged). Generate the label up
@@ -140,7 +144,7 @@ func (ns *NetService) CreatePlaceholderForIntermediaries(intermediaries []topolo
 			continue
 		}
 
-		if err := ns.AddConnection(realPortID, phPortID, provenance); err != nil {
+		if err := ns.AddConnection(realPortID, phPortID, "ethernet", provenance); err != nil {
 			errs = append(errs, fmt.Sprintf("%s: connect: %v", ep, err))
 			continue
 		}
@@ -165,7 +169,14 @@ func (ns *NetService) ensurePlaceholderZone() (string, error) {
 			return z.ID, nil
 		}
 	}
-	if err := ns.AddZone(placeholderZoneName, "", "", "Discovered", ""); err != nil {
+	// Strict AddZone requires the referenced proprietary and zone type to exist.
+	if err := ns.ensureProprietary("Discovered"); err != nil {
+		return "", err
+	}
+	if err := ns.ensureZoneType("Unknown"); err != nil {
+		return "", err
+	}
+	if err := ns.AddZone(placeholderZoneName, "", "", "Discovered", "Unknown"); err != nil {
 		return "", fmt.Errorf("create placeholder zone: %w", err)
 	}
 	zones, err = ns.GetZones()

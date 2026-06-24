@@ -69,6 +69,21 @@ func (r BasicOpsCloverRepository) getZoneTypeID(zonename string) string {
 	return ""
 }
 
+// getConnectionTypeID returns the id of a connection type by name, or "" if it
+// doesn't exist.
+func (r BasicOpsCloverRepository) getConnectionTypeID(connectionType string) string {
+	if connectionType == "" {
+		return ""
+	}
+
+	doc, err := r.db.FindFirst(q.NewQuery(connectiontypesCollection).Where(q.Field("connection_type").Eq(connectionType)))
+	if err == nil && doc != nil {
+		return doc.ObjectId()
+	}
+
+	return ""
+}
+
 // Helper function to get zone ID from zone ID or name
 func (r BasicOpsCloverRepository) getZoneID(zoneid string, zonename string) string {
 	// Prefer zoneid if provided

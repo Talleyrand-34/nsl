@@ -455,7 +455,10 @@ func TestDeleteDevice_BlocksWithDependentConnection(t *testing.T) {
 		t.Fatalf("failed to add device port 2: %v", err)
 	}
 
-	if err := repo.AddConnection(dp1ID, dp2ID); err != nil {
+	if err := repo.AddConnectionType("ethernet"); err != nil {
+		t.Fatalf("failed to add connection type: %v", err)
+	}
+	if err := repo.AddConnection(dp1ID, dp2ID, "ethernet"); err != nil {
 		t.Fatalf("failed to add connection: %v", err)
 	}
 
@@ -644,7 +647,10 @@ func TestDeleteDevicePort_BlocksWithDependentConnection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to add device port 2: %v", err)
 	}
-	if err := repo.AddConnection(dp1ID, dp2ID); err != nil {
+	if err := repo.AddConnectionType("ethernet"); err != nil {
+		t.Fatalf("failed to add connection type: %v", err)
+	}
+	if err := repo.AddConnection(dp1ID, dp2ID, "ethernet"); err != nil {
 		t.Fatalf("failed to add connection: %v", err)
 	}
 

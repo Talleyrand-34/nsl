@@ -70,7 +70,10 @@ func TestConnection_AddAndGet(t *testing.T) {
 	}
 
 	// Add connection
-	if err := repo.AddConnection(dp1Id, dp2Id); err != nil {
+	if err := repo.AddConnectionType("ethernet"); err != nil {
+		t.Fatalf("failed to add connection type: %v", err)
+	}
+	if err := repo.AddConnection(dp1Id, dp2Id, "ethernet"); err != nil {
 		t.Errorf("failed to add connection: %v", err)
 	}
 
@@ -161,12 +164,15 @@ func TestConnection_AddDuplicatePort(t *testing.T) {
 	}
 
 	// Add first connection
-	if err := repo.AddConnection(dp1Id, dp2Id); err != nil {
+	if err := repo.AddConnectionType("ethernet"); err != nil {
+		t.Fatalf("failed to add connection type: %v", err)
+	}
+	if err := repo.AddConnection(dp1Id, dp2Id, "ethernet"); err != nil {
 		t.Fatalf("failed to add first connection: %v", err)
 	}
 
 	// Try to add second connection using same port - should fail
-	if err := repo.AddConnection(dp1Id, dp3Id); err == nil {
+	if err := repo.AddConnection(dp1Id, dp3Id, "ethernet"); err == nil {
 		t.Errorf("expected error when reusing port, got nil")
 	}
 }
@@ -233,7 +239,10 @@ func TestConnection_Delete(t *testing.T) {
 	}
 
 	// Add connection
-	if err := repo.AddConnection(dp1Id, dp2Id); err != nil {
+	if err := repo.AddConnectionType("ethernet"); err != nil {
+		t.Fatalf("failed to add connection type: %v", err)
+	}
+	if err := repo.AddConnection(dp1Id, dp2Id, "ethernet"); err != nil {
 		t.Fatalf("failed to add connection: %v", err)
 	}
 

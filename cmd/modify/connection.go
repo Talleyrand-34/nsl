@@ -121,7 +121,9 @@ Or by database IDs (legacy):
 			os.Exit(1)
 		}
 
-		err = service.AddConnection(fromDeviceportId, toDeviceportId)
+		connectionType, _ := cmd.Flags().GetString("connection-type")
+
+		err = service.AddConnection(fromDeviceportId, toDeviceportId, connectionType)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error creating connection: %v\n", err)
 			os.Exit(1)
@@ -164,6 +166,7 @@ func init() {
 	connectionModCmd.Flags().String("to-modelport-id", "", "ID of the destination device's model port")
 
 	connectionModCmd.Flags().Bool("allow-vlan-union", false, "Allow connection if VLANs have any overlap (default: strict matching)")
+	connectionModCmd.Flags().String("connection-type", "ethernet", "Connection type name (must already exist; add one with 'add connectiontype')")
 }
 
 // resolveDeviceID finds a device by label or IP and returns its database ID.

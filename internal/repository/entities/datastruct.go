@@ -118,18 +118,19 @@ type ConnectionVlanInfo struct {
 
 // Connection This struct contains the info about a connection
 type Connection struct {
-	ID            string               `json:"id"`
-	FromDevice    string               `json:"fromdevice"` // Name of the FromDevice
-	FromModelPort string               `json:"frommodel"`  // Name of the port on the model
-	FromZoneName  string               `json:"fromzonename"`
-	FromZoneID    string               `json:"fromzoneid"`
-	ToDevice      string               `json:"todevice"` // Name of the ToDevice
-	ToModelPort   string               `json:"tomodel"`  // Name of the port on the model
-	ToZoneName    string               `json:"tozonename"`
-	ToZoneID      string               `json:"tozoneid"`
-	Vlans         []ConnectionVlanInfo `json:"vlans,omitempty"`          // Intersection: VLANs present on BOTH ports
-	MissingVlans  []ConnectionVlanInfo `json:"missing_vlans,omitempty"`  // Symmetric difference: VLANs on ONLY ONE port (not both)
-	DiscoveredVia []string             `json:"discovered_via,omitempty"` // provenance: sources that observed this link (e.g. "ssh-lldp@opnsense:igc1")
+	ID             string               `json:"id"`
+	FromDevice     string               `json:"fromdevice"` // Name of the FromDevice
+	FromModelPort  string               `json:"frommodel"`  // Name of the port on the model
+	FromZoneName   string               `json:"fromzonename"`
+	FromZoneID     string               `json:"fromzoneid"`
+	ToDevice       string               `json:"todevice"` // Name of the ToDevice
+	ToModelPort    string               `json:"tomodel"`  // Name of the port on the model
+	ToZoneName     string               `json:"tozonename"`
+	ToZoneID       string               `json:"tozoneid"`
+	ConnectionType string               `json:"connection_type,omitempty"` // Name of the connection type (e.g. "ethernet", "wifi")
+	Vlans          []ConnectionVlanInfo `json:"vlans,omitempty"`           // Intersection: VLANs present on BOTH ports
+	MissingVlans   []ConnectionVlanInfo `json:"missing_vlans,omitempty"`   // Symmetric difference: VLANs on ONLY ONE port (not both)
+	DiscoveredVia  []string             `json:"discovered_via,omitempty"`  // provenance: sources that observed this link (e.g. "ssh-lldp@opnsense:igc1")
 }
 
 type Vlan struct {
@@ -160,7 +161,7 @@ type ScanProfile struct {
 	SNMPVersion   string `json:"snmp_version"`
 	SNMPPort      int    `json:"snmp_port"`
 	TimeoutSec    int    `json:"timeout_sec"`
-	ScanSource    string `json:"scan_source"`  // "snmp" | "ssh"
+	ScanSource    string `json:"scan_source"`   // "snmp" | "ssh"
 	ConfigSource  string `json:"config_source"` // "none" | "ssh" | "file" | "manual"
 	ConfigFile    string `json:"config_file"`
 	DeviceType    string `json:"device_type"` // opnsense | openwrt | fortinet | cisco

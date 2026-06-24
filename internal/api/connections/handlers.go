@@ -61,6 +61,7 @@ func AddConnectionHandler(service q.NetServiceInt) http.HandlerFunc {
 		var req struct {
 			FromDeviceportID string `json:"from_deviceport_id"`
 			ToDeviceportID   string `json:"to_deviceport_id"`
+			ConnectionType   string `json:"connection_type"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -75,7 +76,13 @@ func AddConnectionHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		err := service.AddConnection(req.FromDeviceportID, req.ToDeviceportID)
+		if req.ConnectionType == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "missing_fields", "message": "connection_type is required"})
+			return
+		}
+
+		err := service.AddConnection(req.FromDeviceportID, req.ToDeviceportID, req.ConnectionType)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": "creation_failed", "message": err.Error()})

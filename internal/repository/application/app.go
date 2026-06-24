@@ -155,6 +155,7 @@ type NetServiceInt interface {
 	AddConnection(
 		fromDeviceportID string,
 		toDeviceportID string,
+		connectionType string,
 		discoveredVia ...string,
 	) error
 	GetConnections() ([]e.Connection, error)
@@ -520,9 +521,63 @@ func (ns *NetService) GetConnections() ([]e.Connection, error) {
 func (ns *NetService) AddConnection(
 	fromDeviceportID string,
 	toDeviceportID string,
+	connectionType string,
 	discoveredVia ...string,
 ) error {
-	return ns.netRepo.AddConnection(fromDeviceportID, toDeviceportID, discoveredVia...)
+	return ns.netRepo.AddConnection(fromDeviceportID, toDeviceportID, connectionType, discoveredVia...)
+}
+
+// ensureConnectionType creates the named connection type if it doesn't already
+// exist, so callers (e.g. scans) can guarantee the strict AddConnection
+// dependency is satisfied. A no-op (nil) if it already exists.
+func (ns *NetService) ensureConnectionType(name string) error {
+	if name == "" {
+		return fmt.Errorf("connection type name is required")
+	}
+	types, err := ns.GetConnectionTypes()
+	if err != nil {
+		return err
+	}
+	for _, t := range types {
+		if t.Name == name {
+			return nil
+		}
+	}
+	return ns.AddConnectionType(name)
+}
+
+// ensureZoneType creates the named zone type if it doesn't already exist.
+func (ns *NetService) ensureZoneType(name string) error {
+	if name == "" {
+		return fmt.Errorf("zone type name is required")
+	}
+	types, err := ns.GetZonetypes()
+	if err != nil {
+		return err
+	}
+	for _, t := range types {
+		if t.Name == name {
+			return nil
+		}
+	}
+	return ns.AddZoneType(name)
+}
+
+// ensureProprietary creates the named proprietary if it doesn't already exist.
+func (ns *NetService) ensureProprietary(name string) error {
+	if name == "" {
+		return fmt.Errorf("proprietary name is required")
+	}
+	props, err := ns.GetProperties()
+	if err != nil {
+		return err
+	}
+	for _, p := range props {
+		if p.Name == name {
+			return nil
+		}
+	}
+	return ns.AddProprietary(name)
 }
 
 func (ns *NetService) GetAllPortsAll() ([]e.DevicePort, error) {
@@ -1022,6 +1077,12 @@ func (ns *NetService) ensureRequiredEntities(options s.ImportOptions) error {
 			return false
 		}
 
+		// Ensure the proprietary and zone types referenced below exist first, so the
+		// strict AddZone dependency checks pass (it never silently drops a ref).
+		_ = ns.ensureProprietary("Discovered")
+		_ = ns.ensureZoneType("Office")
+		_ = ns.ensureZoneType("Unknown")
+
 		requiredZones := []string{"Generic", "Discovered", "LAN", "Internal", "External", "Private"}
 		for _, zoneName := range requiredZones {
 			if !zoneExists(zoneName) {
@@ -1030,7 +1091,9 @@ func (ns *NetService) ensureRequiredEntities(options s.ImportOptions) error {
 				if zoneName == "Generic" {
 					zoneType = "Unknown"
 				}
-				ns.AddZone(zoneName, "", "", "Discovered", zoneType)
+				if err := ns.AddZone(zoneName, "", "", "Discovered", zoneType); err != nil {
+					log.Printf("Warning: failed to create zone %q: %v", zoneName, err)
+				}
 			}
 		}
 	}

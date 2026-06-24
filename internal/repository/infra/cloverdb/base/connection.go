@@ -38,6 +38,15 @@ func (r BasicOpsCloverRepository) GetConnections() ([]e.Connection, error) {
 			ID: doc.ObjectId(),
 		}
 
+		// Resolve the connection type name from its id.
+		if typeID, ok := doc.Get("connection_type").(string); ok && typeID != "" {
+			if typeDoc, err := r.db.FindById(connectiontypesCollection, typeID); err == nil && typeDoc != nil {
+				if name, ok := typeDoc.Get("connection_type").(string); ok {
+					connection.ConnectionType = name
+				}
+			}
+		}
+
 		// Provenance of an auto-discovered link, if any.
 		if raw, ok := doc.Get("discovered_via").([]interface{}); ok {
 			for _, v := range raw {
@@ -120,8 +129,19 @@ func (r BasicOpsCloverRepository) GetConnections() ([]e.Connection, error) {
 func (r BasicOpsCloverRepository) AddConnection(
 	fromDeviceportID string,
 	toDeviceportID string,
+	connectionType string,
 	discoveredVia ...string,
 ) error {
+	// A connection must reference an existing connection type (strict: the data
+	// layer never silently drops an unresolved dependency).
+	if connectionType == "" {
+		return fmt.Errorf("connection type is required")
+	}
+	connectionTypeID := r.getConnectionTypeID(connectionType)
+	if connectionTypeID == "" {
+		return fmt.Errorf("connection type %q does not exist", connectionType)
+	}
+
 	fromQuery := q.NewQuery(connectionsCollection).Where(
 		q.Field("from_deviceport_id").Eq(fromDeviceportID),
 	)
@@ -150,6 +170,7 @@ func (r BasicOpsCloverRepository) AddConnection(
 	doc := d.NewDocument()
 	doc.Set("from_deviceport_id", fromDeviceportID)
 	doc.Set("to_deviceport_id", toDeviceportID)
+	doc.Set("connection_type", connectionTypeID)
 	if len(discoveredVia) > 0 {
 		doc.Set("discovered_via", discoveredVia)
 	}
