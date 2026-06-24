@@ -74,8 +74,15 @@ func (ns *NetService) CreatePlaceholderForIntermediaries(intermediaries []topolo
 	}
 	res.Zone = placeholderZoneName
 
-	// 2. Ensure the placeholder model and the "ethernet" connection type exist
-	// (strict AddConnection requires the type to be present).
+	// 2. Ensure the placeholder model (and its brand/class) and the "ethernet"
+	// connection type exist — model and connection creation require their
+	// referenced rows to be present.
+	if err := ns.ensureBrand("Unknown"); err != nil {
+		return res, fmt.Errorf("ensure brand: %w", err)
+	}
+	if err := ns.ensureDeviceClass("Switch"); err != nil {
+		return res, fmt.Errorf("ensure device class: %w", err)
+	}
 	if err := ns.AddModel(placeholderModelName, "Unknown", "Switch"); err != nil &&
 		!strings.Contains(err.Error(), "already exists") {
 		return res, fmt.Errorf("create placeholder model: %w", err)

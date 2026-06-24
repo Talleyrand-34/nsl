@@ -754,6 +754,27 @@ func correlateEvidence(result *topology.ConnectionScanResult, ports []e.DevicePo
 		devLabels[lc(name)] = name
 	}
 
+	// Reconcile swept hosts to DB devices. Subnet mode is DB-agnostic at gather
+	// time (no DeviceLabel), so map each responding host to its DB device by mgmt
+	// IP or advertised sysname here. This makes its endpoints — and the "seen by"
+	// labels of detected intermediaries — resolve to the DB device label instead
+	// of a bare IP, which is what lets placeholder/edge import find the device.
+	for i := range result.Hosts {
+		hs := &result.Hosts[i]
+		if hs.DeviceLabel != "" {
+			continue
+		}
+		if lbl := ipToLabel[stripCIDR(hs.Host)]; lbl != "" {
+			hs.DeviceLabel = lbl
+		} else if lbl, ok := devLabels[lc(hs.LocalSysName)]; ok && hs.LocalSysName != "" {
+			hs.DeviceLabel = lbl
+		} else if hs.Device != nil {
+			if lbl, ok := devLabels[lc(hs.Device.SysName)]; ok {
+				hs.DeviceLabel = lbl
+			}
+		}
+	}
+
 	asEndpoint := func(p e.DevicePort) endpoint {
 		return endpoint{portID: p.ID, label: p.DevLabel + ":" + p.PortName, ok: true}
 	}

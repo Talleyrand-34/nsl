@@ -552,6 +552,40 @@ func (ns *NetService) ensureConnectionType(name string) error {
 	return ns.AddConnectionType(name)
 }
 
+// ensureBrand creates the named brand if it doesn't already exist.
+func (ns *NetService) ensureBrand(name string) error {
+	if name == "" {
+		return fmt.Errorf("brand name is required")
+	}
+	brands, err := ns.GetBrands()
+	if err != nil {
+		return err
+	}
+	for _, b := range brands {
+		if b.Name == name {
+			return nil
+		}
+	}
+	return ns.AddBrand(name)
+}
+
+// ensureDeviceClass creates the named device class if it doesn't already exist.
+func (ns *NetService) ensureDeviceClass(name string) error {
+	if name == "" {
+		return fmt.Errorf("device class name is required")
+	}
+	classes, err := ns.GetDeviceClasses()
+	if err != nil {
+		return err
+	}
+	for _, c := range classes {
+		if c.Name == name {
+			return nil
+		}
+	}
+	return ns.AddDeviceClass(name)
+}
+
 // ensureZoneType creates the named zone type if it doesn't already exist.
 func (ns *NetService) ensureZoneType(name string) error {
 	if name == "" {
