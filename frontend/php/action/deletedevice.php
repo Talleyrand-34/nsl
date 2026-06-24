@@ -8,9 +8,10 @@ $devices = json_decode($devicesJson, true);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = trim($_POST['id'] ?? '');
+    $cascade = isset($_POST['cascade']);
 
     if ($id !== '') {
-        $data = json_encode(['id' => $id]);
+        $data = json_encode(['id' => $id, 'cascade' => $cascade]);
 
         $ch = curl_init(DEVICES_ENDPOINT);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "DELETE");
@@ -51,10 +52,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <option value="">-- Select a Device --</option>
         <?php foreach ($devices as $device): ?>
             <option value="<?= htmlspecialchars($device['id']) ?>">
-                ID: <?= htmlspecialchars($device['id']) ?> - <?= htmlspecialchars($device['name']) ?> (<?= htmlspecialchars($device['model']) ?> - <?= htmlspecialchars($device['brand']) ?>)
+                <?= htmlspecialchars($device['label'] ?? '') ?> (<?= htmlspecialchars($device['model']) ?> - <?= htmlspecialchars($device['brand']) ?>) [<?= htmlspecialchars($device['id']) ?>]
             </option>
         <?php endforeach; ?>
     </select>
+    <br><br>
+    <label>
+        <input type="checkbox" name="cascade" value="1">
+        Delete on cascade (also remove dependent device ports, connections and interfaces)
+    </label>
+    <br><br>
     <button type="submit">Delete Device</button>
 </form>
 <?php else: ?>
