@@ -188,6 +188,72 @@ func (r BasicOpsCloverRepository) UpdateDevice(
 	return nil
 }
 
+// MigrateDeviceModel re-points a device to newModelID and remaps each of its
+// device ports to a target model port of the new model per portMap
+// (devicePortID -> newModelPortID). The device is the source of truth: its port
+// data (MAC, VLAN configs, connections and interface links) is preserved — only
+// the model-port pointers change, so no device information is destroyed.
+func (r BasicOpsCloverRepository) MigrateDeviceModel(deviceID, newModelID string, portMap map[string]string) error {
+	devDoc, err := r.db.FindById(devicesCollection, deviceID)
+	if err != nil || devDoc == nil {
+		return fmt.Errorf("device %q not found", deviceID)
+	}
+	modelDoc, err := r.db.FindById(modelsCollection, newModelID)
+	if err != nil || modelDoc == nil {
+		return fmt.Errorf("model %q not found", newModelID)
+	}
+
+	for devPortID, newMPID := range portMap {
+		if newMPID == "" {
+			return fmt.Errorf("device port %q has no target model port selected", devPortID)
+		}
+		dpDoc, err := r.db.FindById(deviceportsCollection, devPortID)
+		if err != nil || dpDoc == nil {
+			return fmt.Errorf("device port %q not found", devPortID)
+		}
+		if did, _ := dpDoc.Get("device_id").(string); did != deviceID {
+			return fmt.Errorf("device port %q does not belong to device %q", devPortID, deviceID)
+		}
+		mpDoc, err := r.db.FindById(modelportsCollection, newMPID)
+		if err != nil || mpDoc == nil {
+			return fmt.Errorf("target model port %q not found", newMPID)
+		}
+		if mid, _ := mpDoc.Get("model_id").(string); mid != newModelID {
+			return fmt.Errorf("target model port %q does not belong to the target model", newMPID)
+		}
+		oldMPID, _ := dpDoc.Get("model_port_id").(string)
+
+		// Re-point the device port to the target model port.
+		if err := r.db.Update(
+			q.NewQuery(deviceportsCollection).Where(q.Field("_id").Eq(devPortID)),
+			map[string]interface{}{"model_port_id": newMPID},
+		); err != nil {
+			return fmt.Errorf("update device port %q: %w", devPortID, err)
+		}
+
+		// Re-point any interface-port links for this device that referenced the old port.
+		if oldMPID != "" && oldMPID != newMPID {
+			if err := r.db.Update(
+				q.NewQuery(interfacePortsCollection).Where(
+					q.Field("device_id").Eq(deviceID).And(q.Field("model_port_id").Eq(oldMPID)),
+				),
+				map[string]interface{}{"model_port_id": newMPID},
+			); err != nil {
+				return fmt.Errorf("update interface ports for %q: %w", devPortID, err)
+			}
+		}
+	}
+
+	// Finally re-point the device to the new model.
+	if err := r.db.Update(
+		q.NewQuery(devicesCollection).Where(q.Field("_id").Eq(deviceID)),
+		map[string]interface{}{"model_id": newModelID},
+	); err != nil {
+		return fmt.Errorf("update device model: %w", err)
+	}
+	return nil
+}
+
 // DeleteDevice deletes a device from the database by its ID
 func (r BasicOpsCloverRepository) DeleteDevice(id string) error {
 	// Check for dependent device ports

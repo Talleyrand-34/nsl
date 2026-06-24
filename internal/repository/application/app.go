@@ -115,6 +115,7 @@ type NetServiceInt interface {
 		isUnmanaged *bool,
 	) error
 	UpdateDeviceIPs(deviceId string, ips []string) error
+	MigrateDeviceModel(deviceId string, newModelId string, portMap map[string]string) error
 	DeleteDevice(deviceId string) error
 
 	// ModelPort operations
@@ -468,6 +469,10 @@ func (ns *NetService) generateUnmanagedName() (string, error) {
 
 func (ns *NetService) UpdateDeviceIPs(deviceId string, ips []string) error {
 	return ns.netRepo.UpdateDeviceIPs(deviceId, ips)
+}
+
+func (ns *NetService) MigrateDeviceModel(deviceId string, newModelId string, portMap map[string]string) error {
+	return ns.netRepo.MigrateDeviceModel(deviceId, newModelId, portMap)
 }
 
 func (ns *NetService) GetDevicePorts() ([]e.DevicePort, error) {

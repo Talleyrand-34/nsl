@@ -14,6 +14,7 @@ define('ZONETYPES_ENDPOINT', API_BASE_URL . '/zonetypes');
 define('ZONES_ENDPOINT', API_BASE_URL . '/zones');
 define('MODELS_ENDPOINT', API_BASE_URL . '/models');
 define('DEVICES_ENDPOINT', API_BASE_URL . '/devices');
+define('DEVICES_MIGRATE_ENDPOINT', API_BASE_URL . '/devices/migrate');
 define('MODELPORTS_ENDPOINT', API_BASE_URL . '/modelports');
 define('MODELPORTS_BULK_ENDPOINT', MODELPORTS_ENDPOINT . '/bulk');
 define('CONNECTIONS_ENDPOINT', API_BASE_URL . '/connections');

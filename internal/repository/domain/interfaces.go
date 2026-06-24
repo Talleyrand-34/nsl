@@ -99,6 +99,7 @@ type repository interface {
 		isUnmanaged *bool,
 	) error
 	UpdateDeviceIPs(deviceId string, ips []string) error
+	MigrateDeviceModel(deviceId string, newModelId string, portMap map[string]string) error
 	DeleteDevice(deviceId string) error
 
 	// ModelPort interaction

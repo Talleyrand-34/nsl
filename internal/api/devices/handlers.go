@@ -69,6 +69,7 @@ func RegisterRoutes(r *mux.Router, service q.NetServiceInt) {
 	r.HandleFunc("/devices", GetDevicesHandler(service)).Methods("GET", "OPTIONS")
 	r.HandleFunc("/devices", UpdateDeviceHandler(service)).Methods("PUT", "OPTIONS")
 	r.HandleFunc("/devices", DeleteDeviceHandler(service)).Methods("DELETE", "OPTIONS")
+	r.HandleFunc("/devices/migrate", MigrateDeviceHandler(service)).Methods("POST", "OPTIONS")
 
 	// Model Ports
 	r.HandleFunc("/modelports", AddModelPortHandler(service)).Methods("POST")
@@ -1198,6 +1199,55 @@ func UpdateDeviceHandler(service q.NetServiceInt) http.HandlerFunc {
 
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]string{"message": "Device updated successfully", "id": req.ID})
+	}
+}
+
+// MigrateDeviceHandler re-points a device to a new model, remapping each of its
+// device ports to a target model port of the new model (device data preserved).
+func MigrateDeviceHandler(service q.NetServiceInt) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		if r.Method != "POST" {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			json.NewEncoder(w).Encode(map[string]string{"error": "method_not_allowed", "message": "Only POST method is allowed"})
+			return
+		}
+
+		var req struct {
+			DeviceID string            `json:"device_id"`
+			ModelID  string            `json:"model_id"`
+			PortMap  map[string]string `json:"port_map"` // device_port_id -> new model_port_id
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid_json", "message": err.Error()})
+			return
+		}
+
+		if req.DeviceID == "" || req.ModelID == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "missing_fields", "message": "device_id and model_id are required"})
+			return
+		}
+
+		if err := service.MigrateDeviceModel(req.DeviceID, req.ModelID, req.PortMap); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"error": "migrate_failed", "message": err.Error()})
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Device migrated successfully", "device_id": req.DeviceID})
 	}
 }
 
