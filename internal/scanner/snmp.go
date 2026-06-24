@@ -81,6 +81,8 @@ func (ss *SNMPScanner) Scan(options ScanOptions) (*ScanResult, error) {
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, 50)
+	total := len(ips)
+	done := 0
 
 	for _, ip := range ips {
 		wg.Add(1)
@@ -90,10 +92,16 @@ func (ss *SNMPScanner) Scan(options ScanOptions) (*ScanResult, error) {
 			defer func() { <-sem }()
 
 			dev, err := ss.ScanDevice(ip, options)
-			if err == nil && dev.Reachable {
-				mu.Lock()
+			reachable := err == nil && dev.Reachable
+			mu.Lock()
+			if reachable {
 				result.Devices = append(result.Devices, *dev)
-				mu.Unlock()
+			}
+			done++
+			d := done
+			mu.Unlock()
+			if options.OnProgress != nil {
+				options.OnProgress(d, total, ip, reachable)
 			}
 		}(ip)
 	}

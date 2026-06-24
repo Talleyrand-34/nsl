@@ -15,6 +15,10 @@ type ScanOptions struct {
 	Subnet  string        `json:"subnet"`
 	Timeout time.Duration `json:"timeout"`
 	SNMP    SNMPOptions   `json:"snmp"`
+	// OnProgress, when set, is called once per host as a subnet sweep completes
+	// (concurrently) so callers can report live progress. It must be safe for
+	// concurrent use. Not serialized.
+	OnProgress func(done, total int, ip string, reachable bool) `json:"-"`
 }
 
 // SNMP ifType values for interface classification
@@ -36,7 +40,7 @@ type DeviceInterface struct {
 	AdminStatus  int               `json:"admin_status"` // 1=up 2=down
 	OperStatus   int               `json:"oper_status"`
 	IPAddresses  []string          `json:"ip_addresses"`
-	IPNetmasks   map[string]string `json:"ip_netmasks"` // ip -> netmask (e.g. "255.255.255.0")
+	IPNetmasks   map[string]string `json:"ip_netmasks,omitempty"` // ip -> netmask; omitted when empty so a JSON round-trip (e.g. via PHP) can't turn {} into []
 	VLANs        []VLANMembership  `json:"vlans"`
 	Parent       string            `json:"parent,omitempty"`        // physical parent for VLAN/subinterfaces
 	WifiBand     string            `json:"wifi_band,omitempty"`     // "2.4GHz", "5GHz", "6GHz" for wifi radios
