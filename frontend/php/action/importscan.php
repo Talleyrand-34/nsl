@@ -392,8 +392,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_upload'])) {
             <div id="ssh_fields">
                 <p style="margin:6px 0; color:#555;"><em>SSH reads the device config using a profile's stored credentials. Pick a
                     profile — <strong>device</strong> or <strong>generic</strong> (generic credentials are reusable across many hosts). The target above
-                    overrides the profile's host; a CIDR scans every SSH-open host. A <strong>device type</strong> is required: a device profile supplies
-                    its own, or set one below (required for generic profiles).</em></p>
+                    overrides the profile's host; a CIDR scans every SSH-open host. An <strong>OS / firmware type</strong> is required so the right config
+                    parser is used (e.g. openwrt, opnsense — this is the operating system, <strong>not</strong> the hardware model): a device profile
+                    supplies its own, or set one below (required for generic profiles).</em></p>
                 <label>SSH profile (device or generic):
                     <select name="ssh_profile">
                         <option value="">— select —</option>
@@ -404,7 +405,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_upload'])) {
                         <?php endforeach; ?>
                     </select>
                 </label>
-                <label>Device type <small>(blank = use the profile's; required for generic profiles)</small>:
+                <label>OS / firmware type <small>(operating system for config parsing — not the hardware model; blank = use the profile's, required for generic profiles)</small>:
                     <input type="text" name="ssh_device_type" list="ssh_devtypes" value="<?= htmlspecialchars($_POST['ssh_device_type'] ?? '') ?>" placeholder="openwrt / opnsense / fortinet / cisco">
                     <datalist id="ssh_devtypes"><option value="openwrt"><option value="opnsense"><option value="fortinet"><option value="cisco"></datalist>
                 </label>
@@ -455,7 +456,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_upload'])) {
             <label>Scan source:
                 <select name="cp_scan_source"><option value="snmp">snmp</option><option value="ssh">ssh</option></select>
             </label>
-            <label>Device type:
+            <label>OS / firmware type <small>(operating system for config parsing — not the hardware model)</small>:
                 <input type="text" name="cp_device_type" placeholder="opnsense / openwrt / fortinet / cisco" size="20">
             </label><br>
             </div>
