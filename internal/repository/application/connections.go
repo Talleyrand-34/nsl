@@ -779,7 +779,16 @@ func correlateEvidence(result *topology.ConnectionScanResult, ports []e.DevicePo
 		return endpoint{portID: p.ID, label: p.DevLabel + ":" + p.PortName, ok: true}
 	}
 
-	resolveLocal := func(ev topology.NeighborEvidence) endpoint {
+	// resolveLocal maps an observing host's local endpoint to a DB device port.
+	// It prefers the host's reconciled DB label (set above for swept hosts whose
+	// evidence only knows them by IP), falling back to the evidence's own observed
+	// device name.
+	resolveLocal := func(devLabel string, ev topology.NeighborEvidence) endpoint {
+		if devLabel != "" {
+			if p, ok := portByDevPort[lc(devLabel)+"|"+lc(ev.LocalPort)]; ok {
+				return asEndpoint(p)
+			}
+		}
 		if p, ok := portByDevPort[lc(ev.ObservedDevice)+"|"+lc(ev.LocalPort)]; ok {
 			return asEndpoint(p)
 		}
@@ -955,7 +964,7 @@ func correlateEvidence(result *topology.ConnectionScanResult, ports []e.DevicePo
 		hostLabel := canonLabel(hs)
 
 		for _, ev := range hs.Evidence {
-			local := resolveLocal(ev)
+			local := resolveLocal(hs.DeviceLabel, ev)
 			remote := resolveRemote(ev)
 			prov := provString(ev)
 
@@ -1054,7 +1063,7 @@ func correlateEvidence(result *topology.ConnectionScanResult, ports []e.DevicePo
 	for _, hs := range result.Hosts {
 		observer := hostCanon[hs.Host]
 		for _, ev := range hs.Evidence {
-			if resolveLocal(ev).ok {
+			if resolveLocal(hs.DeviceLabel, ev).ok {
 				continue // already handled by the DB-resolved path
 			}
 			rCanon, _ := resolveCanon(ev.RemoteSysName, ev.RemoteChassisMAC, ev.RemoteIP)
