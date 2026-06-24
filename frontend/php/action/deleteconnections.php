@@ -10,7 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = trim($_POST['id'] ?? '');
 
     if ($id !== '') {
-        $data = json_encode(['connection_id' => $id]);
+        $data = json_encode(['connection_id' => $id, 'cascade' => isset($_POST['cascade'])]);
 
         $ch = curl_init(CONNECTIONS_ENDPOINT);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "DELETE");
@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
-        if ($httpCode === 204) {
+        if ($httpCode >= 200 && $httpCode < 300) {
             $message = "Connection deleted successfully!";
             // Refresh connections list after deletion
             $connectionsJson = @file_get_contents(CONNECTIONS_ENDPOINT);
@@ -51,10 +51,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <option value="">-- Select a Connection --</option>
         <?php foreach ($connections as $connection): ?>
             <option value="<?= htmlspecialchars($connection['id']) ?>">
-                ID: <?= htmlspecialchars($connection['id']) ?> - <?= htmlspecialchars($connection['fromdevname']) ?> → <?= htmlspecialchars($connection['todevname']) ?>
+                <?= htmlspecialchars(($connection['fromdevice'] ?? '') . ':' . ($connection['frommodel'] ?? '')) ?> &rarr; <?= htmlspecialchars(($connection['todevice'] ?? '') . ':' . ($connection['tomodel'] ?? '')) ?> [<?= htmlspecialchars($connection['id']) ?>]
             </option>
         <?php endforeach; ?>
     </select>
+    <br><br>
+    <label><input type="checkbox" name="cascade" value="1"> Delete on cascade</label>
+    <br><br>
     <button type="submit">Delete Connection</button>
 </form>
 <?php else: ?>

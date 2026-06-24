@@ -10,7 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $locationType = trim($_POST['location_type'] ?? '');
 
     if ($locationType !== '') {
-        $data = json_encode(['location_type' => $locationType]);
+        $data = json_encode(['name' => $locationType, 'cascade' => isset($_POST['cascade'])]);
 
         $ch = curl_init(ZONETYPES_ENDPOINT);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "DELETE");
@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
-        if ($httpCode === 204) {
+        if ($httpCode >= 200 && $httpCode < 300) {
             $message = "Zone type deleted successfully!";
             // Refresh zone types list after deletion
             $zoneTypesJson = @file_get_contents(ZONETYPES_ENDPOINT);
@@ -55,6 +55,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </option>
         <?php endforeach; ?>
     </select>
+    <br><br>
+    <label><input type="checkbox" name="cascade" value="1"> Delete on cascade (also remove dependents)</label>
+    <br><br>
     <button type="submit">Delete Zone Type</button>
 </form>
 <?php else: ?>

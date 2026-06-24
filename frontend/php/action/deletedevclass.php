@@ -10,7 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim($_POST['name'] ?? '');
 
     if ($name !== '') {
-        $data = json_encode(['name' => $name]);
+        $data = json_encode(['name' => $name, 'cascade' => isset($_POST['cascade'])]);
 
         $ch = curl_init(DEVCLASSES_ENDPOINT);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "DELETE");
@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
-        if ($httpCode === 204) {
+        if ($httpCode >= 200 && $httpCode < 300) {
             $message = "Device class deleted successfully!";
             // Refresh device classes list after deletion
             $devClassesJson = @file_get_contents(DEVCLASSES_ENDPOINT);
@@ -55,6 +55,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </option>
         <?php endforeach; ?>
     </select>
+    <br><br>
+    <label><input type="checkbox" name="cascade" value="1"> Delete on cascade (also remove dependents)</label>
+    <br><br>
     <button type="submit">Delete Device Class</button>
 </form>
 <?php else: ?>

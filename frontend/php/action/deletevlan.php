@@ -10,7 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $vlanDbId = trim($_POST['vlan_db_id'] ?? '');
 
     if ($vlanDbId !== '') {
-        $data = json_encode(['vlan_internal_id' => $vlanDbId]);
+        $data = json_encode(['vlan_internal_id' => $vlanDbId, 'cascade' => isset($_POST['cascade'])]);
 
         $ch = curl_init(VLANS_ENDPOINT);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "DELETE");
@@ -55,6 +55,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </option>
         <?php endforeach; ?>
     </select>
+    <br><br>
+    <label><input type="checkbox" name="cascade" value="1"> Delete on cascade</label>
+    <br><br>
     <button type="submit">Delete VLAN</button>
 </form>
 <?php else: ?>

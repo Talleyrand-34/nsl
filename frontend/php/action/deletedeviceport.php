@@ -13,7 +13,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($deviceId !== '' && $modelPortId !== '') {
         $data = json_encode([
             'device_id' => $deviceId,
-            'model_port_id' => $modelPortId
+            'model_port_id' => $modelPortId,
+            'cascade' => isset($_POST['cascade'])
         ]);
 
         $ch = curl_init(DEVICEPORTS_ENDPOINT);
@@ -28,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
-        if ($httpCode === 204) {
+        if ($httpCode >= 200 && $httpCode < 300) {
             $message = "Device port deleted successfully!";
             // Refresh device ports list after deletion
             $devicePortsJson = @file_get_contents(DEVICEPORTS_ENDPOINT);
@@ -65,7 +66,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     <input type="hidden" id="device_id" name="device_id">
     <input type="hidden" id="model_port_id" name="model_port_id">
-    
+    <br><br>
+    <label><input type="checkbox" name="cascade" value="1"> Delete on cascade (also remove dependent connections)</label>
+    <br><br>
     <button type="submit">Delete Device Port</button>
 </form>
 

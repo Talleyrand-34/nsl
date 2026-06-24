@@ -8,9 +8,10 @@ $brands = json_decode($brandsJson, true);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $brand = trim($_POST['brand'] ?? '');
+    $cascade = isset($_POST['cascade']);
 
     if ($brand !== '') {
-        $data = json_encode(['brand' => $brand]);
+        $data = json_encode(['name' => $brand, 'cascade' => $cascade]);
 
         $ch = curl_init(BRANDS_ENDPOINT);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "DELETE");
@@ -24,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
-        if ($httpCode === 204) {
+        if ($httpCode >= 200 && $httpCode < 300) {
             $message = "Brand deleted successfully!";
             // Refresh brands list after deletion
             $brandsJson = @file_get_contents(BRANDS_ENDPOINT);
@@ -55,6 +56,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </option>
         <?php endforeach; ?>
     </select>
+    <br><br>
+    <label><input type="checkbox" name="cascade" value="1"> Delete on cascade (also remove dependents)</label>
+    <br><br>
     <button type="submit">Delete Brand</button>
 </form>
 <?php else: ?>

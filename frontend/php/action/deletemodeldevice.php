@@ -10,7 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = trim($_POST['id'] ?? '');
 
     if ($id !== '') {
-        $data = json_encode(['model_id' => $id]);
+        $data = json_encode(['model_id' => $id, 'cascade' => isset($_POST['cascade'])]);
 
         $ch = curl_init(MODELS_ENDPOINT);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "DELETE");
@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
-        if ($httpCode === 204) {
+        if ($httpCode >= 200 && $httpCode < 300) {
             $message = "Model deleted successfully!";
             // Refresh models list after deletion
             $modelsJson = @file_get_contents(MODELS_ENDPOINT);
@@ -55,6 +55,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </option>
         <?php endforeach; ?>
     </select>
+    <br><br>
+    <label><input type="checkbox" name="cascade" value="1"> Delete on cascade (also remove dependent devices, ports, etc.)</label>
+    <br><br>
     <button type="submit">Delete Model</button>
 </form>
 <?php else: ?>
