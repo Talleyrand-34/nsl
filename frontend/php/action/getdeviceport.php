@@ -3,9 +3,44 @@ require_once __DIR__ . '/../config.php';
 
 $devicePortsJson = @file_get_contents(DEVICEPORTS_ENDPOINT);
 $devicePorts = json_decode($devicePortsJson, true);
+if (!is_array($devicePorts)) {
+    $devicePorts = [];
+}
 
-if (is_array($devicePorts) && count($devicePorts) > 0):
-    ?>
+// Build the device filter options from the device ports themselves (id => name).
+$deviceOptions = [];
+foreach ($devicePorts as $dp) {
+    $id = $dp['devid'] ?? '';
+    if ($id !== '' && !isset($deviceOptions[$id])) {
+        $deviceOptions[$id] = $dp['devname'] ?? $id;
+    }
+}
+asort($deviceOptions);
+
+// Active filter (device id) from the query string.
+$deviceFilter = $_GET['dp_device'] ?? '';
+if ($deviceFilter !== '') {
+    $devicePorts = array_values(array_filter($devicePorts, fn($dp) => ($dp['devid'] ?? '') === $deviceFilter));
+}
+?>
+
+<form method="get" style="margin-bottom:12px;">
+    <!-- Preserve the dashboard's action/entity selection. -->
+    <input type="hidden" name="actionType" value="<?= htmlspecialchars($_GET['actionType'] ?? 'get') ?>">
+    <input type="hidden" name="entity" value="<?= htmlspecialchars($_GET['entity'] ?? 'deviceport') ?>">
+    <label for="dp_device">Filter by device:</label>
+    <select id="dp_device" name="dp_device" onchange="this.form.submit()">
+        <option value="">-- All devices --</option>
+        <?php foreach ($deviceOptions as $id => $name): ?>
+            <option value="<?= htmlspecialchars($id) ?>" <?= ($deviceFilter === (string) $id) ? 'selected' : '' ?>>
+                <?= htmlspecialchars($name) ?>
+            </option>
+        <?php endforeach; ?>
+    </select>
+    <noscript><button type="submit">Filter</button></noscript>
+</form>
+
+<?php if (count($devicePorts) > 0): ?>
     <ul>
     <?php foreach ($devicePorts as $devicePort): ?>
         <li>
@@ -35,6 +70,8 @@ if (is_array($devicePorts) && count($devicePorts) > 0):
         </li>
     <?php endforeach; ?>
     </ul>
+<?php elseif ($deviceFilter !== ''): ?>
+    <p><em>No device ports for the selected device.</em></p>
 <?php else: ?>
     <p><em>Could not fetch device ports or no device ports found.</em></p>
 <?php endif; ?>
