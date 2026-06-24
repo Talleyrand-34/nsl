@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"log"
 
+	q "github.com/ostafen/clover/v2/query"
+
 	e "nsl-graph/internal/repository/entities"
 )
 
@@ -226,20 +228,28 @@ func (r BasicOpsCloverRepository) DeleteModelPortCascade(modelPortId string) err
 func (r BasicOpsCloverRepository) DeleteDevicePortCascade(deviceId string, modelPortId string) error {
 	log.Printf("Cascade deleting device port: %s:%s", deviceId, modelPortId)
 
-	// Get all connections using this device port
-	connections, err := r.GetConnections()
+	// Resolve the device-port document id so we can find the connections that
+	// reference it. Connections store deviceport ids (from_/to_deviceport_id), NOT
+	// device/port names — matching on names never hit, leaving connections in place
+	// and making the subsequent DeleteDevicePort fail with "referenced by
+	// connections", which is what broke cascade-deleting a connected device.
+	doc, err := r.db.FindFirst(q.NewQuery(deviceportsCollection).Where(
+		q.Field("device_id").Eq(deviceId).And(q.Field("model_port_id").Eq(modelPortId)),
+	))
 	if err != nil {
-		return fmt.Errorf("failed to get connections: %w", err)
+		return fmt.Errorf("failed to find device port: %w", err)
 	}
-
-	for _, connection := range connections {
-		// Check if this connection involves the device port being deleted
-		if (connection.FromDevice == deviceId && connection.FromModelPort == modelPortId) ||
-			(connection.ToDevice == deviceId && connection.ToModelPort == modelPortId) {
-			// Delete connection (no cascade needed for connections)
-			if err := r.DeleteConnection(connection.ID); err != nil {
-				return fmt.Errorf("failed to delete connection %s: %w", connection.ID, err)
-			}
+	if doc != nil {
+		deviceportID := doc.ObjectId()
+		if err := r.db.Delete(q.NewQuery(connectionsCollection).Where(
+			q.Field("from_deviceport_id").Eq(deviceportID),
+		)); err != nil {
+			return fmt.Errorf("failed to delete connections from %s: %w", deviceportID, err)
+		}
+		if err := r.db.Delete(q.NewQuery(connectionsCollection).Where(
+			q.Field("to_deviceport_id").Eq(deviceportID),
+		)); err != nil {
+			return fmt.Errorf("failed to delete connections to %s: %w", deviceportID, err)
 		}
 	}
 
