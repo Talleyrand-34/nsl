@@ -15,6 +15,7 @@ $selectedModelId = '';
 $selectedZoneId = '';
 $selectedProprietaryId = '';
 $selectedIPs = [];
+$selectedIsUnmanaged = false;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Handle device selection (Load Device button)
@@ -26,6 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($device['id'] == $selectedDeviceId) {
                 $selectedDeviceLabel = $device['label'] ?? '';
                 $selectedIPs = $device['ips'] ?? [];
+                $selectedIsUnmanaged = !empty($device['is_unmanaged']);
 
                 // Find model ID by model name
                 foreach ($models as $model) {
@@ -56,6 +58,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $modelId = $_POST['model_id'] ?? '';
         $zoneId = $_POST['zone_id'] ?? '';
         $proprietaryId = $_POST['proprietary_id'] ?? '';
+        $isUnmanaged = isset($_POST['is_unmanaged']);
+        // Preserve the checkbox state if validation below fails and re-renders the form.
+        $selectedIsUnmanaged = $isUnmanaged;
 
         // Collect IPs from dynamic inputs
         $ips = [];
@@ -85,6 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'model_id' => $modelId,
                 'zone_id' => $zoneId,
                 'proprietary_id' => $proprietaryId,
+                'is_unmanaged' => $isUnmanaged,
                 'ips' => $ips
             ]);
 
@@ -111,6 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $selectedZoneId = '';
                 $selectedProprietaryId = '';
                 $selectedIPs = [];
+                $selectedIsUnmanaged = false;
             } else {
                 $message = 'Failed to update device. Server response: ' . htmlspecialchars($response);
             }
@@ -179,6 +186,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </option>
                 <?php endforeach; ?>
             </select><br><br>
+
+            <label>
+                <input type="checkbox" name="is_unmanaged" value="1" <?= $selectedIsUnmanaged ? 'checked' : '' ?>>
+                Unmanaged VLANs (switch replicates all VLANs through all ports)
+            </label><br><br>
 
             <fieldset>
                 <legend>IP Addresses</legend>

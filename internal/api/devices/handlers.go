@@ -1097,7 +1097,7 @@ func UpdateDeviceHandler(service q.NetServiceInt) http.HandlerFunc {
 			Label       string `json:"label"`
 			ModelID     string `json:"model_id"`
 			ZoneID      string `json:"zone_id"`
-			Proprietary string `json:"proprietary"`
+			Proprietary string `json:"proprietary_id"`
 			IsUnmanaged *bool  `json:"is_unmanaged"`
 		}
 
