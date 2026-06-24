@@ -555,7 +555,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
 
     <?php $tree = render_topology($result); if ($tree !== ''): ?>
         <h3>Discovered topology</h3>
-        <pre style="background:#f4f4f4; border:1px solid #ddd; padding:10px; overflow:auto;"><?= htmlspecialchars($tree) ?></pre>
+        <?php
+            // Render the discovered topology as a D2 diagram by posting the scan
+            // result to the diagram endpoint (reuses the standard diagram generator).
+            list($dgCode, $dgSvg) = api_post_json_conn(SCAN_CONNECTIONS_DIAGRAM_ENDPOINT, json_encode($result), 30);
+        ?>
+        <?php if ($dgCode === 200 && $dgSvg !== ''): ?>
+            <div class="resizable-img-container" style="height:480px; border:1px solid #ddd; overflow:auto;"><?= $dgSvg ?></div>
+        <?php endif; ?>
+        <details<?= ($dgCode === 200 && $dgSvg !== '') ? '' : ' open' ?>>
+            <summary>Text view</summary>
+            <pre style="background:#f4f4f4; border:1px solid #ddd; padding:10px; overflow:auto;"><?= htmlspecialchars($tree) ?></pre>
+        </details>
     <?php endif; ?>
 
     <h3>Derived edges (<?= count($edges) ?>)</h3>
