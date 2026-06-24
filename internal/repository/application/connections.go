@@ -26,6 +26,7 @@ import (
 	"time"
 
 	configparser "nsl-graph/internal/configparser"
+	"nsl-graph/internal/observ"
 	e "nsl-graph/internal/repository/entities"
 	s "nsl-graph/internal/scanner"
 	"nsl-graph/internal/secret"
@@ -63,7 +64,10 @@ type ConnectionScanOptions struct {
 
 // DiscoverConnectionsByMode builds targets from the given options (no interactive
 // prompting) and runs discovery — the entry point used by the web API.
-func (ns *NetService) DiscoverConnectionsByMode(opts ConnectionScanOptions) (*topology.ConnectionScanResult, error) {
+func (ns *NetService) DiscoverConnectionsByMode(opts ConnectionScanOptions, em observ.Emitter) (*topology.ConnectionScanResult, error) {
+	if em == nil {
+		em = observ.Discard
+	}
 	community := opts.Community
 	if community == "" {
 		community = "public"
@@ -281,7 +285,8 @@ func (ns *NetService) DiscoverConnectionsByMode(opts ConnectionScanOptions) (*to
 		if sweepTimeout > 3*time.Second {
 			sweepTimeout = 3 * time.Second
 		}
-		for _, h := range SweepSubnet(opts.Subnet, community, version, sweepTimeout, opts.SSHPort) {
+		em.Emit("info", "sweeping subnet for connection discovery", "subnet", opts.Subnet)
+		for _, h := range SweepSubnet(opts.Subnet, community, version, sweepTimeout, opts.SSHPort, em) {
 			t := get(h.IP)
 			if h.SNMP && t.SNMP == nil {
 				t.SNMP = defaultSNMP()
@@ -303,7 +308,11 @@ func (ns *NetService) DiscoverConnectionsByMode(opts ConnectionScanOptions) (*to
 	if len(targets) == 0 {
 		return &topology.ConnectionScanResult{}, nil
 	}
+	em.Emit("info", "collecting adjacency evidence from hosts", "hosts", len(targets))
 	result, err := ns.DiscoverConnections(targets, opts.Collector)
+	if err == nil && result != nil {
+		em.Emit("info", "correlated connection evidence", "hosts", len(result.Hosts), "edges", len(result.Edges), "discrepancies", len(result.Discrepancies))
+	}
 	if err == nil && result != nil && sshNoCreds > 0 {
 		result.Discrepancies = append(result.Discrepancies, topology.Discrepancy{
 			Kind:   "ssh-no-credentials",
@@ -362,7 +371,10 @@ type SubnetHost struct {
 // The result depends only on the live network, not the DB. A host is returned if
 // it answers SNMP OR has SSH open — so LLDP-only hosts (lldpd over SSH, no SNMP)
 // are not discarded.
-func SweepSubnet(cidr, community, version string, timeout time.Duration, sshPort int) []SubnetHost {
+func SweepSubnet(cidr, community, version string, timeout time.Duration, sshPort int, em observ.Emitter) []SubnetHost {
+	if em == nil {
+		em = observ.Discard
+	}
 	if sshPort == 0 {
 		sshPort = 22
 	}
@@ -371,8 +383,11 @@ func SweepSubnet(cidr, community, version string, timeout time.Duration, sshPort
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	var hosts []SubnetHost
+	ips := enumerateCIDR(cidr)
+	total := len(ips)
+	done := 0
 	sem := make(chan struct{}, 64)
-	for _, ip := range enumerateCIDR(cidr) {
+	for _, ip := range ips {
 		wg.Add(1)
 		go func(ip string) {
 			defer wg.Done()
@@ -380,15 +395,22 @@ func SweepSubnet(cidr, community, version string, timeout time.Duration, sshPort
 			defer func() { <-sem }()
 			snmpOK := ss.Probe(ip, snmpOpts)
 			sshOK := tcpOpen(ip, sshPort, timeout)
+			mu.Lock()
 			if snmpOK || sshOK {
-				mu.Lock()
 				hosts = append(hosts, SubnetHost{IP: ip, SNMP: snmpOK, SSH: sshOK})
-				mu.Unlock()
+			}
+			done++
+			d := done
+			mu.Unlock()
+			em.Progress(d, total)
+			if snmpOK || sshOK {
+				em.Emit("info", "host reachable", "ip", ip, "snmp", snmpOK, "ssh", sshOK, "done", d, "total", total)
 			}
 		}(ip)
 	}
 	wg.Wait()
 	sort.Slice(hosts, func(i, j int) bool { return hosts[i].IP < hosts[j].IP })
+	em.Emit("info", "subnet sweep complete", "reachable", len(hosts), "scanned", total)
 	return hosts
 }
 

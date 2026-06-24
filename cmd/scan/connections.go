@@ -412,7 +412,7 @@ func buildTargets(service q.NetServiceInt) ([]topology.Target, error) {
 			sweepTimeout = 3 * time.Second
 		}
 		sshNoCreds := 0
-		for _, h := range q.SweepSubnet(connSubnet, connCommunity, connSNMPVer, sweepTimeout, connSSHPort) {
+		for _, h := range q.SweepSubnet(connSubnet, connCommunity, connSNMPVer, sweepTimeout, connSSHPort, nil) {
 			t := get(h.IP)
 			if h.SNMP && t.SNMP == nil {
 				t.SNMP = defaultSNMP()

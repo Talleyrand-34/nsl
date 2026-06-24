@@ -19,6 +19,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -35,6 +36,7 @@ import (
 	"nsl-graph/internal/api/devices"
 	"nsl-graph/internal/api/scanning"
 	"nsl-graph/internal/api/vlans"
+	"nsl-graph/internal/observ"
 )
 
 func StartServer(dbPath string, port int) {
@@ -45,6 +47,9 @@ func StartServer(dbPath string, port int) {
 	}
 
 	r := mux.NewRouter()
+	// Observability middleware wraps every route: panic recovery + a structured
+	// request log line per call.
+	r.Use(observ.Recover, observ.RequestLogger)
 	registerAllRoutes(r, service)
 
 	addr := fmt.Sprintf(":%d", port)
@@ -55,9 +60,9 @@ func StartServer(dbPath string, port int) {
 
 	// Start server in a goroutine so we can listen for signals
 	go func() {
-		fmt.Printf("Starting server on %v\n", addr)
+		slog.Info("starting HTTP server", "addr", addr)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			fmt.Printf("HTTP server error: %v\n", err)
+			slog.Error("HTTP server error", "error", err)
 		}
 	}()
 
@@ -65,15 +70,15 @@ func StartServer(dbPath string, port int) {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	sig := <-sigChan
-	fmt.Printf("Received signal %s, shutting down...\n", sig)
+	slog.Info("shutting down", "signal", sig.String())
 
 	// Graceful shutdown with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := server.Shutdown(ctx); err != nil {
-		fmt.Printf("HTTP server shutdown error: %v\n", err)
+		slog.Error("HTTP server shutdown error", "error", err)
 	} else {
-		fmt.Println("HTTP server gracefully stopped.")
+		slog.Info("HTTP server gracefully stopped")
 	}
 }
 
@@ -109,6 +114,7 @@ func registerAllRoutes(r *mux.Router, service q.NetServiceInt) {
 // registerScanningRoutes registers network scanning endpoints
 func registerScanningRoutes(r *mux.Router, service q.NetServiceInt) {
 	// Network scanning endpoints
+	r.HandleFunc("/scan/run", scanning.ScanRunHandler(service)).Methods("POST", "OPTIONS")
 	r.HandleFunc("/scan/network", scanning.ScanNetworkHandler(service)).Methods("POST", "OPTIONS")
 	r.HandleFunc("/scan/host", scanning.ScanHostHandler(service)).Methods("POST", "OPTIONS")
 	r.HandleFunc("/scan/host-ssh", scanning.ScanHostSSHHandler(service)).Methods("POST", "OPTIONS")

@@ -21,17 +21,24 @@ package cmd_root
 
 import (
 	"fmt"
+	"os"
 
 	"nsl-graph/cmd"
 
 	"github.com/spf13/cobra"
 
 	srv "nsl-graph/internal/api"
+	"nsl-graph/internal/observ"
 
 	c "nsl-graph/cmd"
 )
 
-var port int
+var (
+	port      int
+	logLevel  string
+	logFormat string
+	logFile   string
+)
 
 // printCmd represents the print command
 var serverCmd = &cobra.Command{
@@ -39,14 +46,19 @@ var serverCmd = &cobra.Command{
 	Short: "Start the HTTP API server",
 	Long:  `Print info about any table in the db`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// start http server
-		fmt.Println("Starting HTTP server...")
+		if err := observ.Init(logLevel, logFormat, logFile); err != nil {
+			fmt.Fprintln(os.Stderr, "Error configuring logging:", err)
+			os.Exit(1)
+		}
 		srv.StartServer(c.Srcdbpath, port)
 	},
 }
 
 func init() {
 	cmd.RootCmd.AddCommand(serverCmd)
-	serverCmd.Flags().
-		IntVar(&port, "port", 8080, "Port where the service will be exposed")
+	f := serverCmd.Flags()
+	f.IntVar(&port, "port", 8080, "Port where the service will be exposed")
+	f.StringVar(&logLevel, "log-level", "info", "Log level: debug|info|warn|error")
+	f.StringVar(&logFormat, "log-format", "text", "Log format: text|json")
+	f.StringVar(&logFile, "log-file", "", "Also write logs to this file (in addition to stdout)")
 }

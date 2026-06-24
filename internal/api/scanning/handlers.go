@@ -3,18 +3,43 @@ package scanning
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	configparser "nsl-graph/internal/configparser"
+	"nsl-graph/internal/observ"
 	q "nsl-graph/internal/repository/application"
 	e "nsl-graph/internal/repository/entities"
 	s "nsl-graph/internal/scanner"
 	"nsl-graph/internal/secret"
 )
+
+// startAsyncScan creates a tracked run, executes fn in a goroutine, and replies
+// immediately with the scan_id. The client polls GET /scan/status?scan_id= for
+// progress, granular events, and (on completion) the result. fn returns the same
+// payload the endpoint used to return synchronously, so result rendering is
+// unchanged.
+func startAsyncScan(w http.ResponseWriter, kind, title string, fn func(run *observ.Run) (any, error)) {
+	run := observ.Runs.NewRun(kind, title)
+	go func() {
+		defer func() {
+			if p := recover(); p != nil {
+				run.Fail(fmt.Errorf("panic: %v", p))
+			}
+		}()
+		res, err := fn(run)
+		if err != nil {
+			run.Fail(err)
+		} else {
+			run.Finish(res)
+		}
+	}()
+	w.WriteHeader(http.StatusAccepted)
+	json.NewEncoder(w).Encode(map[string]string{"scan_id": run.ID})
+}
 
 type ScanNetworkRequest struct {
 	Subnet      string `json:"subnet"`
@@ -121,36 +146,101 @@ func ScanNetworkHandler(service q.NetServiceInt) http.HandlerFunc {
 			},
 		}
 
-		log.Printf("Starting SNMP network scan of %s", req.Subnet)
+		startAsyncScan(w, "network", req.Subnet, func(run *observ.Run) (any, error) {
+			options.OnProgress = func(done, total int, ip string, reachable bool) {
+				run.Progress(done, total)
+				if reachable {
+					run.Emit("info", "host responded to SNMP", "ip", ip, "done", done, "total", total)
+				}
+			}
+			scanResult, err := service.ScanNetwork(req.Subnet, options)
+			if err != nil {
+				return nil, err
+			}
+			devices, err := service.DiscoverDevices(scanResult)
+			if err != nil {
+				return nil, err
+			}
+			return ScanNetworkResponse{
+				ScanID:    scanResult.ID,
+				Subnet:    scanResult.Subnet,
+				StartTime: scanResult.StartTime,
+				EndTime:   scanResult.EndTime,
+				Duration:  scanResult.EndTime.Sub(scanResult.StartTime).String(),
+				Total:     len(devices),
+				Devices:   devices,
+			}, nil
+		})
+	}
+}
 
-		scanResult, err := service.ScanNetwork(req.Subnet, options)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorResponse{Error: "scan_failed", Message: err.Error()})
+// ScanRunRequest is the body for the unified /scan/run endpoint. method is
+// "snmp" or "ssh"; target is a single IP (single scan) or a CIDR / comma-list
+// (batch). For SSH, profile + passphrase supply the credentials and device_type.
+type ScanRunRequest struct {
+	Method      string `json:"method"`
+	Target      string `json:"target"`
+	Community   string `json:"community,omitempty"`
+	SNMPVersion string `json:"snmp_version,omitempty"`
+	SNMPPort    uint16 `json:"snmp_port,omitempty"`
+	Timeout     int    `json:"timeout,omitempty"`
+	Profile     string `json:"profile,omitempty"`
+	DeviceType  string `json:"device_type,omitempty"`
+	Passphrase  string `json:"passphrase,omitempty"`
+}
+
+// ScanRunHandler runs a unified device scan (SNMP or SSH; single or batch,
+// inferred from the target) and returns the classified devices to import.
+func ScanRunHandler(service q.NetServiceInt) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		if r.Method != "POST" {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			json.NewEncoder(w).Encode(ErrorResponse{Error: "method_not_allowed", Message: "Only POST method is allowed"})
 			return
 		}
 
-		devices, err := service.DiscoverDevices(scanResult)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorResponse{Error: "discovery_failed", Message: err.Error()})
+		var req ScanRunRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid_json", Message: err.Error()})
+			return
+		}
+		if strings.TrimSpace(req.Target) == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(ErrorResponse{Error: "missing_target", Message: "a target IP or CIDR is required"})
 			return
 		}
 
-		response := ScanNetworkResponse{
-			ScanID:    scanResult.ID,
-			Subnet:    scanResult.Subnet,
-			StartTime: scanResult.StartTime,
-			EndTime:   scanResult.EndTime,
-			Duration:  scanResult.EndTime.Sub(scanResult.StartTime).String(),
-			Total:     len(devices),
-			Devices:   devices,
+		method := req.Method
+		if method == "" {
+			method = "snmp"
 		}
-
-		log.Printf("Scan completed: %d devices discovered", len(devices))
-
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(response)
+		startAsyncScan(w, "run", fmt.Sprintf("%s %s", method, req.Target), func(run *observ.Run) (any, error) {
+			devices, err := service.RunScan(q.RunScanOptions{
+				Method:      req.Method,
+				Target:      req.Target,
+				Community:   req.Community,
+				SNMPVersion: req.SNMPVersion,
+				SNMPPort:    req.SNMPPort,
+				TimeoutSec:  req.Timeout,
+				Profile:     req.Profile,
+				DeviceType:  req.DeviceType,
+				Passphrase:  req.Passphrase,
+			}, run)
+			if err != nil {
+				return nil, err
+			}
+			return map[string]any{"devices": devices, "total": len(devices)}, nil
+		})
 	}
 }
 
@@ -221,31 +311,26 @@ func ScanHostHandler(service q.NetServiceInt) http.HandlerFunc {
 			},
 		}
 
-		log.Printf("Starting SNMP device scan of %s", req.IP)
-
-		device, err := service.ScanDevice(req.IP, options)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorResponse{Error: "scan_failed", Message: err.Error()})
-			return
-		}
-
-		discoverer := s.NewDeviceDiscoverer()
-		brand, model, class := discoverer.ClassifyDevice(*device)
-
-		discovered := s.DiscoveredDevice{
-			Device:        *device,
-			Brand:         brand,
-			Model:         model,
-			DeviceClass:   class,
-			SuggestedName: discoverer.GenerateDeviceName(*device, class),
-			SuggestedZone: discoverer.SuggestZone(*device),
-		}
-
-		log.Printf("Device scan completed: %s (%s) - %s %s", device.IP, device.SysName, brand, model)
-
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(discovered)
+		startAsyncScan(w, "host", req.IP, func(run *observ.Run) (any, error) {
+			run.Emit("info", "scanning host over SNMP", "ip", req.IP)
+			run.Progress(0, 1)
+			device, err := service.ScanDevice(req.IP, options)
+			if err != nil {
+				return nil, err
+			}
+			run.Progress(1, 1)
+			discoverer := s.NewDeviceDiscoverer()
+			brand, model, class := discoverer.ClassifyDevice(*device)
+			run.Emit("info", "device scan completed", "ip", device.IP, "sysname", device.SysName, "brand", brand, "model", model)
+			return s.DiscoveredDevice{
+				Device:        *device,
+				Brand:         brand,
+				Model:         model,
+				DeviceClass:   class,
+				SuggestedName: discoverer.GenerateDeviceName(*device, class),
+				SuggestedZone: discoverer.SuggestZone(*device),
+			}, nil
+		})
 	}
 }
 
@@ -280,7 +365,7 @@ func ImportDevicesHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		log.Printf("Importing %d devices", len(req.Devices))
+		slog.Info("importing devices", "count", len(req.Devices))
 
 		if err := service.ImportScanResults(req.Devices, req.Options); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -294,7 +379,7 @@ func ImportDevicesHandler(service q.NetServiceInt) http.HandlerFunc {
 			"message":          fmt.Sprintf("Successfully imported %d devices", len(req.Devices)),
 		}
 
-		log.Printf("Import completed successfully")
+		slog.Info("import completed", "count", len(req.Devices))
 
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(response)
@@ -363,7 +448,7 @@ func ImportScanFileHandler(service q.NetServiceInt) http.HandlerFunc {
 			VLANAccuracyLevel: 2,
 		}
 
-		log.Printf("Importing %d devices from uploaded scan file", len(devices))
+		slog.Info("importing devices from uploaded scan file", "count", len(devices))
 
 		if err := service.ImportScanResults(devices, options); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -655,28 +740,26 @@ func ScanHostSSHHandler(service q.NetServiceInt) http.HandlerFunc {
 			Timeout:    timeout,
 		}
 
-		log.Printf("Starting SSH scan of %s (profile=%s, type=%s)", ip, profile.Name, profile.DeviceType)
-
-		device, err := service.ScanDeviceViaSSH(ip, profile.DeviceType, creds)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorResponse{Error: "scan_failed", Message: err.Error()})
-			return
-		}
-
-		discoverer := s.NewDeviceDiscoverer()
-		brand, model, class := discoverer.ClassifyDevice(*device)
-		discovered := s.DiscoveredDevice{
-			Device:        *device,
-			Brand:         brand,
-			Model:         model,
-			DeviceClass:   class,
-			SuggestedName: discoverer.GenerateDeviceName(*device, class),
-			SuggestedZone: discoverer.SuggestZone(*device),
-		}
-
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(discovered)
+		startAsyncScan(w, "host-ssh", ip, func(run *observ.Run) (any, error) {
+			run.Emit("info", "reading config over SSH", "ip", ip, "profile", profile.Name, "device_type", profile.DeviceType)
+			run.Progress(0, 1)
+			device, err := service.ScanDeviceViaSSH(ip, profile.DeviceType, creds)
+			if err != nil {
+				return nil, err
+			}
+			run.Progress(1, 1)
+			discoverer := s.NewDeviceDiscoverer()
+			brand, model, class := discoverer.ClassifyDevice(*device)
+			run.Emit("info", "device read over SSH", "ip", ip, "sysname", device.SysName)
+			return s.DiscoveredDevice{
+				Device:        *device,
+				Brand:         brand,
+				Model:         model,
+				DeviceClass:   class,
+				SuggestedName: discoverer.GenerateDeviceName(*device, class),
+				SuggestedZone: discoverer.SuggestZone(*device),
+			}, nil
+		})
 	}
 }
 
@@ -760,6 +843,12 @@ func ExecuteImportPlanHandler(service q.NetServiceInt) http.HandlerFunc {
 
 		plan := service.RegenerateVLANPlans(req.Plan)
 		if err := service.ExecuteApprovedImportPlan(plan, opts); err != nil {
+			// A name clash with an existing device is a conflict, not a server error.
+			if strings.Contains(err.Error(), "already in the database") || strings.Contains(err.Error(), "already exists") {
+				w.WriteHeader(http.StatusConflict)
+				json.NewEncoder(w).Encode(ErrorResponse{Error: "device_exists", Message: err.Error()})
+				return
+			}
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(ErrorResponse{Error: "import_failed", Message: err.Error()})
 			return
@@ -773,6 +862,9 @@ func ExecuteImportPlanHandler(service q.NetServiceInt) http.HandlerFunc {
 	}
 }
 
+// GetScanStatusHandler reports the live status of an async scan: its state,
+// progress counters, the events since the client's cursor (?since=<seq>), and —
+// once completed — the result payload (or the error if it failed).
 func GetScanStatusHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -784,15 +876,22 @@ func GetScanStatusHandler() http.HandlerFunc {
 			json.NewEncoder(w).Encode(ErrorResponse{Error: "missing_scan_id", Message: "scan_id parameter is required"})
 			return
 		}
+		since := 0
+		if v := r.URL.Query().Get("since"); v != "" {
+			if n, err := strconv.Atoi(v); err == nil {
+				since = n
+			}
+		}
 
-		status := map[string]interface{}{
-			"scan_id": scanID,
-			"status":  "completed",
-			"message": "Scan status tracking not implemented",
+		run, ok := observ.Runs.Get(scanID)
+		if !ok {
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(ErrorResponse{Error: "scan_not_found", Message: fmt.Sprintf("no scan with id %q (it may have expired)", scanID)})
+			return
 		}
 
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(status)
+		json.NewEncoder(w).Encode(run.Snapshot(since))
 	}
 }
 

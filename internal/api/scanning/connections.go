@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"nsl-graph/internal/observ"
 	q "nsl-graph/internal/repository/application"
 	"nsl-graph/internal/topology"
 )
@@ -54,13 +55,17 @@ func ScanConnectionsHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		result, err := service.DiscoverConnectionsByMode(opts)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorResponse{Error: "scan_failed", Message: err.Error()})
-			return
+		title := opts.Subnet
+		if title == "" {
+			if opts.FromDB {
+				title = "from-db"
+			} else if opts.Profiles {
+				title = "profiles"
+			}
 		}
-		json.NewEncoder(w).Encode(result)
+		startAsyncScan(w, "connections", title, func(run *observ.Run) (any, error) {
+			return service.DiscoverConnectionsByMode(opts, run)
+		})
 	}
 }
 

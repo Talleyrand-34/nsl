@@ -26,6 +26,7 @@ import (
 
 	configparser "nsl-graph/internal/configparser"
 	fmtd2 "nsl-graph/internal/format"
+	"nsl-graph/internal/observ"
 	d "nsl-graph/internal/repository/domain"
 	e "nsl-graph/internal/repository/entities"
 	s "nsl-graph/internal/scanner"
@@ -164,7 +165,7 @@ type NetServiceInt interface {
 	ImportConnectionEdges(edges []topology.ConnectionEdge) (int, error)
 	// DiscoverConnectionsByMode builds targets (from-db/profiles/subnet) and runs
 	// discovery without interactive prompts — used by the HTTP API.
-	DiscoverConnectionsByMode(opts ConnectionScanOptions) (*topology.ConnectionScanResult, error)
+	DiscoverConnectionsByMode(opts ConnectionScanOptions, em observ.Emitter) (*topology.ConnectionScanResult, error)
 	UpdateConnection(
 		connectionId string,
 		newFromDeviceportID string,
@@ -212,6 +213,7 @@ type NetServiceInt interface {
 	ExportAllStructs() []byte
 
 	// Network scanning operations
+	RunScan(opts RunScanOptions, em observ.Emitter) ([]s.DiscoveredDevice, error)
 	ScanNetwork(subnet string, options s.ScanOptions) (*s.ScanResult, error)
 	ScanDevice(ip string, options s.ScanOptions) (*s.SNMPDevice, error)
 	ScanDeviceViaSSH(ip, deviceType string, creds configparser.SSHCredentials) (*s.SNMPDevice, error)
@@ -232,8 +234,8 @@ type NetServiceInt interface {
 	// blob as-is and sanitizes it out of listings.
 	AddScanProfile(p e.ScanProfile) error
 	UpdateScanProfile(p e.ScanProfile) error
-	GetScanProfiles() ([]e.ScanProfile, error)              // SSHPassword blanked, HasSSHPassword set
-	GetScanProfileByName(name string) (*e.ScanProfile, error) // raw (with blob) — in-process use
+	GetScanProfiles() ([]e.ScanProfile, error)                     // SSHPassword blanked, HasSSHPassword set
+	GetScanProfileByName(name string) (*e.ScanProfile, error)      // raw (with blob) — in-process use
 	ResolveScanProfile(target, name string) (*e.ScanProfile, bool) // by name, else auto-match by host
 	DeleteScanProfile(name string) error
 }
@@ -1080,6 +1082,10 @@ func (ns *NetService) importSingleDevice(discovered s.DiscoveredDevice, options 
 		false,
 	)
 	if err != nil {
+		if strings.Contains(err.Error(), "already exists") {
+			return fmt.Errorf("a device named %q is already in the database — it was probably imported before; "+
+				"rename it in the scan results, or delete the existing device first (overwriting is not supported)", discovered.SuggestedName)
+		}
 		return fmt.Errorf("failed to add device: %w", err)
 	}
 
@@ -1707,8 +1713,9 @@ func (ns *NetService) ExecuteApprovedImportPlan(plan s.DeviceImportPlan, options
 	}
 
 	// Then create the device and its ports with proper VLAN configurations
+	// (importSingleDeviceWithPlan already returns descriptive, user-facing errors).
 	if err := ns.importSingleDeviceWithPlan(plan.Device, plan, options); err != nil {
-		return fmt.Errorf("failed to import device with plan: %w", err)
+		return err
 	}
 
 	return nil
@@ -1774,6 +1781,10 @@ func (ns *NetService) importSingleDeviceWithPlan(discovered s.DiscoveredDevice, 
 		false,
 	)
 	if err != nil {
+		if strings.Contains(err.Error(), "already exists") {
+			return fmt.Errorf("a device named %q is already in the database — it was probably imported before; "+
+				"rename it in the scan results, or delete the existing device first (overwriting is not supported)", discovered.SuggestedName)
+		}
 		return fmt.Errorf("failed to add device: %w", err)
 	}
 
