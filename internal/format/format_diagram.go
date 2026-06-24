@@ -26,7 +26,9 @@ import (
 )
 
 type DevicePort struct {
-	Name string
+	Name      string
+	Positionx int
+	Positiony int
 }
 
 type DeviceD2 struct {
@@ -316,15 +318,30 @@ func collectPortsFromDevicePorts(devicePorts []e.DevicePort, deviceMap map[strin
 		}
 		dev := deviceMap[key]
 		if _, exists := dev.Ports[dp.PortName]; !exists {
-			dev.Ports[dp.PortName] = DevicePort{Name: dp.PortName}
 			dev.PortOrder = append(dev.PortOrder, dp.PortName)
 		}
+		// Always record the saved position (also for ports first seen via a
+		// connection), so port ordering can follow it.
+		dev.Ports[dp.PortName] = DevicePort{Name: dp.PortName, Positionx: dp.Positionx, Positiony: dp.Positiony}
 	}
 }
 
 // assignPortNumbers assigns numbered port identifiers (e.g., 1-1, 2-1, ...) to each device port
 func assignPortNumbers(deviceMap map[string]*DeviceD2) {
 	for _, dev := range deviceMap {
+		// Order ports by their saved position (x, then y); fall back to the port
+		// name when positions collide (imported ports are all at 0,0), so the
+		// output is alphabetical (lan1, lan2, lan3, radio0, radio1, wan0).
+		sort.SliceStable(dev.PortOrder, func(i, j int) bool {
+			a, b := dev.Ports[dev.PortOrder[i]], dev.Ports[dev.PortOrder[j]]
+			if a.Positionx != b.Positionx {
+				return a.Positionx < b.Positionx
+			}
+			if a.Positiony != b.Positiony {
+				return a.Positiony < b.Positiony
+			}
+			return a.Name < b.Name
+		})
 		for i, portName := range dev.PortOrder {
 			num := fmt.Sprintf("%d-1", i+1)
 			dev.PortNumMap[portName] = num
