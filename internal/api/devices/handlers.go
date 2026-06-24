@@ -1076,7 +1076,52 @@ func GetDevicesHandler(service q.NetServiceInt) http.HandlerFunc {
 
 func UpdateDeviceHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotImplemented)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "PUT, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		if r.Method != "PUT" {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			json.NewEncoder(w).Encode(map[string]string{"error": "method_not_allowed", "message": "Only PUT method is allowed"})
+			return
+		}
+
+		var req struct {
+			ID          string `json:"id"`
+			Label       string `json:"label"`
+			ModelID     string `json:"model_id"`
+			ZoneID      string `json:"zone_id"`
+			Proprietary string `json:"proprietary"`
+			IsUnmanaged *bool  `json:"is_unmanaged"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid_json", "message": err.Error()})
+			return
+		}
+
+		if req.ID == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "missing_id", "message": "id is required"})
+			return
+		}
+
+		err := service.UpdateDevice(req.ID, req.Label, req.ModelID, req.ZoneID, req.Proprietary, req.IsUnmanaged)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"error": "update_failed", "message": err.Error()})
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Device updated successfully", "id": req.ID})
 	}
 }
 

@@ -97,6 +97,8 @@ Table devices {
   model_id string
   zone_id string [null]
   proprietary string [null]
+  is_unmanaged boolean [note: 'unmanaged switch: replicates all VLANs through all ports']
+  is_invisible boolean [note: 'hidden from rendered topology']
 }
 
 // Physical port instances on devices with VLAN configurations

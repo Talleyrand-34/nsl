@@ -153,9 +153,13 @@ func (r BasicOpsCloverRepository) UpdateDevice(
 	newModelId string,
 	newZoneId string,
 	newProprietaryId string,
+	isUnmanaged *bool,
 ) error {
 	updates := make(map[string]interface{})
-	updates["label"] = newDeviceLabel
+
+	if newDeviceLabel != "" {
+		updates["label"] = newDeviceLabel
+	}
 
 	if newModelId != "" && newModelId != "0" {
 		updates["model_id"] = newModelId
@@ -167,6 +171,14 @@ func (r BasicOpsCloverRepository) UpdateDevice(
 
 	if newProprietaryId != "" && newProprietaryId != "0" {
 		updates["proprietary"] = newProprietaryId
+	}
+
+	if isUnmanaged != nil {
+		updates["is_unmanaged"] = *isUnmanaged
+	}
+
+	if len(updates) == 0 {
+		return nil
 	}
 
 	err := r.db.Update(q.NewQuery(devicesCollection).Where(q.Field("_id").Eq(deviceId)), updates)

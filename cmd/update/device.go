@@ -56,9 +56,16 @@ Examples:
 		newZoneId, _ := cmd.Flags().GetString("zone-id")
 		newProprietaryId, _ := cmd.Flags().GetString("proprietary-id")
 
+		// is-unmanaged is a tri-state: only applied when the flag was set.
+		var isUnmanaged *bool
+		if cmd.Flags().Changed("is-unmanaged") {
+			v, _ := cmd.Flags().GetBool("is-unmanaged")
+			isUnmanaged = &v
+		}
+
 		// At least one field must be provided for update
-		if newLabel == "" && newModelId == "" && newZoneId == "" && newProprietaryId == "" {
-			fmt.Fprintf(os.Stderr, "At least one field to update is required (label, model-id, zone-id, proprietary-id).\n")
+		if newLabel == "" && newModelId == "" && newZoneId == "" && newProprietaryId == "" && isUnmanaged == nil {
+			fmt.Fprintf(os.Stderr, "At least one field to update is required (label, model-id, zone-id, proprietary-id, is-unmanaged).\n")
 			os.Exit(1)
 		}
 
@@ -69,22 +76,17 @@ Examples:
 			os.Exit(1)
 		}
 
-		// For this implementation, we'll require all fields to be specified
-		// In a more sophisticated implementation, we could fetch current values and only update specified fields
-		if newLabel == "" || newModelId == "" {
-			fmt.Fprintf(os.Stderr, "For this implementation, both --label and --model-id are required.\n")
-			os.Exit(1)
-		}
-
-		// Update the device
-		err = service.UpdateDevice(deviceId, newLabel, newModelId, newZoneId, newProprietaryId)
+		// Update the device. Empty fields are left unchanged by the repository.
+		err = service.UpdateDevice(deviceId, newLabel, newModelId, newZoneId, newProprietaryId, isUnmanaged)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error updating device: %v\n", err)
 			os.Exit(1)
 		}
 
 		fmt.Printf("Successfully updated device with ID %s\n", deviceId)
-		fmt.Printf("  New label: %s\n", newLabel)
+		if newLabel != "" {
+			fmt.Printf("  New label: %s\n", newLabel)
+		}
 		if newModelId != "" {
 			fmt.Printf("  New model ID: %s\n", newModelId)
 		}
@@ -93,6 +95,9 @@ Examples:
 		}
 		if newProprietaryId != "" {
 			fmt.Printf("  New proprietary ID: %s\n", newProprietaryId)
+		}
+		if isUnmanaged != nil {
+			fmt.Printf("  Unmanaged VLANs: %t\n", *isUnmanaged)
 		}
 	},
 }
@@ -105,5 +110,6 @@ func init() {
 	DeviceUpdateCmd.Flags().String("model-id", "", "New model ID for the device")
 	DeviceUpdateCmd.Flags().String("zone-id", "", "New zone ID for the device (optional)")
 	DeviceUpdateCmd.Flags().String("proprietary-id", "", "New proprietary ID for the device (optional)")
+	DeviceUpdateCmd.Flags().Bool("is-unmanaged", false, "Mark device as unmanaged (replicates all VLANs through all ports); only applied when the flag is set")
 	// DeviceUpdateCmd.MarkFlagRequired("id")
 }

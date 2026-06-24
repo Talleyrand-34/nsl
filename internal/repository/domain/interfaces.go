@@ -96,6 +96,7 @@ type repository interface {
 		newModelId string,
 		newZoneId string,
 		newProprietaryId string,
+		isUnmanaged *bool,
 	) error
 	UpdateDeviceIPs(deviceId string, ips []string) error
 	DeleteDevice(deviceId string) error

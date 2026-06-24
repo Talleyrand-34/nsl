@@ -167,6 +167,7 @@ curl -X POST http://localhost:8081/models \
 ```http
 GET    /devices
 POST   /devices
+PUT    /devices
 DELETE /devices
 ```
 
@@ -179,6 +180,17 @@ curl -X POST http://localhost:8081/devices \
     "model": "ISR4431",
     "zonename": "datacenter",
     "proprietary": "MyCompany"
+  }'
+```
+
+**PUT Example** (partial update; omitted fields are left unchanged). Use
+`is_unmanaged` to toggle a device between managed and unmanaged VLAN modes:
+```bash
+curl -X PUT http://localhost:8081/devices \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "<device-id>",
+    "is_unmanaged": true
   }'
 ```
 

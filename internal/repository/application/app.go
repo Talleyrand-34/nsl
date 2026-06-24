@@ -112,6 +112,7 @@ type NetServiceInt interface {
 		newModelId string,
 		newZoneId string,
 		newProprietaryId string,
+		isUnmanaged *bool,
 	) error
 	UpdateDeviceIPs(deviceId string, ips []string) error
 	DeleteDevice(deviceId string) error
@@ -694,8 +695,9 @@ func (ns *NetService) UpdateDevice(
 	newModelId string,
 	newZoneId string,
 	newProprietaryId string,
+	isUnmanaged *bool,
 ) error {
-	return ns.netRepo.UpdateDevice(deviceId, newDeviceLabel, newModelId, newZoneId, newProprietaryId)
+	return ns.netRepo.UpdateDevice(deviceId, newDeviceLabel, newModelId, newZoneId, newProprietaryId, isUnmanaged)
 }
 
 func (ns *NetService) UpdateModelPort(
