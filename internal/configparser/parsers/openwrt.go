@@ -197,17 +197,31 @@ func (p *OpenWrtParser) parseBoardJSON(rawConfig string) ([]configparser.SwitchP
 		return ports, nil
 	}
 
-	// Legacy swconfig switches (board.switch). Only emit ports that map to a real
-	// kernel netdev: swconfig fabric ports carry no "device" (they are internal to
-	// the SoC switch and share a CPU uplink like eth0), so they aren't individually
-	// addressable by LLDP/FDB. Emitting them would make scan-host invent ports the
-	// connection scan can never see (e.g. an airCube's phantom lan1..lan3). The CPU
-	// uplink (eth0) and VLAN subinterfaces are picked up from the UCI interface parse.
+	// Legacy swconfig switches (board.switch). These are real physical switch ports
+	// even when they share a single CPU uplink (no per-port "device"): the user
+	// wants them represented. Name each by its kernel netdev when the board exposes
+	// one, else by role+index (lan1, lan2, lan3, wan0) — which also avoids name
+	// collisions between ports that share the same role device (e.g. eth0.1). The
+	// CPU port (eth0) is excluded; it's picked up from the UCI interface parse.
+	portIndex := 0
 	for switchName, sw := range board.Switch {
 		_ = switchName
 		for _, port := range sw.Ports {
-			if port.Device == "" || port.Device == "eth0" || strings.Contains(port.Device, ".") {
+			if port.Device == "eth0" {
 				continue
+			}
+			if port.Role == "" {
+				continue // skip the unlabelled CPU/conduit port
+			}
+
+			portName := port.Device
+			if portName == "" || strings.Contains(portName, ".") {
+				if port.Index > 0 {
+					portName = fmt.Sprintf("%s%d", port.Role, port.Index)
+				} else {
+					portName = fmt.Sprintf("%s%d", port.Role, portIndex)
+					portIndex++
+				}
 			}
 
 			linkStatus := "down"
@@ -220,7 +234,7 @@ func (p *OpenWrtParser) parseBoardJSON(rawConfig string) ([]configparser.SwitchP
 
 			ports = append(ports, configparser.SwitchPortInfo{
 				PortNumber: port.Num,
-				PortName:   port.Device,
+				PortName:   portName,
 				Device:     port.Device,
 				LinkStatus: linkStatus,
 				Role:       port.Role,
