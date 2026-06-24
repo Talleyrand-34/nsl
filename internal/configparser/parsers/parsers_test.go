@@ -607,23 +607,24 @@ network.loopback.proto='static'
 	assert.NoError(t, err)
 	assert.NotNil(t, configData)
 
-	assert.Len(t, configData.SwitchPorts, 4)
-
+	// This airCube board.switch exposes only internal swconfig fabric ports (no
+	// per-port "device": they share the eth0 CPU uplink via eth0.1/eth0.2). Such
+	// ports aren't individually addressable by LLDP/FDB, so they must NOT be
+	// emitted as switch ports — otherwise scan-host would invent phantom lan1..lan3
+	// ports the connection scan can never match. The real uplink (eth0) comes from
+	// the UCI interface parse instead.
 	portByName := make(map[string]configparser.SwitchPortInfo)
 	for _, port := range configData.SwitchPorts {
 		portByName[port.PortName] = port
 	}
-
-	assert.Contains(t, portByName, "lan1")
-	assert.Contains(t, portByName, "lan2")
-	assert.Contains(t, portByName, "lan3")
-	assert.Contains(t, portByName, "wan0")
+	assert.NotContains(t, portByName, "lan1")
+	assert.NotContains(t, portByName, "lan2")
+	assert.NotContains(t, portByName, "lan3")
+	assert.NotContains(t, portByName, "wan0")
 
 	for _, port := range configData.SwitchPorts {
 		assert.NotEqual(t, "eth0", port.PortName, "CPU port eth0 should not be included")
 		assert.NotEqual(t, 0, port.PortNumber, "CPU port should not be included")
+		assert.NotContains(t, port.PortName, ".", "VLAN subinterfaces are not physical switch ports")
 	}
-
-	assert.Equal(t, "lan", portByName["lan1"].Role)
-	assert.Equal(t, "wan", portByName["wan0"].Role)
 }
