@@ -1,5 +1,26 @@
 /* Shared styles for the NSL-Graph web UI (loaded by header.php on every page). */
 
+/* ---- Dark mode --------------------------------------------------------- */
+/* The UI uses many hardcoded/inline colors across server-rendered pages, so
+   dark mode is done by inverting the whole document (hue-rotate keeps accent
+   colors recognizable) and re-inverting media so images/diagrams keep their
+   real colors. Toggled by setting data-theme="dark" on <html>. */
+html[data-theme="dark"] {
+    background: #fafafa; /* becomes near-black once inverted */
+    filter: invert(1) hue-rotate(180deg);
+}
+html[data-theme="dark"] img,
+html[data-theme="dark"] svg,
+html[data-theme="dark"] video {
+    filter: invert(1) hue-rotate(180deg);
+}
+
+.theme-toggle {
+    margin: 0;
+    padding: 4px 10px;
+    cursor: pointer;
+}
+
 /* ---- Base typography --------------------------------------------------- */
 body { font-family: sans-serif; margin: 16px; }
 table { border-collapse: collapse; }

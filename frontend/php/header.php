@@ -27,6 +27,21 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 <head>
     <meta charset="utf-8">
     <title><?= htmlspecialchars($pageTitle ?? 'NSL-Graph') ?></title>
+    <!-- Apply the saved theme before the stylesheet/body paint to avoid a flash. -->
+    <script>
+    (function () { try { if (localStorage.getItem('nsl-theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark'); } catch (e) {} })();
+    function nslToggleTheme() {
+        var d = document.documentElement, dark = d.getAttribute('data-theme') === 'dark';
+        if (dark) { d.removeAttribute('data-theme'); } else { d.setAttribute('data-theme', 'dark'); }
+        try { localStorage.setItem('nsl-theme', dark ? 'light' : 'dark'); } catch (e) {}
+        nslThemeLabel();
+    }
+    function nslThemeLabel() {
+        var b = document.getElementById('theme-toggle');
+        if (b) b.textContent = document.documentElement.getAttribute('data-theme') === 'dark' ? 'Light' : 'Dark';
+    }
+    document.addEventListener('DOMContentLoaded', nslThemeLabel);
+    </script>
     <link rel="stylesheet" href="styles.css">
     <!-- Expose the API base so client JS (e.g. the scan-status poller) can reach
          the Go API directly (CORS is open). -->
@@ -48,5 +63,6 @@ $currentPage = basename($_SERVER['PHP_SELF']);
             <input type="text" id="apiUrl" name="api_base_url" value="<?= htmlspecialchars(API_BASE_URL) ?>">
             <button type="submit">Update</button>
         </form>
+        <button type="button" id="theme-toggle" class="theme-toggle" onclick="nslToggleTheme()" title="Toggle dark mode">Dark</button>
     </header>
     <main class="appmain">
