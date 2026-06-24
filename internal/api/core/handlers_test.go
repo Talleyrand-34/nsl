@@ -80,8 +80,10 @@ func TestCore_DiagramEndpoint(t *testing.T) {
 
 	router.ServeHTTP(w, req)
 
-	// Diagram endpoint returns 200 with D2 content
-	assert.Equal(t, http.StatusOK, w.Code)
+	// With no devices the diagram can't be rendered: the endpoint signals this
+	// with 404 + a reason so the web <img> falls back to its alt text.
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	assert.Contains(t, w.Body.String(), "No devices")
 }
 
 func TestCore_RootEndpointContentStructure(t *testing.T) {
