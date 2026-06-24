@@ -24,6 +24,19 @@ if (!function_exists('api_post_json_conn')) {
     }
 }
 
+/** api_get_conn GETs a URL; returns [httpCode, body]. */
+if (!function_exists('api_get_conn')) {
+    function api_get_conn($url, $timeoutSec = 15) {
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, $timeoutSec);
+        $body = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        return [$code, $body];
+    }
+}
+
 /** edge_mark mirrors the CLI: confirmed/candidate/weak, else possible/unresolved. */
 function edge_mark($e) {
     if (!empty($e['remote_resolved'])) {
@@ -155,6 +168,7 @@ function render_topology($result) {
 $scanMessage = '';
 $importMessage = '';
 $result = null;
+$scanRunId = '';   // when set, a scan just started: render the live panel
 
 // Generic profiles (reusable SSH credentials), for the fallback selector.
 $allProfiles = json_decode(@file_get_contents(SCAN_PROFILES_ENDPOINT), true);
@@ -216,13 +230,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_scan'])) {
             'ssh_password'    => $f['ssh_password'],
             'generic_profile' => $f['generic_profile'],
             'ssh_config'      => $sshConfig,
-            'ssh_keys'        => $sshKeys,
+            // Cast to object so an empty set encodes as {} (a JSON object), not []
+            // — the API expects a map for ssh_keys.
+            'ssh_keys'        => (object) $sshKeys,
         ];
-        list($code, $body, $err) = api_post_json_conn(SCAN_CONNECTIONS_ENDPOINT, json_encode($opts), max(60, intval($f["timeout"]) * 8));
-        if ($code === 200) {
-            $result = json_decode($body, true);
+        // The scan runs async now: this returns a scan_id immediately and the
+        // live panel polls /scan/status, reloading with ?scan_id= when complete.
+        list($code, $body, $err) = api_post_json_conn(SCAN_CONNECTIONS_ENDPOINT, json_encode($opts), 30);
+        $j = json_decode($body, true);
+        if (($code === 202 || $code === 200) && !empty($j['scan_id'])) {
+            $scanRunId = $j['scan_id'];
         } else {
-            $scanMessage = 'Scan failed (HTTP ' . intval($code) . '): ' . htmlspecialchars($body . ' ' . $err);
+            $scanMessage = 'Could not start scan (HTTP ' . intval($code) . '): ' . htmlspecialchars($body . ' ' . $err);
         }
     }
 }
@@ -245,6 +264,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_import'])) {
         $importMessage = 'No importable edges were selected.';
     }
     $result = $all; // keep showing the result after import
+}
+
+// --- A started scan finished — fetch its result by id and render -------------
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
+    list($code, $body) = api_get_conn(SCAN_STATUS_ENDPOINT . '?scan_id=' . urlencode($_GET['scan_id']));
+    $st = json_decode($body, true);
+    $state = is_array($st) ? ($st['state'] ?? '') : '';
+    if ($code === 200 && $state === 'completed') {
+        $result = $st['result'] ?? [];
+    } elseif ($code === 200 && $state === 'failed') {
+        $scanMessage = 'Scan failed: ' . htmlspecialchars($st['error'] ?? 'unknown error');
+    } elseif ($code === 200 && $state === 'running') {
+        $scanRunId = $_GET['scan_id'];
+    } else {
+        $scanMessage = 'Scan not found (it may have expired). Run it again.';
+    }
 }
 ?>
 
@@ -278,9 +313,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_import'])) {
             <?php endforeach; ?>
         </select>
     </label><br>
-    <label>SSH passphrase (only if a profile stores an SSH password):
-        <input type="password" name="passphrase" value="<?= htmlspecialchars($f['passphrase']) ?>">
-    </label>
     <fieldset style="margin:6px 0; border:1px solid #ddd;">
         <legend style="font-size:90%;">Runtime SSH (subnet mode — collect LLDP/FDB from SSH-reachable hosts, no profile needed)</legend>
         <label>SSH user: <input type="text" name="ssh_user" value="<?= htmlspecialchars($f['ssh_user']) ?>" placeholder="root"></label>
@@ -297,6 +329,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_import'])) {
                 <?php endforeach; ?>
             </select>
         </label><br>
+        <label>Profile passphrase (unlocks an encrypted key/password stored in the selected generic profile — or in a from-db / matched device profile):
+            <input type="password" name="passphrase" value="<?= htmlspecialchars($f['passphrase']) ?>">
+        </label><br>
         <label>OpenSSH config file: <input type="file" name="ssh_config"></label><br>
         <label>SSH key file(s) referenced by the config: <input type="file" name="ssh_keys[]" multiple></label>
         <p style="margin:4px 0; color:#777; font-size:0.85em;">Keys are matched to the config by file basename, so each uploaded key must have a unique name.</p>
@@ -312,6 +347,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_import'])) {
 <?php endif; ?>
 <?php if ($importMessage): ?>
     <p style="color:#070; font-weight:bold;"><?= $importMessage ?></p>
+<?php endif; ?>
+
+<?php if ($scanRunId): ?>
+    <div id="scan-status" class="scan-status">
+        <h4><span class="spinner"></span>Discovering connections…</h4>
+        <div class="scan-state" id="scan-state">starting…</div>
+        <div class="scan-bar" id="scan-bar" style="display:none;"><div class="scan-bar-fill" id="scan-bar-fill"></div></div>
+        <div class="scan-events" id="scan-events"></div>
+    </div>
+    <script>nslWatchScan(<?= json_encode($scanRunId) ?>, {});</script>
 <?php endif; ?>
 
 <?php if (is_array($result)): ?>

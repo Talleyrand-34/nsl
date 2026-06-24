@@ -46,11 +46,47 @@ function analyze_device($device, &$err) {
     return null;
 }
 
+/** dev_ip returns a discovered device's management IP (its identity in the list). */
+function dev_ip($d) {
+    return $d['device']['ip'] ?? '';
+}
+
+/** import_one analyzes a discovered device and imports it with the default plan
+ *  (no manual review). Returns [bool ok, string message]. */
+function import_one($device) {
+    $err = '';
+    $plan = analyze_device($device, $err);
+    if ($plan === null) {
+        return [false, $err ?: 'analyze failed'];
+    }
+    $payload = json_encode(['plan' => $plan, 'options' => ['default_zone' => 'Discovered']]);
+    list($code, $body, $e2) = api_post_json(SCAN_EXECUTE_ENDPOINT, $payload);
+    if ($code === 200) {
+        return [true, json_decode($body, true)['message'] ?? 'Imported.'];
+    }
+    $detail = json_decode($body, true)['message'] ?? ($body ?: $e2);
+    return [false, $detail];
+}
+
 $scanMessage    = '';
 $importMessage  = '';
 $profileMessage = '';
-$discovered     = [];    // list of discovered-device objects
 $plan           = null;  // analyzed import plan to review/edit
+$scanRunId      = '';    // when set, a scan just started: render the live panel
+$autoReload     = '';    // extra query params the live panel carries on completion
+
+// The discovered devices and which IPs were already imported persist in the
+// session across the analyze/import round-trips, so importing one device (or its
+// interfaces) never discards the rest of the scan — no need to re-scan.
+$discovered  = $_SESSION['scan_discovered'] ?? [];
+$importedIPs = $_SESSION['scan_imported'] ?? [];
+
+// "Clean scan" clears the persisted results.
+if (isset($_GET['clear'])) {
+    unset($_SESSION['scan_discovered'], $_SESSION['scan_imported']);
+    $discovered = [];
+    $importedIPs = [];
+}
 
 // SNMP form prefill (from a loaded profile, else POST).
 $pf = [
@@ -118,61 +154,83 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_load_profile'])) {
     }
 }
 
-// --- Step: run a live scan (SNMP host/subnet, or SSH via profile) ------------
+// --- Step: run a live scan (method = snmp|ssh; single vs batch inferred) ------
+// One unified call: a bare IP is a single host, a CIDR or comma-separated list
+// is a batch. SNMP uses community/version/port; SSH uses a device profile's
+// stored credentials + device_type (the target overrides the profile's host).
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_scan'])) {
-    $scanType = $_POST['scan_type'] ?? 'host';
-
-    if ($scanType === 'ssh') {
-        $profile    = $_POST['ssh_profile'] ?? '';
-        $passphrase = $_POST['passphrase'] ?? '';
-        if ($profile === '') {
-            $scanMessage = 'Select a profile for the SSH scan.';
-        } else {
-            list($code, $body, $err) = api_post_json(SCAN_HOST_SSH_ENDPOINT, json_encode([
-                'profile'    => $profile,
-                'passphrase' => $passphrase,
-            ]));
-            if ($code === 200) {
-                $discovered = [json_decode($body, true)];
-            } else {
-                $scanMessage = 'SSH scan failed (HTTP ' . intval($code) . '): ' . htmlspecialchars($body ?: $err);
-            }
-        }
+    $method     = ($_POST['scan_method'] ?? 'snmp') === 'ssh' ? 'ssh' : 'snmp';
+    $target     = trim($_POST['target'] ?? '');
+    $autoImport = !empty($_POST['auto_import']);
+    if ($target === '') {
+        $scanMessage = 'Please enter a target IP or CIDR.';
+    } elseif ($method === 'ssh' && ($_POST['ssh_profile'] ?? '') === '') {
+        $scanMessage = 'Select a device profile for the SSH scan.';
     } else {
-        $target    = trim($_POST['target'] ?? '');
-        $community = trim($_POST['community'] ?? 'public');
-        $version   = trim($_POST['snmp_version'] ?? '2c');
-        $port      = intval($_POST['snmp_port'] ?? 161);
-        if ($target === '') {
-            $scanMessage = 'Please enter a host IP or subnet.';
-        } elseif ($scanType === 'network') {
-            list($code, $body, $err) = api_post_json(SCAN_NETWORK_ENDPOINT, json_encode([
-                'subnet' => $target, 'community' => $community, 'snmp_version' => $version, 'snmp_port' => $port,
-            ]));
-            if ($code === 200) {
-                $discovered = json_decode($body, true)['devices'] ?? [];
-            } else {
-                $scanMessage = 'Scan failed (HTTP ' . intval($code) . '): ' . htmlspecialchars($body ?: $err);
-            }
+        $payload = [
+            'method'       => $method,
+            'target'       => $target,
+            'community'    => trim($_POST['community'] ?? 'public'),
+            'snmp_version' => trim($_POST['snmp_version'] ?? '2c'),
+            'snmp_port'    => intval($_POST['snmp_port'] ?? 161),
+            'profile'      => $_POST['ssh_profile'] ?? '',
+            'device_type'  => trim($_POST['ssh_device_type'] ?? ''),
+            'passphrase'   => $_POST['passphrase'] ?? '',
+        ];
+        // The scan now runs async: this returns a scan_id immediately; the live
+        // panel below polls /scan/status and reloads with ?scan_id= when done.
+        list($code, $body, $err) = api_post_json(SCAN_RUN_ENDPOINT, json_encode($payload));
+        $j = json_decode($body, true);
+        if (($code === 202 || $code === 200) && !empty($j['scan_id'])) {
+            $scanRunId  = $j['scan_id'];
+            $autoReload = $autoImport ? 'auto_import=1' : '';
         } else {
-            list($code, $body, $err) = api_post_json(SCAN_HOST_ENDPOINT, json_encode([
-                'ip' => $target, 'community' => $community, 'snmp_version' => $version, 'snmp_port' => $port,
-            ]));
-            if ($code === 200) {
-                $d = json_decode($body, true);
-                $discovered = ($d && isset($d['device'])) ? [$d] : [];
-            } else {
-                $scanMessage = 'Scan failed (HTTP ' . intval($code) . '): ' . htmlspecialchars($body ?: $err);
-            }
+            $scanMessage = 'Could not start scan (HTTP ' . intval($code) . '): ' . htmlspecialchars($body ?: $err);
         }
     }
+}
 
-    if (!empty($discovered)) {
-        $scanMessage = count($discovered) . ' device(s) discovered.';
-        // Single device: go straight to the editable VLAN plan.
-        if (count($discovered) === 1) {
-            $plan = analyze_device($discovered[0], $scanMessage);
+// --- Step: a started scan finished — fetch its result by id and render --------
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
+    list($code, $body) = api_method('GET', SCAN_STATUS_ENDPOINT . '?scan_id=' . urlencode($_GET['scan_id']));
+    $st = json_decode($body, true);
+    $state = is_array($st) ? ($st['state'] ?? '') : '';
+    if ($code === 200 && $state === 'completed') {
+        $discovered = $st['result']['devices'] ?? [];
+        $_SESSION['scan_discovered'] = $discovered;
+        $_SESSION['scan_imported']   = [];
+        $importedIPs = [];
+        if (!empty($discovered)) {
+            $scanMessage = count($discovered) . ' device(s) discovered.';
+            if (!empty($_GET['auto_import'])) {
+                // Accept results without review: analyze + import every device.
+                $ok = 0; $fail = 0; $fails = [];
+                foreach ($discovered as $d) {
+                    list($success, $m) = import_one($d);
+                    if ($success) {
+                        $ok++;
+                        $importedIPs[] = dev_ip($d);
+                    } else {
+                        $fail++;
+                        $fails[] = (dev_ip($d) ?: '?') . ' — ' . $m;
+                    }
+                }
+                $_SESSION['scan_imported'] = array_values(array_unique($importedIPs));
+                $importMessage = "Auto-import: {$ok} imported, {$fail} failed."
+                    . ($fails ? ' Failures: ' . implode('; ', $fails) : '');
+            } elseif (count($discovered) === 1) {
+                $plan = analyze_device($discovered[0], $scanMessage);
+            }
+        } else {
+            $scanMessage = 'No devices discovered (is the SNMP/SSH port open and reachable?).';
         }
+    } elseif ($code === 200 && $state === 'failed') {
+        $scanMessage = 'Scan failed: ' . htmlspecialchars($st['error'] ?? 'unknown error');
+    } elseif ($code === 200 && $state === 'running') {
+        // Not finished yet — keep showing the live panel for this id.
+        $scanRunId = $_GET['scan_id'];
+    } else {
+        $scanMessage = 'Scan not found (it may have expired). Run it again.';
     }
 }
 
@@ -215,8 +273,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_execute'])) {
         list($code, $body, $err) = api_post_json(SCAN_EXECUTE_ENDPOINT, $payload);
         if ($code === 200) {
             $importMessage = json_decode($body, true)['message'] ?? 'Import completed.';
+            // Mark this device imported but keep the rest of the scan on screen, so
+            // the next device can be imported without re-scanning. $plan stays null
+            // so the review form closes and the list (with this one ticked) shows.
+            $ip = $editedPlan['device']['device']['ip'] ?? '';
+            if ($ip !== '') {
+                $importedIPs[] = $ip;
+                $_SESSION['scan_imported'] = array_values(array_unique($importedIPs));
+            }
         } else {
-            $importMessage = 'Import failed (HTTP ' . intval($code) . '): ' . htmlspecialchars($body ?: $err);
+            // Show the API's human message (e.g. a name clash) rather than raw JSON.
+            $detail = json_decode($body, true)['message'] ?? ($body ?: $err);
+            $importMessage = 'Import failed (HTTP ' . intval($code) . '): ' . htmlspecialchars($detail);
         }
     }
 }
@@ -245,6 +313,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_upload'])) {
 
 <?php if ($importMessage): ?>
     <p style="padding:8px; background:#e8f5e9; border:1px solid #a5d6a7;"><strong><?= htmlspecialchars($importMessage) ?></strong></p>
+<?php endif; ?>
+
+<?php if ($scanRunId): ?>
+    <div id="scan-status" class="scan-status">
+        <h4><span class="spinner"></span>Scanning…</h4>
+        <div class="scan-state" id="scan-state">starting…</div>
+        <div class="scan-bar" id="scan-bar" style="display:none;"><div class="scan-bar-fill" id="scan-bar-fill"></div></div>
+        <div class="scan-events" id="scan-events"></div>
+    </div>
+    <script>nslWatchScan(<?= json_encode($scanRunId) ?>, {reloadParams: <?= json_encode($autoReload) ?>});</script>
 <?php endif; ?>
 
 <h3>Saved scan profiles</h3>
@@ -288,45 +366,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_upload'])) {
     <!-- Live scan box -->
     <div class="box">
         <h3>Live scan</h3>
+        <?php $curMethod = ($_POST['scan_method'] ?? 'snmp') === 'ssh' ? 'ssh' : 'snmp'; ?>
         <form method="post" action="import.php">
-            <label>Scan type:
-                <select name="scan_type">
-                    <option value="host"    <?= (($_POST['scan_type'] ?? 'host') === 'host') ? 'selected' : '' ?>>SNMP — single host</option>
-                    <option value="network" <?= (($_POST['scan_type'] ?? '') === 'network') ? 'selected' : '' ?>>SNMP — subnet</option>
-                    <option value="ssh"     <?= (($_POST['scan_type'] ?? '') === 'ssh') ? 'selected' : '' ?>>SSH — via profile</option>
+            <label>Method:
+                <select name="scan_method" id="scan_method" onchange="scanMethodToggle()">
+                    <option value="snmp" <?= $curMethod === 'snmp' ? 'selected' : '' ?>>SNMP</option>
+                    <option value="ssh"  <?= $curMethod === 'ssh' ? 'selected' : '' ?>>SSH</option>
                 </select>
-            </label>
-            <p style="margin:6px 0; color:#555;"><em>SNMP:</em></p>
-            <label>Host IP / Subnet(s) (CIDR — comma-separate several for a subnet scan):
-                <input type="text" name="target" value="<?= htmlspecialchars($pf['target']) ?>" placeholder="192.168.1.0/24, 10.0.0.0/24" size="40">
             </label><br>
-            <label>SNMP community: <input type="text" name="community" value="<?= htmlspecialchars($pf['community']) ?>"></label>
-            <label>Version:
-                <select name="snmp_version">
-                    <option value="2c" <?= ($pf['snmp_version'] === '2c') ? 'selected' : '' ?>>2c</option>
-                    <option value="1" <?= ($pf['snmp_version'] === '1') ? 'selected' : '' ?>>1</option>
-                </select>
+            <label>Target — IP or CIDR (a bare IP scans one host; a CIDR or comma-separated list scans many):
+                <input type="text" name="target" value="<?= htmlspecialchars($pf['target']) ?>" placeholder="10.0.2.245 &nbsp;or&nbsp; 10.0.2.0/26" size="40">
+            </label><br>
+
+            <div id="snmp_fields">
+                <label>SNMP community: <input type="text" name="community" value="<?= htmlspecialchars($pf['community']) ?>"></label>
+                <label>Version:
+                    <select name="snmp_version">
+                        <option value="2c" <?= ($pf['snmp_version'] === '2c') ? 'selected' : '' ?>>2c</option>
+                        <option value="1" <?= ($pf['snmp_version'] === '1') ? 'selected' : '' ?>>1</option>
+                    </select>
+                </label>
+                <label>Port: <input type="number" name="snmp_port" value="<?= htmlspecialchars($pf['snmp_port']) ?>" style="width:80px;"></label>
+            </div>
+
+            <div id="ssh_fields">
+                <p style="margin:6px 0; color:#555;"><em>SSH reads the device config using a profile's stored credentials. Pick a
+                    profile — <strong>device</strong> or <strong>generic</strong> (generic credentials are reusable across many hosts). The target above
+                    overrides the profile's host; a CIDR scans every SSH-open host. A <strong>device type</strong> is required: a device profile supplies
+                    its own, or set one below (required for generic profiles).</em></p>
+                <label>SSH profile (device or generic):
+                    <select name="ssh_profile">
+                        <option value="">— select —</option>
+                        <?php foreach ($profiles as $p):
+                            $pk = ($p['kind'] ?? '') !== '' ? $p['kind'] : 'device';
+                            $desc = ($p['name'] ?? '') . ' (' . $pk . (($p['host'] ?? '') !== '' ? ', ' . $p['host'] : '') . ')'; ?>
+                            <option value="<?= htmlspecialchars($p['name'] ?? '') ?>" <?= (($_POST['ssh_profile'] ?? '') === ($p['name'] ?? '')) ? 'selected' : '' ?>><?= htmlspecialchars($desc) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
+                <label>Device type <small>(blank = use the profile's; required for generic profiles)</small>:
+                    <input type="text" name="ssh_device_type" list="ssh_devtypes" value="<?= htmlspecialchars($_POST['ssh_device_type'] ?? '') ?>" placeholder="openwrt / opnsense / fortinet / cisco">
+                    <datalist id="ssh_devtypes"><option value="openwrt"><option value="opnsense"><option value="fortinet"><option value="cisco"></datalist>
+                </label>
+                <label>Passphrase: <input type="password" name="passphrase"></label>
+            </div>
+
+            <label style="display:block; margin-top:6px;">
+                <input type="checkbox" name="auto_import" value="1" <?= !empty($_POST['auto_import']) ? 'checked' : '' ?>>
+                Auto-import results (accept and import every discovered device without manual VLAN review)
             </label>
-            <label>Port: <input type="number" name="snmp_port" value="<?= htmlspecialchars($pf['snmp_port']) ?>" style="width:80px;"></label>
-            <p style="margin:6px 0; color:#555;"><em>SSH (uses a profile's stored, encrypted credentials):</em></p>
-            <label>Profile:
-                <select name="ssh_profile">
-                    <option value="">— select —</option>
-                    <?php foreach ($profiles as $p): ?>
-                        <option value="<?= htmlspecialchars($p['name'] ?? '') ?>"><?= htmlspecialchars(($p['name'] ?? '') . ' (' . ($p['host'] ?? '') . ')') ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </label>
-            <label>Passphrase: <input type="password" name="passphrase"></label>
-            <br>
             <button type="submit" name="do_scan" value="1" style="margin-top:8px;">Scan</button>
         </form>
         <form method="get" action="import.php" style="display:inline; margin:0;">
+            <input type="hidden" name="clear" value="1">
             <button type="submit">Clean scan</button>
         </form>
         <?php if ($scanMessage): ?>
             <p><em><?= htmlspecialchars($scanMessage) ?></em></p>
         <?php endif; ?>
+        <script>
+        function scanMethodToggle() {
+            var ssh = document.getElementById('scan_method').value === 'ssh';
+            document.getElementById('snmp_fields').style.display = ssh ? 'none' : '';
+            document.getElementById('ssh_fields').style.display  = ssh ? '' : 'none';
+        }
+        scanMethodToggle();
+        </script>
     </div>
 
     <!-- Create-profile box -->
@@ -376,23 +481,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_upload'])) {
 </div>
 
 <?php
-// Multi-device list (subnet scan): pick one to configure & import.
-if ($plan === null && !empty($discovered) && count($discovered) > 1): ?>
-    <h4>Discovered devices — choose one to configure & import</h4>
+// Discovered-devices list (persisted across the import round-trips). Imported
+// devices stay listed (ticked) so the rest can be imported without re-scanning.
+if (!empty($discovered)):
+    $pending = 0;
+    foreach ($discovered as $d) {
+        if (!in_array(dev_ip($d), $importedIPs, true)) $pending++;
+    }
+?>
+    <h4>Discovered devices (<?= count($discovered) ?> total, <?= $pending ?> pending)</h4>
     <table border="1" cellpadding="4" cellspacing="0">
-        <tr><th>Name</th><th>IP</th><th>Brand</th><th>Model</th><th>Class</th><th></th></tr>
-        <?php foreach ($discovered as $d): ?>
-            <tr>
+        <tr><th>Status</th><th>Name</th><th>IP</th><th>Brand</th><th>Model</th><th>Class</th><th></th></tr>
+        <?php foreach ($discovered as $d): $ip = dev_ip($d); $done = in_array($ip, $importedIPs, true); ?>
+            <tr<?= $done ? ' style="color:#888; background:#f3f3f3;"' : '' ?>>
+                <td><?= $done ? '✓ imported' : 'pending' ?></td>
                 <td><?= htmlspecialchars($d['suggested_name'] ?? '') ?></td>
-                <td><?= htmlspecialchars($d['device']['ip'] ?? '') ?></td>
+                <td><?= htmlspecialchars($ip) ?></td>
                 <td><?= htmlspecialchars($d['brand'] ?? '') ?></td>
                 <td><?= htmlspecialchars($d['model'] ?? '') ?></td>
                 <td><?= htmlspecialchars($d['device_class'] ?? '') ?></td>
                 <td>
-                    <form method="post" action="import.php" style="margin:0;">
-                        <input type="hidden" name="device_json" value="<?= htmlspecialchars(json_encode($d)) ?>">
-                        <button type="submit" name="do_analyze" value="1">Configure &amp; import &rarr;</button>
-                    </form>
+                    <?php if (!$done): ?>
+                        <form method="post" action="import.php" style="margin:0;">
+                            <input type="hidden" name="device_json" value="<?= htmlspecialchars(json_encode($d)) ?>">
+                            <button type="submit" name="do_analyze" value="1">Configure &amp; import &rarr;</button>
+                        </form>
+                    <?php else: ?>&mdash;<?php endif; ?>
                 </td>
             </tr>
         <?php endforeach; ?>

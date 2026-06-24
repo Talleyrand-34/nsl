@@ -1,0 +1,190 @@
+/* Shared styles for the NSL-Graph web UI (loaded by header.php on every page). */
+
+/* ---- Base typography --------------------------------------------------- */
+body { font-family: sans-serif; margin: 16px; }
+table { border-collapse: collapse; }
+h2, h3 { margin-top: 20px; }
+label { display: inline-block; margin: 4px 0; }
+/* The connections form stacks its labels (fieldset labels have no <br>). */
+body.page-connections label { display: block; margin: 6px 0; }
+
+/* ---- Shared navigation / app bar -------------------------------------- */
+.appbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    background: #eef;
+}
+.appbar-brand {
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    margin-right: 8px;
+}
+.appbar-nav { display: flex; align-items: center; gap: 4px; }
+.appbar-nav a {
+    padding: 4px 10px;
+    border-radius: 4px;
+    text-decoration: none;
+    color: #224;
+}
+.appbar-nav a:hover { background: #dde0f5; }
+.appbar-nav a.active {
+    font-weight: bold;
+    background: #ccd2f0;
+    color: #000;
+}
+.appbar-api {
+    margin: 0;
+    margin-left: auto;          /* push the API control to the right */
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.appbar-api input { width: 260px; max-width: 50vw; }
+
+/* ---- Live scan status panel ------------------------------------------- */
+.scan-status {
+    margin: 12px 0;
+    padding: 12px;
+    border: 1px solid #99c;
+    border-radius: 6px;
+    background: #f6f7ff;
+    max-width: 720px;
+}
+.scan-status h4 { margin: 0 0 6px; }
+.scan-status .scan-state {
+    font-family: monospace;
+    color: #224;
+    margin-bottom: 6px;
+}
+.scan-status .spinner {
+    display: inline-block;
+    width: 12px; height: 12px;
+    margin-right: 8px;
+    border: 2px solid #aab;
+    border-top-color: #336;
+    border-radius: 50%;
+    animation: nslspin 0.8s linear infinite;
+    vertical-align: middle;
+}
+@keyframes nslspin { to { transform: rotate(360deg); } }
+.scan-bar {
+    height: 8px;
+    background: #dde;
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 6px 0;
+}
+.scan-bar-fill {
+    height: 100%;
+    width: 0;
+    background: #4a6;
+    transition: width 0.3s ease;
+}
+.scan-events {
+    max-height: 220px;
+    overflow: auto;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 6px 8px;
+    font-family: monospace;
+    font-size: 0.82em;
+    white-space: pre-wrap;
+}
+.scan-ev.ev-warn { color: #a60; }
+.scan-ev.ev-error { color: #b00; }
+.scan-ev.ev-debug { color: #889; }
+.scan-ev.ev-info { color: #224; }
+
+/* ---- Page footer ------------------------------------------------------- */
+.appfooter {
+    margin-top: 24px;
+    padding: 8px 12px;
+    border-top: 1px solid #ccc;
+    color: #888;
+    font-size: 0.85em;
+}
+
+/* ---- Shared boxes / layout (used by main / import / connections) ------- */
+.box {
+    padding: 16px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background: #f9f9f9;
+}
+.box h3 { margin-top: 0; }
+
+/* main.php and import.php grid layouts */
+.grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 24px;
+    align-items: start;
+}
+.grid2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    align-items: start;
+    margin-top: 8px;
+}
+.actions {
+    padding: 16px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background: #f9f9f9;
+    resize: horizontal;
+    overflow: auto;
+    min-width: 150px;
+    max-width: 80vw;
+}
+/* import.php boxes are resizable like the CRUD panel in main.php */
+body.page-import .box {
+    resize: horizontal;
+    overflow: auto;
+    min-width: 150px;
+    max-width: 80vw;
+}
+select, button { font-size: 1em; margin-top: 8px; }
+
+/* ---- main.php topology diagram ---------------------------------------- */
+.diagram { text-align: center; }
+.diagram img {
+    max-width: 100%;
+    height: auto;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    display: block;
+}
+@property --img-width {
+    syntax: "<length>";
+    inherits: true;
+    initial-value: 500px;
+}
+.diagram img {
+    width: var(--img-width, 500px);
+    height: auto;
+}
+input[type="range"] { width: 100%; }
+.resizable-img-container {
+    resize: vertical;
+    overflow: auto;
+    min-height: 100px;
+    max-height: 190vh;
+    width: 100%;
+    border: 1px solid #ccc;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    background: #fff;
+}
+.resizable-img-container img {
+    height: 100%;
+    width: auto;
+    display: block;
+    object-fit: contain;
+}

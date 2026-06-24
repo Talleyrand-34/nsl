@@ -1,0 +1,52 @@
+<?php
+// Shared page header: the API-base-URL handler, document <head>, and the app
+// bar (section navigation + API-URL control) rendered identically on every page.
+// A page sets an optional $pageTitle, then `include __DIR__.'/header.php';`.
+require_once __DIR__ . '/config.php';
+
+// Handle the API base URL update before any output, preserving the query string
+// so a page's state (e.g. main.php's actionType/entity/diagram options) survives.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['api_base_url'])) {
+    $_SESSION['api_base_url'] = rtrim($_POST['api_base_url'], '/');
+    $qs = $_SERVER['QUERY_STRING'] ?? '';
+    header('Location: ' . $_SERVER['PHP_SELF'] . ($qs !== '' ? '?' . $qs : ''));
+    exit;
+}
+
+// Top-level sections, in display order. The active one is auto-detected from the
+// current script name, so pages need no manual flag.
+$navItems = [
+    'main.php'        => 'Dashboard',
+    'import.php'      => 'Import devices',
+    'connections.php' => 'Scan connections',
+];
+$currentPage = basename($_SERVER['PHP_SELF']);
+?>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title><?= htmlspecialchars($pageTitle ?? 'NSL-Graph') ?></title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Expose the API base so client JS (e.g. the scan-status poller) can reach
+         the Go API directly (CORS is open). -->
+    <script>window.NSL_API = <?= json_encode(API_BASE_URL) ?>;</script>
+    <!-- Load synchronously in <head> so nslWatchScan() is defined before any
+         inline call in the page body runs. -->
+    <script src="scan-status.js"></script>
+</head>
+<body class="<?= htmlspecialchars($bodyClass ?? '') ?>">
+    <header class="appbar">
+        <span class="appbar-brand">NSL-Graph</span>
+        <nav class="appbar-nav">
+            <?php foreach ($navItems as $file => $label): ?>
+                <a href="<?= $file ?>" class="<?= $currentPage === $file ? 'active' : '' ?>"><?= htmlspecialchars($label) ?></a>
+            <?php endforeach; ?>
+        </nav>
+        <form class="appbar-api" method="post">
+            <label for="apiUrl">API Base URL:</label>
+            <input type="text" id="apiUrl" name="api_base_url" value="<?= htmlspecialchars(API_BASE_URL) ?>">
+            <button type="submit">Update</button>
+        </form>
+    </header>
+    <main class="appmain">
