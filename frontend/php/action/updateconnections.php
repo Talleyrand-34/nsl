@@ -7,6 +7,19 @@ $message = '';
 $connections = json_decode(@file_get_contents(CONNECTIONS_ENDPOINT), true) ?: [];
 $devices = json_decode(@file_get_contents(DEVICES_ENDPOINT), true) ?: [];
 $modelPorts = json_decode(@file_get_contents(MODELPORTS_ENDPOINT), true) ?: [];
+$deviceports = json_decode(@file_get_contents(DEVICEPORTS_ENDPOINT), true) ?: [];
+$connectiontypes = json_decode(@file_get_contents(CONNECTIONTYPES_ENDPOINT), true) ?: [];
+
+// Helper: resolve a deviceport id from a device id + model port id.
+function resolveDeviceportId($deviceports, $deviceId, $modelPortId)
+{
+    foreach ($deviceports as $dp) {
+        if (($dp['devid'] ?? '') == $deviceId && ($dp['modelid'] ?? '') == $modelPortId) {
+            return $dp['id'];
+        }
+    }
+    return '';
+}
 
 // Helper: get model for a given device id
 function getDeviceModel($devices, $deviceId)
@@ -38,6 +51,7 @@ $selectedFromModelPortId = '';
 $selectedToDeviceId = '';
 $selectedToModelPortId = '';
 $selectedAllowVLANUnion = false;
+$selectedConnectionType = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Handle connection selection (Load Connection button)
@@ -47,6 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Find the selected connection and pre-fill its data
         foreach ($connections as $connection) {
             if ($connection['id'] == $selectedConnectionId) {
+                $selectedConnectionType = $connection['connection_type'] ?? '';
                 // Find from device ID by device label/name
                 foreach ($devices as $device) {
                     if ($device['label'] === ($connection['fromdevice'] ?? '')) {
@@ -98,6 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $selectedToDeviceId = $_POST['to_device_id'] ?? '';
         $selectedToModelPortId = $_POST['to_modelport_id'] ?? '';
         $selectedAllowVLANUnion = isset($_POST['allowVLANUnion']);
+        $selectedConnectionType = $_POST['connection_type'] ?? '';
     }
     // Handle actual update submission
     elseif (isset($_POST['update_connection'])) {
@@ -106,7 +122,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $fromModelPortId = $_POST['from_modelport_id'] ?? '';
         $toDeviceId = $_POST['to_device_id'] ?? '';
         $toModelPortId = $_POST['to_modelport_id'] ?? '';
+        $connectionType = $_POST['connection_type'] ?? '';
+        $selectedConnectionType = $connectionType;
         $allowVLANUnion = isset($_POST['allowVLANUnion']);
+
+        $fromDeviceportId = resolveDeviceportId($deviceports, $fromDeviceId, $fromModelPortId);
+        $toDeviceportId = resolveDeviceportId($deviceports, $toDeviceId, $toModelPortId);
 
         if ($connectionId === '') {
             $message = 'Please select a connection to update.';
@@ -118,13 +139,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $message = 'Please select a destination device.';
         } elseif ($toModelPortId === '') {
             $message = 'Please select a destination model port.';
+        } elseif ($fromDeviceportId === '' || $toDeviceportId === '') {
+            $message = 'Could not resolve a device port for the selected device/port.';
         } else {
             $data = json_encode([
                 'connection_id' => $connectionId,
-                'new_from_device_id' => $fromDeviceId,
-                'new_from_model_port_id' => $fromModelPortId,
-                'new_to_device_id' => $toDeviceId,
-                'new_to_model_port_id' => $toModelPortId,
+                'new_from_deviceport_id' => $fromDeviceportId,
+                'new_to_deviceport_id' => $toDeviceportId,
+                'connection_type' => $connectionType,
                 'allow_vlan_union' => $allowVLANUnion
             ]);
 
@@ -151,6 +173,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $selectedToDeviceId = '';
                 $selectedToModelPortId = '';
                 $selectedAllowVLANUnion = false;
+                $selectedConnectionType = '';
             } else {
                 $message = 'Failed to update connection. Server response: ' . htmlspecialchars($response);
             }
@@ -232,6 +255,17 @@ $toModelPorts = $toDeviceModel ? getModelPortsByModel($modelPorts, $toDeviceMode
                     <option value="<?= htmlspecialchars($port['id']) ?>"
                         <?= ($port['id'] == $selectedToModelPortId) ? 'selected' : '' ?>>
                         <?= htmlspecialchars($port['name']) ?> (<?= htmlspecialchars($port['model']) ?>)
+                    </option>
+                <?php endforeach; ?>
+            </select><br><br>
+
+            <label for="connection_type">Connection Type:</label>
+            <select id="connection_type" name="connection_type" required>
+                <option value="">-- Select --</option>
+                <?php foreach ($connectiontypes as $ct): ?>
+                    <option value="<?= htmlspecialchars($ct['name']) ?>"
+                        <?= ($selectedConnectionType === $ct['name']) ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($ct['name']) ?>
                     </option>
                 <?php endforeach; ?>
             </select><br><br>

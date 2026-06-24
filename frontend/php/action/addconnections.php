@@ -3,9 +3,23 @@
 require_once __DIR__ . '/../config.php';
 $message = '';
 
-// Fetch devices and model ports
+// Fetch devices, model ports, device ports and connection types
 $devices = json_decode(@file_get_contents(DEVICES_ENDPOINT), true) ?: [];
 $modelports = json_decode(@file_get_contents(MODELPORTS_ENDPOINT), true) ?: [];
+$deviceports = json_decode(@file_get_contents(DEVICEPORTS_ENDPOINT), true) ?: [];
+$connectiontypes = json_decode(@file_get_contents(CONNECTIONTYPES_ENDPOINT), true) ?: [];
+
+// Helper: resolve a deviceport id from a device id + model port id. The API
+// connects deviceports, so the form's device+modelport selections are mapped here.
+function resolveDeviceportId($deviceports, $deviceId, $modelPortId)
+{
+    foreach ($deviceports as $dp) {
+        if (($dp['devid'] ?? '') == $deviceId && ($dp['modelid'] ?? '') == $modelPortId) {
+            return $dp['id'];
+        }
+    }
+    return '';
+}
 
 // Helper: get model for a given device id
 function getDeviceModel($devices, $deviceId)
@@ -34,22 +48,26 @@ $fromDevice = $_POST['fromDevice'] ?? '';
 $fromModelPort = $_POST['fromModelPort'] ?? '';
 $toDevice = $_POST['toDevice'] ?? '';
 $toModelPort = $_POST['toModelPort'] ?? '';
+$connectionType = $_POST['connectionType'] ?? '';
 $allowVLANUnion = isset($_POST['allowVLANUnion']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_connection'])) {
+    $fromDeviceportId = resolveDeviceportId($deviceports, $fromDevice, $fromModelPort);
+    $toDeviceportId = resolveDeviceportId($deviceports, $toDevice, $toModelPort);
+
     if ($fromDevice === '' || $fromModelPort === '' || $toDevice === '' || $toModelPort === '') {
         $message = 'Please select all connection parameters.';
+    } elseif ($connectionType === '') {
+        $message = 'Please select a connection type.';
+    } elseif ($fromDeviceportId === '' || $toDeviceportId === '') {
+        $message = 'Could not resolve a device port for the selected device/port. Import the device first.';
     } else {
         $data = json_encode([
-            'from_device_id' => $fromDevice,
-            'from_model_port_id' => $fromModelPort,
-            'to_device_id' => $toDevice,
-            'to_model_port_id' => $toModelPort,
+            'from_deviceport_id' => $fromDeviceportId,
+            'to_deviceport_id' => $toDeviceportId,
+            'connection_type' => $connectionType,
             'allow_vlan_union' => $allowVLANUnion
         ]);
-
-        // Debug: echo the JSON being sent
-        echo '<pre>JSON sent:<br>' . htmlspecialchars($data) . '</pre>';
 
         $ch = curl_init(CONNECTIONS_ENDPOINT);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
@@ -136,6 +154,18 @@ $toModelPorts = $toDeviceModel ? getModelPortsByModel($modelports, $toDeviceMode
         </select>
     </fieldset>
     <br>
+    <label for="connectionType">Connection Type:</label>
+    <select id="connectionType" name="connectionType" required>
+        <option value="">-- Select --</option>
+        <?php foreach ($connectiontypes as $ct): ?>
+            <option value="<?= htmlspecialchars($ct['name']) ?>"
+                <?= ($connectionType === $ct['name']) ? 'selected' : '' ?>>
+                <?= htmlspecialchars($ct['name']) ?>
+            </option>
+        <?php endforeach; ?>
+    </select>
+    <small><em>Add types under Add &rarr; connectiontypes.</em></small>
+    <br><br>
     <fieldset>
         <legend>VLAN Validation Options</legend>
         <label>

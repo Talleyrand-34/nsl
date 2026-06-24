@@ -148,6 +148,7 @@ type repository interface {
 		connectionId string,
 		newFromDeviceportID string,
 		newToDeviceportID string,
+		connectionType string,
 	) error
 	DeleteConnection(connectionId string) error
 

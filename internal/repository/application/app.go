@@ -176,6 +176,7 @@ type NetServiceInt interface {
 		connectionId string,
 		newFromDeviceportID string,
 		newToDeviceportID string,
+		connectionType string,
 	) error
 	DeleteConnection(connectionId string) error
 
@@ -782,8 +783,9 @@ func (ns *NetService) UpdateConnection(
 	connectionId string,
 	newFromDeviceportID string,
 	newToDeviceportID string,
+	connectionType string,
 ) error {
-	return ns.netRepo.UpdateConnection(connectionId, newFromDeviceportID, newToDeviceportID)
+	return ns.netRepo.UpdateConnection(connectionId, newFromDeviceportID, newToDeviceportID, connectionType)
 }
 
 func (ns *NetService) AddVlan(vlanID string, vlanName string, ipSegment string) error {

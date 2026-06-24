@@ -1,18 +1,18 @@
 /*
-  Copyright © 2025 Talleyrand-34 (t34@t34.dev)
+Copyright © 2025 Talleyrand-34 (t34@t34.dev)
 
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU Affero General Public License as published
-  by the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-  GNU Affero General Public License for more details.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
 
-  You should have received a copy of the GNU Affero General Public License
-  along with this program. If not, see <https://www.gnu.org/licenses/>.
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 package cmd_update
 
@@ -51,6 +51,7 @@ var ConnectionUpdateCmd = &cobra.Command{
 		// Get connection parameters
 		fromDeviceportId, _ := cmd.Flags().GetString("from-deviceport-id")
 		toDeviceportId, _ := cmd.Flags().GetString("to-deviceport-id")
+		connectionType, _ := cmd.Flags().GetString("connection-type")
 
 		// All connection parameters are required
 		if fromDeviceportId == "" || toDeviceportId == "" {
@@ -65,8 +66,8 @@ var ConnectionUpdateCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// Update the connection
-		err = service.UpdateConnection(connectionId, fromDeviceportId, toDeviceportId)
+		// Update the connection (connection-type is optional: empty leaves it unchanged).
+		err = service.UpdateConnection(connectionId, fromDeviceportId, toDeviceportId, connectionType)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error updating connection: %v\n", err)
 			os.Exit(1)
@@ -75,6 +76,9 @@ var ConnectionUpdateCmd = &cobra.Command{
 		fmt.Printf("Successfully updated connection with ID %s\n", connectionId)
 		fmt.Printf("  From deviceport ID: %s\n", fromDeviceportId)
 		fmt.Printf("  To deviceport ID: %s\n", toDeviceportId)
+		if connectionType != "" {
+			fmt.Printf("  Connection type: %s\n", connectionType)
+		}
 	},
 }
 
@@ -84,4 +88,5 @@ func init() {
 	ConnectionUpdateCmd.Flags().String("id", "", "ID of the connection to update (required)")
 	ConnectionUpdateCmd.Flags().String("from-deviceport-id", "", "Source deviceport ID (required)")
 	ConnectionUpdateCmd.Flags().String("to-deviceport-id", "", "Destination deviceport ID (required)")
+	ConnectionUpdateCmd.Flags().String("connection-type", "", "New connection type name (optional; must exist if set)")
 }

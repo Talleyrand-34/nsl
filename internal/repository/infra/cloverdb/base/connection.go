@@ -195,10 +195,21 @@ func (r BasicOpsCloverRepository) UpdateConnection(
 	id string,
 	fromDeviceportID string,
 	toDeviceportID string,
+	connectionType string,
 ) error {
 	updates := make(map[string]interface{})
 	updates["from_deviceport_id"] = fromDeviceportID
 	updates["to_deviceport_id"] = toDeviceportID
+
+	// Strict: when a connection type is given it must exist. Empty leaves the
+	// current type unchanged.
+	if connectionType != "" {
+		typeID := r.getConnectionTypeID(connectionType)
+		if typeID == "" {
+			return fmt.Errorf("connection type %q does not exist", connectionType)
+		}
+		updates["connection_type"] = typeID
+	}
 
 	if err := r.db.Update(q.NewQuery(connectionsCollection).Where(q.Field("_id").Eq(id)), updates); err != nil {
 		return fmt.Errorf("UpdateConnection failed: %w", err)

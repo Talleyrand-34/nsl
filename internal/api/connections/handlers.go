@@ -139,6 +139,7 @@ func UpdateConnectionHandler(service q.NetServiceInt) http.HandlerFunc {
 			ConnectionID        string `json:"connection_id"`
 			NewFromDeviceportID string `json:"new_from_deviceport_id"`
 			NewToDeviceportID   string `json:"new_to_deviceport_id"`
+			ConnectionType      string `json:"connection_type"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -153,7 +154,7 @@ func UpdateConnectionHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		err := service.UpdateConnection(req.ConnectionID, req.NewFromDeviceportID, req.NewToDeviceportID)
+		err := service.UpdateConnection(req.ConnectionID, req.NewFromDeviceportID, req.NewToDeviceportID, req.ConnectionType)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": "update_failed", "message": err.Error()})
