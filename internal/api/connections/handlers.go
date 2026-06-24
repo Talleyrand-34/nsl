@@ -186,6 +186,7 @@ func DeleteConnectionHandler(service q.NetServiceInt) http.HandlerFunc {
 
 		var req struct {
 			ConnectionID string `json:"connection_id"`
+			Cascade      bool   `json:"cascade"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -200,7 +201,12 @@ func DeleteConnectionHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		err := service.DeleteConnection(req.ConnectionID)
+		var err error
+		if req.Cascade {
+			err = service.DeleteConnectionCascade(req.ConnectionID)
+		} else {
+			err = service.DeleteConnection(req.ConnectionID)
+		}
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": "delete_failed", "message": err.Error()})

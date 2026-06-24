@@ -187,6 +187,7 @@ func DeleteVlanHandler(service q.NetServiceInt) http.HandlerFunc {
 
 		var req struct {
 			VlanInternalID string `json:"vlan_internal_id"`
+			Cascade        bool   `json:"cascade"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -201,7 +202,12 @@ func DeleteVlanHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		err := service.DeleteVlan(req.VlanInternalID)
+		var err error
+		if req.Cascade {
+			err = service.DeleteVlanCascade(req.VlanInternalID)
+		} else {
+			err = service.DeleteVlan(req.VlanInternalID)
+		}
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": "delete_failed", "message": err.Error()})

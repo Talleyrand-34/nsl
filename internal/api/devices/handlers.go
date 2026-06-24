@@ -240,7 +240,8 @@ func DeleteBrandHandler(service q.NetServiceInt) http.HandlerFunc {
 		}
 
 		var req struct {
-			Name string `json:"name"`
+			Name    string `json:"name"`
+			Cascade bool   `json:"cascade"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -255,7 +256,12 @@ func DeleteBrandHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		err := service.DeleteBrand(req.Name)
+		var err error
+		if req.Cascade {
+			err = service.DeleteBrandCascade(req.Name)
+		} else {
+			err = service.DeleteBrand(req.Name)
+		}
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": "delete_failed", "message": err.Error()})
@@ -411,7 +417,8 @@ func DeleteDeviceClassHandler(service q.NetServiceInt) http.HandlerFunc {
 		}
 
 		var req struct {
-			Name string `json:"name"`
+			Name    string `json:"name"`
+			Cascade bool   `json:"cascade"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -426,7 +433,12 @@ func DeleteDeviceClassHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		err := service.DeleteDeviceClass(req.Name)
+		var err error
+		if req.Cascade {
+			err = service.DeleteDeviceClassCascade(req.Name)
+		} else {
+			err = service.DeleteDeviceClass(req.Name)
+		}
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": "delete_failed", "message": err.Error()})
@@ -579,7 +591,8 @@ func DeleteZoneTypeHandler(service q.NetServiceInt) http.HandlerFunc {
 		}
 
 		var req struct {
-			Name string `json:"name"`
+			Name    string `json:"name"`
+			Cascade bool   `json:"cascade"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -594,7 +607,12 @@ func DeleteZoneTypeHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		err := service.DeleteZoneType(req.Name)
+		var err error
+		if req.Cascade {
+			err = service.DeleteZoneTypeCascade(req.Name)
+		} else {
+			err = service.DeleteZoneType(req.Name)
+		}
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": "delete_failed", "message": err.Error()})
@@ -747,7 +765,8 @@ func DeleteProprietaryHandler(service q.NetServiceInt) http.HandlerFunc {
 		}
 
 		var req struct {
-			Name string `json:"name"`
+			Name    string `json:"name"`
+			Cascade bool   `json:"cascade"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -762,7 +781,12 @@ func DeleteProprietaryHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		err := service.DeleteProprietary(req.Name)
+		var err error
+		if req.Cascade {
+			err = service.DeleteProprietaryCascade(req.Name)
+		} else {
+			err = service.DeleteProprietary(req.Name)
+		}
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": "delete_failed", "message": err.Error()})
@@ -811,7 +835,53 @@ func UpdateZoneHandler(service q.NetServiceInt) http.HandlerFunc {
 
 func DeleteZoneHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotImplemented)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		if r.Method != "DELETE" {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			json.NewEncoder(w).Encode(map[string]string{"error": "method_not_allowed", "message": "Only DELETE method is allowed"})
+			return
+		}
+
+		var req struct {
+			ZoneID  string `json:"zone_id"`
+			Cascade bool   `json:"cascade"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid_json", "message": err.Error()})
+			return
+		}
+
+		if req.ZoneID == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "missing_zone_id", "message": "zone_id is required"})
+			return
+		}
+
+		var err error
+		if req.Cascade {
+			err = service.DeleteZoneCascade(req.ZoneID)
+		} else {
+			err = service.DeleteZone(req.ZoneID)
+		}
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"error": "delete_failed", "message": err.Error()})
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Zone deleted successfully", "zone_id": req.ZoneID})
 	}
 }
 
@@ -967,6 +1037,7 @@ func DeleteModelHandler(service q.NetServiceInt) http.HandlerFunc {
 
 		var req struct {
 			ModelID string `json:"model_id"`
+			Cascade bool   `json:"cascade"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -981,7 +1052,12 @@ func DeleteModelHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		err := service.DeleteModel(req.ModelID)
+		var err error
+		if req.Cascade {
+			err = service.DeleteModelCascade(req.ModelID)
+		} else {
+			err = service.DeleteModel(req.ModelID)
+		}
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": "delete_failed", "message": err.Error()})
@@ -1406,6 +1482,7 @@ func DeleteModelPortHandler(service q.NetServiceInt) http.HandlerFunc {
 
 		var req struct {
 			ModelPortID string `json:"model_port_id"`
+			Cascade     bool   `json:"cascade"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1420,7 +1497,12 @@ func DeleteModelPortHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		err := service.DeleteModelPort(req.ModelPortID)
+		var err error
+		if req.Cascade {
+			err = service.DeleteModelPortCascade(req.ModelPortID)
+		} else {
+			err = service.DeleteModelPort(req.ModelPortID)
+		}
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": "delete_failed", "message": err.Error()})
@@ -1573,6 +1655,7 @@ func DeleteDevicePortHandler(service q.NetServiceInt) http.HandlerFunc {
 		var req struct {
 			DeviceID    string `json:"device_id"`
 			ModelPortID string `json:"model_port_id"`
+			Cascade     bool   `json:"cascade"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1587,7 +1670,12 @@ func DeleteDevicePortHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		err := service.DeleteDevicePort(req.DeviceID, req.ModelPortID)
+		var err error
+		if req.Cascade {
+			err = service.DeleteDevicePortCascade(req.DeviceID, req.ModelPortID)
+		} else {
+			err = service.DeleteDevicePort(req.DeviceID, req.ModelPortID)
+		}
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": "delete_failed", "message": err.Error()})
