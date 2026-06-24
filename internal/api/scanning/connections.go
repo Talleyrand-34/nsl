@@ -109,3 +109,44 @@ func ImportConnectionsHandler(service q.NetServiceInt) http.HandlerFunc {
 		json.NewEncoder(w).Encode(resp)
 	}
 }
+
+// ImportPlaceholdersRequest carries the (reviewed) intermediaries to materialize
+// as a shared placeholder unmanaged device.
+type ImportPlaceholdersRequest struct {
+	Intermediaries []topology.Intermediary `json:"intermediaries"`
+}
+
+// ImportPlaceholdersHandler creates a placeholder zone + shared unmanaged device
+// for the selected detected intermediaries and wires the observing endpoints to it.
+func ImportPlaceholdersHandler(service q.NetServiceInt) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		setConnHeaders(w)
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		if r.Method != "POST" {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			json.NewEncoder(w).Encode(ErrorResponse{Error: "method_not_allowed", Message: "Only POST is allowed"})
+			return
+		}
+
+		var req ImportPlaceholdersRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid_json", Message: err.Error()})
+			return
+		}
+
+		res, err := service.CreatePlaceholderForIntermediaries(req.Intermediaries)
+		out := map[string]any{
+			"zone":        res.Zone,
+			"device":      res.Device,
+			"connections": res.Connections,
+		}
+		if err != nil {
+			out["message"] = err.Error()
+		}
+		json.NewEncoder(w).Encode(out)
+	}
+}

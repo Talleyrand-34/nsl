@@ -164,6 +164,10 @@ type NetServiceInt interface {
 	// persists the resolved edges (with provenance).
 	DiscoverConnections(targets []topology.Target, only string) (*topology.ConnectionScanResult, error)
 	ImportConnectionEdges(edges []topology.ConnectionEdge) (int, error)
+	// CreatePlaceholderForIntermediaries materializes one shared placeholder
+	// unmanaged device (in a placeholder zone) for unknown device(s) detected
+	// between known hosts, wiring each observing endpoint to it.
+	CreatePlaceholderForIntermediaries(intermediaries []topology.Intermediary) (PlaceholderResult, error)
 	// DiscoverConnectionsByMode builds targets (from-db/profiles/subnet) and runs
 	// discovery without interactive prompts — used by the HTTP API.
 	DiscoverConnectionsByMode(opts ConnectionScanOptions, em observ.Emitter) (*topology.ConnectionScanResult, error)

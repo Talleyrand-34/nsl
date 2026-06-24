@@ -33,6 +33,7 @@ define('SCAN_ANALYZE_ENDPOINT', API_BASE_URL . '/scan/analyze');
 define('SCAN_EXECUTE_ENDPOINT', API_BASE_URL . '/scan/execute');
 define('SCAN_CONNECTIONS_ENDPOINT', API_BASE_URL . '/scan/connections');
 define('SCAN_CONNECTIONS_IMPORT_ENDPOINT', API_BASE_URL . '/scan/connections/import');
+define('SCAN_CONNECTIONS_PLACEHOLDERS_ENDPOINT', API_BASE_URL . '/scan/connections/placeholders');
 // Add other endpoints as needed, e.g.:
 // define('DEVICECLASSES_ENDPOINT', API_BASE_URL . '/deviceclasses');
 //

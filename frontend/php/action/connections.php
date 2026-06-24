@@ -266,6 +266,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_import'])) {
     $result = $all; // keep showing the result after import
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_placeholders'])) {
+    $all = json_decode($_POST['result_json'] ?? '[]', true);
+    $inter = is_array($all) ? ($all['intermediaries'] ?? []) : [];
+    $sel = $_POST['inter'] ?? [];
+    $toCreate = [];
+    foreach ($sel as $i) {
+        $i = intval($i);
+        if (isset($inter[$i])) $toCreate[] = $inter[$i];
+    }
+    if ($toCreate) {
+        list($code, $body) = api_post_json_conn(SCAN_CONNECTIONS_PLACEHOLDERS_ENDPOINT, json_encode(['intermediaries' => $toCreate]));
+        $resp = json_decode($body, true);
+        $importMessage = 'Created placeholder device "' . htmlspecialchars($resp['device'] ?? '?')
+            . '" in zone "' . htmlspecialchars($resp['zone'] ?? '?') . '" with '
+            . intval($resp['connections'] ?? 0) . ' connection(s).'
+            . (!empty($resp['message']) ? ' Note: ' . htmlspecialchars($resp['message']) : '');
+    } else {
+        $importMessage = 'No intermediaries were selected.';
+    }
+    $result = $all; // keep showing the result after creating placeholders
+}
+
 // --- A started scan finished — fetch its result by id and render -------------
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
     list($code, $body) = api_get_conn(SCAN_STATUS_ENDPOINT . '?scan_id=' . urlencode($_GET['scan_id']));
@@ -395,12 +417,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
 
     <?php if ($inter): ?>
         <h3>Intermediary devices detected in the middle</h3>
-        <ul>
-        <?php foreach ($inter as $in): ?>
-            <li><b><?= htmlspecialchars($in['mac'] ?? '') ?></b> (<?= htmlspecialchars($in['vendor'] ?? '') ?>)
-                — seen by <?= htmlspecialchars(implode(', ', $in['seen_by'] ?? [])) ?></li>
-        <?php endforeach; ?>
-        </ul>
+        <p style="max-width:70ch; color:#555;">
+          These MACs were seen in the forwarding tables of multiple hosts but don't
+          speak LLDP and aren't in the DB — i.e. unknown device(s) sitting between
+          known hosts. Select them and create a shared <b>placeholder unmanaged
+          device</b> (in an "<?= htmlspecialchars('Unknown infrastructure') ?>" zone)
+          to document the gap and attest VLANs through it.
+        </p>
+        <form method="post">
+            <input type="hidden" name="result_json" value="<?= htmlspecialchars(json_encode($result)) ?>">
+            <table border="1" cellpadding="4">
+                <tr><th>Placeholder</th><th>MAC</th><th>Vendor</th><th>Seen by</th></tr>
+                <?php foreach ($inter as $i => $in): ?>
+                    <tr>
+                        <td style="text-align:center;"><input type="checkbox" name="inter[]" value="<?= $i ?>"></td>
+                        <td><b><?= htmlspecialchars($in['mac'] ?? '') ?></b></td>
+                        <td><?= htmlspecialchars($in['vendor'] ?? '') ?></td>
+                        <td style="font-size:90%; color:#555;"><?= htmlspecialchars(implode(', ', $in['seen_by'] ?? [])) ?></td>
+                    </tr>
+                <?php endforeach; ?>
+            </table>
+            <p><button type="submit" name="do_placeholders" value="1">Create placeholder for selected</button></p>
+        </form>
     <?php endif; ?>
 
     <?php $tree = render_topology($result); if ($tree !== ''): ?>

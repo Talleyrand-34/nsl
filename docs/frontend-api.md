@@ -306,6 +306,22 @@ POST /scan/import        {"devices": [...], "options": {...}}
 POST /scan/import-file   <raw scanner.ScanResult JSON>
 ```
 
+**Connection (L2/L1 link) discovery:**
+
+```http
+POST /scan/connections              <ConnectionScanOptions>   (async; returns {scan_id})
+POST /scan/connections/import       {"edges": [<ConnectionEdge>...]}
+POST /scan/connections/placeholders {"intermediaries": [<Intermediary>...]}
+```
+
+`/scan/connections` correlates LLDP/CDP/bridge-FDB evidence into edges and detects
+**intermediaries** — MACs seen by 2+ hosts that don't speak LLDP and aren't in the DB
+(unknown device(s) "in the middle"). `/scan/connections/placeholders` materializes a
+single shared **placeholder unmanaged device** (in an "Unknown infrastructure" zone)
+for the selected intermediaries and wires each observing `device:port` endpoint to it,
+for VLAN attestation/documentation of the gap. Returns
+`{zone, device, connections, message?}`.
+
 The optional **`profile`** field on `/scan/host` and `/scan/network` applies a saved scan
 profile (see below). When omitted, a profile whose `host` matches the `ip`/`subnet` is
 auto-applied. Any SNMP field present in the request overrides the profile. The SNMP scan path
