@@ -130,13 +130,15 @@ function render_topology($result) {
         return [$s, ''];
     };
     $adj = []; $degree = []; $hasLLDP = []; $realEdge = [];
-    $add = function ($a, $ap, $b, $bp, $tag, $lldp, $intermediary) use (&$adj, &$degree, &$hasLLDP, &$realEdge) {
+    $allEdges = [];
+    $add = function ($a, $ap, $b, $bp, $tag, $lldp, $intermediary) use (&$adj, &$degree, &$hasLLDP, &$realEdge, &$allEdges) {
         $adj[$a][] = ['peer' => $b, 'lp' => $ap, 'pp' => $bp, 'tag' => $tag];
         $adj[$b][] = ['peer' => $a, 'lp' => $bp, 'pp' => $ap, 'tag' => $tag];
         $degree[$a] = ($degree[$a] ?? 0) + 1;
         $degree[$b] = ($degree[$b] ?? 0) + 1;
         if ($lldp) { $hasLLDP[$a] = true; $hasLLDP[$b] = true; }
         if (!$intermediary) { $realEdge[$a] = true; $realEdge[$b] = true; }
+        $allEdges[] = ['a' => $a, 'ap' => $ap, 'b' => $b, 'bp' => $bp, 'tag' => $tag];
     };
     $srcOf = function ($provs) {
         $set = [];
@@ -164,21 +166,22 @@ function render_topology($result) {
         if ($hub === '') continue;
         $tag = 'via ' . ($in['vendor'] ?? 'switch') . ' ' . ($in['mac'] ?? '');
         foreach (($in['seen_by'] ?? []) as $sb) {
-            list($d) = $split($sb);
-            if ($d !== $hub && ($degree[$d] ?? 0) === 0) $add($hub, $hubPort, $d, '', $tag, false, true);
+            list($d, $p) = $split($sb);
+            if ($d !== $hub) $add($hub, $hubPort, $d, $p, $tag, false, true);
         }
     }
     if (!$adj) return '';
 
+    // Roots are tried best-first (prefer real LLDP endpoints, leafs first) so the
+    // main fabric reads top-down; every component is rendered, not just one.
     $nodes = array_keys($adj); sort($nodes);
-    $root = $nodes[0]; $bestScore = PHP_INT_MAX;
-    foreach ($nodes as $n) {
-        if (empty($realEdge[$n])) continue;
-        $score = ($degree[$n] ?? 0) + (!empty($hasLLDP[$n]) ? 1000 : 0);
-        if ($score < $bestScore) { $bestScore = $score; $root = $n; }
-    }
+    usort($nodes, function ($a, $b) use ($degree, $hasLLDP, $realEdge) {
+        $sa = ($degree[$a] ?? 0) + (!empty($hasLLDP[$a]) ? 1000 : 0) + (empty($realEdge[$a]) ? 100000 : 0);
+        $sb = ($degree[$b] ?? 0) + (!empty($hasLLDP[$b]) ? 1000 : 0) + (empty($realEdge[$b]) ? 100000 : 0);
+        if ($sa !== $sb) return $sa - $sb;
+        return strcmp($a, $b);
+    });
 
-    $visited = [$root => true]; $children = [];
     $order = function (&$links) use ($degree) {
         usort($links, function ($a, $b) use ($degree) {
             $da = $degree[$a['peer']] ?? 0; $db = $degree[$b['peer']] ?? 0;
@@ -187,18 +190,25 @@ function render_topology($result) {
             return strcmp($a['peer'], $b['peer']);
         });
     };
-    $build = function ($dev) use (&$build, &$visited, &$children, &$adj, $order) {
+
+    // ekey is an order-independent key for an undirected device pair.
+    $ekey = function ($x, $y) { return $x < $y ? $x . "\x00" . $y : $y . "\x00" . $x; };
+
+    $visited = [];
+    $treeEdge = [];   // ekey -> true for edges drawn as part of a tree
+    $children = [];
+    $build = function ($dev) use (&$build, &$visited, &$children, &$adj, $order, $ekey, &$treeEdge) {
         $links = $adj[$dev] ?? []; $order($links);
         foreach ($links as $l) {
             if (!empty($visited[$l['peer']])) continue;
             $visited[$l['peer']] = true;
+            $treeEdge[$ekey($dev, $l['peer'])] = true;
             $children[$dev][] = $l;
             $build($l['peer']);
         }
     };
-    $build($root);
 
-    $out = $root . "\n";
+    $out = '';
     $render = function ($dev, $prefix) use (&$render, &$children, &$out) {
         $kids = $children[$dev] ?? [];
         $n = count($kids);
@@ -212,7 +222,31 @@ function render_topology($result) {
             $render($l['peer'], $cp);
         }
     };
-    $render($root, '');
+
+    // Render every connected component as its own tree.
+    foreach ($nodes as $root) {
+        if (!empty($visited[$root])) continue;
+        $visited[$root] = true;
+        $build($root);
+        $out .= $root . "\n";
+        $render($root, '');
+    }
+
+    // Any edge not drawn as a tree edge (extra links / cycles) is listed so all
+    // connections are shown, not just the spanning tree.
+    $extras = [];
+    $seenExtra = [];
+    foreach ($allEdges as $e) {
+        $k = $ekey($e['a'], $e['b']);
+        if (!empty($treeEdge[$k]) || !empty($seenExtra[$k])) continue;
+        $seenExtra[$k] = true;
+        $ap = $e['ap'] !== '' ? ':' . $e['ap'] : '';
+        $bp = $e['bp'] !== '' ? ':' . $e['bp'] : '';
+        $extras[] = '  ' . $e['a'] . $ap . ' ─[' . $e['tag'] . ']─ ' . $e['b'] . $bp;
+    }
+    if ($extras) {
+        $out .= "\nAdditional links:\n" . implode("\n", $extras) . "\n";
+    }
     return $out;
 }
 
