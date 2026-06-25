@@ -81,6 +81,9 @@ include __DIR__ . '/header.php';
                 <?php if (isset($_GET['allports'])): ?>
                     <input type="hidden" name="allports" value="<?= htmlspecialchars($_GET['allports']) ?>">
                 <?php endif; ?>
+                <?php if (isset($_GET['vlan_scope'])): ?>
+                    <input type="hidden" name="vlan_scope" value="<?= htmlspecialchars($_GET['vlan_scope']) ?>">
+                <?php endif; ?>
 
                 <label for="actionType">Choose action:</label>
                 <select id="actionType" name="actionType" onchange="this.form.submit()">
@@ -148,6 +151,12 @@ include __DIR__ . '/header.php';
             <option value="false" <?= (!isset($_GET['allports']) || $_GET['allports'] === 'false') ? 'selected' : '' ?>>No (only connected)</option>
             <option value="true" <?= (isset($_GET['allports']) && $_GET['allports'] === 'true') ? 'selected' : '' ?>>Yes (all ports)</option>
         </select>
+
+        <label for="vlanScopeSelect" class="format-label" style="margin-left: 20px;">VLAN scope:</label>
+        <select id="vlanScopeSelect" name="vlan_scope" onchange="this.form.submit()">
+            <option value="untagged" <?= (!isset($_GET['vlan_scope']) || $_GET['vlan_scope'] === 'untagged') ? 'selected' : '' ?>>Untagged only</option>
+            <option value="all" <?= (isset($_GET['vlan_scope']) && $_GET['vlan_scope'] === 'all') ? 'selected' : '' ?>>All (incl. tagged)</option>
+        </select>
     </div>
 
     <div class="diagram">
@@ -157,7 +166,8 @@ include __DIR__ . '/header.php';
                 $vlan = isset($_GET['vlan']) ? htmlspecialchars($_GET['vlan']) : 'true';
                 $colorports = isset($_GET['colorports']) ? htmlspecialchars($_GET['colorports']) : 'true';
                 $allports = isset($_GET['allports']) ? htmlspecialchars($_GET['allports']) : 'false';
-                $diagramUrl = API_BASE_URL . "/diagram?format=" . $format . "&vlan=" . $vlan . "&colorports=" . $colorports . "&allports=" . $allports;
+                $vlanScope = isset($_GET['vlan_scope']) ? htmlspecialchars($_GET['vlan_scope']) : 'untagged';
+                $diagramUrl = API_BASE_URL . "/diagram?format=" . $format . "&vlan=" . $vlan . "&colorports=" . $colorports . "&allports=" . $allports . "&vlan_scope=" . $vlanScope;
                 // The server returns a non-2xx when the diagram can't be rendered
                 // (e.g. no devices); the browser then shows the img's alt text.
             ?>
