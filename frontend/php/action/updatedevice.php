@@ -7,6 +7,7 @@ $devices = json_decode(@file_get_contents(DEVICES_ENDPOINT), true) ?: [];
 $models = json_decode(@file_get_contents(MODELS_ENDPOINT), true) ?: [];
 $zones = json_decode(@file_get_contents(ZONES_ENDPOINT), true) ?: [];
 $proprietaries = json_decode(@file_get_contents(PROPRIETARIES_ENDPOINT), true) ?: [];
+$scanProfiles = json_decode(@file_get_contents(SCAN_PROFILES_ENDPOINT), true) ?: [];
 
 // Variables to hold selected device data
 $selectedDeviceId = '';
@@ -16,6 +17,7 @@ $selectedZoneId = '';
 $selectedProprietaryId = '';
 $selectedIPs = [];
 $selectedIsUnmanaged = false;
+$selectedProfile = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Handle device selection (Load Device button)
@@ -28,6 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $selectedDeviceLabel = $device['label'] ?? '';
                 $selectedIPs = $device['ips'] ?? [];
                 $selectedIsUnmanaged = !empty($device['is_unmanaged']);
+                $selectedProfile = $device['profile'] ?? '';
 
                 // Find model ID by model name
                 foreach ($models as $model) {
@@ -59,8 +62,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $zoneId = $_POST['zone_id'] ?? '';
         $proprietaryId = $_POST['proprietary_id'] ?? '';
         $isUnmanaged = isset($_POST['is_unmanaged']);
-        // Preserve the checkbox state if validation below fails and re-renders the form.
+        $profile = $_POST['profile'] ?? '';
+        // Preserve state if validation below fails and re-renders the form.
         $selectedIsUnmanaged = $isUnmanaged;
+        $selectedProfile = $profile;
 
         // Collect IPs from dynamic inputs
         $ips = [];
@@ -91,6 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'zone_id' => $zoneId,
                 'proprietary_id' => $proprietaryId,
                 'is_unmanaged' => $isUnmanaged,
+                'profile' => $profile,
                 'ips' => $ips
             ]);
 
@@ -191,6 +197,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <input type="checkbox" name="is_unmanaged" value="1" <?= $selectedIsUnmanaged ? 'checked' : '' ?>>
                 Unmanaged VLANs (switch replicates all VLANs through all ports)
             </label><br><br>
+
+            <label for="profile">Scan profile:</label>
+            <select id="profile" name="profile">
+                <option value="">-- None --</option>
+                <?php foreach ($scanProfiles as $prof): $pk = ($prof['kind'] ?? '') !== '' ? $prof['kind'] : 'device'; ?>
+                    <option value="<?= htmlspecialchars($prof['name'] ?? '') ?>" <?= (($prof['name'] ?? '') === $selectedProfile) ? 'selected' : '' ?>>
+                        <?= htmlspecialchars(($prof['name'] ?? '') . ' (' . $pk . (($prof['host'] ?? '') !== '' ? ', ' . $prof['host'] : '') . ')') ?>
+                    </option>
+                <?php endforeach; ?>
+            </select><br><br>
 
             <fieldset>
                 <legend>IP Addresses</legend>

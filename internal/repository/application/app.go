@@ -123,6 +123,7 @@ type NetServiceInt interface {
 		isUnmanaged *bool,
 	) error
 	UpdateDeviceIPs(deviceId string, ips []string) error
+	UpdateDeviceProfile(deviceId string, profile string) error
 	MigrateDeviceModel(deviceId string, newModelId string, portMap map[string]string) error
 	DeleteDevice(deviceId string) error
 
@@ -479,6 +480,10 @@ func (ns *NetService) generateUnmanagedName() (string, error) {
 			return fmt.Sprintf("unmanaged%02d", i), nil
 		}
 	}
+}
+
+func (ns *NetService) UpdateDeviceProfile(deviceId string, profile string) error {
+	return ns.netRepo.UpdateDeviceProfile(deviceId, profile)
 }
 
 func (ns *NetService) UpdateDeviceIPs(deviceId string, ips []string) error {
@@ -1213,20 +1218,26 @@ func (ns *NetService) importSingleDevice(discovered s.DiscoveredDevice, options 
 		return fmt.Errorf("failed to add device: %w", err)
 	}
 
-	if len(discovered.Device.Interfaces) > 0 || len(discovered.Device.SwitchPorts) > 0 {
-		devices, _ := ns.GetDevices()
-		var deviceID string
-		for _, device := range devices {
-			if device.Name == discovered.SuggestedName {
-				deviceID = device.ID
-				break
-			}
+	// Locate the freshly-created device (labels are unique) to attach the scan
+	// profile it was discovered with, and its ports.
+	devices, _ := ns.GetDevices()
+	var deviceID string
+	for _, device := range devices {
+		if device.Name == discovered.SuggestedName {
+			deviceID = device.ID
+			break
 		}
+	}
 
-		if deviceID != "" {
-			if err := ns.createDevicePortsForDevice(deviceID, discovered); err != nil {
-				log.Printf("Failed to create ports for device %s: %v", discovered.SuggestedName, err)
-			}
+	if deviceID != "" && discovered.Profile != "" {
+		if err := ns.UpdateDeviceProfile(deviceID, discovered.Profile); err != nil {
+			log.Printf("Failed to set scan profile for device %s: %v", discovered.SuggestedName, err)
+		}
+	}
+
+	if deviceID != "" && (len(discovered.Device.Interfaces) > 0 || len(discovered.Device.SwitchPorts) > 0) {
+		if err := ns.createDevicePortsForDevice(deviceID, discovered); err != nil {
+			log.Printf("Failed to create ports for device %s: %v", discovered.SuggestedName, err)
 		}
 	}
 
@@ -1912,19 +1923,26 @@ func (ns *NetService) importSingleDeviceWithPlan(discovered s.DiscoveredDevice, 
 		return fmt.Errorf("failed to add device: %w", err)
 	}
 
-	if len(discovered.Device.Interfaces) > 0 || len(discovered.Device.SwitchPorts) > 0 {
-		devices, _ := ns.GetDevices()
-		var deviceID string
-		for _, device := range devices {
-			if device.Name == discovered.SuggestedName {
-				deviceID = device.ID
-				break
-			}
+	// Locate the freshly-created device (labels are unique) to attach the scan
+	// profile it was discovered with, and its ports.
+	devices, _ := ns.GetDevices()
+	var deviceID string
+	for _, device := range devices {
+		if device.Name == discovered.SuggestedName {
+			deviceID = device.ID
+			break
 		}
-		if deviceID != "" {
-			if err := ns.createDevicePortsWithPlan(deviceID, discovered, plan); err != nil {
-				log.Printf("Failed to create ports for device %s: %v", discovered.SuggestedName, err)
-			}
+	}
+
+	if deviceID != "" && discovered.Profile != "" {
+		if err := ns.UpdateDeviceProfile(deviceID, discovered.Profile); err != nil {
+			log.Printf("Failed to set scan profile for device %s: %v", discovered.SuggestedName, err)
+		}
+	}
+
+	if deviceID != "" && (len(discovered.Device.Interfaces) > 0 || len(discovered.Device.SwitchPorts) > 0) {
+		if err := ns.createDevicePortsWithPlan(deviceID, discovered, plan); err != nil {
+			log.Printf("Failed to create ports for device %s: %v", discovered.SuggestedName, err)
 		}
 	}
 

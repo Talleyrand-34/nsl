@@ -184,11 +184,13 @@ func (ns *NetService) DiscoverConnectionsByMode(opts ConnectionScanOptions, em o
 	// device IP candidates + IP->label
 	ipToLabel := map[string]string{}
 	devName := map[string]string{}
+	devProfile := map[string]string{} // device ID -> associated scan-profile name
 	ipsByDevice := map[string][]string{}
 	var deviceOrder []string
 	if devs, err := ns.GetDevices(); err == nil {
 		for _, d := range devs {
 			devName[d.ID] = d.Name
+			devProfile[d.ID] = d.Profile
 		}
 	}
 	if ifaces, err := ns.GetAllDeviceInterfaces(); err == nil {
@@ -209,25 +211,39 @@ func (ns *NetService) DiscoverConnectionsByMode(opts ConnectionScanOptions, em o
 		}
 	}
 
+	var devicesNoProfile []string // from-db devices excluded for lacking a profile
 	if opts.FromDB {
 		for _, devID := range deviceOrder {
 			ips := uniqSortedStrings(ipsByDevice[devID])
-			var chosen string
+			// Every DB device must have a scan profile: prefer the one associated
+			// with the device, else auto-match one by a management IP/host.
 			var profile *e.ScanProfile
-			for _, ip := range ips {
-				if p, ok := ns.ResolveScanProfile(ip, ""); ok {
-					chosen, profile = ip, p
-					break
+			if pn := devProfile[devID]; pn != "" {
+				if p, err := ns.GetScanProfileByName(pn); err == nil && p != nil {
+					profile = p
 				}
 			}
 			if profile == nil {
-				ss := s.NewSNMPScanner()
-				probe := s.ScanOptions{Timeout: 2 * time.Second, SNMP: s.SNMPOptions{Community: community, Version: version}}
 				for _, ip := range ips {
-					if ss.Probe(ip, probe) {
-						chosen = ip
+					if p, ok := ns.ResolveScanProfile(ip, ""); ok {
+						profile = p
 						break
 					}
+				}
+			}
+			if profile == nil {
+				// Soft failure: skip this device, warn, let the user assign a
+				// profile (and re-run). "Start the analysis with the correct ones."
+				devicesNoProfile = append(devicesNoProfile, devName[devID])
+				continue
+			}
+			// Target IP: prefer the profile's host if it's one of the device's IPs,
+			// otherwise the first usable IP.
+			chosen := ""
+			for _, ip := range ips {
+				if ip == profile.Host {
+					chosen = ip
+					break
 				}
 			}
 			if chosen == "" && len(ips) > 0 {
@@ -238,20 +254,8 @@ func (ns *NetService) DiscoverConnectionsByMode(opts ConnectionScanOptions, em o
 			}
 			t := get(chosen)
 			t.DeviceLabel = devName[devID]
-			if profile != nil {
-				applyProfile(t, profile)
-			} else {
-				if t.SNMP == nil {
-					t.SNMP = defaultSNMP()
-				}
-				// No device profile pins this host — fall back to runtime SSH
-				// credentials (ssh-config / inline / generic profile) if any.
-				if t.SSH == nil {
-					if creds := resolveRuntimeSSH(chosen); creds != nil {
-						t.SSH = creds
-					}
-				}
-			}
+			t.Profile = profile.Name
+			applyProfile(t, profile)
 		}
 	}
 
@@ -301,12 +305,26 @@ func (ns *NetService) DiscoverConnectionsByMode(opts ConnectionScanOptions, em o
 		}
 	}
 
+	// device-no-profile warning (built once, attached to whatever result we return).
+	noProfileDisc := topology.Discrepancy{}
+	if len(devicesNoProfile) > 0 {
+		noProfileDisc = topology.Discrepancy{
+			Kind:       "device-no-profile",
+			Detail:     fmt.Sprintf("%d device(s) have no scan profile and were excluded from this run: %s. Assign a profile to each (and re-run discovery).", len(devicesNoProfile), strings.Join(devicesNoProfile, ", ")),
+			Provenance: devicesNoProfile,
+		}
+	}
+
 	targets := make([]topology.Target, 0, len(order))
 	for _, h := range order {
 		targets = append(targets, *byHost[h])
 	}
 	if len(targets) == 0 {
-		return &topology.ConnectionScanResult{}, nil
+		res := &topology.ConnectionScanResult{}
+		if noProfileDisc.Kind != "" {
+			res.Discrepancies = append(res.Discrepancies, noProfileDisc)
+		}
+		return res, nil
 	}
 	em.Emit("info", "collecting adjacency evidence from hosts", "hosts", len(targets))
 	result, err := ns.DiscoverConnections(targets, opts.Collector)
@@ -326,6 +344,9 @@ func (ns *NetService) DiscoverConnectionsByMode(opts ConnectionScanOptions, em o
 				Detail: m,
 			})
 		}
+	}
+	if err == nil && result != nil && noProfileDisc.Kind != "" {
+		result.Discrepancies = append(result.Discrepancies, noProfileDisc)
 	}
 	return result, err
 }

@@ -103,6 +103,11 @@ func (r BasicOpsCloverRepository) GetDevices() ([]e.Device, error) {
 			}
 		}
 
+		// Associated scan-profile name (device or generic), if any.
+		if profile, ok := doc.Get("profile").(string); ok {
+			device.Profile = profile
+		}
+
 		// Get unmanaged and invisible flags
 		if isUnmanaged, ok := doc.Get("is_unmanaged").(bool); ok {
 			device.IsUnmanaged = isUnmanaged
@@ -330,6 +335,16 @@ func (r BasicOpsCloverRepository) UpdateDeviceIPs(deviceId string, ips []string)
 	err := r.db.Update(q.NewQuery(devicesCollection).Where(q.Field("_id").Eq(deviceId)), updates)
 	if err != nil {
 		return fmt.Errorf("UpdateDeviceIPs failed: %w", err)
+	}
+	return nil
+}
+
+// UpdateDeviceProfile sets (or clears, when profile == "") the scan-profile name
+// associated with a device.
+func (r BasicOpsCloverRepository) UpdateDeviceProfile(deviceId string, profile string) error {
+	updates := map[string]interface{}{"profile": profile}
+	if err := r.db.Update(q.NewQuery(devicesCollection).Where(q.Field("_id").Eq(deviceId)), updates); err != nil {
+		return fmt.Errorf("UpdateDeviceProfile failed: %w", err)
 	}
 	return nil
 }

@@ -7,12 +7,14 @@ $message = '';
 $models = json_decode(@file_get_contents(MODELS_ENDPOINT), true) ?: [];
 $zones = json_decode(@file_get_contents(ZONES_ENDPOINT), true) ?: [];
 $proprietaries = json_decode(@file_get_contents(PROPRIETARIES_ENDPOINT), true) ?: [];
+$scanProfiles = json_decode(@file_get_contents(SCAN_PROFILES_ENDPOINT), true) ?: [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $label = trim($_POST['label'] ?? '');
     $model = $_POST['model'] ?? '';
     $zoneid = $_POST['zoneid'] ?? '';
     $proprietary = $_POST['proprietary'] ?? '';
+    $profile = $_POST['profile'] ?? '';
 
     // Collect IPs from dynamic inputs
     $ips = [];
@@ -51,6 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'zone_id' => $zoneid,
             'zone_name' => $zonename,
             'proprietary' => $proprietary,
+            'profile' => $profile,
             'ips' => $ips
         ]);
 
@@ -110,6 +113,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php foreach ($proprietaries as $prop): ?>
             <option value="<?= htmlspecialchars($prop['name']) ?>">
                 <?= htmlspecialchars($prop['name']) ?>
+            </option>
+        <?php endforeach; ?>
+    </select><br><br>
+
+    <label for="profile">Scan profile (optional):</label>
+    <select id="profile" name="profile">
+        <option value="">-- None --</option>
+        <?php foreach ($scanProfiles as $prof): $pk = ($prof['kind'] ?? '') !== '' ? $prof['kind'] : 'device'; ?>
+            <option value="<?= htmlspecialchars($prof['name'] ?? '') ?>">
+                <?= htmlspecialchars(($prof['name'] ?? '') . ' (' . $pk . (($prof['host'] ?? '') !== '' ? ', ' . $prof['host'] : '') . ')') ?>
             </option>
         <?php endforeach; ?>
     </select><br><br>

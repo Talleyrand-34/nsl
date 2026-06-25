@@ -64,6 +64,7 @@ type Device struct {
 	IsUnmanaged bool     `json:"is_unmanaged"`
 	IsInvisible bool     `json:"is_invisible"`
 	Ips         []string `json:"ips"`
+	Profile     string   `json:"profile"` // associated scan-profile name (device or generic)
 }
 
 // PortVlanConfig represents a VLAN configuration on a port (tagged or untagged)

@@ -1141,6 +1141,7 @@ func AddDeviceHandler(service q.NetServiceInt) http.HandlerFunc {
 			IsUnmanaged bool     `json:"is_unmanaged"`
 			IsInvisible bool     `json:"is_invisible"`
 			IPs         []string `json:"ips"`
+			Profile     string   `json:"profile"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1168,21 +1169,28 @@ func AddDeviceHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		// IPs aren't part of AddDevice; set them on the freshly-created device.
-		// Device labels are unique, so the new device is located by its label.
-		if len(req.IPs) > 0 {
+		// IPs and the scan-profile association aren't part of AddDevice; set them
+		// on the freshly-created device (located by its unique label).
+		if len(req.IPs) > 0 || req.Profile != "" {
 			devices, gErr := service.GetDevices()
+			var id string
 			if gErr == nil {
 				for _, d := range devices {
 					if d.Name == req.Label {
-						gErr = service.UpdateDeviceIPs(d.ID, req.IPs)
+						id = d.ID
 						break
 					}
 				}
 			}
+			if gErr == nil && id != "" && len(req.IPs) > 0 {
+				gErr = service.UpdateDeviceIPs(id, req.IPs)
+			}
+			if gErr == nil && id != "" && req.Profile != "" {
+				gErr = service.UpdateDeviceProfile(id, req.Profile)
+			}
 			if gErr != nil {
 				w.WriteHeader(http.StatusInternalServerError)
-				json.NewEncoder(w).Encode(map[string]string{"error": "ip_update_failed", "message": "device created but failed to set IPs: " + gErr.Error()})
+				json.NewEncoder(w).Encode(map[string]string{"error": "post_create_failed", "message": "device created but failed to set IPs/profile: " + gErr.Error()})
 				return
 			}
 		}
@@ -1234,12 +1242,13 @@ func UpdateDeviceHandler(service q.NetServiceInt) http.HandlerFunc {
 		}
 
 		var req struct {
-			ID          string `json:"id"`
-			Label       string `json:"label"`
-			ModelID     string `json:"model_id"`
-			ZoneID      string `json:"zone_id"`
-			Proprietary string `json:"proprietary_id"`
-			IsUnmanaged *bool  `json:"is_unmanaged"`
+			ID          string  `json:"id"`
+			Label       string  `json:"label"`
+			ModelID     string  `json:"model_id"`
+			ZoneID      string  `json:"zone_id"`
+			Proprietary string  `json:"proprietary_id"`
+			IsUnmanaged *bool   `json:"is_unmanaged"`
+			Profile     *string `json:"profile"` // nil = leave unchanged; "" = clear
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1259,6 +1268,16 @@ func UpdateDeviceHandler(service q.NetServiceInt) http.HandlerFunc {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": "update_failed", "message": err.Error()})
 			return
+		}
+
+		// Profile is set separately (kept out of UpdateDevice's signature). A bare
+		// {id, profile} PUT is enough to (re)assign — used by scan-connections.
+		if req.Profile != nil {
+			if err := service.UpdateDeviceProfile(req.ID, *req.Profile); err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				json.NewEncoder(w).Encode(map[string]string{"error": "profile_update_failed", "message": err.Error()})
+				return
+			}
 		}
 
 		w.WriteHeader(http.StatusOK)

@@ -450,6 +450,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_placeholders'])) {
     $result = $all; // keep showing the result after creating placeholders
 }
 
+// --- Assign a scan profile to a device that lacked one (then re-run) ---------
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_assign_profile'])) {
+    $devId   = $_POST['assign_device_id'] ?? '';
+    $profile = $_POST['assign_profile'] ?? '';
+    if ($devId === '' || $profile === '') {
+        $scanMessage = 'Pick a device and a profile to assign.';
+    } else {
+        $ch = curl_init(DEVICES_ENDPOINT);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PUT');
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['id' => $devId, 'profile' => $profile]));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+        $resp = curl_exec($ch);
+        $hc   = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        $importMessage = ($hc === 200)
+            ? 'Assigned profile "' . htmlspecialchars($profile) . '" — re-run discovery to include this device.'
+            : 'Failed to assign profile (HTTP ' . intval($hc) . '): ' . htmlspecialchars($resp);
+    }
+}
+
 // --- A started scan finished — fetch its result by id and render -------------
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
     list($code, $body) = api_get_conn(SCAN_STATUS_ENDPOINT . '?scan_id=' . urlencode($_GET['scan_id']));
@@ -557,7 +578,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
         $hosts = $result['hosts'] ?? []; $edges = $result['edges'] ?? []; $inter = $result['intermediaries'] ?? [];
         $allDisc = $result['discrepancies'] ?? [];
         $notInDb = array_values(array_filter($allDisc, fn($d) => ($d['kind'] ?? '') === 'host-not-in-db'));
-        $disc    = array_values(array_filter($allDisc, fn($d) => ($d['kind'] ?? '') !== 'host-not-in-db'));
+        $noProf  = array_values(array_filter($allDisc, fn($d) => ($d['kind'] ?? '') === 'device-no-profile'));
+        $disc    = array_values(array_filter($allDisc, fn($d) => !in_array($d['kind'] ?? '', ['host-not-in-db', 'device-no-profile'], true)));
     ?>
 
     <?php if ($notInDb): ?>
@@ -568,6 +590,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
                 <li><?= htmlspecialchars($w['detail'] ?? '') ?></li>
             <?php endforeach; ?>
             </ul>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($noProf):
+        // Devices excluded for lacking a scan profile — let the user assign one
+        // (saved on the device) and re-run. Labels come from each discrepancy's
+        // provenance; map them to device ids for the PUT.
+        $npDevices = json_decode(@file_get_contents(DEVICES_ENDPOINT), true) ?: [];
+        $idByLabel = [];
+        foreach ($npDevices as $d) { $idByLabel[$d['label'] ?? ''] = $d['id'] ?? ''; }
+        $npProfiles = json_decode(@file_get_contents(SCAN_PROFILES_ENDPOINT), true) ?: [];
+        $npLabels = [];
+        foreach ($noProf as $w) { foreach (($w['provenance'] ?? []) as $lbl) { $npLabels[$lbl] = true; } }
+    ?>
+        <div style="border:1px solid #e0a800; background:#fff8e1; padding:10px; margin-top:12px;">
+            <b>⚠ Devices without a scan profile</b> — excluded from this run. Assign a profile (saved on the device), then re-run discovery:
+            <table cellpadding="3" style="margin-top:6px;">
+            <?php foreach (array_keys($npLabels) as $lbl): $did = $idByLabel[$lbl] ?? ''; ?>
+                <tr>
+                    <td><?= htmlspecialchars($lbl) ?></td>
+                    <td>
+                        <?php if ($did === ''): ?><em>(device not found)</em>
+                        <?php else: ?>
+                        <form method="post" style="margin:0; display:flex; gap:6px;">
+                            <input type="hidden" name="assign_device_id" value="<?= htmlspecialchars($did) ?>">
+                            <select name="assign_profile" required>
+                                <option value="">— pick profile —</option>
+                                <?php foreach ($npProfiles as $prof): $pk = ($prof['kind'] ?? '') !== '' ? $prof['kind'] : 'device'; ?>
+                                    <option value="<?= htmlspecialchars($prof['name'] ?? '') ?>"><?= htmlspecialchars(($prof['name'] ?? '') . ' (' . $pk . ')') ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <button type="submit" name="do_assign_profile" value="1">Assign</button>
+                        </form>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            </table>
         </div>
     <?php endif; ?>
 

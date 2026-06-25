@@ -233,11 +233,13 @@ func buildTargets(service q.NetServiceInt) ([]topology.Target, error) {
 	// labelling subnet/profile targets.
 	ipToLabel := map[string]string{}
 	devName := map[string]string{}
+	devProfile := map[string]string{}
 	ipsByDevice := map[string][]string{}
 	deviceOrder := []string{}
 	if devs, err := service.GetDevices(); err == nil {
 		for _, d := range devs {
 			devName[d.ID] = d.Name
+			devProfile[d.ID] = d.Profile
 		}
 	}
 	if ifaces, err := service.GetAllDeviceInterfaces(); err == nil {
@@ -330,31 +332,36 @@ func buildTargets(service q.NetServiceInt) ([]topology.Target, error) {
 		return nil
 	}
 
-	// --from-db: ONE target per device, using a single management IP. Prefer an
-	// IP that matches a scan profile (the known mgmt address); otherwise the
-	// first usable IPv4. Devices with no usable IP are skipped.
+	// --from-db: ONE target per device. Every device must have a scan profile —
+	// the one associated with the device, else one auto-matched by a management
+	// IP/host. Devices without any are skipped and reported (assign one + re-run).
 	if connFromDB {
+		var noProfile []string
 		for _, devID := range deviceOrder {
 			ips := uniqSorted(ipsByDevice[devID])
-			var chosen string
 			var profile *e.ScanProfile
-			for _, ip := range ips {
-				if p, ok := service.ResolveScanProfile(ip, ""); ok {
-					chosen, profile = ip, p
-					break
+			if pn := devProfile[devID]; pn != "" {
+				if p, err := service.GetScanProfileByName(pn); err == nil && p != nil {
+					profile = p
 				}
 			}
-			// No profile pins the mgmt IP: probe each candidate and use the first
-			// that actually answers SNMP (firewalls bind SNMP to some interfaces
-			// only). Fall back to the first IP so the device still appears.
 			if profile == nil {
-				ss := s.NewSNMPScanner()
-				probeOpts := s.ScanOptions{Timeout: 2 * time.Second, SNMP: s.SNMPOptions{Community: connCommunity, Version: connSNMPVer}}
 				for _, ip := range ips {
-					if ss.Probe(ip, probeOpts) {
-						chosen = ip
+					if p, ok := service.ResolveScanProfile(ip, ""); ok {
+						profile = p
 						break
 					}
+				}
+			}
+			if profile == nil {
+				noProfile = append(noProfile, devName[devID])
+				continue
+			}
+			chosen := ""
+			for _, ip := range ips {
+				if ip == profile.Host {
+					chosen = ip
+					break
 				}
 			}
 			if chosen == "" && len(ips) > 0 {
@@ -365,20 +372,12 @@ func buildTargets(service q.NetServiceInt) ([]topology.Target, error) {
 			}
 			t := get(chosen)
 			t.DeviceLabel = devName[devID]
-			if profile != nil {
-				applyProfile(t, profile)
-			} else {
-				if t.SNMP == nil {
-					t.SNMP = defaultSNMP()
-				}
-				// No device profile pins this host — fall back to runtime SSH
-				// credentials (ssh-config / inline / generic profile) if any.
-				if t.SSH == nil {
-					if creds := resolveRuntimeSSH(chosen); creds != nil {
-						t.SSH = creds
-					}
-				}
-			}
+			t.Profile = profile.Name
+			applyProfile(t, profile)
+		}
+		if len(noProfile) > 0 {
+			fmt.Fprintf(os.Stderr, "warning: %d device(s) have no scan profile and were excluded: %s (assign a profile and re-run)\n",
+				len(noProfile), strings.Join(noProfile, ", "))
 		}
 	}
 

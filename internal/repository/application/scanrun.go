@@ -78,7 +78,9 @@ func (ns *NetService) RunScan(opts RunScanOptions, em observ.Emitter) ([]s.Disco
 // any unset SNMP parameters, mirroring the per-endpoint handlers.
 func (ns *NetService) runSNMPScan(opts RunScanOptions, target string, batch bool, em observ.Emitter) ([]s.DiscoveredDevice, error) {
 	community, version, port, timeoutSec := opts.Community, opts.SNMPVersion, opts.SNMPPort, opts.TimeoutSec
+	profileName := "" // tie discovered devices to whatever profile supplied the scan
 	if p, ok := ns.ResolveScanProfile(target, opts.Profile); ok {
+		profileName = p.Name
 		em.Emit("info", "applied scan profile", "profile", p.Name)
 		if community == "" {
 			community = p.SNMPCommunity
@@ -123,7 +125,7 @@ func (ns *NetService) runSNMPScan(opts RunScanOptions, target string, batch bool
 		if err == nil {
 			em.Emit("info", "snmp sweep complete", "devices", len(devs))
 		}
-		return devs, err
+		return tagProfile(devs, profileName), err
 	}
 	em.Emit("info", "scanning host over SNMP", "ip", target)
 	em.Progress(0, 1)
@@ -137,7 +139,19 @@ func (ns *NetService) runSNMPScan(opts RunScanOptions, target string, batch bool
 	} else {
 		em.Emit("info", "host responded", "ip", target, "sysname", dev.SysName)
 	}
-	return ns.DiscoverDevices(&s.ScanResult{Devices: []s.SNMPDevice{*dev}})
+	devs, err := ns.DiscoverDevices(&s.ScanResult{Devices: []s.SNMPDevice{*dev}})
+	return tagProfile(devs, profileName), err
+}
+
+// tagProfile records the scan-profile name on each discovered device so the
+// association is persisted when the device is imported.
+func tagProfile(devs []s.DiscoveredDevice, profile string) []s.DiscoveredDevice {
+	if profile != "" {
+		for i := range devs {
+			devs[i].Profile = profile
+		}
+	}
+	return devs
 }
 
 // runSSHScan handles the SSH method using a saved profile's credentials. The
@@ -248,5 +262,6 @@ func (ns *NetService) runSSHScan(opts RunScanOptions, tokens []string, batch boo
 		}
 		return nil, nil // no SSH-reachable hosts in the target
 	}
-	return ns.DiscoverDevices(&s.ScanResult{Devices: devices})
+	devs, err := ns.DiscoverDevices(&s.ScanResult{Devices: devices})
+	return tagProfile(devs, profile.Name), err
 }

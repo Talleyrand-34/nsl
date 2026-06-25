@@ -223,3 +223,83 @@ func TestProfileSSHCreds_GenericFallback(t *testing.T) {
 		t.Errorf("expected nil creds when vault is locked, got %+v", c)
 	}
 }
+
+// A from-db connections scan must exclude DB devices that have no scan profile
+// and surface a "device-no-profile" soft-warning naming them (rather than
+// silently scanning them). With the only device lacking a profile, no targets
+// remain, so this needs no network access.
+func TestDiscoverConnections_DeviceNoProfileWarning(t *testing.T) {
+	service, cleanup := setupTestScanningService(t)
+	defer cleanup()
+
+	if err := service.EnsureModelExists("M1", "B1", "B1"); err != nil {
+		t.Fatalf("EnsureModelExists: %v", err)
+	}
+	if err := service.AddDevice("dev-noprof", "M1", "", "Generic", "Discovered", false, false); err != nil {
+		t.Fatalf("AddDevice: %v", err)
+	}
+	devs, err := service.GetDevices()
+	if err != nil {
+		t.Fatalf("GetDevices: %v", err)
+	}
+	var devID string
+	for _, d := range devs {
+		if d.Name == "dev-noprof" {
+			devID = d.ID
+		}
+	}
+	if devID == "" {
+		t.Fatal("created device not found")
+	}
+	// Give it a management IP so it becomes a from-db target candidate.
+	if err := service.AddDeviceInterface(devID, "eth0", "", "", nil, []string{"10.9.9.9"}, "", ""); err != nil {
+		t.Fatalf("AddDeviceInterface: %v", err)
+	}
+
+	result, err := service.DiscoverConnectionsByMode(ConnectionScanOptions{FromDB: true}, nil)
+	if err != nil {
+		t.Fatalf("DiscoverConnectionsByMode: %v", err)
+	}
+	var found *topology.Discrepancy
+	for i := range result.Discrepancies {
+		if result.Discrepancies[i].Kind == "device-no-profile" {
+			found = &result.Discrepancies[i]
+		}
+	}
+	if found == nil {
+		t.Fatalf("expected a device-no-profile discrepancy, got %+v", result.Discrepancies)
+	}
+	if !strings.Contains(strings.Join(found.Provenance, ","), "dev-noprof") {
+		t.Errorf("expected the device label in provenance, got %v", found.Provenance)
+	}
+}
+
+// Once a device is tied to a profile, its profile association round-trips
+// through the repository (GetDevices exposes it).
+func TestUpdateDeviceProfile_RoundTrip(t *testing.T) {
+	service, cleanup := setupTestScanningService(t)
+	defer cleanup()
+
+	if err := service.EnsureModelExists("M1", "B1", "B1"); err != nil {
+		t.Fatalf("EnsureModelExists: %v", err)
+	}
+	if err := service.AddDevice("dev-p", "M1", "", "Generic", "Discovered", false, false); err != nil {
+		t.Fatalf("AddDevice: %v", err)
+	}
+	devs, _ := service.GetDevices()
+	var devID string
+	for _, d := range devs {
+		if d.Name == "dev-p" {
+			devID = d.ID
+		}
+	}
+	if err := service.UpdateDeviceProfile(devID, "generic-ssh"); err != nil {
+		t.Fatalf("UpdateDeviceProfile: %v", err)
+	}
+	devs, _ = service.GetDevices()
+	for _, d := range devs {
+		if d.ID == devID && d.Profile != "generic-ssh" {
+			t.Fatalf("expected profile generic-ssh, got %q", d.Profile)
+		}
+	}
+}
