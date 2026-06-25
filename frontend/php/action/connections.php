@@ -372,8 +372,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_import'])) {
         $resp = json_decode($body, true);
         $importMessage = 'Imported ' . intval($resp['imported'] ?? 0) . ' connection(s).'
             . (!empty($resp['message']) ? ' Note: ' . htmlspecialchars($resp['message']) : '');
-    } else {
-        $importMessage = 'No importable edges were selected.';
+    }
+
+    // Intermediary ("via the middle device") links selected in the edges table
+    // are materialized through the shared placeholder device, connecting only the
+    // observing endpoints the user picked (values are "<intermediaryIdx>_<seenByIdx>").
+    $interAll = is_array($all) ? ($all['intermediaries'] ?? []) : [];
+    $byInter = [];
+    foreach (($_POST['inter_edge'] ?? []) as $v) {
+        $parts = explode('_', $v);
+        if (count($parts) !== 2) continue;
+        list($j, $k) = [intval($parts[0]), intval($parts[1])];
+        if (isset($interAll[$j]['seen_by'][$k])) $byInter[$j][] = $interAll[$j]['seen_by'][$k];
+    }
+    if ($byInter) {
+        $interPayload = [];
+        foreach ($byInter as $j => $endpoints) {
+            $im = $interAll[$j];
+            $im['seen_by'] = array_values(array_unique($endpoints));
+            $interPayload[] = $im;
+        }
+        list($pc, $pb) = api_post_json_conn(SCAN_CONNECTIONS_PLACEHOLDERS_ENDPOINT, json_encode(['intermediaries' => $interPayload]));
+        $presp = json_decode($pb, true);
+        $importMessage .= ($importMessage ? ' ' : '') . 'Placeholder "' . htmlspecialchars($presp['device'] ?? '?') . '": '
+            . intval($presp['connections'] ?? 0) . ' connection(s).'
+            . (!empty($presp['message']) ? ' Note: ' . htmlspecialchars($presp['message']) : '');
+    }
+
+    if ($importMessage === '') {
+        $importMessage = 'No connections were selected.';
     }
     $result = $all; // keep showing the result after import
 }
@@ -532,25 +559,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
         <p style="max-width:70ch; color:#555;">
           These MACs were seen in the forwarding tables of multiple hosts but don't
           speak LLDP and aren't in the DB — i.e. unknown device(s) sitting between
-          known hosts. Select them and create a shared <b>placeholder unmanaged
-          device</b> (in an "<?= htmlspecialchars('Unknown infrastructure') ?>" zone)
-          to document the gap and attest VLANs through it.
+          known hosts. Their links to each observing host appear in <b>Derived edges</b>
+          below (rows marked <i>via … (placeholder)</i>): select the ones you want and
+          import to create a shared <b>placeholder unmanaged device</b> (in an
+          "<?= htmlspecialchars('Unknown infrastructure') ?>" zone) connected to only
+          the endpoints you pick.
         </p>
-        <form method="post">
-            <input type="hidden" name="result_json" value="<?= htmlspecialchars(json_encode($result)) ?>">
-            <table border="1" cellpadding="4">
-                <tr><th>Placeholder</th><th>MAC</th><th>Vendor</th><th>Seen by</th></tr>
-                <?php foreach ($inter as $i => $in): ?>
-                    <tr>
-                        <td style="text-align:center;"><input type="checkbox" name="inter[]" value="<?= $i ?>"></td>
-                        <td><b><?= htmlspecialchars($in['mac'] ?? '') ?></b></td>
-                        <td><?= htmlspecialchars($in['vendor'] ?? '') ?></td>
-                        <td style="font-size:90%; color:#555;"><?= htmlspecialchars(implode(', ', $in['seen_by'] ?? [])) ?></td>
-                    </tr>
-                <?php endforeach; ?>
-            </table>
-            <p><button type="submit" name="do_placeholders" value="1">Create placeholder for selected</button></p>
-        </form>
+        <table border="1" cellpadding="4">
+            <tr><th>MAC</th><th>Vendor</th><th>Seen by</th></tr>
+            <?php foreach ($inter as $in): ?>
+                <tr>
+                    <td><b><?= htmlspecialchars($in['mac'] ?? '') ?></b></td>
+                    <td><?= htmlspecialchars($in['vendor'] ?? '') ?></td>
+                    <td style="font-size:90%; color:#555;"><?= htmlspecialchars(implode(', ', $in['seen_by'] ?? [])) ?></td>
+                </tr>
+            <?php endforeach; ?>
+        </table>
     <?php endif; ?>
 
     <?php $tree = render_topology($result); if ($tree !== ''): ?>
@@ -569,8 +593,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
         </details>
     <?php endif; ?>
 
-    <h3>Derived edges (<?= count($edges) ?>)</h3>
-    <?php if ($edges): ?>
+    <h3>Derived edges (<?= count($edges) ?><?php if ($inter): ?> + intermediary links<?php endif; ?>)</h3>
+    <?php if ($edges || $inter): ?>
     <?php
         // Lookups so each endpoint's port can be edited: detected -> manual ->
         // the device's device ports -> its model's model ports.
@@ -603,6 +627,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
                     <td style="font-size:90%; color:#555;"><?= htmlspecialchars(implode(', ', $e['provenance'] ?? [])) ?></td>
                 </tr>
             <?php endforeach; ?>
+            <?php // Links detected via a middle (placeholder) device — selecting one
+                  // materializes the shared placeholder and connects that endpoint.
+            foreach ($inter as $j => $in): foreach (($in['seen_by'] ?? []) as $k => $sb): ?>
+                <tr style="background:#fbf7ef;">
+                    <td style="text-align:center;"><input type="checkbox" name="inter_edge[]" value="<?= $j . '_' . $k ?>"></td>
+                    <td>via <?= htmlspecialchars($in['vendor'] ?: 'switch') ?><br><small style="color:#a60;">(placeholder)</small></td>
+                    <td><?= htmlspecialchars($sb) ?></td>
+                    <td>&harr; placeholder <small>(<?= htmlspecialchars($in['mac'] ?? '') ?>)</small></td>
+                    <td style="font-size:90%; color:#555;">intermediary <?= htmlspecialchars($in['mac'] ?? '') ?></td>
+                </tr>
+            <?php endforeach; endforeach; ?>
         </table>
         <p><button type="submit" name="do_import" value="1">Import selected connections</button></p>
     </form>
