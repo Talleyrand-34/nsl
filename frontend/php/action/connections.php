@@ -62,6 +62,21 @@ function edge_in_db($e, $dbPairs) {
     return isset($dbPairs[edge_pair_key($e['from'] ?? '', $e['to'] ?? '')]);
 }
 
+/**
+ * render_db_status prints the shared "DB status" cell for the derived-edge table.
+ * Both an edge already stored as a connection and a port already mapped to a
+ * placeholder are the same thing — "in DB" — so they show one badge. $inDbTitle
+ * overrides the tooltip (e.g. naming the placeholder it's mapped to).
+ */
+function render_db_status($inDb, $portUsed, $inDbTitle = '') {
+    if ($inDb) {
+        $title = $inDbTitle !== '' ? $inDbTitle : 'this connection already exists in the database';
+        echo '<span title="' . htmlspecialchars($title) . '" style="color:#070;">&#10003; in DB</span>';
+    } elseif ($portUsed) {
+        echo '<span title="a port of this edge already has a connection (one connection per port)" style="color:#b00;">&#9888; port in use</span>';
+    }
+}
+
 /** endpoint_device returns the device part of a "device:port" label ('' if unknown). */
 function endpoint_device($label) {
     if ($label === '' || strpos($label, 'unknown(') === 0) return '';
@@ -637,8 +652,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
     <form method="post">
         <input type="hidden" name="result_json" value="<?= htmlspecialchars(json_encode($result)) ?>">
         <p style="color:#555; font-size:90%;">Each port can be edited: pick the detected port, enter one manually, or choose an existing device/model port.</p>
-        <table border="1" cellpadding="4">
-            <tr><th>Import</th><th>DB status</th><th>Mark</th><th>From</th><th>To</th><th>Via</th></tr>
+        <table border="1" cellpadding="4" id="derived-table">
+            <thead><tr><th>Import</th><th>DB status</th><th>Mark</th><th>From</th><th>To</th><th>Via</th><th>Discard</th></tr></thead>
+            <tbody id="derived-body">
+            <?php $rowPos = 0; ?>
             <?php foreach ($edges as $i => $e):
                 $mark = edge_mark($e);
                 $imp  = edge_importable($e);
@@ -647,19 +664,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
                 // in use by a different connection (importing it would be rejected).
                 $portConflict = !$inDb && (isset($usedPorts[$e['from'] ?? '']) || isset($usedPorts[$e['to'] ?? '']));
                 $checked = ($imp && !$inDb && !$portConflict && in_array($mark, ['confirmed','candidate'])) ? 'checked' : ''; ?>
-                <tr>
+                <tr data-pos="<?= $rowPos++ ?>">
                     <td style="text-align:center;">
                         <input type="checkbox" name="edge[]" value="<?= $i ?>" <?= $checked ?>>
                     </td>
                     <td style="text-align:center;">
-                        <?php if ($inDb): ?><span title="this connection already exists in the database" style="color:#070;">&#10003; in DB</span>
-                        <?php elseif ($portConflict): ?><span title="a port of this edge already has a connection (one connection per port)" style="color:#b00;">&#9888; port in use</span>
-                        <?php endif; ?>
+                        <?php render_db_status($inDb, $portConflict); ?>
                     </td>
                     <td><?= htmlspecialchars($mark) ?><?php if ($imp && edge_needs_create($e)): ?><br><small style="color:#a60;">(creates port)</small><?php endif; ?></td>
                     <td><?php render_port_editor('from', $i, $e['from'] ?? '', $modelByDevice, $portsByDevice, $modelPortsByModel); ?></td>
                     <td><?php render_port_editor('to', $i, $e['to'] ?? '', $modelByDevice, $portsByDevice, $modelPortsByModel); ?></td>
                     <td style="font-size:90%; color:#555;"><?= htmlspecialchars(implode(', ', $e['provenance'] ?? [])) ?></td>
+                    <td style="text-align:center;"><button type="button" class="edge-discard-btn" onclick="nslEdgeDiscard(this)">Discard</button></td>
                 </tr>
             <?php endforeach; ?>
             <?php // Links detected via a middle (placeholder) device — selecting one
@@ -668,19 +684,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
                 // Already mapped: this observing port already connects to a placeholder.
                 $mappedTo = $placeholderPorts[$sb] ?? '';
                 $portUsed = $mappedTo === '' && isset($usedPorts[$sb]); ?>
-                <tr style="background:#fbf7ef;">
+                <tr data-pos="<?= $rowPos++ ?>" style="background:#fbf7ef;">
                     <td style="text-align:center;"><input type="checkbox" name="inter_edge[]" value="<?= $j . '_' . $k ?>" <?= ($mappedTo !== '' || $portUsed) ? 'disabled' : '' ?>></td>
                     <td style="text-align:center;">
-                        <?php if ($mappedTo !== ''): ?><span title="already connected to placeholder <?= htmlspecialchars($mappedTo) ?>" style="color:#070;">&#10003; mapped</span>
-                        <?php elseif ($portUsed): ?><span title="this port already has a connection" style="color:#b00;">&#9888; port in use</span>
-                        <?php endif; ?>
+                        <?php render_db_status($mappedTo !== '', $portUsed, $mappedTo !== '' ? 'already in the database (connected to placeholder ' . $mappedTo . ')' : ''); ?>
                     </td>
                     <td>via <?= htmlspecialchars($in['vendor'] ?: 'switch') ?><br><small style="color:#a60;">(placeholder)</small></td>
                     <td><?= htmlspecialchars($sb) ?></td>
                     <td>&harr; placeholder <small>(<?= htmlspecialchars($in['mac'] ?? '') ?>)</small></td>
                     <td style="font-size:90%; color:#555;">intermediary <?= htmlspecialchars($in['mac'] ?? '') ?></td>
+                    <td style="text-align:center;"><button type="button" class="edge-discard-btn" onclick="nslEdgeDiscard(this)">Discard</button></td>
                 </tr>
             <?php endforeach; endforeach; ?>
+            </tbody>
         </table>
         <p><button type="submit" name="do_import" value="1">Import selected connections</button></p>
     </form>
@@ -689,6 +705,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
         var inp = sel.parentNode.querySelector('input[type=text]');
         if (!inp) return;
         inp.style.display = sel.value === '__manual__' ? '' : 'none';
+    }
+    // Discard/restore a derived edge: a discarded row is unchecked, grayed and
+    // moved to the end of the table (kept in DOM so it can be restored in place).
+    function nslEdgeDiscard(btn) {
+        var tr = btn.closest('tr');
+        var body = document.getElementById('derived-body');
+        var cb = tr.querySelector('input[type=checkbox]');
+        if (tr.classList.contains('edge-discarded')) {
+            tr.classList.remove('edge-discarded');
+            if (cb) cb.disabled = (tr.getAttribute('data-cbdis') === '1');
+            btn.textContent = 'Discard';
+            // Re-insert in original order, before the first non-discarded row that
+            // comes after it; discarded rows stay parked at the end.
+            var pos = parseInt(tr.getAttribute('data-pos'), 10);
+            var ref = null, rows = body.querySelectorAll('tr');
+            for (var i = 0; i < rows.length; i++) {
+                var r = rows[i];
+                if (r === tr || r.classList.contains('edge-discarded')) continue;
+                if (parseInt(r.getAttribute('data-pos'), 10) > pos) { ref = r; break; }
+            }
+            body.insertBefore(tr, ref);
+        } else {
+            tr.classList.add('edge-discarded');
+            if (cb) { tr.setAttribute('data-cbdis', cb.disabled ? '1' : '0'); cb.checked = false; cb.disabled = true; }
+            btn.textContent = 'Restore';
+            body.appendChild(tr); // move to the end of the table
+        }
     }
     </script>
     <?php else: ?>

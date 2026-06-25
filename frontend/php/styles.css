@@ -83,6 +83,11 @@ body.page-connections label { display: block; margin: 6px 0; }
 }
 .appbar-api input { width: 260px; max-width: 50vw; }
 
+/* ---- Derived-edge table ----------------------------------------------- */
+/* A discarded edge is grayed and parked at the end of the table (restorable). */
+tr.edge-discarded { background: #f0f0f0 !important; opacity: 0.55; }
+tr.edge-discarded td { color: #888; }
+
 /* ---- Live scan status panel ------------------------------------------- */
 .scan-status {
     margin: 12px 0;
