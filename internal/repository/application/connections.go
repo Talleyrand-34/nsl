@@ -868,6 +868,7 @@ func correlateEvidence(result *topology.ConnectionScanResult, ports []e.DevicePo
 	// node name, reachable by its IP, sysName or chassis MAC.
 	hostCanon := map[string]string{}    // host address -> canonical node name
 	identToCanon := map[string]string{} // sysname/mac/ip (lowercased) -> canonical
+	macPort := map[string]string{}      // normalized iface MAC -> its port/ifname (scan-time)
 	for _, hs := range result.Hosts {
 		canon := hs.LocalSysName
 		if canon == "" {
@@ -896,6 +897,16 @@ func correlateEvidence(result *topology.ConnectionScanResult, ports []e.DevicePo
 			for _, iface := range hs.Device.Interfaces {
 				for _, ip := range iface.IPAddresses {
 					identToCanon[lc(stripCIDR(ip))] = canon
+				}
+				// Map this host's own interface MACs to its canonical name, so an
+				// FDB-learned MAC resolves to a host discovered in THIS scan even
+				// when it isn't in the DB (FDB links work decoupled from the DB).
+				if iface.MAC != "" {
+					m := norm(iface.MAC)
+					if _, ok := identToCanon[m]; !ok {
+						identToCanon[m] = canon
+						macPort[m] = iface.Name
+					}
 				}
 			}
 		}
@@ -1002,7 +1013,39 @@ func correlateEvidence(result *topology.ConnectionScanResult, ports []e.DevicePo
 		// devices that expose no LLDP/FDB of their own (e.g. OPNsense).
 		for _, f := range hs.FDB {
 			rp, rok := portByMAC[norm(f.MAC)]
-			if !rok || rp.DevLabel == hostLabel {
+			if !rok {
+				// DB miss: try a host discovered in this scan (decoupled). Emit a
+				// possible, non-importable edge so FDB links survive an empty DB.
+				if rc, ok := identToCanon[norm(f.MAC)]; ok {
+					observer := hostCanon[hs.Host]
+					pp := physPort(f.Port)
+					if observer != "" && rc != "" && observer != rc &&
+						len(fdbPortMACs[hs.Host+"|"+pp]) <= fdbDirectMax {
+						toLabel := rc
+						if rport := macPort[norm(f.MAC)]; rport != "" && !isLogicalPortName(rport) {
+							toLabel = rc + ":" + rport
+						}
+						fromLabel := observer
+						if pp != "" {
+							fromLabel = observer + ":" + pp
+						}
+						key := fromLabel + "|" + toLabel
+						if fromLabel > toLabel {
+							key = toLabel + "|" + fromLabel
+						}
+						if possible[key] == nil {
+							possible[key] = &topology.ConnectionEdge{
+								FromLabel: fromLabel, ToLabel: toLabel,
+								Confidence: topology.ConfidenceWeak, RemoteResolved: false,
+							}
+						}
+						possible[key].Provenance = append(possible[key].Provenance,
+							fmt.Sprintf("%s@%s:%s matched scanned MAC %s", f.Source, observer, pp, norm(f.MAC)))
+					}
+				}
+				continue
+			}
+			if rp.DevLabel == hostLabel {
 				continue
 			}
 			pp := physPort(f.Port)
@@ -1163,6 +1206,9 @@ func correlateEvidence(result *topology.ConnectionScanResult, ports []e.DevicePo
 			}
 			if _, ok := portByMAC[m]; ok {
 				continue // a known device port
+			}
+			if _, ok := identToCanon[m]; ok {
+				continue // an interface MAC of a host discovered in this scan, not a middle device
 			}
 			if fdbHosts[m] == nil {
 				fdbHosts[m] = map[string]bool{}
