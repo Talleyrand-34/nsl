@@ -279,7 +279,6 @@ $f = [
     'subnet'          => $_POST['subnet'] ?? '',
     'community'       => $_POST['community'] ?? 'public',
     'collector'       => $_POST['collector'] ?? '',
-    'passphrase'      => $_POST['passphrase'] ?? '',
     'timeout'         => $_POST['timeout'] ?? '10',
     'ssh_user'        => $_POST['ssh_user'] ?? '',
     'ssh_key'         => $_POST['ssh_key'] ?? '',
@@ -321,7 +320,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_scan'])) {
             'community'       => $f['community'],
             'collector'       => $f['collector'],
             'timeout_sec'     => intval($f['timeout']),
-            'passphrase'      => $f['passphrase'],
             'ssh_user'        => $f['ssh_user'],
             'ssh_key_file'    => $f['ssh_key'],
             'ssh_password'    => $f['ssh_password'],
@@ -500,9 +498,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
                 <?php endforeach; ?>
             </select>
         </label><br>
-        <label>Profile passphrase (unlocks an encrypted key/password stored in the selected generic profile — or in a from-db / matched device profile):
-            <input type="password" name="passphrase" value="<?= htmlspecialchars($f['passphrase']) ?>">
-        </label><br>
+        <p style="margin:4px 0; color:#777; font-size:0.85em;">Encrypted SSH secrets stored in a generic / from-db / matched device profile are decrypted by the credential vault — unlock it from the app bar before scanning.</p>
         <label>OpenSSH config file: <input type="file" name="ssh_config"></label><br>
         <label>SSH key file(s) referenced by the config: <input type="file" name="ssh_keys[]" multiple></label>
         <p style="margin:4px 0; color:#777; font-size:0.85em;">Keys are matched to the config by file basename, so each uploaded key must have a unique name.</p>

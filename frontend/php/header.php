@@ -49,6 +49,8 @@ $currentPage = basename($_SERVER['PHP_SELF']);
     <!-- Load synchronously in <head> so nslWatchScan() is defined before any
          inline call in the page body runs. -->
     <script src="scan-status.js"></script>
+    <!-- Credential-vault app-bar control (status + unlock/lock). -->
+    <script src="vault.js"></script>
 </head>
 <body class="<?= htmlspecialchars($bodyClass ?? '') ?>">
     <header class="appbar">
@@ -58,6 +60,11 @@ $currentPage = basename($_SERVER['PHP_SELF']);
                 <a href="<?= $file ?>" class="<?= $currentPage === $file ? 'active' : '' ?>"><?= htmlspecialchars($label) ?></a>
             <?php endforeach; ?>
         </nav>
+        <div class="appbar-vault" title="Credential vault for stored SSH secrets">
+            <span id="vault-status" class="vault-pill">Vault: …</span>
+            <button type="button" id="vault-action" onclick="nslVaultAction()" style="display:none">Unlock</button>
+            <button type="button" id="vault-lock" onclick="nslVaultLock()" style="display:none">Lock</button>
+        </div>
         <form class="appbar-api" method="post">
             <label for="apiUrl">API Base URL:</label>
             <input type="text" id="apiUrl" name="api_base_url" value="<?= htmlspecialchars(API_BASE_URL) ?>">

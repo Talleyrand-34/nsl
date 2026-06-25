@@ -125,7 +125,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_create_profile']))
             'ssh_user'       => trim($_POST['cp_ssh_user'] ?? ''),
             'ssh_password'   => $_POST['cp_ssh_password'] ?? '',
             'ssh_key'        => $sshKey,
-            'passphrase'     => $_POST['cp_passphrase'] ?? '',
         ]);
         list($code, $body) = api_method('POST', SCAN_PROFILES_ENDPOINT, $payload);
         $profileMessage = ($code === 201)
@@ -175,7 +174,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_scan'])) {
             'snmp_port'    => intval($_POST['snmp_port'] ?? 161),
             'profile'      => $_POST['ssh_profile'] ?? '',
             'device_type'  => trim($_POST['ssh_device_type'] ?? ''),
-            'passphrase'   => $_POST['passphrase'] ?? '',
         ];
         // The scan now runs async: this returns a scan_id immediately; the live
         // panel below polls /scan/status and reloads with ?scan_id= when done.
@@ -409,7 +407,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_upload'])) {
                     <input type="text" name="ssh_device_type" list="ssh_devtypes" value="<?= htmlspecialchars($_POST['ssh_device_type'] ?? '') ?>" placeholder="openwrt / opnsense / fortinet / cisco">
                     <datalist id="ssh_devtypes"><option value="openwrt"><option value="opnsense"><option value="fortinet"><option value="cisco"></datalist>
                 </label>
-                <label>Passphrase: <input type="password" name="passphrase"></label>
+                <p style="margin:4px 0; color:#777; font-size:0.85em;">The profile's stored SSH secret is decrypted by the credential vault — unlock it from the app bar before scanning.</p>
             </div>
 
             <label style="display:block; margin-top:6px;">
@@ -464,10 +462,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_upload'])) {
             <label>SSH user: <input type="text" name="cp_ssh_user"></label><br>
             <label>SSH password: <input type="password" name="cp_ssh_password"></label><br>
             <label>SSH private key file: <input type="file" name="cp_ssh_key_file"></label><br>
-            <label>Passphrase (encrypts the password/key): <input type="password" name="cp_passphrase"></label><br>
             <button type="submit" name="do_create_profile" value="1" style="margin-top:8px;">Create profile</button>
         </form>
-        <p style="color:#777; font-size:0.85em;">The SSH password and uploaded private key are stored encrypted (AES-256-GCM); the passphrase is required again to use them in an SSH scan.</p>
+        <p style="color:#777; font-size:0.85em;">The SSH password and uploaded private key are encrypted by the credential vault (AES-256-GCM); unlock the vault from the app bar before creating a profile, and again whenever an SSH scan uses it.</p>
         <script>
         function cpKindToggle() {
             var generic = document.getElementById('cp_kind').value === 'generic';

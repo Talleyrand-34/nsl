@@ -57,9 +57,26 @@ body.page-connections label { display: block; margin: 6px 0; }
     background: #ccd2f0;
     color: #000;
 }
+.appbar-vault {
+    margin-left: auto;          /* push the vault + API controls to the right */
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.vault-pill {
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.85em;
+    border: 1px solid #99c;
+    background: #e7e9ff;
+    color: #224;
+}
+.vault-pill.vault-open    { background: #d8f3dc; border-color: #74c69d; color: #1b4332; }
+.vault-pill.vault-locked  { background: #ffe5d9; border-color: #e29578; color: #6b2d1a; }
+.vault-pill.vault-uninit  { background: #fff3bf; border-color: #ffd43b; color: #5c4b00; }
+.vault-pill.vault-err     { background: #f1f1f1; border-color: #bbb; color: #666; }
 .appbar-api {
     margin: 0;
-    margin-left: auto;          /* push the API control to the right */
     display: flex;
     align-items: center;
     gap: 6px;
