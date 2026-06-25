@@ -19,6 +19,7 @@ package application
 import (
 	"fmt"
 	"net"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -1232,6 +1233,47 @@ func correlateEvidence(result *topology.ConnectionScanResult, ports []e.DevicePo
 	sort.Slice(result.Intermediaries, func(i, j int) bool {
 		return len(result.Intermediaries[i].SeenBy) > len(result.Intermediaries[j].SeenBy)
 	})
+
+	// Ignore the local scanning machine itself (it shows up as an LLDP neighbour of
+	// whatever it's plugged into — e.g. the admin's laptop "keitel"). Drop edges and
+	// intermediary observations that involve it, and remove its localhost gather row.
+	localNames := map[string]bool{"localhost": true}
+	if h, err := os.Hostname(); err == nil && h != "" {
+		localNames[lc(h)] = true
+		if i := strings.IndexByte(h, '.'); i > 0 {
+			localNames[lc(h[:i])] = true
+		}
+	}
+	for _, hs := range result.Hosts {
+		if hs.Host == "localhost" && hs.LocalSysName != "" {
+			localNames[lc(hs.LocalSysName)] = true
+		}
+	}
+	devOf := func(label string) string {
+		if label == "" || strings.HasPrefix(label, "unknown(") {
+			return ""
+		}
+		if i := strings.LastIndexByte(label, ':'); i >= 0 {
+			return label[:i]
+		}
+		return label
+	}
+	keptEdges := result.Edges[:0]
+	for _, e := range result.Edges {
+		if localNames[lc(devOf(e.FromLabel))] || localNames[lc(devOf(e.ToLabel))] {
+			continue
+		}
+		keptEdges = append(keptEdges, e)
+	}
+	result.Edges = keptEdges
+	keptHosts := result.Hosts[:0]
+	for _, hs := range result.Hosts {
+		if hs.Host == "localhost" {
+			continue
+		}
+		keptHosts = append(keptHosts, hs)
+	}
+	result.Hosts = keptHosts
 
 	sort.Slice(result.Edges, func(i, j int) bool {
 		if result.Edges[i].FromLabel != result.Edges[j].FromLabel {
