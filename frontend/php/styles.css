@@ -131,6 +131,32 @@ body.page-connections label { display: block; margin: 6px 0; }
 .nsl-modal-actions { margin-top: 12px; text-align: right; }
 .nsl-modal-actions button { margin-left: 8px; }
 
+/* ---- Collapsible credentials/profiles (import & scan-connections) ------ */
+details.cred-flat {
+    margin: 6px 0;
+    border: 1px solid #ccd;
+    border-radius: 6px;
+    background: #f7f8ff;
+    padding: 2px 8px;
+}
+details.cred-flat > summary {
+    cursor: pointer;
+    font-weight: bold;
+    padding: 4px 2px;
+}
+
+/* Create-profile type chooser: four buttons (kind × scan source). */
+.cp-type-buttons { margin: 6px 0; }
+.cp-type-btn {
+    margin: 2px 4px 2px 0;
+    padding: 4px 10px;
+    cursor: pointer;
+    border: 1px solid #aab;
+    border-radius: 4px;
+    background: #eef;
+}
+.cp-type-btn.active { background: #ccd2f0; font-weight: bold; border-color: #668; }
+
 /* ---- Derived-edge table ----------------------------------------------- */
 /* A discarded edge is grayed and parked at the end of the table (restorable). */
 tr.edge-discarded { background: #f0f0f0 !important; opacity: 0.55; }

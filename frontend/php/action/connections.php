@@ -497,14 +497,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
             <?php endforeach; ?>
         </select>
     </label><br>
-    <fieldset style="margin:6px 0; border:1px solid #ddd;">
-        <legend style="font-size:90%;">Runtime SSH (subnet mode — collect LLDP/FDB from SSH-reachable hosts, no profile needed)</legend>
+    <?php
+    // Credential blocks are noisy and only needed for subnet/runtime SSH, so each
+    // lives in its own collapsible section, auto-opened when subnet mode (which
+    // actually needs SSH) is selected.
+    $sshOpen = $f['mode'] === 'subnet' ? ' open' : '';
+
+    ob_start(); ?>
         <label>SSH user: <input type="text" name="ssh_user" value="<?= htmlspecialchars($f['ssh_user']) ?>" placeholder="root"></label>
         <label>SSH key file (on the API host): <input type="text" name="ssh_key" value="<?= htmlspecialchars($f['ssh_key']) ?>" placeholder="/home/.../.ssh/id_ed25519"></label>
         <label>SSH password: <input type="password" name="ssh_password" value="<?= htmlspecialchars($f['ssh_password']) ?>"></label>
-    </fieldset>
-    <fieldset style="margin:6px 0; border:1px solid #ddd;">
-        <legend style="font-size:90%;">Bring SSH credentials at runtime (uploaded keys are held in memory only, never stored)</legend>
+    <?php $sshRuntime = ob_get_clean();
+
+    ob_start(); ?>
         <label>Generic profile (reusable SSH credentials):
             <select name="generic_profile">
                 <option value="">— none —</option>
@@ -517,7 +522,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
         <label>OpenSSH config file: <input type="file" name="ssh_config"></label><br>
         <label>SSH key file(s) referenced by the config: <input type="file" name="ssh_keys[]" multiple></label>
         <p style="margin:4px 0; color:#777; font-size:0.85em;">Keys are matched to the config by file basename, so each uploaded key must have a unique name.</p>
-    </fieldset>
+    <?php $sshBring = ob_get_clean();
+
+    $runtimeSummary = 'Runtime SSH (subnet mode — collect LLDP/FDB from SSH-reachable hosts, no profile needed)';
+    $bringSummary   = 'Bring SSH credentials at runtime (uploaded keys are held in memory only, never stored)';
+    ?>
+        <details class="cred-flat"<?= $sshOpen ?>><summary><?= htmlspecialchars($runtimeSummary) ?></summary><?= $sshRuntime ?></details>
+        <details class="cred-flat"<?= $sshOpen ?>><summary><?= htmlspecialchars($bringSummary) ?></summary><?= $sshBring ?></details>
     <label>Per-host SNMP timeout (s):
         <input type="number" name="timeout" value="<?= htmlspecialchars($f['timeout']) ?>" min="1" max="60" style="width:60px;">
     </label><br>

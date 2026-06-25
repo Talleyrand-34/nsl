@@ -113,14 +113,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_create_profile']))
         if (isset($_FILES['cp_ssh_key_file']) && $_FILES['cp_ssh_key_file']['error'] === UPLOAD_ERR_OK) {
             $sshKey = (string) file_get_contents($_FILES['cp_ssh_key_file']['tmp_name']);
         }
+        // The profile type combines kind (device|generic) and scan source
+        // (snmp|ssh) into one of four choices, e.g. "generic-ssh".
+        $cpType   = $_POST['cp_type'] ?? 'generic-ssh';
+        $cpKind   = strpos($cpType, 'generic') === 0 ? 'generic' : 'device';
+        $cpSource = substr($cpType, -3) === 'ssh' ? 'ssh' : 'snmp';
         $payload = json_encode([
             'name'           => $name,
-            'kind'           => ($_POST['cp_kind'] ?? 'device') === 'generic' ? 'generic' : 'device',
+            'kind'           => $cpKind,
             'host'           => trim($_POST['cp_host'] ?? ''),
             'snmp_community' => trim($_POST['cp_community'] ?? 'public'),
             'snmp_version'   => trim($_POST['cp_version'] ?? '2c'),
             'snmp_port'      => intval($_POST['cp_port'] ?? 161),
-            'scan_source'    => $_POST['cp_scan_source'] ?? 'snmp',
+            'scan_source'    => $cpSource,
             'device_type'    => trim($_POST['cp_device_type'] ?? ''),
             'ssh_user'       => trim($_POST['cp_ssh_user'] ?? ''),
             'ssh_password'   => $_POST['cp_ssh_password'] ?? '',
@@ -323,10 +328,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_upload'])) {
     <script>nslWatchScan(<?= json_encode($scanRunId) ?>, {reloadParams: <?= json_encode($autoReload) ?>});</script>
 <?php endif; ?>
 
-<h3>Saved scan profiles</h3>
 <?php if ($profileMessage): ?>
     <p style="padding:6px; background:#eef; border:1px solid #99c;"><strong><?= htmlspecialchars($profileMessage) ?></strong></p>
 <?php endif; ?>
+<?php ob_start(); // buffer the saved-profiles section (selector + table) ?>
 <form method="post" action="import.php">
     <select name="profile_select">
         <option value="">— select a profile —</option>
@@ -359,8 +364,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_upload'])) {
         <?php endforeach; ?>
     </table>
 <?php endif; ?>
-
-<div class="grid2">
+<?php $profilesSection = ob_get_clean(); ?>
+<?php ob_start(); // buffer the live-scan box (kept visible) ?>
     <!-- Live scan box -->
     <div class="box">
         <h3>Live scan</h3>
@@ -432,51 +437,79 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_upload'])) {
         scanMethodToggle();
         </script>
     </div>
-
+<?php $liveScan = ob_get_clean(); ?>
+<?php ob_start(); // buffer the create-profile box ?>
     <!-- Create-profile box -->
     <div class="box">
         <h3>Create profile</h3>
         <form method="post" action="import.php" enctype="multipart/form-data">
             <label>Name: <input type="text" name="cp_name" required></label><br>
-            <label>Kind:
-                <select name="cp_kind" id="cp_kind" onchange="cpKindToggle()">
-                    <option value="device">device (bound to a host, SNMP/SSH)</option>
-                    <option value="generic">generic (reusable SSH credentials, no host)</option>
-                </select>
-            </label><br>
-            <div id="cp_device_fields">
-            <label>Host / subnet: <input type="text" name="cp_host" placeholder="10.0.0.1"></label><br>
-            <label>SNMP community: <input type="text" name="cp_community" value="public"></label>
-            <label>Version:
-                <select name="cp_version"><option>2c</option><option value="1">1</option></select>
-            </label>
-            <label>Port: <input type="number" name="cp_port" value="161" style="width:80px;"></label><br>
-            <label>Scan source:
-                <select name="cp_scan_source"><option value="snmp">snmp</option><option value="ssh">ssh</option></select>
-            </label>
-            <label>OS / firmware type <small>(operating system for config parsing — not the hardware model)</small>:
-                <input type="text" name="cp_device_type" placeholder="opnsense / openwrt / fortinet / cisco" size="20">
-            </label><br>
+            <div class="cp-type-buttons">Type:
+                <button type="button" class="cp-type-btn" data-type="device-snmp">Device · SNMP</button>
+                <button type="button" class="cp-type-btn" data-type="device-ssh">Device · SSH</button>
+                <button type="button" class="cp-type-btn" data-type="generic-snmp">Generic · SNMP</button>
+                <button type="button" class="cp-type-btn" data-type="generic-ssh">Generic · SSH</button>
             </div>
-            <p style="margin:6px 0; color:#555;"><em>SSH credentials (<span id="cp_ssh_hint">optional — password and/or key</span>):</em></p>
-            <label>SSH user: <input type="text" name="cp_ssh_user"></label><br>
-            <label>SSH password: <input type="password" name="cp_ssh_password"></label><br>
-            <label>SSH private key file: <input type="file" name="cp_ssh_key_file"></label><br>
+            <input type="hidden" name="cp_type" id="cp_type" value="generic-ssh">
+            <p id="cp_type_hint" style="margin:4px 0; color:#555; font-size:0.85em;"></p>
+
+            <!-- Host: device profiles only (bound to a host). -->
+            <div class="cp-grp" data-show="device-snmp device-ssh">
+                <label>Host / subnet: <input type="text" name="cp_host" placeholder="10.0.0.1"></label><br>
+            </div>
+            <!-- SNMP parameters: SNMP profiles only. -->
+            <div class="cp-grp" data-show="device-snmp generic-snmp">
+                <label>SNMP community: <input type="text" name="cp_community" value="public"></label>
+                <label>Version: <select name="cp_version"><option>2c</option><option value="1">1</option></select></label>
+                <label>Port: <input type="number" name="cp_port" value="161" style="width:80px;"></label><br>
+            </div>
+            <!-- SSH config + credentials: SSH profiles only. -->
+            <div class="cp-grp" data-show="device-ssh generic-ssh">
+                <label>OS / firmware type <small>(operating system for config parsing — not the hardware model; optional for generic)</small>:
+                    <input type="text" name="cp_device_type" placeholder="opnsense / openwrt / fortinet / cisco" size="20">
+                </label><br>
+                <p style="margin:6px 0; color:#555;"><em>SSH credentials:</em></p>
+                <label>SSH user: <input type="text" name="cp_ssh_user"></label><br>
+                <label>SSH password: <input type="password" name="cp_ssh_password"></label><br>
+                <label>SSH private key file: <input type="file" name="cp_ssh_key_file"></label><br>
+            </div>
             <button type="submit" name="do_create_profile" value="1" style="margin-top:8px;">Create profile</button>
         </form>
-        <p style="color:#777; font-size:0.85em;">The SSH password and uploaded private key are encrypted by the credential vault (AES-256-GCM); unlock the vault from the app bar before creating a profile, and again whenever an SSH scan uses it.</p>
+        <p style="color:#777; font-size:0.85em;">SSH password and uploaded private key are encrypted by the credential vault (AES-256-GCM); unlock the vault from the app bar before creating an SSH profile, and again whenever an SSH scan uses it.</p>
         <script>
-        function cpKindToggle() {
-            var generic = document.getElementById('cp_kind').value === 'generic';
-            document.getElementById('cp_device_fields').style.display = generic ? 'none' : '';
-            document.getElementById('cp_ssh_hint').textContent = generic
-                ? 'required for generic profiles — set an SSH user and a password and/or key'
-                : 'optional — password and/or key';
-        }
-        cpKindToggle();
+        (function () {
+            var hints = {
+                'device-snmp':  'Bound to a host, scanned over SNMP.',
+                'device-ssh':   'Bound to a host, config read over SSH.',
+                'generic-snmp': 'Reusable SNMP settings, not bound to a host.',
+                'generic-ssh':  'Reusable SSH credentials, not bound to a host.'
+            };
+            function cpApplyType(type) {
+                document.getElementById('cp_type').value = type;
+                document.getElementById('cp_type_hint').textContent = hints[type] || '';
+                document.querySelectorAll('.cp-type-btn').forEach(function (b) {
+                    b.classList.toggle('active', b.dataset.type === type);
+                });
+                document.querySelectorAll('.cp-grp').forEach(function (g) {
+                    g.style.display = g.dataset.show.split(' ').indexOf(type) >= 0 ? '' : 'none';
+                });
+            }
+            document.querySelectorAll('.cp-type-btn').forEach(function (b) {
+                b.addEventListener('click', function () { cpApplyType(b.dataset.type); });
+            });
+            cpApplyType('generic-ssh'); // default
+        })();
         </script>
     </div>
-</div>
+<?php
+$createForm = ob_get_clean();
+// The live-scan box (primary action) stays visible; the noisy profile/credential
+// blocks are tucked into independent collapsible sections.
+$profCount = count($profiles);
+?>
+<?= $liveScan ?>
+<details class="cred-flat"><summary>Saved scan profiles (<?= $profCount ?>)</summary><?= $profilesSection ?></details>
+<details class="cred-flat"><summary>Create profile</summary><?= $createForm ?></details>
 
 <?php
 // Discovered-devices list (persisted across the import round-trips). Imported
