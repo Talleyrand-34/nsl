@@ -216,6 +216,7 @@ func validSource(src string) bool {
 // buildTargets enumerates and de-duplicates the hosts to scan across all
 // selected modes, resolving SNMP options and (decrypted) SSH credentials.
 func buildTargets(service q.NetServiceInt) ([]topology.Target, error) {
+	runVault = service.Vault()
 	byHost := map[string]*topology.Target{}
 	order := []string{}
 	get := func(host string) *topology.Target {
@@ -518,26 +519,21 @@ func genericProfileCreds(p *e.ScanProfile) *configparser.SSHCredentials {
 	return &creds
 }
 
-// passphraseCache memoizes the user's passphrase across profiles in one run.
-var passphraseCache string
-var passphraseAsked bool
+// runVault is the credential vault for the current connections run; set by
+// buildTargets and unlocked on first use.
+var runVault *secret.Vault
 
 func unlockProfilePassword(p *e.ScanProfile) (string, error) {
 	return unlockProfileSecret(p.SSHPassword)
 }
 
 // unlockProfileSecret decrypts an encrypted profile secret (SSH password or
-// private key) with the user's passphrase, prompted once and cached for the run.
+// private key) via the credential vault, which is unlocked once for the run.
 func unlockProfileSecret(blob string) (string, error) {
-	if !passphraseAsked {
-		pass, err := readSecret("Passphrase to unlock SSH credentials: ")
-		if err != nil {
-			return "", err
-		}
-		passphraseCache = pass
-		passphraseAsked = true
+	if err := ensureVaultUnlocked(runVault); err != nil {
+		return "", err
 	}
-	return secret.Decrypt(blob, passphraseCache)
+	return runVault.Decrypt(blob)
 }
 
 func printGatherSummary(result *topology.ConnectionScanResult) {

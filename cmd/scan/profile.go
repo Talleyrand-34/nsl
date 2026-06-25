@@ -158,8 +158,9 @@ host: it carries only reusable SSH credentials (--ssh-user plus a key/password)
 and is used as an explicit SSH fallback for hosts without their own profile
 (e.g. 'scan connections --subnet ... --generic-profile <name>').
 
-If --ssh-password is given, you are prompted for a passphrase that encrypts it;
-the passphrase is required again whenever an SSH scan uses this profile.`,
+If --ssh-password is given, it is encrypted by the credential vault (you are
+asked to set or unlock its master passphrase). The vault is unlocked again
+whenever an SSH scan needs the stored secret.`,
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		service, err := util.GetServiceConnection(cmd_pkg.Srcdbpath)
@@ -194,12 +195,11 @@ the passphrase is required again whenever an SSH scan uses this profile.`,
 		}
 
 		if profSSHPassword != "" {
-			passphrase, err := readPassphraseConfirmed()
-			if err != nil {
-				fmt.Printf("Error reading passphrase: %v\n", err)
+			if err := ensureVaultUnlocked(service.Vault()); err != nil {
+				fmt.Printf("Error unlocking credential vault: %v\n", err)
 				os.Exit(1)
 			}
-			blob, err := secret.Encrypt(profSSHPassword, passphrase)
+			blob, err := service.Vault().Encrypt(profSSHPassword)
 			if err != nil {
 				fmt.Printf("Error encrypting SSH password: %v\n", err)
 				os.Exit(1)
@@ -247,7 +247,7 @@ func readSecret(prompt string) (string, error) {
 
 // readPassphraseConfirmed prompts for a passphrase twice and checks they match.
 func readPassphraseConfirmed() (string, error) {
-	p1, err := readSecret("Passphrase to encrypt the SSH password: ")
+	p1, err := readSecret("Master passphrase for the credential vault: ")
 	if err != nil {
 		return "", err
 	}
@@ -262,6 +262,29 @@ func readPassphraseConfirmed() (string, error) {
 		return "", fmt.Errorf("passphrases do not match")
 	}
 	return p1, nil
+}
+
+// ensureVaultUnlocked makes the credential vault usable for this CLI run. The
+// vault's data key lives only in memory, so each invocation unlocks it from the
+// persisted meta with the master passphrase; a fresh vault is set up on first
+// use (passphrase entered twice).
+func ensureVaultUnlocked(v *secret.Vault) error {
+	if v.Unlocked() {
+		return nil
+	}
+	if !v.Initialized() {
+		fmt.Println("No credential vault yet — set a master passphrase to protect stored SSH secrets.")
+		pass, err := readPassphraseConfirmed()
+		if err != nil {
+			return err
+		}
+		return v.Init(pass)
+	}
+	pass, err := readSecret("Master passphrase to unlock the credential vault: ")
+	if err != nil {
+		return err
+	}
+	return v.Unlock(pass)
 }
 
 func init() {

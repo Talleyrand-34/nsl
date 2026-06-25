@@ -36,7 +36,6 @@ import (
 	q "nsl-graph/internal/repository/application"
 	e "nsl-graph/internal/repository/entities"
 	s "nsl-graph/internal/scanner"
-	"nsl-graph/internal/secret"
 )
 
 var (
@@ -229,15 +228,14 @@ Examples:
 					hostDeviceType, strings.Join(configparser.DefaultRegistry.ListParsers(), ", "))
 				os.Exit(1)
 			}
-			// A profile may carry an encrypted SSH password; unlock it with a
-			// passphrase instead of prompting for the raw password.
+			// A profile may carry an encrypted SSH password; unlock the credential
+			// vault to decrypt it instead of prompting for the raw password.
 			if hostSSHKeyFile == "" && hostSSHPassword == "" && profile != nil && profile.SSHPassword != "" {
-				passphrase, err := readSecret(fmt.Sprintf("Passphrase to unlock profile %q: ", profile.Name))
-				if err != nil {
-					fmt.Printf("Failed to read passphrase: %v\n", err)
+				if err := ensureVaultUnlocked(service.Vault()); err != nil {
+					fmt.Printf("Failed to unlock credential vault: %v\n", err)
 					os.Exit(1)
 				}
-				pw, err := secret.Decrypt(profile.SSHPassword, passphrase)
+				pw, err := service.Vault().Decrypt(profile.SSHPassword)
 				if err != nil {
 					fmt.Printf("%v\n", err)
 					os.Exit(1)
@@ -756,8 +754,8 @@ func importSingleDeviceWithVLANMapping(
 }
 
 // saveHostProfile persists the effective scan parameters as a named profile.
-// If an SSH password was provided explicitly, it is encrypted with a prompted
-// passphrase before storage.
+// If an SSH password was provided explicitly, it is encrypted by the credential
+// vault before storage.
 func saveHostProfile(service q.NetServiceInt, name, host string) error {
 	p := e.ScanProfile{
 		Name:              name,
@@ -779,11 +777,10 @@ func saveHostProfile(service q.NetServiceInt, name, host string) error {
 		VLANAccuracy:      hostVLANAccuracy,
 	}
 	if hostSSHPassword != "" {
-		passphrase, err := readPassphraseConfirmed()
-		if err != nil {
+		if err := ensureVaultUnlocked(service.Vault()); err != nil {
 			return err
 		}
-		blob, err := secret.Encrypt(hostSSHPassword, passphrase)
+		blob, err := service.Vault().Encrypt(hostSSHPassword)
 		if err != nil {
 			return err
 		}
