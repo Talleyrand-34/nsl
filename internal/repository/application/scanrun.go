@@ -166,9 +166,9 @@ func (ns *NetService) runSSHScan(opts RunScanOptions, tokens []string, batch boo
 	if deviceType == "" {
 		return nil, fmt.Errorf("an SSH scan needs a device type — set one (the %q profile does not carry a device_type)", opts.Profile)
 	}
-	creds := profileSSHCreds(profile, opts.Passphrase)
+	creds := profileSSHCreds(profile, ns.vault)
 	if creds == nil {
-		return nil, fmt.Errorf("could not unlock SSH credentials for profile %q (check the passphrase and that it has an SSH user plus a key or password)", opts.Profile)
+		return nil, fmt.Errorf("could not unlock SSH credentials for profile %q (unlock the vault, and check it has an SSH user plus a key or password)", opts.Profile)
 	}
 	timeout := time.Duration(profile.ConfigTimeout) * time.Second
 	if timeout == 0 {

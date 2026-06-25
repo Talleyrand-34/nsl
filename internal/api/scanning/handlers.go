@@ -492,7 +492,7 @@ type scanProfileRequest struct {
 	Passphrase        string `json:"passphrase"`
 }
 
-func (req scanProfileRequest) toEntity() (e.ScanProfile, error) {
+func (req scanProfileRequest) toEntity(v *secret.Vault) (e.ScanProfile, error) {
 	p := e.ScanProfile{
 		Name:              req.Name,
 		Kind:              req.Kind,
@@ -514,22 +514,16 @@ func (req scanProfileRequest) toEntity() (e.ScanProfile, error) {
 		VLANAccuracy:      req.VLANAccuracy,
 	}
 	if req.SSHPassword != "" {
-		if req.Passphrase == "" {
-			return p, fmt.Errorf("a passphrase is required to store an SSH password")
-		}
-		blob, err := secret.Encrypt(req.SSHPassword, req.Passphrase)
+		blob, err := v.Encrypt(req.SSHPassword)
 		if err != nil {
-			return p, err
+			return p, fmt.Errorf("store SSH password: %w (unlock the vault first)", err)
 		}
 		p.SSHPassword = blob
 	}
 	if req.SSHKey != "" {
-		if req.Passphrase == "" {
-			return p, fmt.Errorf("a passphrase is required to store an SSH private key")
-		}
-		blob, err := secret.Encrypt(req.SSHKey, req.Passphrase)
+		blob, err := v.Encrypt(req.SSHKey)
 		if err != nil {
-			return p, err
+			return p, fmt.Errorf("store SSH private key: %w (unlock the vault first)", err)
 		}
 		p.SSHKey = blob
 	}
@@ -571,7 +565,7 @@ func ScanProfilesHandler(service q.NetServiceInt) http.HandlerFunc {
 				json.NewEncoder(w).Encode(ErrorResponse{Error: "missing_name", Message: "name is required"})
 				return
 			}
-			p, err := req.toEntity()
+			p, err := req.toEntity(service.Vault())
 			if err != nil {
 				w.WriteHeader(http.StatusBadRequest)
 				json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid_profile", Message: err.Error()})
@@ -704,20 +698,20 @@ func ScanHostSSHHandler(service q.NetServiceInt) http.HandlerFunc {
 
 		password := ""
 		if profile.SSHPassword != "" {
-			pw, err := secret.Decrypt(profile.SSHPassword, req.Passphrase)
+			pw, err := service.Vault().Decrypt(profile.SSHPassword)
 			if err != nil {
 				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(ErrorResponse{Error: "incorrect_passphrase", Message: err.Error()})
+				json.NewEncoder(w).Encode(ErrorResponse{Error: "vault_locked", Message: err.Error()})
 				return
 			}
 			password = pw
 		}
 		privateKey := ""
 		if profile.SSHKey != "" {
-			pk, err := secret.Decrypt(profile.SSHKey, req.Passphrase)
+			pk, err := service.Vault().Decrypt(profile.SSHKey)
 			if err != nil {
 				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(ErrorResponse{Error: "incorrect_passphrase", Message: err.Error()})
+				json.NewEncoder(w).Encode(ErrorResponse{Error: "vault_locked", Message: err.Error()})
 				return
 			}
 			privateKey = pk

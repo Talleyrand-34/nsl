@@ -123,9 +123,9 @@ func (ns *NetService) DiscoverConnectionsByMode(opts ConnectionScanOptions, em o
 		case p.SSHKeyFile != "":
 			creds.KeyFile = p.SSHKeyFile
 		case p.SSHPassword != "":
-			pw, err := secret.Decrypt(p.SSHPassword, opts.Passphrase)
+			pw, err := ns.vault.Decrypt(p.SSHPassword)
 			if err != nil {
-				return // can't unlock SSH password — skip SSH for this host
+				return // vault locked / can't decrypt — skip SSH for this host
 			}
 			creds.Password = pw
 		default:
@@ -157,7 +157,7 @@ func (ns *NetService) DiscoverConnectionsByMode(opts ConnectionScanOptions, em o
 	var genericSSH *configparser.SSHCredentials
 	if opts.GenericProfile != "" {
 		if gp, err := ns.GetScanProfileByName(opts.GenericProfile); err == nil && gp != nil && gp.Kind == "generic" {
-			genericSSH = profileSSHCreds(gp, opts.Passphrase)
+			genericSSH = profileSSHCreds(gp, ns.vault)
 		}
 	}
 	var keyMissing []string // ssh-config matches whose IdentityFile wasn't uploaded
@@ -332,9 +332,9 @@ func (ns *NetService) DiscoverConnectionsByMode(opts ConnectionScanOptions, em o
 }
 
 // profileSSHCreds builds SSH credentials from a profile, decrypting an encrypted
-// SSH password or in-memory private key with passphrase. Returns nil when the
-// profile carries no usable SSH credentials (or the passphrase is wrong).
-func profileSSHCreds(p *e.ScanProfile, passphrase string) *configparser.SSHCredentials {
+// SSH password or in-memory private key with the unlocked vault. Returns nil when
+// the profile carries no usable SSH credentials (or the vault is locked).
+func profileSSHCreds(p *e.ScanProfile, v *secret.Vault) *configparser.SSHCredentials {
 	if p.SSHUser == "" {
 		return nil
 	}
@@ -343,13 +343,13 @@ func profileSSHCreds(p *e.ScanProfile, passphrase string) *configparser.SSHCrede
 	case p.SSHKeyFile != "":
 		creds.KeyFile = p.SSHKeyFile
 	case p.SSHKey != "":
-		pk, err := secret.Decrypt(p.SSHKey, passphrase)
+		pk, err := v.Decrypt(p.SSHKey)
 		if err != nil {
 			return nil
 		}
 		creds.PrivateKey = pk
 	case p.SSHPassword != "":
-		pw, err := secret.Decrypt(p.SSHPassword, passphrase)
+		pw, err := v.Decrypt(p.SSHPassword)
 		if err != nil {
 			return nil
 		}

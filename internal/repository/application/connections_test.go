@@ -187,28 +187,39 @@ func TestEnumerateCIDR_Multi(t *testing.T) {
 }
 
 func TestProfileSSHCreds_GenericFallback(t *testing.T) {
+	var store string
+	v := secret.NewVault(
+		func() (string, error) { return store, nil },
+		func(s string) error { store = s; return nil },
+		0,
+	)
+	if err := v.Init("master"); err != nil {
+		t.Fatalf("vault init: %v", err)
+	}
+
 	// No SSH user -> no usable credentials.
-	if c := profileSSHCreds(&e.ScanProfile{Kind: "generic"}, ""); c != nil {
+	if c := profileSSHCreds(&e.ScanProfile{Kind: "generic"}, v); c != nil {
 		t.Errorf("expected nil creds without an SSH user, got %+v", c)
 	}
 
-	// Key file: used verbatim, no passphrase needed.
-	c := profileSSHCreds(&e.ScanProfile{Kind: "generic", SSHUser: "root", SSHKeyFile: "/k/id", SSHPort: 2222}, "")
+	// Key file: used verbatim, no decryption needed.
+	c := profileSSHCreds(&e.ScanProfile{Kind: "generic", SSHUser: "root", SSHKeyFile: "/k/id", SSHPort: 2222}, v)
 	if c == nil || c.Username != "root" || c.KeyFile != "/k/id" || c.Port != 2222 {
 		t.Fatalf("keyfile creds wrong: %+v", c)
 	}
 
-	// Encrypted in-memory private key: decrypted with the passphrase into PrivateKey.
-	blob, err := secret.Encrypt("PEMDATA", "pw")
+	// Encrypted in-memory private key: decrypted via the unlocked vault.
+	blob, err := v.Encrypt("PEMDATA")
 	if err != nil {
 		t.Fatalf("encrypt: %v", err)
 	}
-	c = profileSSHCreds(&e.ScanProfile{Kind: "generic", SSHUser: "root", SSHKey: blob}, "pw")
+	c = profileSSHCreds(&e.ScanProfile{Kind: "generic", SSHUser: "root", SSHKey: blob}, v)
 	if c == nil || c.PrivateKey != "PEMDATA" {
 		t.Fatalf("expected decrypted private key, got %+v", c)
 	}
-	// Wrong passphrase -> nil (can't unlock).
-	if c := profileSSHCreds(&e.ScanProfile{Kind: "generic", SSHUser: "root", SSHKey: blob}, "wrong"); c != nil {
-		t.Errorf("expected nil creds on bad passphrase, got %+v", c)
+	// Locked vault -> nil (can't decrypt).
+	v.Lock()
+	if c := profileSSHCreds(&e.ScanProfile{Kind: "generic", SSHUser: "root", SSHKey: blob}, v); c != nil {
+		t.Errorf("expected nil creds when vault is locked, got %+v", c)
 	}
 }
