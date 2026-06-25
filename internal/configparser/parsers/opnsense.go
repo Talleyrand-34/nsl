@@ -1,6 +1,6 @@
 // Legacy XML-based OPNsense parser.
-// Use the FreeBSD ifconfig parser (--device-type opnsense) instead.
-// Still accessible via --device-type opnsense-xml for backwards compatibility.
+// Use the FreeBSD ifconfig parser (--os-type opnsense) instead.
+// Still accessible via --os-type opnsense-xml for backwards compatibility.
 package parsers
 
 import (
@@ -24,13 +24,13 @@ func NewOPNsenseParser() *OPNsenseParser {
 
 func init() { configparser.DefaultRegistry.RegisterParser(NewOPNsenseParser()) }
 
-// GetDeviceType returns the device type key for this legacy parser.
-func (p *OPNsenseParser) GetDeviceType() string {
+// GetOsType returns the OS type key for this legacy parser.
+func (p *OPNsenseParser) GetOsType() string {
 	return "opnsense-xml"
 }
 
 // SupportsDevice always returns false — auto-detection is handled by FreeBSDParser.
-// Use --device-type opnsense-xml to select this parser explicitly.
+// Use --os-type opnsense-xml to select this parser explicitly.
 func (p *OPNsenseParser) SupportsDevice(_ s.SNMPDevice) bool {
 	return false
 }
@@ -52,7 +52,7 @@ func (p *OPNsenseParser) ParseConfig(rawConfig string, deviceInfo s.SNMPDevice) 
 	}
 
 	configData := &configparser.ConfigData{
-		DeviceType:    p.GetDeviceType(),
+		OsType:        p.GetOsType(),
 		DeviceModel:   extractDeviceModel(config),
 		Hostname:      config.System.Hostname,
 		Domain:        config.System.Domain,

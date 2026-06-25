@@ -327,7 +327,7 @@ per-host parameters that are auto-applied when a host matches.
 
 ```bash
 nsl-graph scan profile add <name> --host <ip> [--snmp-community ...] [--ssh-user ...] \
-                                  [--ssh-password ...] [--device-type ...] [--scan-source ssh]
+                                  [--ssh-password ...] [--os-type ...] [--scan-source ssh]
 nsl-graph scan profile add <name> --generic --ssh-user <user> [--ssh-key <file>|--ssh-password ...]
 nsl-graph scan profile list            # KIND column shows device / generic
 nsl-graph scan profile show <name>     # SSH password is never printed

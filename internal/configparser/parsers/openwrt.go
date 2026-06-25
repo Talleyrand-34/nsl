@@ -22,8 +22,8 @@ func NewOpenWrtParser() *OpenWrtParser {
 
 func init() { configparser.DefaultRegistry.RegisterParser(NewOpenWrtParser()) }
 
-// GetDeviceType returns the device type this parser handles
-func (p *OpenWrtParser) GetDeviceType() string {
+// GetOsType returns the OS type this parser handles
+func (p *OpenWrtParser) GetOsType() string {
 	return "openwrt"
 }
 
@@ -42,7 +42,7 @@ func (p *OpenWrtParser) ParseConfig(rawConfig string, deviceInfo s.SNMPDevice) (
 	}
 
 	configData := &configparser.ConfigData{
-		DeviceType:    p.GetDeviceType(),
+		OsType:        p.GetOsType(),
 		DeviceModel:   extractOpenWrtModel(uciConfig, deviceInfo),
 		Hostname:      extractHostname(uciConfig),
 		ConfigVersion: extractConfigVersion(uciConfig),
@@ -688,7 +688,7 @@ func (p *OpenWrtParser) parseNetworkInterfaces(config *UCIConfig, switchPorts []
 		interfaces = append(interfaces, configparser.ConfigInterface{
 			Name:    devName,
 			Enabled: true,
-			Type:    determineDeviceType(devName),
+			Type:    determineOsType(devName),
 		})
 	}
 
@@ -753,8 +753,8 @@ func (p *OpenWrtParser) parseNetworkInterfaces(config *UCIConfig, switchPorts []
 	return interfaces, nil
 }
 
-// determineDeviceType returns "bridge" for br-* names, "physical" otherwise.
-func determineDeviceType(name string) string {
+// determineOsType returns "bridge" for br-* names, "physical" otherwise.
+func determineOsType(name string) string {
 	if strings.HasPrefix(name, "br-") || strings.HasPrefix(name, "br_") {
 		return "bridge"
 	}

@@ -20,7 +20,7 @@ func TestScanProfile_CRUD(t *testing.T) {
 		SNMPVersion:   "v2c",
 		SNMPPort:      161,
 		ScanSource:    "ssh",
-		DeviceType:    "opnsense",
+		OsType:        "opnsense",
 		SSHUser:       "admin",
 		SSHPassword:   "ENCBLOB",
 		SSHPort:       22,

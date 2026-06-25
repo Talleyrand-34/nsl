@@ -33,7 +33,7 @@ func createSimpleDevice(sysDescr, sysName string) s.SNMPDevice {
 	}
 }
 
-func TestDeviceTypeDetection_OPNsense(t *testing.T) {
+func TestOsTypeDetection_OPNsense(t *testing.T) {
 	registry := configparser.NewConfigParserRegistry()
 	parser := parsers.NewFreeBSDParser()
 
@@ -46,8 +46,8 @@ func TestDeviceTypeDetection_OPNsense(t *testing.T) {
 	if !exists {
 		t.Fatal("Should have detected OPNsense device")
 	}
-	if detectedParser.GetDeviceType() != "opnsense" {
-		t.Errorf("Expected opnsense, got %s", detectedParser.GetDeviceType())
+	if detectedParser.GetOsType() != "opnsense" {
+		t.Errorf("Expected opnsense, got %s", detectedParser.GetOsType())
 	}
 
 	// Test manual type selection
@@ -55,12 +55,12 @@ func TestDeviceTypeDetection_OPNsense(t *testing.T) {
 	if !exists {
 		t.Fatal("Should have found opnsense parser manually")
 	}
-	if manualParser.GetDeviceType() != "opnsense" {
-		t.Errorf("Expected opnsense, got %s", manualParser.GetDeviceType())
+	if manualParser.GetOsType() != "opnsense" {
+		t.Errorf("Expected opnsense, got %s", manualParser.GetOsType())
 	}
 }
 
-func TestDeviceTypeDetection_OpenWrt(t *testing.T) {
+func TestOsTypeDetection_OpenWrt(t *testing.T) {
 	registry := configparser.NewConfigParserRegistry()
 	parser := parsers.NewOpenWrtParser()
 
@@ -73,8 +73,8 @@ func TestDeviceTypeDetection_OpenWrt(t *testing.T) {
 	if !exists {
 		t.Fatal("Should have detected OpenWrt device")
 	}
-	if detectedParser.GetDeviceType() != "openwrt" {
-		t.Errorf("Expected openwrt, got %s", detectedParser.GetDeviceType())
+	if detectedParser.GetOsType() != "openwrt" {
+		t.Errorf("Expected openwrt, got %s", detectedParser.GetOsType())
 	}
 
 	// Test manual override for problematic device
@@ -91,12 +91,12 @@ func TestDeviceTypeDetection_OpenWrt(t *testing.T) {
 	if !exists {
 		t.Fatal("Should have found openwrt parser manually")
 	}
-	if manualParser.GetDeviceType() != "openwrt" {
-		t.Errorf("Expected openwrt, got %s", manualParser.GetDeviceType())
+	if manualParser.GetOsType() != "openwrt" {
+		t.Errorf("Expected openwrt, got %s", manualParser.GetOsType())
 	}
 }
 
-func TestDeviceTypeDetection_Fortinet(t *testing.T) {
+func TestOsTypeDetection_Fortinet(t *testing.T) {
 	registry := configparser.NewConfigParserRegistry()
 	parser := parsers.NewFortinetParser()
 
@@ -108,8 +108,8 @@ func TestDeviceTypeDetection_Fortinet(t *testing.T) {
 	if !exists {
 		t.Fatal("Should have detected Fortinet device")
 	}
-	if detectedParser.GetDeviceType() != "fortinet" {
-		t.Errorf("Expected fortinet, got %s", detectedParser.GetDeviceType())
+	if detectedParser.GetOsType() != "fortinet" {
+		t.Errorf("Expected fortinet, got %s", detectedParser.GetOsType())
 	}
 }
 
@@ -128,13 +128,13 @@ func TestManualTypeOverride(t *testing.T) {
 
 	// Verify auto-detection works
 	autoParser, exists := registry.GetParserForDevice(device)
-	if !exists || autoParser.GetDeviceType() != "opnsense" {
+	if !exists || autoParser.GetOsType() != "opnsense" {
 		t.Fatal("Auto-detection should find OPNsense")
 	}
 
 	// Override with manual type
 	manualParser, exists := registry.GetParserForDeviceWithType(device, "openwrt")
-	if !exists || manualParser.GetDeviceType() != "openwrt" {
+	if !exists || manualParser.GetOsType() != "openwrt" {
 		t.Fatal("Manual type should override auto-detection")
 	}
 }
@@ -148,7 +148,7 @@ func TestInvalidManualType(t *testing.T) {
 
 	// Try invalid type - should fallback to auto-detection
 	fallbackParser, exists := registry.GetParserForDeviceWithType(device, "invalidtype")
-	if !exists || fallbackParser.GetDeviceType() != "opnsense" {
+	if !exists || fallbackParser.GetOsType() != "opnsense" {
 		t.Fatal("Invalid type should fallback to auto-detection")
 	}
 }
@@ -210,22 +210,22 @@ func TestRealWorldScenarios(t *testing.T) {
 
 			if tc.shouldDetect {
 				if !exists {
-					t.Errorf("Should have detected device type for %s", tc.name)
+					t.Errorf("Should have detected OS type for %s", tc.name)
 					return
 				}
-				if parser.GetDeviceType() != tc.expectedType {
-					t.Errorf("Expected %s, got %s", tc.expectedType, parser.GetDeviceType())
+				if parser.GetOsType() != tc.expectedType {
+					t.Errorf("Expected %s, got %s", tc.expectedType, parser.GetOsType())
 				}
 			} else {
 				if exists {
-					t.Errorf("Should NOT have detected device type for %s", tc.name)
+					t.Errorf("Should NOT have detected OS type for %s", tc.name)
 				}
 			}
 
 			// Test manual override for problematic device
 			if tc.name == "Real OpenWrt (problematic)" {
 				manualParser, exists := registry.GetParserForDeviceWithType(tc.device, "openwrt")
-				if !exists || manualParser.GetDeviceType() != "openwrt" {
+				if !exists || manualParser.GetOsType() != "openwrt" {
 					t.Error("Manual type should work for problematic OpenWrt device")
 				}
 			}
@@ -233,10 +233,10 @@ func TestRealWorldScenarios(t *testing.T) {
 	}
 }
 
-func TestConfigParserOptions_DeviceType(t *testing.T) {
+func TestConfigParserOptions_OsType(t *testing.T) {
 	options := configparser.ConfigParserOptions{
-		Source:     configparser.ConfigSourceSSH,
-		DeviceType: "opnsense",
+		Source: configparser.ConfigSourceSSH,
+		OsType: "opnsense",
 		SSHCredentials: &configparser.SSHCredentials{
 			Username: "admin",
 			Password: "password",
@@ -245,8 +245,8 @@ func TestConfigParserOptions_DeviceType(t *testing.T) {
 		MergeWithSNMP:     true,
 	}
 
-	if options.DeviceType != "opnsense" {
-		t.Errorf("Expected opnsense, got %s", options.DeviceType)
+	if options.OsType != "opnsense" {
+		t.Errorf("Expected opnsense, got %s", options.OsType)
 	}
 	if options.Source != configparser.ConfigSourceSSH {
 		t.Errorf("Expected SSH source, got %v", options.Source)

@@ -36,16 +36,16 @@ func (m *ConfigurationMerger) EnhanceDeviceWithConfig(
 	}
 
 	// Find appropriate parser for the device (manual type or auto-detection)
-	parser, exists := m.parserRegistry.GetParserForDeviceWithType(device.Device, options.DeviceType)
+	parser, exists := m.parserRegistry.GetParserForDeviceWithType(device.Device, options.OsType)
 	if !exists {
-		if options.DeviceType != "" {
+		if options.OsType != "" {
 			return enhanced, fmt.Errorf(
-				"specified device type '%s' not available or device SNMP data doesn't match auto-detection",
-				options.DeviceType,
+				"specified OS type '%s' not available or device SNMP data doesn't match auto-detection",
+				options.OsType,
 			)
 		}
 		return enhanced, fmt.Errorf(
-			"no configuration parser available for device type: %s",
+			"no configuration parser available for OS type: %s",
 			device.Device.SysDescr,
 		)
 	}

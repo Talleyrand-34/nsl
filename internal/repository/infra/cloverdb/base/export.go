@@ -227,9 +227,9 @@ func (r BasicOpsCloverRepository) ExportAllStructs() (e.All, error) {
 		}
 
 		result.ModelDevices = append(result.ModelDevices, e.BasicModeldevice{
-			ID:      doc.ObjectId(),
-			Model:   doc.Get("model").(string),
-			Brand:   brandID,
+			ID:          doc.ObjectId(),
+			Model:       doc.Get("model").(string),
+			Brand:       brandID,
 			ModelTypeID: getStringField(doc, "model_type_id"),
 		})
 	}

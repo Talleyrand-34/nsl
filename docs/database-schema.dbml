@@ -173,7 +173,7 @@ Table scanprofiles {
   scan_source string [note: 'snmp | ssh']
   config_source string [note: 'none | ssh | file | manual']
   config_file string [null]
-  device_type string [note: 'opnsense | openwrt | fortinet | cisco', null]
+  os_type string [note: 'opnsense | openwrt | fortinet | cisco', null]
   ssh_user string [null]
   ssh_password string [note: 'AES-256-GCM blob under the credential vault data key; never stored in clear', null]
   ssh_key_file string [note: 'path to a key file (CLI)', null]

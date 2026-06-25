@@ -176,7 +176,7 @@ func ScanNetworkHandler(service q.NetServiceInt) http.HandlerFunc {
 
 // ScanRunRequest is the body for the unified /scan/run endpoint. method is
 // "snmp" or "ssh"; target is a single IP (single scan) or a CIDR / comma-list
-// (batch). For SSH, the profile supplies the credentials and device_type; the
+// (batch). For SSH, the profile supplies the credentials and os_type; the
 // stored secrets are decrypted by the (already unlocked) server vault.
 type ScanRunRequest struct {
 	Method      string `json:"method"`
@@ -186,7 +186,7 @@ type ScanRunRequest struct {
 	SNMPPort    uint16 `json:"snmp_port,omitempty"`
 	Timeout     int    `json:"timeout,omitempty"`
 	Profile     string `json:"profile,omitempty"`
-	DeviceType  string `json:"device_type,omitempty"`
+	OsType      string `json:"os_type,omitempty"`
 }
 
 // ScanRunHandler runs a unified device scan (SNMP or SSH; single or batch,
@@ -233,7 +233,7 @@ func ScanRunHandler(service q.NetServiceInt) http.HandlerFunc {
 				SNMPPort:    req.SNMPPort,
 				TimeoutSec:  req.Timeout,
 				Profile:     req.Profile,
-				DeviceType:  req.DeviceType,
+				OsType:      req.OsType,
 			}, run)
 			if err != nil {
 				return nil, err
@@ -325,7 +325,7 @@ func ScanHostHandler(service q.NetServiceInt) http.HandlerFunc {
 				Device:        *device,
 				Brand:         brand,
 				Model:         model,
-				ModelType:   class,
+				ModelType:     class,
 				SuggestedName: discoverer.GenerateDeviceName(*device, class),
 				SuggestedZone: discoverer.SuggestZone(*device),
 			}, nil
@@ -478,7 +478,7 @@ type scanProfileRequest struct {
 	ScanSource        string `json:"scan_source"`
 	ConfigSource      string `json:"config_source"`
 	ConfigFile        string `json:"config_file"`
-	DeviceType        string `json:"device_type"`
+	OsType            string `json:"os_type"`
 	SSHUser           string `json:"ssh_user"`
 	SSHPassword       string `json:"ssh_password"`
 	SSHKeyFile        string `json:"ssh_key_file"`
@@ -502,7 +502,7 @@ func (req scanProfileRequest) toEntity(v *secret.Vault) (e.ScanProfile, error) {
 		ScanSource:        req.ScanSource,
 		ConfigSource:      req.ConfigSource,
 		ConfigFile:        req.ConfigFile,
-		DeviceType:        req.DeviceType,
+		OsType:            req.OsType,
 		SSHUser:           req.SSHUser,
 		SSHKeyFile:        req.SSHKeyFile,
 		SSHPort:           req.SSHPort,
@@ -687,9 +687,9 @@ func ScanHostSSHHandler(service q.NetServiceInt) http.HandlerFunc {
 			json.NewEncoder(w).Encode(ErrorResponse{Error: "missing_host", Message: "profile has no host and no ip override was given"})
 			return
 		}
-		if profile.DeviceType == "" {
+		if profile.OsType == "" {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(ErrorResponse{Error: "missing_device_type", Message: "the profile must set a device_type for SSH scans"})
+			json.NewEncoder(w).Encode(ErrorResponse{Error: "missing_os_type", Message: "the profile must set a os_type for SSH scans"})
 			return
 		}
 
@@ -732,9 +732,9 @@ func ScanHostSSHHandler(service q.NetServiceInt) http.HandlerFunc {
 		}
 
 		startAsyncScan(w, "host-ssh", ip, func(run *observ.Run) (any, error) {
-			run.Emit("info", "reading config over SSH", "ip", ip, "profile", profile.Name, "device_type", profile.DeviceType)
+			run.Emit("info", "reading config over SSH", "ip", ip, "profile", profile.Name, "os_type", profile.OsType)
 			run.Progress(0, 1)
-			device, err := service.ScanDeviceViaSSH(ip, profile.DeviceType, creds)
+			device, err := service.ScanDeviceViaSSH(ip, profile.OsType, creds)
 			if err != nil {
 				return nil, err
 			}
@@ -746,7 +746,7 @@ func ScanHostSSHHandler(service q.NetServiceInt) http.HandlerFunc {
 				Device:        *device,
 				Brand:         brand,
 				Model:         model,
-				ModelType:   class,
+				ModelType:     class,
 				SuggestedName: discoverer.GenerateDeviceName(*device, class),
 				SuggestedZone: discoverer.SuggestZone(*device),
 			}, nil

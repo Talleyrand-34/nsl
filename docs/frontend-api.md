@@ -347,10 +347,10 @@ never uses the SSH password.
 **SSH scan + interactive VLAN import** (used by the web UI's editable flow):
 
 - `POST /scan/host-ssh` — scans a host over **SSH/config**. Credentials come from a saved
-  profile (it must set `device_type`, `ssh_user`, and an encrypted `ssh_password`); the
+  profile (it must set `os_type`, `ssh_user`, and an encrypted `ssh_password`); the
   profile's secret is decrypted by the **credential vault**, which must be unlocked (see
   *Credential vault* below). Returns a `DiscoveredDevice`. Errors: `404` unknown profile,
-  `400` vault locked / missing `device_type`.
+  `400` vault locked / missing `os_type`.
 - `POST /scan/analyze` — returns the `DeviceImportPlan` for a discovered device: per-interface
   **IP / ip-segment(subnet) / VLAN-id** mappings (`ip_mappings`) plus suggested VLAN create/update
   plans, with a confidence/reason per mapping.

@@ -115,11 +115,14 @@ The scan profile a **Device** is tied to (`Device.profile`, a profile *name*). S
 on the dashboard device form, and **auto-assigned on import** to whatever profile a
 scan used. Scan-connections (from-db) requires every device to have one.
 
-### Device type
+### OS type (`os_type`)
 The **operating system / firmware family** used to pick the right config parser
 over SSH — `openwrt`, `opnsense`, `fortinet`, `cisco`, … It is **not** the hardware
-Model. UI label: "OS / firmware type"; CLI flag `--device-type`; field `device_type`.
-**Canonical meaning: OS/firmware**, distinct from Model.
+Model Type (router/switch/…). UI label: "OS / firmware type"; CLI flag `--os-type`;
+field `os_type`.
+- **Renamed from `device_type`** (which read like the hardware type). Today it is a
+  scan-time selector on the scan profile; a planned follow-up promotes `os_type` to
+  its own table and a `Model.os_type` reference (DB-authoritative, scan-overridable).
 
 ### Scan (device scan / import)
 Discovering one or more **devices** (SNMP or SSH) for import into the DB — the
@@ -187,7 +190,7 @@ are documented rather than churned:
 | Zone Type | `location_type` (Zone field) — **don't** surface as "Location Type" |
 | Owner | formerly **`proprietary`** (renamed; migrate old stores via `scripts/migrate_phase1_owner.go`) |
 | Device label | `Device.Name` (Go), `label` (JSON/UI) |
-| Device type (OS/firmware) | `--device-type` (CLI), `device_type` (JSON) — **not** the hardware Model |
+| OS type (`os_type`) | formerly **`device_type`** (renamed); the OS/firmware parser selector — **not** the Model Type |
 | Device Port | `devport` (CLI `add` subcommand), `deviceport` (UI) |
 
 Internal note: a `cmd/modify/` command group duplicates `cmd/update/` and is not

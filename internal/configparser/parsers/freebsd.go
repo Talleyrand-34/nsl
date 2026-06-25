@@ -21,8 +21,8 @@ func NewFreeBSDParser() *FreeBSDParser {
 
 func init() { configparser.DefaultRegistry.RegisterParser(NewFreeBSDParser()) }
 
-// GetDeviceType returns the device type key used for --device-type and registry lookup.
-func (p *FreeBSDParser) GetDeviceType() string {
+// GetOsType returns the OS type key used for --os-type and registry lookup.
+func (p *FreeBSDParser) GetOsType() string {
 	return "opnsense"
 }
 
@@ -79,7 +79,7 @@ func (p *FreeBSDParser) ParseConfig(rawConfig string, deviceInfo s.SNMPDevice) (
 	}
 
 	return &configparser.ConfigData{
-		DeviceType:  p.GetDeviceType(),
+		OsType:      p.GetOsType(),
 		DeviceModel: "OPNsense Firewall",
 		Hostname:    hostname,
 		Source:      configparser.ConfigSourceSSH,

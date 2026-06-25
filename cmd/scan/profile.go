@@ -39,7 +39,7 @@ var (
 	profScanSource    string
 	profConfigSource  string
 	profConfigFile    string
-	profDeviceType    string
+	profOsType        string
 	profSSHUser       string
 	profSSHPassword   string
 	profSSHKeyFile    string
@@ -135,7 +135,7 @@ var profileShowCmd = &cobra.Command{
 		fmt.Printf("Scan source:        %s\n", p.ScanSource)
 		fmt.Printf("Config source:      %s\n", p.ConfigSource)
 		fmt.Printf("Config file:        %s\n", p.ConfigFile)
-		fmt.Printf("Device type:        %s\n", p.DeviceType)
+		fmt.Printf("OS type:        %s\n", p.OsType)
 		fmt.Printf("SSH user:           %s\n", p.SSHUser)
 		fmt.Printf("SSH password:       %s\n", pass)
 		fmt.Printf("SSH key file:       %s\n", p.SSHKeyFile)
@@ -184,7 +184,7 @@ whenever an SSH scan needs the stored secret.`,
 			ScanSource:        profScanSource,
 			ConfigSource:      profConfigSource,
 			ConfigFile:        profConfigFile,
-			DeviceType:        profDeviceType,
+			OsType:            profOsType,
 			SSHUser:           profSSHUser,
 			SSHKeyFile:        profSSHKeyFile,
 			SSHPort:           profSSHPort,
@@ -304,7 +304,7 @@ func init() {
 	f.StringVar(&profScanSource, "scan-source", "snmp", "Primary scan source (snmp, ssh)")
 	f.StringVar(&profConfigSource, "config-source", "none", "Config source (none, ssh, file, manual)")
 	f.StringVar(&profConfigFile, "config-file", "", "Path to device configuration file")
-	f.StringVar(&profDeviceType, "device-type", "", "Device type (opnsense, openwrt, fortinet, cisco)")
+	f.StringVar(&profOsType, "os-type", "", "OS type (opnsense, openwrt, fortinet, cisco)")
 	f.StringVar(&profSSHUser, "ssh-user", "", "SSH username")
 	f.StringVar(&profSSHPassword, "ssh-password", "", "SSH password (encrypted at rest with a passphrase)")
 	f.StringVar(&profSSHKeyFile, "ssh-key", "", "Path to SSH private key file")

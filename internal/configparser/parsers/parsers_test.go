@@ -37,9 +37,9 @@ func createTestDevice(sysDescr, sysName string) s.SNMPDevice {
 
 // --- Legacy XML parser ---
 
-func TestOPNsenseLegacyParser_GetDeviceType(t *testing.T) {
+func TestOPNsenseLegacyParser_GetOsType(t *testing.T) {
 	parser := parsers.NewOPNsenseParser()
-	assert.Equal(t, "opnsense-xml", parser.GetDeviceType())
+	assert.Equal(t, "opnsense-xml", parser.GetOsType())
 }
 
 func TestOPNsenseLegacyParser_SupportsDevice_AlwaysFalse(t *testing.T) {
@@ -52,9 +52,9 @@ func TestOPNsenseLegacyParser_SupportsDevice_AlwaysFalse(t *testing.T) {
 
 // --- FreeBSD ifconfig parser (primary OPNsense parser) ---
 
-func TestFreeBSDParser_GetDeviceType(t *testing.T) {
+func TestFreeBSDParser_GetOsType(t *testing.T) {
 	parser := parsers.NewFreeBSDParser()
-	assert.Equal(t, "opnsense", parser.GetDeviceType())
+	assert.Equal(t, "opnsense", parser.GetOsType())
 }
 
 func TestFreeBSDParser_SupportsDevice(t *testing.T) {
@@ -104,7 +104,7 @@ func TestFreeBSDParser_ParseConfig(t *testing.T) {
 	assert.NotNil(t, configData)
 
 	assert.Equal(t, "fw01", configData.Hostname)
-	assert.Equal(t, "opnsense", configData.DeviceType)
+	assert.Equal(t, "opnsense", configData.OsType)
 
 	ifaceByName := make(map[string]configparser.ConfigInterface)
 	for _, iface := range configData.Interfaces {
@@ -173,9 +173,9 @@ func TestFreeBSDParser_ParseConfig_NoHostnamePrefix(t *testing.T) {
 	assert.Contains(t, configData.Interfaces[0].IPAddresses, "192.168.1.1/24")
 }
 
-func TestOpenWrtParser_GetDeviceType(t *testing.T) {
+func TestOpenWrtParser_GetOsType(t *testing.T) {
 	parser := parsers.NewOpenWrtParser()
-	assert.Equal(t, "openwrt", parser.GetDeviceType())
+	assert.Equal(t, "openwrt", parser.GetOsType())
 }
 
 func TestOpenWrtParser_SupportsDevice_Linux_OpenWrt(t *testing.T) {
@@ -210,9 +210,9 @@ func TestOpenWrtParser_SupportsDevice_NoMatch(t *testing.T) {
 	assert.False(t, parser.SupportsDevice(device))
 }
 
-func TestFortinetParser_GetDeviceType(t *testing.T) {
+func TestFortinetParser_GetOsType(t *testing.T) {
 	parser := parsers.NewFortinetParser()
-	assert.Equal(t, "fortinet", parser.GetDeviceType())
+	assert.Equal(t, "fortinet", parser.GetOsType())
 }
 
 func TestFortinetParser_SupportsDevice_Fortinet(t *testing.T) {
@@ -247,9 +247,9 @@ func TestFortinetParser_SupportsDevice_NoMatch(t *testing.T) {
 	assert.False(t, parser.SupportsDevice(device))
 }
 
-func TestCiscoParser_GetDeviceType(t *testing.T) {
+func TestCiscoParser_GetOsType(t *testing.T) {
 	parser := parsers.NewCiscoParser()
-	assert.Equal(t, "cisco", parser.GetDeviceType())
+	assert.Equal(t, "cisco", parser.GetOsType())
 }
 
 func TestCiscoParser_SupportsDevice_Cisco(t *testing.T) {

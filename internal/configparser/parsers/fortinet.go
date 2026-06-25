@@ -21,8 +21,8 @@ func NewFortinetParser() *FortinetParser {
 
 func init() { configparser.DefaultRegistry.RegisterParser(NewFortinetParser()) }
 
-// GetDeviceType returns the device type this parser handles
-func (p *FortinetParser) GetDeviceType() string {
+// GetOsType returns the OS type this parser handles
+func (p *FortinetParser) GetOsType() string {
 	return "fortinet"
 }
 
@@ -65,7 +65,7 @@ func (p *FortinetParser) ParseConfig(rawConfig string, deviceInfo s.SNMPDevice) 
 	}
 
 	configData := &configparser.ConfigData{
-		DeviceType:    p.GetDeviceType(),
+		OsType:        p.GetOsType(),
 		DeviceModel:   extractFortinetModel(fortiConfig, deviceInfo),
 		Hostname:      extractFortinetHostname(fortiConfig),
 		ConfigVersion: extractFortinetVersion(fortiConfig),

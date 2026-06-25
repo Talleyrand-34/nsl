@@ -145,7 +145,7 @@ func TestDiscoveredDevice_Structure(t *testing.T) {
 		},
 		Brand:         "Linux",
 		Model:         "Linux Server",
-		ModelType:   "Server",
+		ModelType:     "Server",
 		SuggestedName: "SRV-100",
 		SuggestedZone: "LAN",
 	}

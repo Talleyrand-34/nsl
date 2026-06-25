@@ -233,7 +233,7 @@ type NetServiceInt interface {
 	RunScan(opts RunScanOptions, em observ.Emitter) ([]s.DiscoveredDevice, error)
 	ScanNetwork(subnet string, options s.ScanOptions) (*s.ScanResult, error)
 	ScanDevice(ip string, options s.ScanOptions) (*s.SNMPDevice, error)
-	ScanDeviceViaSSH(ip, deviceType string, creds configparser.SSHCredentials) (*s.SNMPDevice, error)
+	ScanDeviceViaSSH(ip, osType string, creds configparser.SSHCredentials) (*s.SNMPDevice, error)
 	DiscoverDevices(scanResult *s.ScanResult) ([]s.DiscoveredDevice, error)
 	ImportScanResults(devices []s.DiscoveredDevice, options s.ImportOptions) error
 	ImportDiscoveredDevices(devices []s.DiscoveredDevice, options s.ImportOptions) error
@@ -963,7 +963,7 @@ func (ns *NetService) DiscoverDevices(scanResult *s.ScanResult) ([]s.DiscoveredD
 			Device:        dev,
 			Brand:         brand,
 			Model:         model,
-			ModelType:   class,
+			ModelType:     class,
 			SuggestedName: discoverer.GenerateDeviceName(dev, class),
 			SuggestedZone: discoverer.SuggestZone(dev),
 		})
@@ -1413,11 +1413,11 @@ func (ns *NetService) AnalyzeDeviceForImport(discovered s.DiscoveredDevice) (s.D
 // returns it as an SNMPDevice (interfaces, VLANs, IPs). This mirrors the CLI
 // `--scan-source ssh` path but is free of stdin/stdout, so it is usable from an
 // API handler.
-func (ns *NetService) ScanDeviceViaSSH(ip, deviceType string, creds configparser.SSHCredentials) (*s.SNMPDevice, error) {
-	parser, found := configparser.DefaultRegistry.GetParser(deviceType)
+func (ns *NetService) ScanDeviceViaSSH(ip, osType string, creds configparser.SSHCredentials) (*s.SNMPDevice, error) {
+	parser, found := configparser.DefaultRegistry.GetParser(osType)
 	if !found {
-		return nil, fmt.Errorf("unsupported device type %q (supported: %s)",
-			deviceType, strings.Join(configparser.DefaultRegistry.ListParsers(), ", "))
+		return nil, fmt.Errorf("unsupported OS type %q (supported: %s)",
+			osType, strings.Join(configparser.DefaultRegistry.ListParsers(), ", "))
 	}
 	rawConfig, err := parser.GetConfigViaSSH(ip, creds)
 	if err != nil {

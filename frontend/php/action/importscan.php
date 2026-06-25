@@ -126,7 +126,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_create_profile']))
             'snmp_version'   => trim($_POST['cp_version'] ?? '2c'),
             'snmp_port'      => intval($_POST['cp_port'] ?? 161),
             'scan_source'    => $cpSource,
-            'device_type'    => trim($_POST['cp_device_type'] ?? ''),
+            'os_type'    => trim($_POST['cp_os_type'] ?? ''),
             'ssh_user'       => trim($_POST['cp_ssh_user'] ?? ''),
             'ssh_password'   => $_POST['cp_ssh_password'] ?? '',
             'ssh_key'        => $sshKey,
@@ -161,7 +161,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_load_profile'])) {
 // --- Step: run a live scan (method = snmp|ssh; single vs batch inferred) ------
 // One unified call: a bare IP is a single host, a CIDR or comma-separated list
 // is a batch. SNMP uses community/version/port; SSH uses a device profile's
-// stored credentials + device_type (the target overrides the profile's host).
+// stored credentials + os_type (the target overrides the profile's host).
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_scan'])) {
     $method     = ($_POST['scan_method'] ?? 'snmp') === 'ssh' ? 'ssh' : 'snmp';
     $target     = trim($_POST['target'] ?? '');
@@ -178,7 +178,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_scan'])) {
             'snmp_version' => trim($_POST['snmp_version'] ?? '2c'),
             'snmp_port'    => intval($_POST['snmp_port'] ?? 161),
             'profile'      => $_POST['ssh_profile'] ?? '',
-            'device_type'  => trim($_POST['ssh_device_type'] ?? ''),
+            'os_type'  => trim($_POST['ssh_os_type'] ?? ''),
         ];
         // The scan now runs async: this returns a scan_id immediately; the live
         // panel below polls /scan/status and reloads with ?scan_id= when done.
@@ -409,7 +409,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_upload'])) {
                     </select>
                 </label>
                 <label>OS / firmware type <small>(operating system for config parsing — not the hardware model; blank = use the profile's, required for generic profiles)</small>:
-                    <input type="text" name="ssh_device_type" list="ssh_devtypes" value="<?= htmlspecialchars($_POST['ssh_device_type'] ?? '') ?>" placeholder="openwrt / opnsense / fortinet / cisco">
+                    <input type="text" name="ssh_os_type" list="ssh_devtypes" value="<?= htmlspecialchars($_POST['ssh_os_type'] ?? '') ?>" placeholder="openwrt / opnsense / fortinet / cisco">
                     <datalist id="ssh_devtypes"><option value="openwrt"><option value="opnsense"><option value="fortinet"><option value="cisco"></datalist>
                 </label>
                 <p style="margin:4px 0; color:#777; font-size:0.85em;">The profile's stored SSH secret is decrypted by the credential vault — unlock it from the app bar before scanning.</p>
@@ -466,7 +466,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_upload'])) {
             <!-- SSH config + credentials: SSH profiles only. -->
             <div class="cp-grp" data-show="device-ssh generic-ssh">
                 <label>OS / firmware type <small>(operating system for config parsing — not the hardware model; optional for generic)</small>:
-                    <input type="text" name="cp_device_type" placeholder="opnsense / openwrt / fortinet / cisco" size="20">
+                    <input type="text" name="cp_os_type" placeholder="opnsense / openwrt / fortinet / cisco" size="20">
                 </label><br>
                 <p style="margin:6px 0; color:#555;"><em>SSH credentials:</em></p>
                 <label>SSH user: <input type="text" name="cp_ssh_user"></label><br>

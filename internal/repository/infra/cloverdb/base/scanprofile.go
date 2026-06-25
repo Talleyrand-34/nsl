@@ -34,7 +34,7 @@ func scanProfileToDoc(p e.ScanProfile) *d.Document {
 	doc.Set("scan_source", p.ScanSource)
 	doc.Set("config_source", p.ConfigSource)
 	doc.Set("config_file", p.ConfigFile)
-	doc.Set("device_type", p.DeviceType)
+	doc.Set("os_type", p.OsType)
 	doc.Set("ssh_user", p.SSHUser)
 	doc.Set("ssh_password", p.SSHPassword) // already an encrypted blob (or "")
 	doc.Set("ssh_key_file", p.SSHKeyFile)
@@ -87,7 +87,7 @@ func docToScanProfile(doc *d.Document) e.ScanProfile {
 		ScanSource:        getStr("scan_source"),
 		ConfigSource:      getStr("config_source"),
 		ConfigFile:        getStr("config_file"),
-		DeviceType:        getStr("device_type"),
+		OsType:            getStr("os_type"),
 		SSHUser:           getStr("ssh_user"),
 		SSHPassword:       getStr("ssh_password"),
 		SSHKeyFile:        getStr("ssh_key_file"),
@@ -164,7 +164,7 @@ func (r BasicOpsCloverRepository) UpdateScanProfile(p e.ScanProfile) error {
 		"scan_source":        p.ScanSource,
 		"config_source":      p.ConfigSource,
 		"config_file":        p.ConfigFile,
-		"device_type":        p.DeviceType,
+		"os_type":            p.OsType,
 		"ssh_user":           p.SSHUser,
 		"ssh_password":       p.SSHPassword,
 		"ssh_key_file":       p.SSHKeyFile,

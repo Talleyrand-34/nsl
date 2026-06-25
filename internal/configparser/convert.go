@@ -14,7 +14,7 @@ func ConfigDataToDiscoveredDeviceInfo(cd *ConfigData, ip string) *s.DiscoveredDe
 	info := &s.DiscoveredDeviceInfo{
 		IP:            ip,
 		SysName:       name,
-		SysDescr:      cd.DeviceType,
+		SysDescr:      cd.OsType,
 		PhysicalPorts: make([]s.PhysicalPortInfo, 0, len(cd.SwitchPorts)),
 		Interfaces:    make([]s.DeviceInterface, 0),
 		Source:        "ssh",
@@ -86,8 +86,8 @@ func ConfigDataToSNMPDevice(cd *ConfigData, ip string) *s.SNMPDevice {
 		name = cd.Hostname
 	}
 	device := &s.SNMPDevice{IP: ip, SysName: name, Reachable: true}
-	if cd.DeviceType != "" {
-		device.SysDescr = cd.DeviceType
+	if cd.OsType != "" {
+		device.SysDescr = cd.OsType
 	}
 
 	// Convert SwitchPorts from ConfigData (includes VLANs parsed from swconfig)

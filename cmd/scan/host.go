@@ -54,7 +54,7 @@ var (
 	// Configuration parsing options
 	hostConfigSource      string
 	hostConfigFile        string
-	hostDeviceType        string
+	hostOsType            string
 	hostSSHUsername       string
 	hostSSHPassword       string
 	hostSSHKeyFile        string
@@ -89,7 +89,7 @@ Examples:
 
   # SSH-only scanning via IP
   nsl-graph scan host 10.0.0.245 --scan-source ssh --ssh-user root --auto-import
-  nsl-graph scan host 10.0.0.1   --scan-source ssh --ssh-user admin --device-type opnsense --auto-import
+  nsl-graph scan host 10.0.0.1   --scan-source ssh --ssh-user admin --os-type opnsense --auto-import
 
   # SSH-only scanning via ~/.ssh/config alias (resolves host/user/key automatically)
   nsl-graph scan host opnsense --scan-source ssh --auto-import
@@ -166,8 +166,8 @@ Examples:
 			if !fl.Changed("config-file") && profile.ConfigFile != "" {
 				hostConfigFile = profile.ConfigFile
 			}
-			if !fl.Changed("device-type") && profile.DeviceType != "" {
-				hostDeviceType = profile.DeviceType
+			if !fl.Changed("os-type") && profile.OsType != "" {
+				hostOsType = profile.OsType
 			}
 			if !fl.Changed("ssh-user") && hostSSHUsername == "" {
 				hostSSHUsername = profile.SSHUser
@@ -217,15 +217,15 @@ Examples:
 				fmt.Println("Error: --ssh-user is required when using --scan-source ssh")
 				os.Exit(1)
 			}
-			if hostDeviceType == "" {
-				fmt.Printf("Error: --device-type is required with --scan-source ssh\n")
+			if hostOsType == "" {
+				fmt.Printf("Error: --os-type is required with --scan-source ssh\n")
 				fmt.Printf("  Supported: %s\n", strings.Join(configparser.DefaultRegistry.ListParsers(), ", "))
 				os.Exit(1)
 			}
-			parser, found := configparser.DefaultRegistry.GetParser(hostDeviceType)
+			parser, found := configparser.DefaultRegistry.GetParser(hostOsType)
 			if !found {
-				fmt.Printf("Error: unknown device type %q\n  Supported: %s\n",
-					hostDeviceType, strings.Join(configparser.DefaultRegistry.ListParsers(), ", "))
+				fmt.Printf("Error: unknown OS type %q\n  Supported: %s\n",
+					hostOsType, strings.Join(configparser.DefaultRegistry.ListParsers(), ", "))
 				os.Exit(1)
 			}
 			// A profile may carry an encrypted SSH password; unlock the credential
@@ -260,7 +260,7 @@ Examples:
 				Port:     hostSSHPort,
 				Timeout:  time.Duration(hostConfigTimeout) * time.Second,
 			}
-			fmt.Printf("Scanning %s via SSH (user=%s, type=%s)...\n", ip, hostSSHUsername, hostDeviceType)
+			fmt.Printf("Scanning %s via SSH (user=%s, type=%s)...\n", ip, hostSSHUsername, hostOsType)
 			rawConfig, err := parser.GetConfigViaSSH(ip, creds)
 			if err != nil {
 				fmt.Printf("SSH connection failed: %v\n", err)
@@ -408,7 +408,7 @@ Examples:
 				// When --scan-source ssh is used, SSH is already the primary source
 				ConfigSource:       hostConfigSource,
 				ConfigFile:         hostConfigFile,
-				DeviceType:         hostDeviceType,
+				OsType:             hostOsType,
 				SSHUsername:        hostSSHUsername,
 				SSHPassword:        hostSSHPassword,
 				SSHKeyFile:         hostSSHKeyFile,
@@ -767,7 +767,7 @@ func saveHostProfile(service q.NetServiceInt, name, host string) error {
 		ScanSource:        hostScanSource,
 		ConfigSource:      hostConfigSource,
 		ConfigFile:        hostConfigFile,
-		DeviceType:        hostDeviceType,
+		OsType:            hostOsType,
 		SSHUser:           hostSSHUsername,
 		SSHKeyFile:        hostSSHKeyFile,
 		SSHPort:           hostSSHPort,
@@ -821,7 +821,7 @@ func init() {
 	hostScanCmd.Flags().
 		StringVar(&hostConfigFile, "config-file", "", "Path to device configuration file (when using file source)")
 	hostScanCmd.Flags().
-		StringVar(&hostDeviceType, "device-type", "", "Device OS type (opnsense, openwrt, fortinet, cisco) - auto-detected if not specified")
+		StringVar(&hostOsType, "os-type", "", "Device OS type (opnsense, openwrt, fortinet, cisco) - auto-detected if not specified")
 	hostScanCmd.Flags().
 		StringVar(&hostSSHUsername, "ssh-user", "", "SSH username for configuration retrieval")
 	hostScanCmd.Flags().

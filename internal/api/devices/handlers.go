@@ -949,8 +949,8 @@ func AddModelHandler(service q.NetServiceInt) http.HandlerFunc {
 		}
 
 		var req struct {
-			ModelName       string `json:"model_name"`
-			BrandName       string `json:"brand_name"`
+			ModelName     string `json:"model_name"`
+			BrandName     string `json:"brand_name"`
 			ModelTypeName string `json:"model_type_name"`
 		}
 
@@ -1032,9 +1032,9 @@ func UpdateModelHandler(service q.NetServiceInt) http.HandlerFunc {
 		}
 
 		var req struct {
-			ModelID       string `json:"model_id"`
-			ModelName     string `json:"model_name"`
-			BrandID       string `json:"brand_id"`
+			ModelID     string `json:"model_id"`
+			ModelName   string `json:"model_name"`
+			BrandID     string `json:"brand_id"`
 			ModelTypeID string `json:"model_type_id"`
 		}
 

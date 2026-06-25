@@ -133,7 +133,7 @@ type SwitchPortInfo struct {
 
 // ConfigData contains the parsed configuration data from a network device
 type ConfigData struct {
-	DeviceType    string               `json:"device_type"`  // "opnsense", "openwrt", "fortinet", "cisco"
+	OsType        string               `json:"os_type"`      // "opnsense", "openwrt", "fortinet", "cisco"
 	DeviceModel   string               `json:"device_model"` // Specific model/version info
 	Hostname      string               `json:"hostname"`
 	Domain        string               `json:"domain,omitempty"`
@@ -168,8 +168,8 @@ type EnhancedDiscoveredDevice struct {
 
 // ConfigParser defines the interface that all device-specific configuration parsers must implement
 type ConfigParser interface {
-	// GetDeviceType returns the device type this parser handles (e.g., "opnsense", "fortinet")
-	GetDeviceType() string
+	// GetOsType returns the OS type this parser handles (e.g., "opnsense", "fortinet")
+	GetOsType() string
 
 	// SupportsDevice returns true if this parser can handle the given device
 	SupportsDevice(device s.SNMPDevice) bool
@@ -188,7 +188,7 @@ type ConfigParser interface {
 type ConfigParserOptions struct {
 	Source            ConfigSource      `json:"source"`
 	FilePath          string            `json:"file_path,omitempty"`
-	DeviceType        string            `json:"device_type,omitempty"` // Manual OS override (opnsense, openwrt, fortinet, cisco)
+	OsType            string            `json:"os_type,omitempty"` // Manual OS override (opnsense, openwrt, fortinet, cisco)
 	SSHCredentials    *SSHCredentials   `json:"ssh_credentials,omitempty"`
 	DiscrepancyAction DiscrepancyAction `json:"discrepancy_action"`
 	MergeWithSNMP     bool              `json:"merge_with_snmp"`
@@ -209,12 +209,12 @@ func NewConfigParserRegistry() *ConfigParserRegistry {
 
 // RegisterParser adds a parser to the registry
 func (r *ConfigParserRegistry) RegisterParser(parser ConfigParser) {
-	r.parsers[parser.GetDeviceType()] = parser
+	r.parsers[parser.GetOsType()] = parser
 }
 
-// GetParser returns the appropriate parser for a device type
-func (r *ConfigParserRegistry) GetParser(deviceType string) (ConfigParser, bool) {
-	parser, exists := r.parsers[deviceType]
+// GetParser returns the appropriate parser for a OS type
+func (r *ConfigParserRegistry) GetParser(osType string) (ConfigParser, bool) {
+	parser, exists := r.parsers[osType]
 	return parser, exists
 }
 
@@ -229,10 +229,10 @@ func (r *ConfigParserRegistry) GetParserForDevice(device s.SNMPDevice) (ConfigPa
 }
 
 // GetParserForDeviceWithType returns parser by manual type or auto-detection
-func (r *ConfigParserRegistry) GetParserForDeviceWithType(device s.SNMPDevice, deviceType string) (ConfigParser, bool) {
+func (r *ConfigParserRegistry) GetParserForDeviceWithType(device s.SNMPDevice, osType string) (ConfigParser, bool) {
 	// Use manual type if specified and valid
-	if deviceType != "" {
-		if parser, exists := r.parsers[deviceType]; exists {
+	if osType != "" {
+		if parser, exists := r.parsers[osType]; exists {
 			return parser, true
 		}
 	}
@@ -241,11 +241,11 @@ func (r *ConfigParserRegistry) GetParserForDeviceWithType(device s.SNMPDevice, d
 	return r.GetParserForDevice(device)
 }
 
-// ListParsers returns all registered parser device types
+// ListParsers returns all registered parser OS types
 func (r *ConfigParserRegistry) ListParsers() []string {
 	var types []string
-	for deviceType := range r.parsers {
-		types = append(types, deviceType)
+	for osType := range r.parsers {
+		types = append(types, osType)
 	}
 	return types
 }

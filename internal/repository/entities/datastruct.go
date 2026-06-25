@@ -166,7 +166,7 @@ type ScanProfile struct {
 	ScanSource    string `json:"scan_source"`   // "snmp" | "ssh"
 	ConfigSource  string `json:"config_source"` // "none" | "ssh" | "file" | "manual"
 	ConfigFile    string `json:"config_file"`
-	DeviceType    string `json:"device_type"` // opnsense | openwrt | fortinet | cisco
+	OsType        string `json:"os_type"` // opnsense | openwrt | fortinet | cisco
 	SSHUser       string `json:"ssh_user"`
 	SSHPassword   string `json:"-"` // encrypted blob; never exposed to clients
 	SSHKeyFile    string `json:"ssh_key_file"`

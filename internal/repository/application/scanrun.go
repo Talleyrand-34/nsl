@@ -37,8 +37,8 @@ type RunScanOptions struct {
 	SNMPVersion string `json:"snmp_version"`
 	SNMPPort    uint16 `json:"snmp_port"`
 	TimeoutSec  int    `json:"timeout_sec"`
-	Profile     string `json:"profile"`     // SSH: a profile (device or generic) supplying the credentials
-	DeviceType  string `json:"device_type"` // SSH: overrides the profile's device_type (required for generic profiles)
+	Profile     string `json:"profile"` // SSH: a profile (device or generic) supplying the credentials
+	OsType      string `json:"os_type"` // SSH: overrides the profile's os_type (required for generic profiles)
 }
 
 // RunScan discovers devices for importation. It only orchestrates existing scan
@@ -156,9 +156,9 @@ func tagProfile(devs []s.DiscoveredDevice, profile string) []s.DiscoveredDevice 
 
 // runSSHScan handles the SSH method using a saved profile's credentials. The
 // profile may be a device profile or a generic (credential-only) one reused
-// across hosts; in the latter case the caller supplies the device type. The
+// across hosts; in the latter case the caller supplies the OS type. The
 // target overrides the profile's host; a CIDR is swept for SSH-open hosts and
-// each is read with the same (homogeneous) device_type.
+// each is read with the same (homogeneous) os_type.
 func (ns *NetService) runSSHScan(opts RunScanOptions, tokens []string, batch bool, em observ.Emitter) ([]s.DiscoveredDevice, error) {
 	if opts.Profile == "" {
 		return nil, fmt.Errorf("an SSH scan requires a profile supplying SSH credentials")
@@ -170,14 +170,14 @@ func (ns *NetService) runSSHScan(opts RunScanOptions, tokens []string, batch boo
 	if profile == nil {
 		return nil, fmt.Errorf("no scan profile named %q", opts.Profile)
 	}
-	// Device type: an explicit value wins (required for generic profiles, which
+	// OS type: an explicit value wins (required for generic profiles, which
 	// carry only credentials); otherwise fall back to a device profile's own.
-	deviceType := strings.TrimSpace(opts.DeviceType)
-	if deviceType == "" {
-		deviceType = profile.DeviceType
+	osType := strings.TrimSpace(opts.OsType)
+	if osType == "" {
+		osType = profile.OsType
 	}
-	if deviceType == "" {
-		return nil, fmt.Errorf("an SSH scan needs a device type — set one (the %q profile does not carry a device_type)", opts.Profile)
+	if osType == "" {
+		return nil, fmt.Errorf("an SSH scan needs a OS type — set one (the %q profile does not carry a os_type)", opts.Profile)
 	}
 	creds := profileSSHCreds(profile, ns.vault)
 	if creds == nil {
@@ -192,7 +192,7 @@ func (ns *NetService) runSSHScan(opts RunScanOptions, tokens []string, batch boo
 	if sshPort == 0 {
 		sshPort = 22
 	}
-	em.Emit("info", "ssh scan", "profile", profile.Name, "device_type", deviceType)
+	em.Emit("info", "ssh scan", "profile", profile.Name, "os_type", osType)
 
 	var ips []string
 	if batch {
@@ -228,7 +228,7 @@ func (ns *NetService) runSSHScan(opts RunScanOptions, tokens []string, batch boo
 			defer func() { <-sem }()
 
 			em.Emit("info", "reading config over SSH", "ip", ip)
-			dev, err := ns.ScanDeviceViaSSH(ip, deviceType, *creds)
+			dev, err := ns.ScanDeviceViaSSH(ip, osType, *creds)
 
 			mu.Lock()
 			done++

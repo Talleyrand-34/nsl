@@ -115,7 +115,7 @@ func TestNetService_ScanningMethods(t *testing.T) {
 				},
 				Brand:         "Test Brand",
 				Model:         "Test Model",
-				ModelType:   "Test Class",
+				ModelType:     "Test Class",
 				SuggestedName: "TEST-200",
 				SuggestedZone: "Test Zone",
 			},

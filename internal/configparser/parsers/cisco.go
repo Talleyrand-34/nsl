@@ -22,8 +22,8 @@ func NewCiscoParser() *CiscoParser {
 
 func init() { configparser.DefaultRegistry.RegisterParser(NewCiscoParser()) }
 
-// GetDeviceType returns the device type this parser handles
-func (p *CiscoParser) GetDeviceType() string {
+// GetOsType returns the OS type this parser handles
+func (p *CiscoParser) GetOsType() string {
 	return "cisco"
 }
 
@@ -39,7 +39,7 @@ func (p *CiscoParser) ParseConfig(rawConfig string, deviceInfo s.SNMPDevice) (*c
 	// This is a placeholder implementation that provides basic parsing
 
 	configData := &configparser.ConfigData{
-		DeviceType:    p.GetDeviceType(),
+		OsType:        p.GetOsType(),
 		DeviceModel:   extractCiscoModel(rawConfig, deviceInfo),
 		Hostname:      extractCiscoHostname(rawConfig),
 		ConfigVersion: extractCiscoVersion(rawConfig),

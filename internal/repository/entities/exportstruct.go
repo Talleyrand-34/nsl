@@ -23,7 +23,7 @@ type All struct {
 	Brands          []BasicBrand
 	ConnectionTypes []BasicConnectiontype
 	Connections     []BasicConnection
-	ModelTypes   []BasicModelType
+	ModelTypes      []BasicModelType
 	DevicePorts     []BasicDeviceport
 	Devices         []BasicDevice
 	ModelDevices    []BasicModeldevice
@@ -79,9 +79,9 @@ type BasicDevice struct {
 }
 
 type BasicModeldevice struct {
-	ID      string `json:"id"`
-	Model   string `json:"model"`
-	Brand   int64  `json:"brand"`
+	ID          string `json:"id"`
+	Model       string `json:"model"`
+	Brand       int64  `json:"brand"`
 	ModelTypeID string `json:"model_type_id"`
 }
 
