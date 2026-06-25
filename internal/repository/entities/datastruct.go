@@ -147,9 +147,9 @@ type Brand struct {
 }
 
 // ScanProfile stores reusable per-host scanning parameters so they need not be
-// re-entered on every scan. All fields are stored in clear except SSHPassword,
-// which holds an AES-256-GCM blob (key derived from a user passphrase via
-// scrypt) and is never serialized to API clients (json:"-").
+// re-entered on every scan. All fields are stored in clear except SSHPassword
+// and SSHKey, which hold AES-256-GCM blobs encrypted under the credential
+// vault's data key and are never serialized to API clients (json:"-").
 type ScanProfile struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`

@@ -299,7 +299,7 @@ curl http://localhost:8081/diagram > network.svg
 ```http
 POST /scan/host          {"ip": "...", "community": "...", "snmp_version": "...", "snmp_port": 0, "profile": "..."}
 POST /scan/network       {"subnet": "...", "community": "...", ..., "profile": "..."}
-POST /scan/host-ssh      {"profile": "...", "passphrase": "...", "ip": "...(optional override)"}
+POST /scan/host-ssh      {"profile": "...", "ip": "...(optional override)"}
 POST /scan/analyze       {"device": <DiscoveredDevice>}
 POST /scan/execute       {"plan": <DeviceImportPlan>, "options": {...}}
 POST /scan/import        {"devices": [...], "options": {...}}
@@ -331,8 +331,9 @@ never uses the SSH password.
 
 - `POST /scan/host-ssh` — scans a host over **SSH/config**. Credentials come from a saved
   profile (it must set `device_type`, `ssh_user`, and an encrypted `ssh_password`); the
-  `passphrase` decrypts the password server-side. Returns a `DiscoveredDevice`. Errors: `404`
-  unknown profile, `400` incorrect passphrase / missing `device_type`.
+  profile's secret is decrypted by the **credential vault**, which must be unlocked (see
+  *Credential vault* below). Returns a `DiscoveredDevice`. Errors: `404` unknown profile,
+  `400` vault locked / missing `device_type`.
 - `POST /scan/analyze` — returns the `DeviceImportPlan` for a discovered device: per-interface
   **IP / ip-segment(subnet) / VLAN-id** mappings (`ip_mappings`) plus suggested VLAN create/update
   plans, with a confidence/reason per mapping.
@@ -352,9 +353,24 @@ PUT    /scan/profiles   {profile fields}   # update (omit ssh_password to keep e
 DELETE /scan/profiles?name=<name>          # delete
 ```
 
-To store an SSH password, send `ssh_password` together with a one-time
-`passphrase`; the server encrypts the password (AES-256-GCM, key = scrypt(passphrase))
-and stores only the ciphertext. The passphrase is never persisted.
+To store an SSH password, unlock the **credential vault** (below) and send
+`ssh_password`; the server encrypts it under the vault's data key (AES-256-GCM)
+and stores only the ciphertext. Creating a profile with an SSH secret while the
+vault is locked fails with `400 invalid_profile`.
+
+#### Credential vault
+
+A single server-side vault protects all stored SSH secrets. A master passphrase
+unlocks a random **data key** (held in memory, wrapped at rest by the passphrase
+via scrypt); while unlocked, profile secrets are encrypted/decrypted without
+re-entering it. It auto-locks after an idle timeout and on server restart.
+
+```http
+GET  /vault/status   # {"initialized": bool, "unlocked": bool}
+POST /vault/init     {"passphrase": "..."}   # set the master passphrase (fresh vault); leaves it unlocked. 409 if already initialized
+POST /vault/unlock   {"passphrase": "..."}   # unlock. 401 on a wrong passphrase
+POST /vault/lock                             # clear the in-memory data key
+```
 
 ```bash
 # create an SNMP profile

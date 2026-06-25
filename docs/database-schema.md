@@ -12,7 +12,8 @@ The database consists of **15 collections** organized to represent a complete ne
 - **Model/Template collections**: models, modelports
 - **Device collections**: devices, deviceports, deviceinterfaces, interfaceports
 - **Connection collections**: connections, connectiontypes
-- **Scan profiles**: scanprofiles (reusable per-host scan parameters; `ssh_password` is AES-256-GCM encrypted with a user passphrase via scrypt, never stored in clear)
+- **Scan profiles**: scanprofiles (reusable per-host scan parameters; `ssh_password`/`ssh_key` are AES-256-GCM encrypted under the credential vault's data key, never stored in clear)
+- **Credential vault**: vault (a single wrapped data key — `base64(salt).EncryptWithKey(dataKey, scrypt(masterPassphrase))` — unlocked in server memory)
 
 ## Schema Definition
 

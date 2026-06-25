@@ -173,14 +173,22 @@ Table scanprofiles {
   config_file string [null]
   device_type string [note: 'opnsense | openwrt | fortinet | cisco', null]
   ssh_user string [null]
-  ssh_password string [note: 'AES-256-GCM blob, key = scrypt(user passphrase); never stored in clear', null]
+  ssh_password string [note: 'AES-256-GCM blob under the credential vault data key; never stored in clear', null]
   ssh_key_file string [note: 'path to a key file (CLI)', null]
-  ssh_key string [note: 'uploaded PEM private-key content; AES-256-GCM encrypted (user passphrase); never stored in clear', null]
+  ssh_key string [note: 'uploaded PEM private-key content; AES-256-GCM encrypted under the vault data key; never stored in clear', null]
   ssh_port int
   discrepancy_action string [note: 'fail | prefer-snmp | prefer-config']
   merge_configs bool
   config_timeout int
   vlan_accuracy int [note: '1 = interface names only, 2 = include IP heuristics']
+}
+
+// Credential vault: a single row holding the wrapped data key that encrypts all
+// stored SSH secrets. The data key is random; it is wrapped at rest by the master
+// passphrase (scrypt) and held decrypted in server memory only while unlocked.
+Table vault {
+  _id string [pk]
+  meta string [note: 'base64(salt) + "." + EncryptWithKey(dataKey, scrypt(masterPassphrase, salt))']
 }
 
 // ============================================

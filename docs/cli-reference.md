@@ -340,9 +340,10 @@ A profile has a **kind**:
 | `device` (default) | Bound to a host (`--host`); auto-applied when that host is scanned (SNMP and/or SSH). |
 | `generic` (`--generic`) | Not bound to a host: carries only reusable SSH credentials (`--ssh-user` plus a key/password). Used as an explicit SSH fallback for hosts without their own profile — e.g. `scan connections --subnet ... --generic-profile <name>`. Never auto-matched by IP. |
 
-If `--ssh-password` is given, you are prompted for a **passphrase** that encrypts
-it (AES-256-GCM, scrypt); it is never stored in clear. SNMP-only profiles need
-no passphrase.
+If `--ssh-password` is given, the **credential vault** encrypts it (AES-256-GCM
+under the vault's data key); it is never stored in clear. You are asked to set a
+master passphrase the first time, or to unlock the vault on later runs. SNMP-only
+profiles don't touch the vault.
 
 #### scan host / scan network profile flags
 
@@ -355,9 +356,10 @@ nsl-graph scan network 10.0.0.0/24,10.0.1.0/24
 ```
 
 Explicit flags always override profile values. When an SSH scan uses a stored
-password you are prompted for its passphrase; a wrong passphrase fails.
-`scan network` accepts several subnets (as separate arguments or one
-comma-separated value); they are swept together and de-duplicated.
+password you are asked for the vault's master passphrase to unlock it (once per
+run); a wrong passphrase fails. `scan network` accepts several subnets (as
+separate arguments or one comma-separated value); they are swept together and
+de-duplicated.
 
 #### scan connections
 
@@ -399,7 +401,7 @@ Resolved per host in priority order:
 2. `--ssh-user` (with `--ssh-key`/`--ssh-password`, `--ssh-port`) — one inline
    credential set applied to every SSH-reachable host.
 3. `--generic-profile <name>` — a saved **generic** profile's SSH credentials
-   (its encrypted key/password is unlocked with the run's passphrase).
+   (its encrypted key/password is decrypted via the vault, unlocked once per run).
 
 **Intermediary ("middle") devices:** transparent switches that don't speak
 LLDP/SNMP (e.g. a Netgear "Plus" switch) won't appear as endpoints, but the
