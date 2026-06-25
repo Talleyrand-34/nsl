@@ -52,6 +52,16 @@ function endpoint_port($label) {
     return ($i !== false && $i + 1 < strlen($label)) ? substr($label, $i + 1) : '';
 }
 
+/** edge_pair_key builds an order-independent key for an undirected "a"/"b" pair. */
+function edge_pair_key($a, $b) {
+    return $a < $b ? $a . "\x00" . $b : $b . "\x00" . $a;
+}
+
+/** edge_in_db reports whether a derived edge already exists as a DB connection. */
+function edge_in_db($e, $dbPairs) {
+    return isset($dbPairs[edge_pair_key($e['from'] ?? '', $e['to'] ?? '')]);
+}
+
 /** endpoint_device returns the device part of a "device:port" label ('' if unknown). */
 function endpoint_device($label) {
     if ($label === '' || strpos($label, 'unknown(') === 0) return '';
@@ -607,20 +617,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
         foreach ($allDevPorts as $p) { $portsByDevice[$p['devname'] ?? ''][] = $p['portname'] ?? ''; }
         $modelPortsByModel = [];
         foreach ($allModelPorts as $mp) { $modelPortsByModel[$mp['model'] ?? ''][] = $mp['name'] ?? ''; }
+        // Existing connections, to flag derived edges that are already in the DB.
+        $existingConns = json_decode(@file_get_contents(CONNECTIONS_ENDPOINT), true) ?: [];
+        $dbPairs = [];
+        foreach ($existingConns as $c) {
+            $a = ($c['fromdevice'] ?? '') . ':' . ($c['frommodel'] ?? '');
+            $b = ($c['todevice'] ?? '') . ':' . ($c['tomodel'] ?? '');
+            $dbPairs[edge_pair_key($a, $b)] = true;
+        }
     ?>
     <form method="post">
         <input type="hidden" name="result_json" value="<?= htmlspecialchars(json_encode($result)) ?>">
         <p style="color:#555; font-size:90%;">Each port can be edited: pick the detected port, enter one manually, or choose an existing device/model port.</p>
         <table border="1" cellpadding="4">
-            <tr><th>Import</th><th>Mark</th><th>From</th><th>To</th><th>Via</th></tr>
+            <tr><th>Import</th><th>Already in DB</th><th>Mark</th><th>From</th><th>To</th><th>Via</th></tr>
             <?php foreach ($edges as $i => $e):
                 $mark = edge_mark($e);
                 $imp  = edge_importable($e);
-                $checked = ($imp && in_array($mark, ['confirmed','candidate'])) ? 'checked' : ''; ?>
+                $inDb = edge_in_db($e, $dbPairs);
+                $checked = ($imp && !$inDb && in_array($mark, ['confirmed','candidate'])) ? 'checked' : ''; ?>
                 <tr>
                     <td style="text-align:center;">
                         <input type="checkbox" name="edge[]" value="<?= $i ?>" <?= $checked ?>>
                     </td>
+                    <td style="text-align:center;"><?php if ($inDb): ?><span title="this connection already exists in the database" style="color:#070;">&#10003; in DB</span><?php endif; ?></td>
                     <td><?= htmlspecialchars($mark) ?><?php if ($imp && edge_needs_create($e)): ?><br><small style="color:#a60;">(creates port)</small><?php endif; ?></td>
                     <td><?php render_port_editor('from', $i, $e['from'] ?? '', $modelByDevice, $portsByDevice, $modelPortsByModel); ?></td>
                     <td><?php render_port_editor('to', $i, $e['to'] ?? '', $modelByDevice, $portsByDevice, $modelPortsByModel); ?></td>
@@ -632,6 +652,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
             foreach ($inter as $j => $in): foreach (($in['seen_by'] ?? []) as $k => $sb): ?>
                 <tr style="background:#fbf7ef;">
                     <td style="text-align:center;"><input type="checkbox" name="inter_edge[]" value="<?= $j . '_' . $k ?>"></td>
+                    <td></td>
                     <td>via <?= htmlspecialchars($in['vendor'] ?: 'switch') ?><br><small style="color:#a60;">(placeholder)</small></td>
                     <td><?= htmlspecialchars($sb) ?></td>
                     <td>&harr; placeholder <small>(<?= htmlspecialchars($in['mac'] ?? '') ?>)</small></td>
