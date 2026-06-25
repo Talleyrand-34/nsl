@@ -15,11 +15,14 @@ You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-// Package secret provides passphrase-based encryption for secrets stored at
-// rest (e.g. scan-profile SSH passwords). It is intentionally self-contained:
-// the encrypted blob carries its own salt and nonce, so no global key, env var
-// or external state is needed — only the passphrase the user supplies on each
-// access. A wrong passphrase fails authentication rather than returning garbage.
+// Package secret provides the cryptographic primitives behind the credential
+// Vault (see vault.go): scrypt key derivation from the master passphrase
+// (DeriveKey) and AES-256-GCM encryption under an already-derived/random key
+// (EncryptWithKey / DecryptWithKey). Secrets at rest (e.g. scan-profile SSH
+// passwords) are encrypted under the vault's random data key, which is itself
+// wrapped by the master passphrase — so the per-secret scrypt cost is paid once,
+// at unlock, not on every access. A wrong key fails authentication rather than
+// returning garbage.
 package secret
 
 import (
@@ -117,88 +120,4 @@ func DecryptWithKey(blob string, key []byte) (string, error) {
 		return "", ErrIncorrectPassphrase
 	}
 	return string(pt), nil
-}
-
-// Encrypt encrypts plaintext with a key derived from passphrase and returns a
-// base64-encoded blob of salt ‖ nonce ‖ ciphertext. A fresh random salt and
-// nonce are generated on every call, so encrypting the same input twice yields
-// different blobs.
-func Encrypt(plaintext, passphrase string) (string, error) {
-	if passphrase == "" {
-		return "", errors.New("a passphrase is required to encrypt the secret")
-	}
-
-	salt := make([]byte, saltLen)
-	if _, err := io.ReadFull(rand.Reader, salt); err != nil {
-		return "", fmt.Errorf("generating salt: %w", err)
-	}
-
-	key, err := deriveKey(passphrase, salt)
-	if err != nil {
-		return "", fmt.Errorf("deriving key: %w", err)
-	}
-
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return "", err
-	}
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return "", err
-	}
-
-	nonce := make([]byte, gcm.NonceSize())
-	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
-		return "", fmt.Errorf("generating nonce: %w", err)
-	}
-
-	ciphertext := gcm.Seal(nil, nonce, []byte(plaintext), nil)
-
-	blob := make([]byte, 0, len(salt)+len(nonce)+len(ciphertext))
-	blob = append(blob, salt...)
-	blob = append(blob, nonce...)
-	blob = append(blob, ciphertext...)
-	return base64.StdEncoding.EncodeToString(blob), nil
-}
-
-// Decrypt reverses Encrypt. It returns ErrIncorrectPassphrase when the
-// passphrase is wrong or the blob has been tampered with.
-func Decrypt(blob, passphrase string) (string, error) {
-	raw, err := base64.StdEncoding.DecodeString(blob)
-	if err != nil {
-		return "", fmt.Errorf("invalid secret blob: %w", err)
-	}
-
-	salt := make([]byte, saltLen)
-	if len(raw) < saltLen {
-		return "", errors.New("invalid secret blob: too short")
-	}
-	copy(salt, raw[:saltLen])
-	rest := raw[saltLen:]
-
-	key, err := deriveKey(passphrase, salt)
-	if err != nil {
-		return "", fmt.Errorf("deriving key: %w", err)
-	}
-
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return "", err
-	}
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return "", err
-	}
-
-	ns := gcm.NonceSize()
-	if len(rest) < ns {
-		return "", errors.New("invalid secret blob: too short")
-	}
-	nonce, ciphertext := rest[:ns], rest[ns:]
-
-	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
-	if err != nil {
-		return "", ErrIncorrectPassphrase
-	}
-	return string(plaintext), nil
 }

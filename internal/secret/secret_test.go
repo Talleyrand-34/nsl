@@ -5,44 +5,55 @@ import (
 	"testing"
 )
 
-func TestEncryptDecryptRoundTrip(t *testing.T) {
-	plain := "s3cr3t-ssh-password"
-	blob, err := Encrypt(plain, "correct horse")
+func testKey(t *testing.T) []byte {
+	t.Helper()
+	k, err := RandomBytes(KeyLen)
 	if err != nil {
-		t.Fatalf("Encrypt: %v", err)
+		t.Fatalf("RandomBytes: %v", err)
+	}
+	return k
+}
+
+func TestEncryptWithKeyRoundTrip(t *testing.T) {
+	key := testKey(t)
+	plain := "s3cr3t-ssh-password"
+	blob, err := EncryptWithKey(plain, key)
+	if err != nil {
+		t.Fatalf("EncryptWithKey: %v", err)
 	}
 	if blob == plain {
 		t.Fatal("blob must not equal plaintext")
 	}
-	got, err := Decrypt(blob, "correct horse")
+	got, err := DecryptWithKey(blob, key)
 	if err != nil {
-		t.Fatalf("Decrypt: %v", err)
+		t.Fatalf("DecryptWithKey: %v", err)
 	}
 	if got != plain {
 		t.Fatalf("round-trip mismatch: got %q want %q", got, plain)
 	}
 }
 
-func TestDecryptWrongPassphrase(t *testing.T) {
-	blob, err := Encrypt("hunter2", "right")
+func TestDecryptWithKeyWrongKey(t *testing.T) {
+	blob, err := EncryptWithKey("hunter2", testKey(t))
 	if err != nil {
-		t.Fatalf("Encrypt: %v", err)
+		t.Fatalf("EncryptWithKey: %v", err)
 	}
-	if _, err := Decrypt(blob, "wrong"); !errors.Is(err, ErrIncorrectPassphrase) {
+	if _, err := DecryptWithKey(blob, testKey(t)); !errors.Is(err, ErrIncorrectPassphrase) {
 		t.Fatalf("expected ErrIncorrectPassphrase, got %v", err)
 	}
 }
 
-func TestEncryptIsRandomized(t *testing.T) {
-	a, _ := Encrypt("same", "pw")
-	b, _ := Encrypt("same", "pw")
+func TestEncryptWithKeyIsRandomized(t *testing.T) {
+	key := testKey(t)
+	a, _ := EncryptWithKey("same", key)
+	b, _ := EncryptWithKey("same", key)
 	if a == b {
-		t.Fatal("two encryptions of the same input must differ (salt/nonce)")
+		t.Fatal("two encryptions of the same input must differ (random nonce)")
 	}
 }
 
-func TestEncryptRequiresPassphrase(t *testing.T) {
-	if _, err := Encrypt("x", ""); err == nil {
-		t.Fatal("expected error for empty passphrase")
+func TestEncryptWithKeyRejectsBadKeyLength(t *testing.T) {
+	if _, err := EncryptWithKey("x", []byte("too-short")); err == nil {
+		t.Fatal("expected error for a non-32-byte key")
 	}
 }
