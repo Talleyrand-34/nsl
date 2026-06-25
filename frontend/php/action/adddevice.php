@@ -47,9 +47,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $data = json_encode([
             'label' => $label,
-            'model' => $model,
-            'zoneId' => $zoneid,
-            'zoneName' => $zonename,
+            'model_name' => $model,
+            'zone_id' => $zoneid,
+            'zone_name' => $zonename,
             'proprietary' => $proprietary,
             'ips' => $ips
         ]);

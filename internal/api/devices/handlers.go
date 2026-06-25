@@ -1133,13 +1133,14 @@ func AddDeviceHandler(service q.NetServiceInt) http.HandlerFunc {
 		}
 
 		var req struct {
-			Label       string `json:"label"`
-			ModelName   string `json:"model_name"`
-			ZoneID      string `json:"zone_id"`
-			ZoneName    string `json:"zone_name"`
-			Proprietary string `json:"proprietary"`
-			IsUnmanaged bool   `json:"is_unmanaged"`
-			IsInvisible bool   `json:"is_invisible"`
+			Label       string   `json:"label"`
+			ModelName   string   `json:"model_name"`
+			ZoneID      string   `json:"zone_id"`
+			ZoneName    string   `json:"zone_name"`
+			Proprietary string   `json:"proprietary"`
+			IsUnmanaged bool     `json:"is_unmanaged"`
+			IsInvisible bool     `json:"is_invisible"`
+			IPs         []string `json:"ips"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1165,6 +1166,25 @@ func AddDeviceHandler(service q.NetServiceInt) http.HandlerFunc {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": "creation_failed", "message": err.Error()})
 			return
+		}
+
+		// IPs aren't part of AddDevice; set them on the freshly-created device.
+		// Device labels are unique, so the new device is located by its label.
+		if len(req.IPs) > 0 {
+			devices, gErr := service.GetDevices()
+			if gErr == nil {
+				for _, d := range devices {
+					if d.Name == req.Label {
+						gErr = service.UpdateDeviceIPs(d.ID, req.IPs)
+						break
+					}
+				}
+			}
+			if gErr != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				json.NewEncoder(w).Encode(map[string]string{"error": "ip_update_failed", "message": "device created but failed to set IPs: " + gErr.Error()})
+				return
+			}
 		}
 
 		w.WriteHeader(http.StatusCreated)

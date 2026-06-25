@@ -91,6 +91,18 @@ func (r BasicOpsCloverRepository) GetDevices() ([]e.Device, error) {
 			Name: doc.Get("label").(string),
 		}
 
+		// IP addresses (stored as a string array on the device document).
+		switch ips := doc.Get("ips").(type) {
+		case []string:
+			device.Ips = ips
+		case []interface{}:
+			for _, v := range ips {
+				if s, ok := v.(string); ok {
+					device.Ips = append(device.Ips, s)
+				}
+			}
+		}
+
 		// Get unmanaged and invisible flags
 		if isUnmanaged, ok := doc.Get("is_unmanaged").(bool); ok {
 			device.IsUnmanaged = isUnmanaged
