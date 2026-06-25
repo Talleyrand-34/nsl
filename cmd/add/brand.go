@@ -14,7 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-package cmd_modify
+package cmd_add
 
 import (
 	"fmt"
@@ -26,13 +26,14 @@ import (
 	util "nsl-graph/cmd/utils"
 )
 
-// zonetypeModCmd represents the port command
-var zonetypeModCmd = &cobra.Command{
-	Use:   "zonetype",
-	Short: "Add a zone type",
-	Long: `Specify a zonetype which consists of a name
+// brandModCmd represents the port command
+var brandModCmd = &cobra.Command{
+	Use:   "brand",
+	Short: "Add a brand",
+	Long: `Specify a brand which consists of a name.
 
-	A zonetype is the kind of zone a zone is, mainly this would be physical or logical`,
+		A brand is the commercial name of a hardware provider
+		`,
 	Run: func(cmd *cobra.Command, args []string) {
 		flag := "name"
 		name, err := cmd.Flags().GetString("name")
@@ -44,17 +45,17 @@ var zonetypeModCmd = &cobra.Command{
 		if err != nil {
 			return
 		}
-		err = service.AddZoneType(name)
+		err = service.AddBrand(name)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error writing zonetype: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error writing Brand: %v\n", err)
 			os.Exit(1)
 		}
 	},
 }
 
 func init() {
-	cmd.AddCmd.AddCommand(zonetypeModCmd)
+	cmd.AddCmd.AddCommand(brandModCmd)
 
-	zonetypeModCmd.Flags().
-		String("name", "", "Sets the name of the zonetype")
+	brandModCmd.Flags().
+		String("name", "", "Sets the name of the brand")
 }

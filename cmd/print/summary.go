@@ -185,7 +185,7 @@ func printLevel2Summary(devices []e.Device, zones []e.Zone, service application.
 				ipStr = "none"
 			}
 			fmt.Printf("    %-20s [%s/%s] IPs: %s\n",
-				device.Name, device.Brand, device.Model, ipStr)
+				device.Label, device.Brand, device.Model, ipStr)
 		}
 	}
 }

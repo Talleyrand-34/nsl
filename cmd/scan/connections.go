@@ -238,7 +238,7 @@ func buildTargets(service q.NetServiceInt) ([]topology.Target, error) {
 	deviceOrder := []string{}
 	if devs, err := service.GetDevices(); err == nil {
 		for _, d := range devs {
-			devName[d.ID] = d.Name
+			devName[d.ID] = d.Label
 			devProfile[d.ID] = d.Profile
 		}
 	}

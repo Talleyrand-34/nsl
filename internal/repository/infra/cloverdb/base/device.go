@@ -41,7 +41,7 @@ func (r BasicOpsCloverRepository) AddDevice(
 		return fmt.Errorf("failed to check existing devices: %w", err)
 	}
 	for _, d := range existingDevices {
-		if d.Name == label {
+		if d.Label == label {
 			return fmt.Errorf("device with name %q already exists", label)
 		}
 	}
@@ -87,8 +87,8 @@ func (r BasicOpsCloverRepository) GetDevices() ([]e.Device, error) {
 	result := make([]e.Device, 0, len(docs))
 	for _, doc := range docs {
 		device := e.Device{
-			ID:   doc.ObjectId(),
-			Name: doc.Get("label").(string),
+			ID:    doc.ObjectId(),
+			Label: doc.Get("label").(string),
 		}
 
 		// IP addresses (stored as a string array on the device document).

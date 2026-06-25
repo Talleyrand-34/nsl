@@ -18,8 +18,8 @@ $actionFiles = [
     'addzonetype' => 'action/addzonetype.php',
     'getzone' => 'action/getzone.php',
     'addzone' => 'action/addzone.php',
-    'getmodeldevice' => 'action/getmodeldevice.php',
-    'addmodeldevice' => 'action/addmodeldevice.php',
+    'getmodel' => 'action/getmodel.php',
+    'addmodel' => 'action/addmodel.php',
     'getdevice' => 'action/getdevice.php',
     'adddevice' => 'action/adddevice.php',
     'getmodelport' => 'action/getmodelport.php',
@@ -36,7 +36,7 @@ $actionFiles = [
     'updateowner' => 'action/updateowner.php',
     'updatezonetype' => 'action/updatezonetype.php',
     'updatezone' => 'action/updatezone.php',
-    'updatemodeldevice' => 'action/updatemodeldevice.php',
+    'updatemodel' => 'action/updatemodel.php',
     'updatedevice' => 'action/updatedevice.php',
     'updatedeviceport' => 'action/updatedeviceport.php',
     'updatemodelport' => 'action/updatemodelport.php',
@@ -48,7 +48,7 @@ $actionFiles = [
     'deleteowner' => 'action/deleteowner.php',
     'deletezonetype' => 'action/deletezonetype.php',
     'deletezone' => 'action/deletezone.php',
-    'deletemodeldevice' => 'action/deletemodeldevice.php',
+    'deletemodel' => 'action/deletemodel.php',
     'deletedevice' => 'action/deletedevice.php',
     'deletemodelport' => 'action/deletemodelport.php',
     'deletedeviceport' => 'action/deletedeviceport.php',
@@ -103,7 +103,7 @@ include __DIR__ . '/header.php';
                     <option value="owner" <?= $entity == 'owner' ? 'selected' : '' ?>>Owner</option>
                     <option value="zonetype" <?= $entity == 'zonetype' ? 'selected' : '' ?>>Zone Type</option>
                     <option value="zone" <?= $entity == 'zone' ? 'selected' : '' ?>>Zone</option>
-                    <option value="modeldevice" <?= $entity == 'modeldevice' ? 'selected' : '' ?>>Model</option>
+                    <option value="model" <?= $entity == 'model' ? 'selected' : '' ?>>Model</option>
                     <option value="device" <?= $entity == 'device' ? 'selected' : '' ?>>Device</option>
                     <option value="modelport" <?= $entity == 'modelport' ? 'selected' : '' ?>>ModelPort</option>
                     <option value="deviceport" <?= $entity == 'deviceport' ? 'selected' : '' ?>>DevicePort</option>

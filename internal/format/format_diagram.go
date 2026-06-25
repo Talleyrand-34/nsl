@@ -267,10 +267,10 @@ func buildDeviceMap(devices []e.Device, zoneFullName map[string]string) map[stri
 	deviceMap := make(map[string]*DeviceD2)
 	for _, d := range devices {
 		fullZoneName := zoneFullName[d.ZoneID]
-		key := fullZoneName + "." + d.Name
+		key := fullZoneName + "." + d.Label
 		deviceMap[key] = &DeviceD2{
 			ZoneHierarchy: strings.Split(fullZoneName, "."),
-			Label:         d.Name,
+			Label:         d.Label,
 			Shape:         "rectangle",
 			Ports:         make(map[string]DevicePort),
 			PortOrder:     []string{},

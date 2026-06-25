@@ -40,8 +40,8 @@ func twoSwitchFixture() (
 		{ID: "zone-dc", Name: "DC"},
 	}
 	devices = []e.Device{
-		{ID: "dev-a", Name: "SW-A", ZoneID: "zone-dc", ZoneName: "DC"},
-		{ID: "dev-b", Name: "SW-B", ZoneID: "zone-dc", ZoneName: "DC"},
+		{ID: "dev-a", Label: "SW-A", ZoneID: "zone-dc", ZoneName: "DC"},
+		{ID: "dev-b", Label: "SW-B", ZoneID: "zone-dc", ZoneName: "DC"},
 	}
 	conns = []e.Connection{
 		{

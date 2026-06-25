@@ -465,9 +465,9 @@ func (ns *NetService) generateUnmanagedName() (string, error) {
 	// Collect existing "unmanagedXX" names
 	existingNumbers := make(map[int]bool)
 	for _, d := range devices {
-		if len(d.Name) > 9 && d.Name[:9] == "unmanaged" {
+		if len(d.Label) > 9 && d.Label[:9] == "unmanaged" {
 			var num int
-			_, err := fmt.Sscanf(d.Name[9:], "%d", &num)
+			_, err := fmt.Sscanf(d.Label[9:], "%d", &num)
 			if err == nil {
 				existingNumbers[num] = true
 			}
@@ -1223,7 +1223,7 @@ func (ns *NetService) importSingleDevice(discovered s.DiscoveredDevice, options 
 	devices, _ := ns.GetDevices()
 	var deviceID string
 	for _, device := range devices {
-		if device.Name == discovered.SuggestedName {
+		if device.Label == discovered.SuggestedName {
 			deviceID = device.ID
 			break
 		}
@@ -1928,7 +1928,7 @@ func (ns *NetService) importSingleDeviceWithPlan(discovered s.DiscoveredDevice, 
 	devices, _ := ns.GetDevices()
 	var deviceID string
 	for _, device := range devices {
-		if device.Name == discovered.SuggestedName {
+		if device.Label == discovered.SuggestedName {
 			deviceID = device.ID
 			break
 		}

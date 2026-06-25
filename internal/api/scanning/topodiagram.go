@@ -94,7 +94,7 @@ func scanResultToDeviceConnections(res topology.ConnectionScanResult) ([]e.Devic
 
 	devices := make([]e.Device, 0, len(devSet))
 	for label := range devSet {
-		devices = append(devices, e.Device{Name: label, ZoneID: discoveredZone, ZoneName: discoveredZone})
+		devices = append(devices, e.Device{Label: label, ZoneID: discoveredZone, ZoneName: discoveredZone})
 	}
 	return devices, conns
 }

@@ -42,9 +42,9 @@ func TestConnection_AddAndGet(t *testing.T) {
 	devices, _ := repo.GetDevices()
 	var device1Id, device2Id string
 	for _, d := range devices {
-		if d.Name == "SW-01" {
+		if d.Label == "SW-01" {
 			device1Id = d.ID
-		} else if d.Name == "SW-02" {
+		} else if d.Label == "SW-02" {
 			device2Id = d.ID
 		}
 	}
@@ -128,11 +128,11 @@ func TestConnection_AddDuplicatePort(t *testing.T) {
 	devices, _ := repo.GetDevices()
 	var device1Id, device2Id, device3Id string
 	for _, d := range devices {
-		if d.Name == "SW-01" {
+		if d.Label == "SW-01" {
 			device1Id = d.ID
-		} else if d.Name == "SW-02" {
+		} else if d.Label == "SW-02" {
 			device2Id = d.ID
-		} else if d.Name == "SW-03" {
+		} else if d.Label == "SW-03" {
 			device3Id = d.ID
 		}
 	}
@@ -211,9 +211,9 @@ func TestConnection_Delete(t *testing.T) {
 	devices, _ := repo.GetDevices()
 	var device1Id, device2Id string
 	for _, d := range devices {
-		if d.Name == "SW-01" {
+		if d.Label == "SW-01" {
 			device1Id = d.ID
-		} else if d.Name == "SW-02" {
+		} else if d.Label == "SW-02" {
 			device2Id = d.ID
 		}
 	}

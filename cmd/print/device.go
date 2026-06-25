@@ -67,7 +67,7 @@ var devicePrintCmd = &cobra.Command{
 		for i, d := range devs {
 			result[i] = DeviceWithInterfaces{
 				ID:         d.ID,
-				Name:       d.Name,
+				Name:       d.Label,
 				Model:      d.Model,
 				Brand:      d.Brand,
 				ZoneID:     d.ZoneID,

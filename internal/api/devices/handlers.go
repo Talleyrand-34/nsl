@@ -1176,7 +1176,7 @@ func AddDeviceHandler(service q.NetServiceInt) http.HandlerFunc {
 			var id string
 			if gErr == nil {
 				for _, d := range devices {
-					if d.Name == req.Label {
+					if d.Label == req.Label {
 						id = d.ID
 						break
 					}

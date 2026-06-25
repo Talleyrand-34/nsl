@@ -81,7 +81,7 @@ func TestDevice_AddWithZone(t *testing.T) {
 	// Verify device exists and has correct zone
 	var sw02 *e.Device
 	for i := range devices {
-		if devices[i].Name == "SW-02" {
+		if devices[i].Label == "SW-02" {
 			sw02 = &devices[i]
 			break
 		}
@@ -125,7 +125,7 @@ func TestDevice_CreateAndDelete(t *testing.T) {
 
 	var deviceId string
 	for _, d := range devices {
-		if d.Name == "RTR-01" {
+		if d.Label == "RTR-01" {
 			deviceId = d.ID
 			break
 		}
@@ -153,7 +153,7 @@ func TestDevice_CreateAndDelete(t *testing.T) {
 
 func deviceSliceContains(devices []e.Device, deviceName string) bool {
 	for _, d := range devices {
-		if d.Name == deviceName {
+		if d.Label == deviceName {
 			return true
 		}
 	}

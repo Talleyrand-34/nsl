@@ -14,7 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-package cmd_modify
+package cmd_add
 
 import (
 	"fmt"
@@ -176,7 +176,7 @@ func resolveDeviceID(service application.NetServiceInt, nameOrIP string) (string
 		return "", fmt.Errorf("could not fetch devices: %w", err)
 	}
 	for _, d := range devices {
-		if d.Name == nameOrIP {
+		if d.Label == nameOrIP {
 			return d.ID, nil
 		}
 		// Search by interface IPs

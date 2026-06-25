@@ -244,7 +244,7 @@ func TestDiscoverConnections_DeviceNoProfileWarning(t *testing.T) {
 	}
 	var devID string
 	for _, d := range devs {
-		if d.Name == "dev-noprof" {
+		if d.Label == "dev-noprof" {
 			devID = d.ID
 		}
 	}
@@ -289,7 +289,7 @@ func TestUpdateDeviceProfile_RoundTrip(t *testing.T) {
 	devs, _ := service.GetDevices()
 	var devID string
 	for _, d := range devs {
-		if d.Name == "dev-p" {
+		if d.Label == "dev-p" {
 			devID = d.ID
 		}
 	}

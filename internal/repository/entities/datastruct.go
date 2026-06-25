@@ -54,7 +54,7 @@ type ModelPort struct {
 // Device This struct contains the info about a device
 type Device struct {
 	ID          string   `json:"id"`
-	Name        string   `json:"label"`
+	Label       string   `json:"label"`
 	Model       string   `json:"model"`
 	Brand       string   `json:"brand"`
 	ZoneID      string   `json:"zoneid"`

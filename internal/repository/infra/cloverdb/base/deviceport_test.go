@@ -36,7 +36,7 @@ func TestDevicePort_AddAndGet(t *testing.T) {
 	devices, _ := repo.GetDevices()
 	var deviceId string
 	for _, d := range devices {
-		if d.Name == "SW-01" {
+		if d.Label == "SW-01" {
 			deviceId = d.ID
 			break
 		}
@@ -98,7 +98,7 @@ func TestDevicePort_AddWithInvalidModel(t *testing.T) {
 	devices, _ := repo.GetDevices()
 	var deviceId string
 	for _, d := range devices {
-		if d.Name == "SW-01" {
+		if d.Label == "SW-01" {
 			deviceId = d.ID
 			break
 		}
@@ -147,7 +147,7 @@ func TestDevicePort_Delete(t *testing.T) {
 	devices, _ := repo.GetDevices()
 	var deviceId string
 	for _, d := range devices {
-		if d.Name == "SW-01" {
+		if d.Label == "SW-01" {
 			deviceId = d.ID
 			break
 		}

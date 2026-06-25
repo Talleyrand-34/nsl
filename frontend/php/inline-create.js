@@ -119,7 +119,7 @@
     // and filter selects are deliberately omitted (no "+ New" there).
     var FK_MAPS = {
         addzone: { fatherid: { e: 'zone', v: 'id' }, owner: { e: 'owner', v: 'name' }, location_type: { e: 'zonetype', v: 'name' } },
-        addmodeldevice: { brand: { e: 'brand', v: 'name' }, model_type: { e: 'modeltype', v: 'name' } },
+        addmodel: { brand: { e: 'brand', v: 'name' }, model_type: { e: 'modeltype', v: 'name' } },
         adddevice: { model: { e: 'model', v: 'model' }, zoneid: { e: 'zone', v: 'id' }, owner: { e: 'owner', v: 'name' } },
         addmodelport: { modelName: { e: 'model', v: 'model' } },
         adddeviceport: { device_id: { e: 'device', v: 'id' }, modelport_id: { e: 'modelport', v: 'id', filterBy: 'device_id' }, 'vlan_numbers[]': { e: 'vlan', v: 'vlanid' } },
@@ -129,7 +129,7 @@
             connectionType: { e: 'connectiontype', v: 'name' },
         },
         updatezone: { father_zone_id: { e: 'zone', v: 'id' }, zone_type_id: { e: 'zonetype', v: 'id' }, owner_id: { e: 'owner', v: 'id' } },
-        updatemodeldevice: { brand_id: { e: 'brand', v: 'id' }, model_type_id: { e: 'modeltype', v: 'id' } },
+        updatemodel: { brand_id: { e: 'brand', v: 'id' }, model_type_id: { e: 'modeltype', v: 'id' } },
         updatedevice: { model_id: { e: 'model', v: 'id' }, zone_id: { e: 'zone', v: 'id' }, owner_id: { e: 'owner', v: 'id' } },
         updatemodelport: { model_id: { e: 'model', v: 'id' } },
         updatedeviceport: { 'vlan_numbers[]': { e: 'vlan', v: 'vlanid' } },

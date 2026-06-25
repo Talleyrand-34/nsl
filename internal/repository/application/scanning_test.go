@@ -139,7 +139,7 @@ func TestNetService_ScanningMethods(t *testing.T) {
 
 		found := false
 		for _, device := range allDevices {
-			if device.Name == "TEST-200" {
+			if device.Label == "TEST-200" {
 				found = true
 				break
 			}
@@ -204,7 +204,7 @@ func TestDeviceExists_Check(t *testing.T) {
 	devices, _ := service.GetDevices()
 	var deviceID string
 	for _, d := range devices {
-		if d.Name == "TestDevice" {
+		if d.Label == "TestDevice" {
 			deviceID = d.ID
 			break
 		}

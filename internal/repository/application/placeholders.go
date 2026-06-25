@@ -105,7 +105,7 @@ func (ns *NetService) CreatePlaceholderForIntermediaries(intermediaries []topolo
 	deviceID := ""
 	if devs, err := ns.GetDevices(); err == nil {
 		for _, d := range devs {
-			if d.Name == label {
+			if d.Label == label {
 				deviceID = d.ID
 				break
 			}

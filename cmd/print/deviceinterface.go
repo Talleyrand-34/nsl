@@ -99,7 +99,7 @@ Without flags, prints all interface-port links.`,
 
 		deviceNameMap := make(map[string]string)
 		for _, d := range devices {
-			deviceNameMap[d.ID] = d.Name
+			deviceNameMap[d.ID] = d.Label
 		}
 		portNameMap := make(map[string]string)
 		for _, mp := range modelPorts {

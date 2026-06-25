@@ -222,7 +222,7 @@ func extractData(dbPath, hostIP string) (*ExtractedData, error) {
 		return nil, fmt.Errorf("device with IP %s not found in database", hostIP)
 	}
 
-	data.DeviceName = targetDevice.Name
+	data.DeviceName = targetDevice.Label
 	data.DeviceModel = targetDevice.Model
 	data.DeviceBrand = targetDevice.Brand
 

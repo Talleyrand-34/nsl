@@ -372,7 +372,7 @@ func TestDeleteDevice_BlocksWithDependentDevicePort(t *testing.T) {
 	devices, _ := repo.GetDevices()
 	var deviceID string
 	for _, d := range devices {
-		if d.Name == "SW-01" {
+		if d.Label == "SW-01" {
 			deviceID = d.ID
 			break
 		}
@@ -428,9 +428,9 @@ func TestDeleteDevice_BlocksWithDependentConnection(t *testing.T) {
 	devices, _ := repo.GetDevices()
 	var device1ID, device2ID string
 	for _, d := range devices {
-		if d.Name == "SW-01" {
+		if d.Label == "SW-01" {
 			device1ID = d.ID
-		} else if d.Name == "SW-02" {
+		} else if d.Label == "SW-02" {
 			device2ID = d.ID
 		}
 	}
@@ -491,7 +491,7 @@ func TestDeleteDevice_SucceedsWithoutDependents(t *testing.T) {
 	devices, _ := repo.GetDevices()
 	var deviceID string
 	for _, d := range devices {
-		if d.Name == "SW-01" {
+		if d.Label == "SW-01" {
 			deviceID = d.ID
 			break
 		}
@@ -530,7 +530,7 @@ func TestDeleteModelPort_BlocksWithDependentDevicePort(t *testing.T) {
 	devices, _ := repo.GetDevices()
 	var deviceID string
 	for _, d := range devices {
-		if d.Name == "SW-01" {
+		if d.Label == "SW-01" {
 			deviceID = d.ID
 			break
 		}
@@ -622,9 +622,9 @@ func TestDeleteDevicePort_BlocksWithDependentConnection(t *testing.T) {
 	devices, _ := repo.GetDevices()
 	var device1ID, device2ID string
 	for _, d := range devices {
-		if d.Name == "SW-01" {
+		if d.Label == "SW-01" {
 			device1ID = d.ID
-		} else if d.Name == "SW-02" {
+		} else if d.Label == "SW-02" {
 			device2ID = d.ID
 		}
 	}
@@ -685,7 +685,7 @@ func TestDeleteDevicePort_SucceedsWithoutDependents(t *testing.T) {
 	devices, _ := repo.GetDevices()
 	var deviceID string
 	for _, d := range devices {
-		if d.Name == "SW-01" {
+		if d.Label == "SW-01" {
 			deviceID = d.ID
 			break
 		}
@@ -737,7 +737,7 @@ func TestDeleteVlan_CleansDeviceInterfaceVlanConfigs(t *testing.T) {
 	devices, _ := repo.GetDevices()
 	var deviceID string
 	for _, d := range devices {
-		if d.Name == "SW-01" {
+		if d.Label == "SW-01" {
 			deviceID = d.ID
 			break
 		}
@@ -874,7 +874,7 @@ func TestDeleteOwner_SetsNullOnDevices(t *testing.T) {
 	}
 	found := false
 	for _, d := range devices {
-		if d.Name == "SW-01" {
+		if d.Label == "SW-01" {
 			found = true
 			if d.Owner != "" {
 				t.Errorf("expected device owner to be cleared, got %q", d.Owner)
@@ -936,7 +936,7 @@ func TestDeleteOwnerCascade_SetsNullNotCascadeDelete(t *testing.T) {
 	devices, _ := repo.GetDevices()
 	deviceFound := false
 	for _, d := range devices {
-		if d.Name == "SW-01" {
+		if d.Label == "SW-01" {
 			deviceFound = true
 			if d.Owner != "" {
 				t.Errorf("expected device owner to be cleared, got %q", d.Owner)

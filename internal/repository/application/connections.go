@@ -189,7 +189,7 @@ func (ns *NetService) DiscoverConnectionsByMode(opts ConnectionScanOptions, em o
 	var deviceOrder []string
 	if devs, err := ns.GetDevices(); err == nil {
 		for _, d := range devs {
-			devName[d.ID] = d.Name
+			devName[d.ID] = d.Label
 			devProfile[d.ID] = d.Profile
 		}
 	}
@@ -631,7 +631,7 @@ func (ns *NetService) resolveOrCreatePort(portID, label string) (string, error) 
 	}
 	var dev *e.Device
 	for k := range devs {
-		if devs[k].Name == devLabel {
+		if devs[k].Label == devLabel {
 			dev = &devs[k]
 			break
 		}
@@ -706,8 +706,8 @@ func (ns *NetService) correlate(result *topology.ConnectionScanResult) error {
 	devLabelByID := map[string]string{}
 	if devs, err := ns.GetDevices(); err == nil {
 		for _, d := range devs {
-			deviceNames = append(deviceNames, d.Name)
-			devLabelByID[d.ID] = d.Name
+			deviceNames = append(deviceNames, d.Label)
+			devLabelByID[d.ID] = d.Label
 		}
 	}
 	// IP (LLDP MgmtIP) -> device label, for resolving remote endpoints whose DB

@@ -30,16 +30,15 @@ The **category** of equipment — router, switch, firewall, access point, … A
 A specific **product**: a Brand + a Model Type under a model name (e.g.
 "Catalyst 9300"). A Model is a *template* — Devices are instances of it, and it
 owns the Model Ports that define the device's physical ports.
-- Collection `models`; API `/models`; UI entity `modeldevice` ("Model").
-  Its Model Type is JSON `model_type` (FK `model_type_id`).
-- Alias: `modeldevice` is the UI/route value; the user-facing label is **Model**.
+- Collection `models`; API `/models`; UI entity `model` ("Model"); its Model Type
+  is JSON `model_type` (FK `model_type_id`).
 
 ### Device
 A concrete piece of equipment: an **instance of a Model**, placed in a Zone, owned
 by an Owner, optionally carrying IP addresses, a scan **Profile**, and the
 `unmanaged` / `invisible` flags.
 - Collection `devices`; API `/devices`; CLI `add/update/delete device`; UI "Device".
-- A device's human identifier is its **label** (Go `Device.Name`, JSON `label`).
+- A device's human identifier is its **label** (Go `Device.Label`, JSON `label`).
   **Canonical: "label"** (not "name") for the device's display string.
 
 ### Zone
@@ -186,12 +185,13 @@ are documented rather than churned:
 | Canonical | Aliases / where they appear |
 |-----------|------------------------------|
 | Model Type | formerly **`device class` / `devclass`** (renamed; migrate old stores via `scripts/migrate_phase2_modeltype.go`) |
-| Model | `modeldevice` (UI entity/route value) |
+| Model | UI route value renamed `modeldevice` → `model` |
 | Zone Type | `location_type` (Zone field) — **don't** surface as "Location Type" |
 | Owner | formerly **`proprietary`** (renamed; migrate old stores via `scripts/migrate_phase1_owner.go`) |
-| Device label | `Device.Name` (Go), `label` (JSON/UI) |
+| Device label | Go `Device.Label`, JSON/UI `label` (Go field renamed from `Name`) |
 | OS type (`os_type`) | formerly **`device_type`** (renamed); the OS/firmware parser selector — **not** the Model Type |
 | Device Port | `devport` (CLI `add` subcommand), `deviceport` (UI) |
 
-Internal note: a `cmd/modify/` command group duplicates `cmd/update/` and is not
-registered in the CLI (`update` is the live one); treat `update` as canonical.
+Internal note: the `add` command's subcommands live in `cmd/add/` (renamed from the
+misleadingly-named `cmd/modify/`); `update` lives in `cmd/update/`. `modify` is kept
+as a backward-compatible alias of `add`.

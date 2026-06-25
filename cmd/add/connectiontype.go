@@ -14,7 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
-package cmd_modify
+package cmd_add
 
 import (
 	"fmt"
@@ -26,36 +26,28 @@ import (
 	util "nsl-graph/cmd/utils"
 )
 
-// brandModCmd represents the port command
-var brandModCmd = &cobra.Command{
-	Use:   "brand",
-	Short: "Add a brand",
-	Long: `Specify a brand which consists of a name.
-
-		A brand is the commercial name of a hardware provider
-		`,
+var connectionTypeModCmd = &cobra.Command{
+	Use:   "connectiontype",
+	Short: "Add a connection type",
+	Long:  `Add a connection type (e.g. ethernet, fiber, wireless) by name.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		flag := "name"
 		name, err := cmd.Flags().GetString("name")
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error reading flag '%v': %v\n", flag, err)
+			fmt.Fprintf(os.Stderr, "Error reading flag 'name': %v\n", err)
 			os.Exit(1)
 		}
 		service, err := util.ServiceConnection()
 		if err != nil {
 			return
 		}
-		err = service.AddBrand(name)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error writing Brand: %v\n", err)
+		if err := service.AddConnectionType(name); err != nil {
+			fmt.Fprintf(os.Stderr, "Error writing connection type: %v\n", err)
 			os.Exit(1)
 		}
 	},
 }
 
 func init() {
-	cmd.AddCmd.AddCommand(brandModCmd)
-
-	brandModCmd.Flags().
-		String("name", "", "Sets the name of the brand")
+	cmd.AddCmd.AddCommand(connectionTypeModCmd)
+	connectionTypeModCmd.Flags().String("name", "", "Sets the name of the connection type")
 }
