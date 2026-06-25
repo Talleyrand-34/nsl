@@ -23,6 +23,7 @@ import (
 	"log"
 	"net"
 	"strings"
+	"time"
 
 	configparser "nsl-graph/internal/configparser"
 	fmtd2 "nsl-graph/internal/format"
@@ -30,14 +31,21 @@ import (
 	d "nsl-graph/internal/repository/domain"
 	e "nsl-graph/internal/repository/entities"
 	s "nsl-graph/internal/scanner"
+	"nsl-graph/internal/secret"
 	"nsl-graph/internal/topology"
 )
 
+// vaultIdleTimeout auto-locks the credential vault after this much inactivity.
+const vaultIdleTimeout = 15 * time.Minute
+
 type NetService struct {
 	netRepo d.NetRepository
+	vault   *secret.Vault
 }
 
 type NetServiceInt interface {
+	// Vault returns the server-side credential vault.
+	Vault() *secret.Vault
 	// Brand operations
 	AddBrand(brandName string) error
 	GetBrands() ([]e.Brand, error)
@@ -249,7 +257,13 @@ type NetServiceInt interface {
 }
 
 func NewNetService(netRepository d.NetRepository) NetServiceInt {
-	return &NetService{netRepo: netRepository}
+	v := secret.NewVault(netRepository.GetVaultMeta, netRepository.SetVaultMeta, vaultIdleTimeout)
+	return &NetService{netRepo: netRepository, vault: v}
+}
+
+// Vault returns the server-side credential vault (unlock/lock + encrypt/decrypt).
+func (ns *NetService) Vault() *secret.Vault {
+	return ns.vault
 }
 
 // --- Scan profiles ----------------------------------------------------------

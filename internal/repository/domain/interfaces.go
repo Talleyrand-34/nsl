@@ -201,6 +201,10 @@ type repository interface {
 	GetScanProfileByHost(host string) (*e.ScanProfile, error)
 	UpdateScanProfile(p e.ScanProfile) error
 	DeleteScanProfile(name string) error
+
+	// Credential vault metadata (wrapped data key + salt); "" if uninitialized.
+	GetVaultMeta() (string, error)
+	SetVaultMeta(meta string) error
 }
 
 // type NetRepository exposes the interface for implementation

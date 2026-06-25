@@ -29,6 +29,10 @@ import (
 func RegisterRoutes(r *mux.Router, service q.NetServiceInt) {
 	r.HandleFunc("/", RootHandler()).Methods("GET")
 	r.HandleFunc("/diagram", GetDiagramHandler(service)).Methods("GET")
+	r.HandleFunc("/vault/status", VaultStatusHandler(service)).Methods("GET", "OPTIONS")
+	r.HandleFunc("/vault/init", VaultInitHandler(service)).Methods("POST", "OPTIONS")
+	r.HandleFunc("/vault/unlock", VaultUnlockHandler(service)).Methods("POST", "OPTIONS")
+	r.HandleFunc("/vault/lock", VaultLockHandler(service)).Methods("POST", "OPTIONS")
 }
 
 // RootHandler returns a list of all available endpoints
