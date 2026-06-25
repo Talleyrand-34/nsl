@@ -35,8 +35,8 @@ import (
 )
 
 // ConnectionScanOptions controls a non-interactive connection discovery run (used
-// by the HTTP API). Targets are selected by mode; Passphrase decrypts profiles
-// that store an SSH password (key-based / SNMP-only profiles need none).
+// by the HTTP API). Targets are selected by mode; profiles that store an SSH
+// secret are decrypted by the unlocked server vault.
 type ConnectionScanOptions struct {
 	FromDB      bool   `json:"from_db"`
 	Profiles    bool   `json:"profiles"`
@@ -45,7 +45,6 @@ type ConnectionScanOptions struct {
 	SNMPVersion string `json:"snmp_version"`
 	Collector   string `json:"collector"`
 	TimeoutSec  int    `json:"timeout_sec"`
-	Passphrase  string `json:"passphrase"`
 	// Runtime SSH credentials for subnet mode (agnostic — not from a DB profile):
 	// when set, SSH-reachable hosts found in the sweep are collected over SSH.
 	SSHUser     string `json:"ssh_user"`

@@ -176,7 +176,8 @@ func ScanNetworkHandler(service q.NetServiceInt) http.HandlerFunc {
 
 // ScanRunRequest is the body for the unified /scan/run endpoint. method is
 // "snmp" or "ssh"; target is a single IP (single scan) or a CIDR / comma-list
-// (batch). For SSH, profile + passphrase supply the credentials and device_type.
+// (batch). For SSH, the profile supplies the credentials and device_type; the
+// stored secrets are decrypted by the (already unlocked) server vault.
 type ScanRunRequest struct {
 	Method      string `json:"method"`
 	Target      string `json:"target"`
@@ -186,7 +187,6 @@ type ScanRunRequest struct {
 	Timeout     int    `json:"timeout,omitempty"`
 	Profile     string `json:"profile,omitempty"`
 	DeviceType  string `json:"device_type,omitempty"`
-	Passphrase  string `json:"passphrase,omitempty"`
 }
 
 // ScanRunHandler runs a unified device scan (SNMP or SSH; single or batch,
@@ -234,7 +234,6 @@ func ScanRunHandler(service q.NetServiceInt) http.HandlerFunc {
 				TimeoutSec:  req.Timeout,
 				Profile:     req.Profile,
 				DeviceType:  req.DeviceType,
-				Passphrase:  req.Passphrase,
 			}, run)
 			if err != nil {
 				return nil, err
@@ -466,8 +465,8 @@ func ImportScanFileHandler(service q.NetServiceInt) http.HandlerFunc {
 }
 
 // scanProfileRequest is the POST/PUT body for /scan/profiles. ssh_password is
-// accepted in clear on input only and is immediately encrypted with passphrase;
-// neither is ever stored or returned.
+// accepted in clear on input only and is immediately encrypted by the server
+// vault (which must be unlocked); the clear value is never stored or returned.
 type scanProfileRequest struct {
 	Name              string `json:"name"`
 	Kind              string `json:"kind"` // "device" (default) or "generic"
@@ -489,7 +488,6 @@ type scanProfileRequest struct {
 	MergeConfigs      bool   `json:"merge_configs"`
 	ConfigTimeout     int    `json:"config_timeout"`
 	VLANAccuracy      int    `json:"vlan_accuracy"`
-	Passphrase        string `json:"passphrase"`
 }
 
 func (req scanProfileRequest) toEntity(v *secret.Vault) (e.ScanProfile, error) {
@@ -631,16 +629,15 @@ func ScanProfilesHandler(service q.NetServiceInt) http.HandlerFunc {
 }
 
 // ScanHostSSHRequest scans a host over SSH using a saved profile's stored
-// (encrypted) SSH credentials, unlocked with a passphrase.
+// (encrypted) SSH credentials, decrypted by the unlocked server vault.
 type ScanHostSSHRequest struct {
-	Profile    string `json:"profile"`
-	Passphrase string `json:"passphrase"`
-	IP         string `json:"ip,omitempty"` // optional override of the profile's host
+	Profile string `json:"profile"`
+	IP      string `json:"ip,omitempty"` // optional override of the profile's host
 }
 
 // ScanHostSSHHandler runs an SSH/config scan of a host. SSH credentials come
-// from a saved scan profile; the profile's encrypted SSH password is decrypted
-// with the supplied passphrase (server-side only).
+// from a saved scan profile; the profile's encrypted SSH secrets are decrypted
+// by the server vault (which must be unlocked).
 func ScanHostSSHHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

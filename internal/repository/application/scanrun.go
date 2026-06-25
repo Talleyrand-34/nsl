@@ -39,7 +39,6 @@ type RunScanOptions struct {
 	TimeoutSec  int    `json:"timeout_sec"`
 	Profile     string `json:"profile"`     // SSH: a profile (device or generic) supplying the credentials
 	DeviceType  string `json:"device_type"` // SSH: overrides the profile's device_type (required for generic profiles)
-	Passphrase  string `json:"passphrase"`  // SSH: unlocks the profile's encrypted creds
 }
 
 // RunScan discovers devices for importation. It only orchestrates existing scan

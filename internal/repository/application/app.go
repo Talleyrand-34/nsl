@@ -245,9 +245,9 @@ type NetServiceInt interface {
 	// Model management
 	EnsureModelExists(modelName, brandName, defaultBrand string) error
 
-	// Scan profiles. Encryption/decryption of the SSH password happens at the
-	// edges (CLI/API) where the passphrase is gathered; the service stores the
-	// blob as-is and sanitizes it out of listings.
+	// Scan profiles. Encryption/decryption of the SSH password goes through the
+	// vault (unlocked once); the service stores the blob as-is and sanitizes it
+	// out of listings.
 	AddScanProfile(p e.ScanProfile) error
 	UpdateScanProfile(p e.ScanProfile) error
 	GetScanProfiles() ([]e.ScanProfile, error)                     // SSHPassword blanked, HasSSHPassword set
