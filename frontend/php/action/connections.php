@@ -617,30 +617,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
         foreach ($allDevPorts as $p) { $portsByDevice[$p['devname'] ?? ''][] = $p['portname'] ?? ''; }
         $modelPortsByModel = [];
         foreach ($allModelPorts as $mp) { $modelPortsByModel[$mp['model'] ?? ''][] = $mp['name'] ?? ''; }
-        // Existing connections, to flag derived edges that are already in the DB.
+        // Existing connections, to flag: edges already in the DB ($dbPairs), ports
+        // already connected ($usedPorts — a port may have only one connection), and
+        // ports already wired to a placeholder ($placeholderPorts).
         $existingConns = json_decode(@file_get_contents(CONNECTIONS_ENDPOINT), true) ?: [];
         $dbPairs = [];
+        $usedPorts = [];
+        $placeholderPorts = [];
+        $isPlaceholderEnd = function ($dev, $zone) {
+            return $zone === 'Unknown infrastructure' || strpos((string) $dev, 'unmanaged') === 0;
+        };
         foreach ($existingConns as $c) {
             $a = ($c['fromdevice'] ?? '') . ':' . ($c['frommodel'] ?? '');
             $b = ($c['todevice'] ?? '') . ':' . ($c['tomodel'] ?? '');
             $dbPairs[edge_pair_key($a, $b)] = true;
+            $usedPorts[$a] = true;
+            $usedPorts[$b] = true;
+            // If one end is a placeholder, the other end's port is "mapped" to it.
+            if ($isPlaceholderEnd($c['todevice'] ?? '', $c['tozonename'] ?? '')) $placeholderPorts[$a] = $c['todevice'] ?? 'placeholder';
+            if ($isPlaceholderEnd($c['fromdevice'] ?? '', $c['fromzonename'] ?? '')) $placeholderPorts[$b] = $c['fromdevice'] ?? 'placeholder';
         }
     ?>
     <form method="post">
         <input type="hidden" name="result_json" value="<?= htmlspecialchars(json_encode($result)) ?>">
         <p style="color:#555; font-size:90%;">Each port can be edited: pick the detected port, enter one manually, or choose an existing device/model port.</p>
         <table border="1" cellpadding="4">
-            <tr><th>Import</th><th>Already in DB</th><th>Mark</th><th>From</th><th>To</th><th>Via</th></tr>
+            <tr><th>Import</th><th>DB status</th><th>Mark</th><th>From</th><th>To</th><th>Via</th></tr>
             <?php foreach ($edges as $i => $e):
                 $mark = edge_mark($e);
                 $imp  = edge_importable($e);
                 $inDb = edge_in_db($e, $dbPairs);
-                $checked = ($imp && !$inDb && in_array($mark, ['confirmed','candidate'])) ? 'checked' : ''; ?>
+                // A port may hold only one connection: flag if an endpoint is already
+                // in use by a different connection (importing it would be rejected).
+                $portConflict = !$inDb && (isset($usedPorts[$e['from'] ?? '']) || isset($usedPorts[$e['to'] ?? '']));
+                $checked = ($imp && !$inDb && !$portConflict && in_array($mark, ['confirmed','candidate'])) ? 'checked' : ''; ?>
                 <tr>
                     <td style="text-align:center;">
                         <input type="checkbox" name="edge[]" value="<?= $i ?>" <?= $checked ?>>
                     </td>
-                    <td style="text-align:center;"><?php if ($inDb): ?><span title="this connection already exists in the database" style="color:#070;">&#10003; in DB</span><?php endif; ?></td>
+                    <td style="text-align:center;">
+                        <?php if ($inDb): ?><span title="this connection already exists in the database" style="color:#070;">&#10003; in DB</span>
+                        <?php elseif ($portConflict): ?><span title="a port of this edge already has a connection (one connection per port)" style="color:#b00;">&#9888; port in use</span>
+                        <?php endif; ?>
+                    </td>
                     <td><?= htmlspecialchars($mark) ?><?php if ($imp && edge_needs_create($e)): ?><br><small style="color:#a60;">(creates port)</small><?php endif; ?></td>
                     <td><?php render_port_editor('from', $i, $e['from'] ?? '', $modelByDevice, $portsByDevice, $modelPortsByModel); ?></td>
                     <td><?php render_port_editor('to', $i, $e['to'] ?? '', $modelByDevice, $portsByDevice, $modelPortsByModel); ?></td>
@@ -649,10 +668,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
             <?php endforeach; ?>
             <?php // Links detected via a middle (placeholder) device — selecting one
                   // materializes the shared placeholder and connects that endpoint.
-            foreach ($inter as $j => $in): foreach (($in['seen_by'] ?? []) as $k => $sb): ?>
+            foreach ($inter as $j => $in): foreach (($in['seen_by'] ?? []) as $k => $sb):
+                // Already mapped: this observing port already connects to a placeholder.
+                $mappedTo = $placeholderPorts[$sb] ?? '';
+                $portUsed = $mappedTo === '' && isset($usedPorts[$sb]); ?>
                 <tr style="background:#fbf7ef;">
-                    <td style="text-align:center;"><input type="checkbox" name="inter_edge[]" value="<?= $j . '_' . $k ?>"></td>
-                    <td></td>
+                    <td style="text-align:center;"><input type="checkbox" name="inter_edge[]" value="<?= $j . '_' . $k ?>" <?= ($mappedTo !== '' || $portUsed) ? 'disabled' : '' ?>></td>
+                    <td style="text-align:center;">
+                        <?php if ($mappedTo !== ''): ?><span title="already connected to placeholder <?= htmlspecialchars($mappedTo) ?>" style="color:#070;">&#10003; mapped</span>
+                        <?php elseif ($portUsed): ?><span title="this port already has a connection" style="color:#b00;">&#9888; port in use</span>
+                        <?php endif; ?>
+                    </td>
                     <td>via <?= htmlspecialchars($in['vendor'] ?: 'switch') ?><br><small style="color:#a60;">(placeholder)</small></td>
                     <td><?= htmlspecialchars($sb) ?></td>
                     <td>&harr; placeholder <small>(<?= htmlspecialchars($in['mac'] ?? '') ?>)</small></td>

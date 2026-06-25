@@ -142,18 +142,21 @@ func (r BasicOpsCloverRepository) AddConnection(
 		return fmt.Errorf("connection type %q does not exist", connectionType)
 	}
 
-	fromQuery := q.NewQuery(connectionsCollection).Where(
-		q.Field("from_deviceport_id").Eq(fromDeviceportID),
-	)
-	fromExists, err := r.db.Exists(fromQuery)
+	// A device port may have at most one connection. A port is in use if it appears
+	// as either endpoint of any existing connection (not only the same side).
+	portInUse := func(portID string) (bool, error) {
+		if e1, err := r.db.Exists(q.NewQuery(connectionsCollection).Where(q.Field("from_deviceport_id").Eq(portID))); err != nil {
+			return false, err
+		} else if e1 {
+			return true, nil
+		}
+		return r.db.Exists(q.NewQuery(connectionsCollection).Where(q.Field("to_deviceport_id").Eq(portID)))
+	}
+	fromExists, err := portInUse(fromDeviceportID)
 	if err != nil {
 		return fmt.Errorf("error checking source port: %w", err)
 	}
-
-	toQuery := q.NewQuery(connectionsCollection).Where(
-		q.Field("to_deviceport_id").Eq(toDeviceportID),
-	)
-	toExists, err := r.db.Exists(toQuery)
+	toExists, err := portInUse(toDeviceportID)
 	if err != nil {
 		return fmt.Errorf("error checking target port: %w", err)
 	}
