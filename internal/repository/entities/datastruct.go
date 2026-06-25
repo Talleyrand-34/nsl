@@ -32,10 +32,10 @@ type Zone struct {
 
 // ModelDevice This struct contains the info about a model
 type ModelDevice struct {
-	ID    string `json:"id"`
-	Model string `json:"model"`
-	Brand string `json:"brand"`
-	Class string `json:"class"`
+	ID        string `json:"id"`
+	Model     string `json:"model"`
+	Brand     string `json:"brand"`
+	ModelType string `json:"model_type"`
 }
 
 // ModelPort This struct contains the info about a port from the model perspective
@@ -185,8 +185,8 @@ type ScanProfile struct {
 	HasSSHKey      bool `json:"has_ssh_key"`
 }
 
-// DevClass represents the class of a device
-type DevClass struct {
+// ModelType represents the class of a device
+type ModelType struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 }

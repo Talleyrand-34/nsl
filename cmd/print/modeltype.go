@@ -27,9 +27,9 @@ import (
 )
 
 // devicesCmd represents the devices command
-var deviceclassPrintCmd = &cobra.Command{
-	Use:   "deviceclass",
-	Short: "Print the device classes",
+var modeltypePrintCmd = &cobra.Command{
+	Use:   "modeltype",
+	Short: "Print the model types",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		service, err := util.ServiceConnection()
@@ -37,14 +37,14 @@ var deviceclassPrintCmd = &cobra.Command{
 			return
 		}
 
-		devclass, err := service.GetDeviceClasses()
+		modeltype, err := service.GetModelTypes()
 		if err != nil {
-			fmt.Println("Error getting DeviceClass:", err)
+			fmt.Println("Error getting ModelType:", err)
 			return
 		}
-		jsonBytes, err := json.MarshalIndent(devclass, "", "  ")
+		jsonBytes, err := json.MarshalIndent(modeltype, "", "  ")
 		if err != nil {
-			fmt.Println("Error marshaling DeviceClass to JSON:", err)
+			fmt.Println("Error marshaling ModelType to JSON:", err)
 			return
 		}
 		fmt.Println(string(jsonBytes))
@@ -52,5 +52,5 @@ var deviceclassPrintCmd = &cobra.Command{
 }
 
 func init() {
-	cmd.PrintCmd.AddCommand(deviceclassPrintCmd)
+	cmd.PrintCmd.AddCommand(modeltypePrintCmd)
 }

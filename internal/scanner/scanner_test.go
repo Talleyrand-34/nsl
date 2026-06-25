@@ -145,7 +145,7 @@ func TestDiscoveredDevice_Structure(t *testing.T) {
 		},
 		Brand:         "Linux",
 		Model:         "Linux Server",
-		DeviceClass:   "Server",
+		ModelType:   "Server",
 		SuggestedName: "SRV-100",
 		SuggestedZone: "LAN",
 	}
@@ -156,7 +156,7 @@ func TestDiscoveredDevice_Structure(t *testing.T) {
 	if device.SuggestedName == "" {
 		t.Error("Device should have a suggested name")
 	}
-	if device.DeviceClass == "" {
+	if device.ModelType == "" {
 		t.Error("Device should have a device class")
 	}
 }

@@ -261,7 +261,7 @@ type DiscoveredDevice struct {
 	Device        SNMPDevice `json:"device"`
 	Brand         string     `json:"brand"`
 	Model         string     `json:"model"`
-	DeviceClass   string     `json:"device_class"`
+	ModelType   string     `json:"model_type"`
 	SuggestedName string     `json:"suggested_name"`
 	SuggestedZone string     `json:"suggested_zone"`
 	Profile       string     `json:"profile,omitempty"` // scan profile used to discover it (tied on import)
@@ -275,7 +275,7 @@ type DiscoveredDeviceInfo struct {
 	SysDescr      string `json:"sys_descr"`
 	Brand         string `json:"brand"`
 	Model         string `json:"model"`
-	DeviceClass   string `json:"device_class"`
+	ModelType   string `json:"model_type"`
 	SuggestedName string `json:"suggested_name"`
 	SuggestedZone string `json:"suggested_zone"`
 

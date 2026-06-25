@@ -391,7 +391,7 @@ Examples:
 				"Classification: %s %s [%s]\n",
 				discoveredDevice.Brand,
 				discoveredDevice.Model,
-				discoveredDevice.DeviceClass,
+				discoveredDevice.ModelType,
 			)
 
 			importOptions := s.ImportOptions{

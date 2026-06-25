@@ -48,9 +48,9 @@ func (r BasicOpsCloverRepository) DeleteBrandCascade(brandName string) error {
 	return r.DeleteBrand(brandName)
 }
 
-// DeleteDeviceClassCascade deletes a device class and all dependent models and devices
-func (r BasicOpsCloverRepository) DeleteDeviceClassCascade(deviceClassName string) error {
-	log.Printf("Cascade deleting device class: %s", deviceClassName)
+// DeleteModelTypeCascade deletes a device class and all dependent models and devices
+func (r BasicOpsCloverRepository) DeleteModelTypeCascade(modelTypeName string) error {
+	log.Printf("Cascade deleting device class: %s", modelTypeName)
 
 	// Get all models with this device class
 	models, err := r.GetModels()
@@ -59,7 +59,7 @@ func (r BasicOpsCloverRepository) DeleteDeviceClassCascade(deviceClassName strin
 	}
 
 	for _, model := range models {
-		if model.Class == deviceClassName {
+		if model.ModelType == modelTypeName {
 			// Cascade delete each model
 			if err := r.DeleteModelCascade(model.ID); err != nil {
 				return fmt.Errorf("failed to cascade delete model %s: %w", model.ID, err)
@@ -68,7 +68,7 @@ func (r BasicOpsCloverRepository) DeleteDeviceClassCascade(deviceClassName strin
 	}
 
 	// Finally delete the device class itself
-	return r.DeleteDeviceClass(deviceClassName)
+	return r.DeleteModelType(modelTypeName)
 }
 
 // DeleteZoneTypeCascade deletes a zone type and all dependent zones and devices

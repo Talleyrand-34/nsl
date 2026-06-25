@@ -91,7 +91,7 @@ func TestNetService_ScanningMethods(t *testing.T) {
 			if device.SuggestedName == "" {
 				t.Error("Device should have a suggested name")
 			}
-			if device.DeviceClass == "" {
+			if device.ModelType == "" {
 				t.Error("Device should have a device class")
 			}
 		}
@@ -99,7 +99,7 @@ func TestNetService_ScanningMethods(t *testing.T) {
 
 	t.Run("Import discovered devices", func(t *testing.T) {
 		service.AddBrand("Test Brand")
-		service.AddDeviceClass("Test Class")
+		service.AddModelType("Test Class")
 		service.AddOwner("Test Prop")
 		service.AddModel("Test Model", "Test Brand", "Test Class")
 
@@ -115,7 +115,7 @@ func TestNetService_ScanningMethods(t *testing.T) {
 				},
 				Brand:         "Test Brand",
 				Model:         "Test Model",
-				DeviceClass:   "Test Class",
+				ModelType:   "Test Class",
 				SuggestedName: "TEST-200",
 				SuggestedZone: "Test Zone",
 			},
@@ -192,7 +192,7 @@ func TestDeviceExists_Check(t *testing.T) {
 	defer cleanup()
 
 	service.AddBrand("TestBrand")
-	service.AddDeviceClass("TestClass")
+	service.AddModelType("TestClass")
 	service.AddModel("TestModel", "TestBrand", "TestClass")
 	service.AddModelPort("eth0", "0", "0", "TestModel", false, "", "")
 

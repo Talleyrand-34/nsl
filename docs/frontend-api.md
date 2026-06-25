@@ -41,7 +41,7 @@ The web interface provides:
 | Entity | Get | Add | Description |
 |--------|-----|-----|-------------|
 | Brand | ✓ | ✓ | Equipment manufacturers |
-| Device Class | ✓ | ✓ | Equipment types (router, switch, etc.) |
+| Model Type | ✓ | ✓ | Equipment types (router, switch, etc.) |
 | Owner | ✓ | ✓ | Ownership entities |
 | Zone Type | ✓ | ✓ | Zone classifications |
 | Zone | ✓ | ✓ | Network zones |
@@ -99,16 +99,16 @@ curl -X POST http://localhost:8081/brands \
 curl -X DELETE "http://localhost:8081/brands?brand=Cisco"
 ```
 
-#### Device Classes
+#### Model Types
 ```http
-GET    /deviceclasses
-POST   /deviceclasses
-DELETE /deviceclasses
+GET    /modeltypes
+POST   /modeltypes
+DELETE /modeltypes
 ```
 
 **POST Example:**
 ```bash
-curl -X POST http://localhost:8081/deviceclasses \
+curl -X POST http://localhost:8081/modeltypes \
   -H "Content-Type: application/json" \
   -d '{"name": "router"}'
 ```
@@ -426,7 +426,7 @@ Error response format:
 }
 ```
 
-#### Device Class
+#### Model Type
 ```json
 {
   "id": 1,
@@ -473,7 +473,7 @@ The PHP frontend uses individual action files in the `frontend/php/action/` dire
 
 ### Get Actions
 - `getbrand.php`: Display all brands
-- `getdevclass.php`: Display device classes
+- `getmodeltype.php`: Display model types
 - `getowner.php`: Display owners
 - `getzonetype.php`: Display zone types
 - `getzone.php`: Display zones
@@ -485,7 +485,7 @@ The PHP frontend uses individual action files in the `frontend/php/action/` dire
 
 ### Add Actions
 - `addbrand.php`: Add brand form
-- `adddevclass.php`: Add device class form
+- `addmodeltype.php`: Add model type form
 - `addowner.php`: Add owner form
 - `addzonetype.php`: Add zone type form
 - `addzone.php`: Add zone form

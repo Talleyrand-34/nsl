@@ -35,10 +35,10 @@ func RegisterRoutes(r *mux.Router, service q.NetServiceInt) {
 	r.HandleFunc("/brands", DeleteBrandHandler(service)).Methods("DELETE", "OPTIONS")
 
 	// Device Classes
-	r.HandleFunc("/deviceclasses", AddDeviceClassHandler(service)).Methods("POST", "OPTIONS")
-	r.HandleFunc("/deviceclasses", GetDeviceClassesHandler(service)).Methods("GET", "OPTIONS")
-	r.HandleFunc("/deviceclasses", UpdateDeviceClassHandler(service)).Methods("PUT", "OPTIONS")
-	r.HandleFunc("/deviceclasses", DeleteDeviceClassHandler(service)).Methods("DELETE", "OPTIONS")
+	r.HandleFunc("/modeltypes", AddModelTypeHandler(service)).Methods("POST", "OPTIONS")
+	r.HandleFunc("/modeltypes", GetModelTypesHandler(service)).Methods("GET", "OPTIONS")
+	r.HandleFunc("/modeltypes", UpdateModelTypeHandler(service)).Methods("PUT", "OPTIONS")
+	r.HandleFunc("/modeltypes", DeleteModelTypeHandler(service)).Methods("DELETE", "OPTIONS")
 
 	// Zone Types
 	r.HandleFunc("/zonetypes", AddZoneTypeHandler(service)).Methods("POST", "OPTIONS")
@@ -275,9 +275,9 @@ func DeleteBrandHandler(service q.NetServiceInt) http.HandlerFunc {
 }
 
 // Add placeholder handlers for other device entities...
-// (DeviceClass, ZoneType, Owner, Zone, Model, Device, ModelPort, DevicePort handlers)
+// (ModelType, ZoneType, Owner, Zone, Model, Device, ModelPort, DevicePort handlers)
 
-func AddDeviceClassHandler(service q.NetServiceInt) http.HandlerFunc {
+func AddModelTypeHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -311,7 +311,7 @@ func AddDeviceClassHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		err := service.AddDeviceClass(req.Name)
+		err := service.AddModelType(req.Name)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": "add_failed", "message": err.Error()})
@@ -323,7 +323,7 @@ func AddDeviceClassHandler(service q.NetServiceInt) http.HandlerFunc {
 	}
 }
 
-func GetDeviceClassesHandler(service q.NetServiceInt) http.HandlerFunc {
+func GetModelTypesHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -335,18 +335,18 @@ func GetDeviceClassesHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		deviceClasses, err := service.GetDeviceClasses()
+		modelTypes, err := service.GetModelTypes()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(deviceClasses)
+		json.NewEncoder(w).Encode(modelTypes)
 	}
 }
 
-func UpdateDeviceClassHandler(service q.NetServiceInt) http.HandlerFunc {
+func UpdateModelTypeHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -387,7 +387,7 @@ func UpdateDeviceClassHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		err := service.UpdateDeviceClass(req.ID, req.Name)
+		err := service.UpdateModelType(req.ID, req.Name)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": "update_failed", "message": err.Error()})
@@ -399,7 +399,7 @@ func UpdateDeviceClassHandler(service q.NetServiceInt) http.HandlerFunc {
 	}
 }
 
-func DeleteDeviceClassHandler(service q.NetServiceInt) http.HandlerFunc {
+func DeleteModelTypeHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -436,9 +436,9 @@ func DeleteDeviceClassHandler(service q.NetServiceInt) http.HandlerFunc {
 
 		var err error
 		if req.Cascade {
-			err = service.DeleteDeviceClassCascade(req.Name)
+			err = service.DeleteModelTypeCascade(req.Name)
 		} else {
-			err = service.DeleteDeviceClass(req.Name)
+			err = service.DeleteModelType(req.Name)
 		}
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -951,7 +951,7 @@ func AddModelHandler(service q.NetServiceInt) http.HandlerFunc {
 		var req struct {
 			ModelName       string `json:"model_name"`
 			BrandName       string `json:"brand_name"`
-			DeviceClassName string `json:"device_class_name"`
+			ModelTypeName string `json:"model_type_name"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -972,13 +972,13 @@ func AddModelHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		if req.DeviceClassName == "" {
+		if req.ModelTypeName == "" {
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]string{"error": "missing_device_class_name", "message": "device_class_name is required"})
+			json.NewEncoder(w).Encode(map[string]string{"error": "missing_model_type_name", "message": "model_type_name is required"})
 			return
 		}
 
-		err := service.AddModel(req.ModelName, req.BrandName, req.DeviceClassName)
+		err := service.AddModel(req.ModelName, req.BrandName, req.ModelTypeName)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": "add_failed", "message": err.Error()})
@@ -1035,7 +1035,7 @@ func UpdateModelHandler(service q.NetServiceInt) http.HandlerFunc {
 			ModelID       string `json:"model_id"`
 			ModelName     string `json:"model_name"`
 			BrandID       string `json:"brand_id"`
-			DeviceClassID string `json:"device_class_id"`
+			ModelTypeID string `json:"model_type_id"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1050,7 +1050,7 @@ func UpdateModelHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		err := service.UpdateModel(req.ModelID, req.ModelName, req.BrandID, req.DeviceClassID)
+		err := service.UpdateModel(req.ModelID, req.ModelName, req.BrandID, req.ModelTypeID)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": "update_failed", "message": err.Error()})

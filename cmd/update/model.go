@@ -32,12 +32,12 @@ var ModelUpdateCmd = &cobra.Command{
 	Short: "Update an existing device model",
 	Long: `Update an existing device model by its ID.
 	
-You must specify the model ID and can update the model name, brand, and device class.
-Brand and device class should be provided as IDs.
+You must specify the model ID and can update the model name, brand, and model type.
+Brand and model type should be provided as IDs.
 
 Examples:
   nsl-graph update model --id 1 --name "ISR4431-V2"
-  nsl-graph update model --id 1 --name "ISR4431" --brand-id 2 --deviceclass-id 3`,
+  nsl-graph update model --id 1 --name "ISR4431" --brand-id 2 --modeltype-id 3`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Get the required model ID
 		modelId, err := cmd.Flags().GetString("id")
@@ -53,11 +53,11 @@ Examples:
 		// Get update fields
 		newModelName, _ := cmd.Flags().GetString("name")
 		newBrandId, _ := cmd.Flags().GetString("brand-id")
-		newDeviceClassId, _ := cmd.Flags().GetString("deviceclass-id")
+		newModelTypeId, _ := cmd.Flags().GetString("model-type-id")
 
 		// For this implementation, require all fields
-		if newModelName == "" || newBrandId == "" || newDeviceClassId == "" {
-			fmt.Fprintf(os.Stderr, "All fields are required: --name, --brand-id, --deviceclass-id.\n")
+		if newModelName == "" || newBrandId == "" || newModelTypeId == "" {
+			fmt.Fprintf(os.Stderr, "All fields are required: --name, --brand-id, --modeltype-id.\n")
 			os.Exit(1)
 		}
 
@@ -69,7 +69,7 @@ Examples:
 		}
 
 		// Update the model
-		err = service.UpdateModel(modelId, newModelName, newBrandId, newDeviceClassId)
+		err = service.UpdateModel(modelId, newModelName, newBrandId, newModelTypeId)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error updating model: %v\n", err)
 			os.Exit(1)
@@ -78,7 +78,7 @@ Examples:
 		fmt.Printf("Successfully updated model with ID %s\n", modelId)
 		fmt.Printf("  New name: %s\n", newModelName)
 		fmt.Printf("  New brand ID: %s\n", newBrandId)
-		fmt.Printf("  New device class ID: %s\n", newDeviceClassId)
+		fmt.Printf("  New model type ID: %s\n", newModelTypeId)
 	},
 }
 
@@ -88,9 +88,9 @@ func init() {
 	ModelUpdateCmd.Flags().String("id", "", "ID of the model to update (required)")
 	ModelUpdateCmd.Flags().String("name", "", "New name for the model (required)")
 	ModelUpdateCmd.Flags().String("brand-id", "", "New brand ID for the model (required)")
-	ModelUpdateCmd.Flags().String("deviceclass-id", "", "New device class ID for the model (required)")
+	ModelUpdateCmd.Flags().String("model-type-id", "", "New model type ID for the model (required)")
 	// ModelUpdateCmd.MarkFlagRequired("id")
 	// ModelUpdateCmd.MarkFlagRequired("name")
 	// ModelUpdateCmd.MarkFlagRequired("brand-id")
-	// ModelUpdateCmd.MarkFlagRequired("deviceclass-id")
+	// ModelUpdateCmd.MarkFlagRequired("model-type-id")
 }

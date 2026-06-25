@@ -32,7 +32,7 @@ var AddCmd = &cobra.Command{
 	Use:     "add",
 	Aliases: []string{"modify"},
 	Short:   "Add entities to the network (brands, devices, zones, connections, …)",
-	Long: `Add new entities to the network model: brands, device classes, zones,
+	Long: `Add new entities to the network model: brands, model types, zones,
 models, devices, ports, connections, VLANs and interfaces.
 
 To change an existing entity, use the "update" command instead. The old name

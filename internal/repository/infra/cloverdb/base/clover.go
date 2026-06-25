@@ -24,7 +24,7 @@ import (
 // Collection constants
 const (
 	brandsCollection          = "brands"
-	devclassesCollection      = "devclasses"
+	modeltypesCollection      = "modeltypes"
 	ownersCollection          = "owners"
 	zonetypesCollection       = "zonetypes"
 	zonesCollection           = "zones"
@@ -48,7 +48,7 @@ func NewCloverRepositoryFromDB(db *c.DB) (BasicOpsCloverRepository, error) {
 	// List of all collections to create
 	collections := []string{
 		brandsCollection,
-		devclassesCollection,
+		modeltypesCollection,
 		ownersCollection,
 		zonetypesCollection,
 		zonesCollection,

@@ -5,13 +5,13 @@ $message = '';
 // Fetch data for form options
 $models = json_decode(@file_get_contents(MODELS_ENDPOINT), true) ?: [];
 $brands = json_decode(@file_get_contents(BRANDS_ENDPOINT), true) ?: [];
-$deviceClasses = json_decode(@file_get_contents(DEVCLASSES_ENDPOINT), true) ?: [];
+$modelTypes = json_decode(@file_get_contents(MODELTYPES_ENDPOINT), true) ?: [];
 
 // Variables to hold selected model data
 $selectedModelId = '';
 $selectedModelName = '';
 $selectedBrandId = '';
-$selectedDeviceClassId = '';
+$selectedModelTypeId = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Handle model selection (Load Model button)
@@ -31,10 +31,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
 
-                // Find device class ID by class name
-                foreach ($deviceClasses as $deviceClass) {
-                    if ($deviceClass['name'] === ($model['class'] ?? '')) {
-                        $selectedDeviceClassId = $deviceClass['id'];
+                // Find model-type ID by name
+                foreach ($modelTypes as $modelType) {
+                    if ($modelType['name'] === ($model['model_type'] ?? '')) {
+                        $selectedModelTypeId = $modelType['id'];
                         break;
                     }
                 }
@@ -47,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $modelId = trim($_POST['model_id'] ?? '');
         $newModelName = trim($_POST['model_name'] ?? '');
         $brandId = $_POST['brand_id'] ?? '';
-        $deviceClassId = $_POST['device_class_id'] ?? '';
+        $modelTypeId = $_POST['model_type_id'] ?? '';
 
         if ($modelId === '') {
             $message = 'Please select a model to update.';
@@ -55,14 +55,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $message = 'Please enter a model name.';
         } elseif ($brandId === '') {
             $message = 'Please select a brand.';
-        } elseif ($deviceClassId === '') {
-            $message = 'Please select a device class.';
+        } elseif ($modelTypeId === '') {
+            $message = 'Please select a model type.';
         } else {
             $data = json_encode([
                 'id' => $modelId,
                 'name' => $newModelName,
                 'brand_id' => $brandId,
-                'device_class_id' => $deviceClassId
+                'model_type_id' => $modelTypeId
             ]);
 
             $ch = curl_init(MODELS_ENDPOINT);
@@ -85,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $selectedModelId = '';
                 $selectedModelName = '';
                 $selectedBrandId = '';
-                $selectedDeviceClassId = '';
+                $selectedModelTypeId = '';
             } else {
                 $message = 'Failed to update model. Server response: ' . htmlspecialchars($response);
             }
@@ -133,13 +133,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <?php endforeach; ?>
             </select><br><br>
 
-            <label for="device_class_id">Device Class:</label>
-            <select id="device_class_id" name="device_class_id" required>
-                <option value="">-- Select Device Class --</option>
-                <?php foreach ($deviceClasses as $deviceClass): ?>
-                    <option value="<?= htmlspecialchars($deviceClass['id']) ?>"
-                        <?= ($deviceClass['id'] == $selectedDeviceClassId) ? 'selected' : '' ?>>
-                        <?= htmlspecialchars($deviceClass['name']) ?>
+            <label for="model_type_id">Model type:</label>
+            <select id="model_type_id" name="model_type_id" required>
+                <option value="">-- Select Model Type --</option>
+                <?php foreach ($modelTypes as $modelType): ?>
+                    <option value="<?= htmlspecialchars($modelType['id']) ?>"
+                        <?= ($modelType['id'] == $selectedModelTypeId) ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($modelType['name']) ?>
                     </option>
                 <?php endforeach; ?>
             </select><br><br>

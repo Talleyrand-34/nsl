@@ -5,24 +5,24 @@ $message = '';
 
 // Fetch select options
 $brands = json_decode(@file_get_contents(BRANDS_ENDPOINT), true) ?: [];
-$deviceclasses = json_decode(@file_get_contents(DEVCLASSES_ENDPOINT), true) ?: [];
+$modeltypes = json_decode(@file_get_contents(MODELTYPES_ENDPOINT), true) ?: [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $model = trim($_POST['model'] ?? '');
     $brand = $_POST['brand'] ?? '';
-    $class = $_POST['class'] ?? '';
+    $modelType = $_POST['model_type'] ?? '';
 
     if ($model === '') {
         $message = 'Please enter a model name.';
     } elseif ($brand === '') {
         $message = 'Please select a brand.';
-    } elseif ($class === '') {
-        $message = 'Please select a device class.';
+    } elseif ($modelType === '') {
+        $message = 'Please select a model type.';
     } else {
         $data = json_encode([
             'model_name' => $model,
             'brand_name' => $brand,
-            'device_class_name' => $class
+            'model_type_name' => $modelType
         ]);
 
         $ch = curl_init(MODELS_ENDPOINT);
@@ -65,10 +65,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php endforeach; ?>
     </select><br><br>
 
-    <label for="class">Device Class:</label>
-    <select id="class" name="class" required>
+    <label for="model_type">Model type:</label>
+    <select id="model_type" name="model_type" required>
         <option value="">-- Select --</option>
-        <?php foreach ($deviceclasses as $dc): ?>
+        <?php foreach ($modeltypes as $dc): ?>
             <option value="<?= htmlspecialchars($dc['name']) ?>">
                 <?= htmlspecialchars($dc['name']) ?>
             </option>

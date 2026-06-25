@@ -19,7 +19,7 @@ func TestDevicePort_AddAndGet(t *testing.T) {
 	if err := repo.AddBrand("Cisco"); err != nil {
 		t.Fatalf("failed to add brand: %v", err)
 	}
-	if err := repo.AddDeviceClass("Switch"); err != nil {
+	if err := repo.AddModelType("Switch"); err != nil {
 		t.Fatalf("failed to add device class: %v", err)
 	}
 	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
@@ -78,7 +78,7 @@ func TestDevicePort_AddWithInvalidModel(t *testing.T) {
 	if err := repo.AddBrand("Cisco"); err != nil {
 		t.Fatalf("failed to add brand: %v", err)
 	}
-	if err := repo.AddDeviceClass("Switch"); err != nil {
+	if err := repo.AddModelType("Switch"); err != nil {
 		t.Fatalf("failed to add device class: %v", err)
 	}
 	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
@@ -130,7 +130,7 @@ func TestDevicePort_Delete(t *testing.T) {
 	if err := repo.AddBrand("Cisco"); err != nil {
 		t.Fatalf("failed to add brand: %v", err)
 	}
-	if err := repo.AddDeviceClass("Switch"); err != nil {
+	if err := repo.AddModelType("Switch"); err != nil {
 		t.Fatalf("failed to add device class: %v", err)
 	}
 	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {

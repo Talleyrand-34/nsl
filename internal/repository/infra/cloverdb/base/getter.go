@@ -138,17 +138,17 @@ func (r BasicOpsCloverRepository) getBrandID(brandName string) (string, error) {
 }
 
 // Helper function to get device class ID from class name
-func (r BasicOpsCloverRepository) getClassID(className string) (string, error) {
-	if className == "" {
+func (r BasicOpsCloverRepository) getModelTypeID(modelTypeName string) (string, error) {
+	if modelTypeName == "" {
 		return "", fmt.Errorf("class name is required")
 	}
 
-	doc, err := r.db.FindFirst(q.NewQuery(devclassesCollection).Where(q.Field("name").Eq(className)))
+	doc, err := r.db.FindFirst(q.NewQuery(modeltypesCollection).Where(q.Field("name").Eq(modelTypeName)))
 	if err != nil {
-		return "", fmt.Errorf("class not found: %s", className)
+		return "", fmt.Errorf("class not found: %s", modelTypeName)
 	}
 	if doc == nil {
-		return "", fmt.Errorf("class not found: %s", className)
+		return "", fmt.Errorf("class not found: %s", modelTypeName)
 	}
 
 	return doc.ObjectId(), nil

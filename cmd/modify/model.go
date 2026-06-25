@@ -30,7 +30,7 @@ import (
 var modelDeviceModCmd = &cobra.Command{
 	Use:   "model",
 	Short: "Add a device model",
-	Long: `Create a new device model with a specified name, brand, and device class.
+	Long: `Create a new device model with a specified name, brand, and model type.
 	
 A model represents a specific network device template (like "ISR4431" or "Catalyst2960") 
 that defines the capabilities and characteristics of devices.
@@ -53,10 +53,10 @@ Examples:
 			os.Exit(1)
 		}
 
-		// Get required device class
-		deviceClass, err := cmd.Flags().GetString("class")
-		if err != nil || deviceClass == "" {
-			fmt.Fprintf(os.Stderr, "Device class is required. Use --class flag.\n")
+		// Get required model type
+		modelType, err := cmd.Flags().GetString("model-type")
+		if err != nil || modelType == "" {
+			fmt.Fprintf(os.Stderr, "Model type is required. Use --class flag.\n")
 			os.Exit(1)
 		}
 
@@ -68,14 +68,14 @@ Examples:
 		}
 
 		// Create the model
-		err = service.AddModel(modelName, brandName, deviceClass)
+		err = service.AddModel(modelName, brandName, modelType)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error creating model: %v\n", err)
 			os.Exit(1)
 		}
 
 		fmt.Printf("Successfully created model '%s' from brand '%s' with class '%s'\n",
-			modelName, brandName, deviceClass)
+			modelName, brandName, modelType)
 	},
 }
 
@@ -84,9 +84,9 @@ func init() {
 
 	modelDeviceModCmd.Flags().String("name", "", "Model name/identifier (required)")
 	modelDeviceModCmd.Flags().String("brand", "", "Brand name for the model (required)")
-	modelDeviceModCmd.Flags().String("class", "", "Device class name for the model (required)")
+	modelDeviceModCmd.Flags().String("model-type", "", "Model type name for the model (required)")
 
 	modelDeviceModCmd.MarkFlagRequired("name")
 	modelDeviceModCmd.MarkFlagRequired("brand")
-	modelDeviceModCmd.MarkFlagRequired("class")
+	modelDeviceModCmd.MarkFlagRequired("model-type")
 }

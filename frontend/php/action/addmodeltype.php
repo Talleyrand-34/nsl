@@ -4,12 +4,12 @@ require_once __DIR__ . '/../config.php';
 $message = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $devclass = trim($_POST['devclass'] ?? '');
+    $modeltype = trim($_POST['modeltype'] ?? '');
 
-    if ($devclass !== '') {
-        $data = json_encode(['name' => $devclass]);
+    if ($modeltype !== '') {
+        $data = json_encode(['name' => $modeltype]);
 
-        $ch = curl_init(DEVCLASSES_ENDPOINT);
+        $ch = curl_init(MODELTYPES_ENDPOINT);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
         curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -22,23 +22,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
         if ($httpCode === 201) {
-            $message = 'devclass added successfully!';
+            $message = 'modeltype added successfully!';
         } else {
-            $message = 'Failed to add devclass. Server response: ' . htmlspecialchars($response);
+            $message = 'Failed to add modeltype. Server response: ' . htmlspecialchars($response);
         }
         curl_close($ch);
     } else {
-        $message = 'Please enter a devclass name.';
+        $message = 'Please enter a modeltype name.';
     }
 }
 ?>
 
-<h2>Add a New devclass</h2>
+<h2>Add a New modeltype</h2>
 <?php if ($message): ?>
     <p><strong><?= htmlspecialchars($message) ?></strong></p>
 <?php endif; ?>
 <form method="post">
-    <label for="devclass">devclass name:</label>
-    <input type="text" id="devclass" name="devclass" required>
-    <button type="submit">Add devclass</button>
+    <label for="modeltype">modeltype name:</label>
+    <input type="text" id="modeltype" name="modeltype" required>
+    <button type="submit">Add modeltype</button>
 </form>

@@ -57,11 +57,11 @@ func TestDevices_BrandsEndpoint(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
-func TestDevices_DeviceClassesEndpoint(t *testing.T) {
+func TestDevices_ModelTypesEndpoint(t *testing.T) {
 	router, _ := setupTestAPI(t)
 
-	// Test GET /deviceclasses endpoint
-	req := httptest.NewRequest("GET", "/deviceclasses", nil)
+	// Test GET /modeltypes endpoint
+	req := httptest.NewRequest("GET", "/modeltypes", nil)
 	w := httptest.NewRecorder()
 
 	router.ServeHTTP(w, req)
@@ -134,10 +134,10 @@ func TestDevices_RoutesRegistration(t *testing.T) {
 		{"POST", "/brands"},
 		{"PUT", "/brands"},
 		{"DELETE", "/brands"},
-		{"GET", "/deviceclasses"},
-		{"POST", "/deviceclasses"},
-		{"PUT", "/deviceclasses"},
-		{"DELETE", "/deviceclasses"},
+		{"GET", "/modeltypes"},
+		{"POST", "/modeltypes"},
+		{"PUT", "/modeltypes"},
+		{"DELETE", "/modeltypes"},
 		{"GET", "/devices"},
 		{"POST", "/devices"},
 		{"PUT", "/devices"},

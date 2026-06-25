@@ -103,7 +103,7 @@ Examples:
 				device.Device.IP,
 				device.Brand,
 				device.Model,
-				device.DeviceClass)
+				device.ModelType)
 
 			if len(device.Device.Interfaces) > 0 {
 				fmt.Printf("   Interfaces: %d\n", len(device.Device.Interfaces))

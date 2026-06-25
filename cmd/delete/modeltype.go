@@ -26,10 +26,10 @@ import (
 	util "nsl-graph/cmd/utils"
 )
 
-var deviceClassDelCmd = &cobra.Command{
-	Use:   "deviceclass [device_class_name]",
-	Short: "Delete a device class",
-	Long:  `Delete a device class from the database by name. Use --cascade to also delete all dependent models and devices.`,
+var modelTypeDelCmd = &cobra.Command{
+	Use:   "modeltype [model_type_name]",
+	Short: "Delete a model type",
+	Long:  `Delete a model type from the database by name. Use --cascade to also delete all dependent models and devices.`,
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		name := args[0]
@@ -41,25 +41,25 @@ var deviceClassDelCmd = &cobra.Command{
 		}
 
 		if cascade {
-			err = service.DeleteDeviceClassCascade(name)
+			err = service.DeleteModelTypeCascade(name)
 			if err == nil {
-				fmt.Printf("Device class '%s' and all dependencies deleted successfully\n", name)
+				fmt.Printf("Model type '%s' and all dependencies deleted successfully\n", name)
 			}
 		} else {
-			err = service.DeleteDeviceClass(name)
+			err = service.DeleteModelType(name)
 			if err == nil {
-				fmt.Printf("Device class '%s' deleted successfully\n", name)
+				fmt.Printf("Model type '%s' deleted successfully\n", name)
 			}
 		}
 
 		if err != nil {
-			return fmt.Errorf("error deleting device class: %w", err)
+			return fmt.Errorf("error deleting model type: %w", err)
 		}
 		return nil
 	},
 }
 
 func init() {
-	cmd_root.DeleteCmd.AddCommand(deviceClassDelCmd)
-	deviceClassDelCmd.Flags().Bool("cascade", false, "Delete device class and all dependent objects (models, devices)")
+	cmd_root.DeleteCmd.AddCommand(modelTypeDelCmd)
+	modelTypeDelCmd.Flags().Bool("cascade", false, "Delete model type and all dependent objects (models, devices)")
 }

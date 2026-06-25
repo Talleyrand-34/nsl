@@ -28,11 +28,11 @@ type repository interface {
 	UpdateBrand(brandId string, newBrandName string) error
 	DeleteBrand(brandName string) error
 
-	// DeviceClass interaction
-	AddDeviceClass(deviceClassName string) error
-	GetDeviceClasses() ([]e.DevClass, error)
-	UpdateDeviceClass(deviceClassId string, newDeviceClassName string) error
-	DeleteDeviceClass(deviceClassName string) error
+	// ModelType interaction
+	AddModelType(modelTypeName string) error
+	GetModelTypes() ([]e.ModelType, error)
+	UpdateModelType(modelTypeId string, newModelTypeName string) error
+	DeleteModelType(modelTypeName string) error
 
 	// ZoneType interaction
 	AddZoneType(zoneTypeName string) error
@@ -68,14 +68,14 @@ type repository interface {
 	AddModel(
 		modelName string,
 		brandName string,
-		deviceClassName string,
+		modelTypeName string,
 	) error
 	GetModels() ([]e.ModelDevice, error)
 	UpdateModel(
 		modelId string,
 		newModelName string,
 		newBrandId string,
-		newDeviceClassId string,
+		newModelTypeId string,
 	) error
 	DeleteModel(modelId string) error
 
@@ -163,7 +163,7 @@ type repository interface {
 
 	// Cascade deletion methods
 	DeleteBrandCascade(brandName string) error
-	DeleteDeviceClassCascade(deviceClassName string) error
+	DeleteModelTypeCascade(modelTypeName string) error
 	DeleteZoneTypeCascade(zoneTypeName string) error
 	DeleteOwnerCascade(ownerName string) error
 	DeleteZoneCascade(zoneId string) error

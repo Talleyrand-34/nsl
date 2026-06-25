@@ -77,8 +77,8 @@ go run main.go --help
 The tool manages the following network entities (see the [Glossary](glossary.md)
 for precise definitions):
 - **Brands**: Equipment manufacturers (Cisco, Netgear, etc.)
-- **Device Classes**: Categories of network equipment (router, switch, firewall, AP)
-- **Models**: Specific products of a brand + device class
+- **Model Types**: Categories of network equipment (router, switch, firewall, AP)
+- **Models**: Specific products of a brand + model type
 - **Zones**: Logical or physical network segments (with a Zone Type and Owner)
 - **Devices**: Instances of a model, optionally tied to a **scan profile**
 - **Ports**: Model Ports (template) and Device Ports (instance)

@@ -52,11 +52,11 @@ type NetServiceInt interface {
 	UpdateBrand(brandId string, newBrandName string) error
 	DeleteBrand(brandName string) error
 
-	// DeviceClass operations
-	AddDeviceClass(deviceClassName string) error
-	GetDeviceClasses() ([]e.DevClass, error)
-	UpdateDeviceClass(deviceClassId string, newDeviceClassName string) error
-	DeleteDeviceClass(deviceClassName string) error
+	// ModelType operations
+	AddModelType(modelTypeName string) error
+	GetModelTypes() ([]e.ModelType, error)
+	UpdateModelType(modelTypeId string, newModelTypeName string) error
+	DeleteModelType(modelTypeName string) error
 
 	// ZoneType operations
 	AddZoneType(zoneTypeName string) error
@@ -92,14 +92,14 @@ type NetServiceInt interface {
 	AddModel(
 		modelName string,
 		brandName string,
-		deviceClassName string,
+		modelTypeName string,
 	) error
 	GetModels() ([]e.ModelDevice, error)
 	UpdateModel(
 		modelId string,
 		newModelName string,
 		newBrandId string,
-		newDeviceClassId string,
+		newModelTypeId string,
 	) error
 	DeleteModel(modelId string) error
 
@@ -199,7 +199,7 @@ type NetServiceInt interface {
 
 	// Cascade deletion operations
 	DeleteBrandCascade(brandName string) error
-	DeleteDeviceClassCascade(deviceClassName string) error
+	DeleteModelTypeCascade(modelTypeName string) error
 	DeleteZoneTypeCascade(zoneTypeName string) error
 	DeleteOwnerCascade(ownerName string) error
 	DeleteZoneCascade(zoneId string) error
@@ -366,12 +366,12 @@ func (ns *NetService) UpdateBrand(brandId string, newBrandName string) error {
 	return ns.netRepo.UpdateBrand(brandId, newBrandName)
 }
 
-func (ns *NetService) AddDeviceClass(deviceClassName string) error {
-	return ns.netRepo.AddDeviceClass(deviceClassName)
+func (ns *NetService) AddModelType(modelTypeName string) error {
+	return ns.netRepo.AddModelType(modelTypeName)
 }
 
-func (ns *NetService) GetDeviceClasses() ([]e.DevClass, error) {
-	return ns.netRepo.GetDeviceClasses()
+func (ns *NetService) GetModelTypes() ([]e.ModelType, error) {
+	return ns.netRepo.GetModelTypes()
 }
 
 func (ns *NetService) AddZoneType(zoneTypeName string) error {
@@ -427,9 +427,9 @@ func (ns *NetService) GetModelPorts() ([]e.ModelPort, error) {
 func (ns *NetService) AddModel(
 	modelName string,
 	brandName string,
-	className string,
+	modelTypeName string,
 ) error {
-	return ns.netRepo.AddModel(modelName, brandName, className)
+	return ns.netRepo.AddModel(modelName, brandName, modelTypeName)
 }
 
 func (ns *NetService) GetDevices() ([]e.Device, error) {
@@ -588,12 +588,12 @@ func (ns *NetService) ensureBrand(name string) error {
 	return ns.AddBrand(name)
 }
 
-// ensureDeviceClass creates the named device class if it doesn't already exist.
-func (ns *NetService) ensureDeviceClass(name string) error {
+// ensureModelType creates the named device class if it doesn't already exist.
+func (ns *NetService) ensureModelType(name string) error {
 	if name == "" {
 		return fmt.Errorf("device class name is required")
 	}
-	classes, err := ns.GetDeviceClasses()
+	classes, err := ns.GetModelTypes()
 	if err != nil {
 		return err
 	}
@@ -602,7 +602,7 @@ func (ns *NetService) ensureDeviceClass(name string) error {
 			return nil
 		}
 	}
-	return ns.AddDeviceClass(name)
+	return ns.AddModelType(name)
 }
 
 // ensureZoneType creates the named zone type if it doesn't already exist.
@@ -740,8 +740,8 @@ func (ns *NetService) DeleteBrand(brand string) error {
 	return ns.netRepo.DeleteBrand(brand)
 }
 
-func (ns *NetService) DeleteDeviceClass(name string) error {
-	return ns.netRepo.DeleteDeviceClass(name)
+func (ns *NetService) DeleteModelType(name string) error {
+	return ns.netRepo.DeleteModelType(name)
 }
 
 func (ns *NetService) DeleteZoneType(locationType string) error {
@@ -776,8 +776,8 @@ func (ns *NetService) DeleteConnection(id string) error {
 	return ns.netRepo.DeleteConnection(id)
 }
 
-func (ns *NetService) UpdateDeviceClass(deviceClassId string, newDeviceClassName string) error {
-	return ns.netRepo.UpdateDeviceClass(deviceClassId, newDeviceClassName)
+func (ns *NetService) UpdateModelType(modelTypeId string, newModelTypeName string) error {
+	return ns.netRepo.UpdateModelType(modelTypeId, newModelTypeName)
 }
 
 func (ns *NetService) UpdateZoneType(zoneTypeId string, newZoneTypeName string) error {
@@ -802,9 +802,9 @@ func (ns *NetService) UpdateModel(
 	modelId string,
 	newModelName string,
 	newBrandId string,
-	newDeviceClassId string,
+	newModelTypeId string,
 ) error {
-	return ns.netRepo.UpdateModel(modelId, newModelName, newBrandId, newDeviceClassId)
+	return ns.netRepo.UpdateModel(modelId, newModelName, newBrandId, newModelTypeId)
 }
 
 func (ns *NetService) UpdateDevice(
@@ -871,8 +871,8 @@ func (ns *NetService) DeleteBrandCascade(brandName string) error {
 	return ns.netRepo.DeleteBrandCascade(brandName)
 }
 
-func (ns *NetService) DeleteDeviceClassCascade(deviceClassName string) error {
-	return ns.netRepo.DeleteDeviceClassCascade(deviceClassName)
+func (ns *NetService) DeleteModelTypeCascade(modelTypeName string) error {
+	return ns.netRepo.DeleteModelTypeCascade(modelTypeName)
 }
 
 func (ns *NetService) DeleteZoneTypeCascade(zoneTypeName string) error {
@@ -963,7 +963,7 @@ func (ns *NetService) DiscoverDevices(scanResult *s.ScanResult) ([]s.DiscoveredD
 			Device:        dev,
 			Brand:         brand,
 			Model:         model,
-			DeviceClass:   class,
+			ModelType:   class,
 			SuggestedName: discoverer.GenerateDeviceName(dev, class),
 			SuggestedZone: discoverer.SuggestZone(dev),
 		})
@@ -1016,7 +1016,7 @@ func (ns *NetService) ensureRequiredEntities(options s.ImportOptions) error {
 		}
 	}
 
-	classes, _ := ns.GetDeviceClasses()
+	classes, _ := ns.GetModelTypes()
 	classExists := func(name string) bool {
 		for _, c := range classes {
 			if c.Name == name {
@@ -1027,9 +1027,9 @@ func (ns *NetService) ensureRequiredEntities(options s.ImportOptions) error {
 	}
 
 	requiredClasses := []string{"Switch", "Router", "Server", "Workstation", "Printer", "Generic", "Access Point", "Firewall"}
-	for _, className := range requiredClasses {
-		if !classExists(className) {
-			ns.AddDeviceClass(className)
+	for _, modelTypeName := range requiredClasses {
+		if !classExists(modelTypeName) {
+			ns.AddModelType(modelTypeName)
 		}
 	}
 
@@ -1053,42 +1053,42 @@ func (ns *NetService) ensureRequiredEntities(options s.ImportOptions) error {
 	for _, modelName := range requiredModels {
 		if !modelExists(modelName) {
 			// Determine brand and device class for each model
-			var brandName, deviceClassName string
+			var brandName, modelTypeName string
 			switch modelName {
 			case "IOS XE Device", "IOS XR Device", "NX-OS Device", "IOS Device", "Cisco Device":
 				brandName = "Cisco"
 				if modelName == "NX-OS Device" || modelName == "Cisco Device" {
-					deviceClassName = "Switch"
+					modelTypeName = "Switch"
 				} else {
-					deviceClassName = "Router"
+					modelTypeName = "Router"
 				}
 			case "Juniper Device":
-				brandName, deviceClassName = "Juniper", "Router"
+				brandName, modelTypeName = "Juniper", "Router"
 			case "Aruba Device":
-				brandName, deviceClassName = "Aruba", "Access Point"
+				brandName, modelTypeName = "Aruba", "Access Point"
 			case "UniFi Device":
-				brandName, deviceClassName = "Ubiquiti", "Access Point"
+				brandName, modelTypeName = "Ubiquiti", "Access Point"
 			case "FortiGate":
-				brandName, deviceClassName = "Fortinet", "Firewall"
+				brandName, modelTypeName = "Fortinet", "Firewall"
 			case "PAN Device":
-				brandName, deviceClassName = "Palo Alto", "Firewall"
+				brandName, modelTypeName = "Palo Alto", "Firewall"
 			case "RouterOS Device":
-				brandName, deviceClassName = "MikroTik", "Router"
+				brandName, modelTypeName = "MikroTik", "Router"
 			case "ProCurve Switch":
-				brandName, deviceClassName = "HP", "Switch"
+				brandName, modelTypeName = "HP", "Switch"
 			case "Linux Server":
-				brandName, deviceClassName = "Linux", "Server"
+				brandName, modelTypeName = "Linux", "Server"
 			case "Windows Server":
-				brandName, deviceClassName = "Microsoft", "Server"
+				brandName, modelTypeName = "Microsoft", "Server"
 			case "BSD Server":
-				brandName, deviceClassName = "BSD", "Server"
+				brandName, modelTypeName = "BSD", "Server"
 			case "Network Printer":
-				brandName, deviceClassName = "Generic", "Printer"
+				brandName, modelTypeName = "Generic", "Printer"
 			case "Network Device":
-				brandName, deviceClassName = "Generic", "Generic"
+				brandName, modelTypeName = "Generic", "Generic"
 			}
 
-			if err := ns.AddModel(modelName, brandName, deviceClassName); err != nil {
+			if err := ns.AddModel(modelName, brandName, modelTypeName); err != nil {
 				log.Printf("Warning: failed to create model %s: %v", modelName, err)
 			}
 		}
@@ -1264,7 +1264,7 @@ func (ns *NetService) createDevicePortsForDevice(deviceID string, discovered s.D
 		if modelName == "" {
 			modelName = "Generic Model"
 		}
-		if err := ns.AddModel(modelName, discovered.Brand, discovered.DeviceClass); err != nil {
+		if err := ns.AddModel(modelName, discovered.Brand, discovered.ModelType); err != nil {
 			return err
 		}
 	}
@@ -1737,7 +1737,7 @@ func (ns *NetService) EnsureModelExists(modelName, brandName, defaultBrand strin
 	}
 
 	// Ensure "Router" device class exists (fallback device class)
-	err = ns.AddDeviceClass("Router")
+	err = ns.AddModelType("Router")
 	if err != nil {
 		// Device class might already exist, that's ok
 		// Continue with model creation
@@ -1969,7 +1969,7 @@ func (ns *NetService) createDevicePortsWithPlan(deviceID string, discovered s.Di
 		if modelName == "" {
 			modelName = "Generic Model"
 		}
-		if err := ns.AddModel(modelName, discovered.Brand, discovered.DeviceClass); err != nil {
+		if err := ns.AddModel(modelName, discovered.Brand, discovered.ModelType); err != nil {
 			return err
 		}
 	}

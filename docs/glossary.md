@@ -17,17 +17,21 @@ code, docs, and UI text.
 A hardware **manufacturer** (e.g. Cisco, Netgear, OpenWrt).
 - Collection `brands`; API `/brands`; CLI `add/update/delete brand`; UI "Brand".
 
-### Device Class
-The **category** of equipment — router, switch, firewall, access point, …
-- Collection `devclasses`; API `/deviceclasses`; UI entity `devclass` ("Device Class").
-- Aliases: `device_class` / `device_class_name` (JSON), `class` (model form field),
-  `DevClass` (Go type). **Canonical: "Device Class".**
+### Model Type
+The **category** of equipment — router, switch, firewall, access point, … A
+**Model** belongs to one Model Type.
+- Collection `modeltypes`; API `/modeltypes`; CLI `modeltype`; UI entity
+  `modeltype` ("Model Type"); JSON `model_type` / `model_type_name`; Go `ModelType`.
+- **Renamed from `device class` / `devclass`**. Migrate old stores with
+  `scripts/migrate_phase2_modeltype.go` (renames the `devclasses` collection and the
+  `class_id` field on models).
 
 ### Model
-A specific **product**: a Brand + a Device Class under a model name (e.g.
+A specific **product**: a Brand + a Model Type under a model name (e.g.
 "Catalyst 9300"). A Model is a *template* — Devices are instances of it, and it
 owns the Model Ports that define the device's physical ports.
 - Collection `models`; API `/models`; UI entity `modeldevice` ("Model").
+  Its Model Type is JSON `model_type` (FK `model_type_id`).
 - Alias: `modeldevice` is the UI/route value; the user-facing label is **Model**.
 
 ### Device
@@ -178,7 +182,7 @@ are documented rather than churned:
 
 | Canonical | Aliases / where they appear |
 |-----------|------------------------------|
-| Device Class | `devclass` (UI entity), `deviceclasses` (API), `device_class`/`class` (JSON), `DevClass` (Go) |
+| Model Type | formerly **`device class` / `devclass`** (renamed; migrate old stores via `scripts/migrate_phase2_modeltype.go`) |
 | Model | `modeldevice` (UI entity/route value) |
 | Zone Type | `location_type` (Zone field) — **don't** surface as "Location Type" |
 | Owner | formerly **`proprietary`** (renamed; migrate old stores via `scripts/migrate_phase1_owner.go`) |

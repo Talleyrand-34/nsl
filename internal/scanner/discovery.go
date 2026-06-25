@@ -13,9 +13,9 @@ func NewDeviceDiscoverer() *DeviceDiscoverer {
 	return &DeviceDiscoverer{}
 }
 
-// ClassifyDevice returns (brand, model, deviceClass) based on sysDescr.
+// ClassifyDevice returns (brand, model, modelType) based on sysDescr.
 // For SSH config sources, sysDescr may contain the device type key (e.g., "opnsense-xml", "openwrt-uci").
-func (dd *DeviceDiscoverer) ClassifyDevice(device SNMPDevice) (brand, model, deviceClass string) {
+func (dd *DeviceDiscoverer) ClassifyDevice(device SNMPDevice) (brand, model, modelType string) {
 	descr := strings.ToLower(device.SysDescr)
 
 	switch {
@@ -63,13 +63,13 @@ func (dd *DeviceDiscoverer) ClassifyDevice(device SNMPDevice) (brand, model, dev
 }
 
 // GenerateDeviceName returns the device name to use for import.
-// Prefers sysName if set; otherwise generates a name from deviceClass and the last IP octet.
-func (dd *DeviceDiscoverer) GenerateDeviceName(device SNMPDevice, deviceClass string) string {
+// Prefers sysName if set; otherwise generates a name from modelType and the last IP octet.
+func (dd *DeviceDiscoverer) GenerateDeviceName(device SNMPDevice, modelType string) string {
 	if device.SysName != "" {
 		return device.SysName
 	}
 
-	prefix := classPrefix(deviceClass)
+	prefix := classPrefix(modelType)
 	parts := strings.Split(device.IP, ".")
 	if len(parts) == 4 {
 		return fmt.Sprintf("%s-%s", prefix, parts[3])
@@ -96,8 +96,8 @@ func (dd *DeviceDiscoverer) SuggestZone(device SNMPDevice) string {
 	return "External"
 }
 
-func classPrefix(deviceClass string) string {
-	switch strings.ToLower(deviceClass) {
+func classPrefix(modelType string) string {
+	switch strings.ToLower(modelType) {
 	case "switch":
 		return "SW"
 	case "router":

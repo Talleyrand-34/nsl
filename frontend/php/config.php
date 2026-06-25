@@ -8,7 +8,7 @@ define('API_BASE_URL_DEFAULT', 'http://localhost:8081');
 session_start();
 define('API_BASE_URL', $_SESSION['api_base_url'] ?? API_BASE_URL_DEFAULT);
 define('BRANDS_ENDPOINT', API_BASE_URL . '/brands');
-define('DEVCLASSES_ENDPOINT', API_BASE_URL . '/deviceclasses');
+define('MODELTYPES_ENDPOINT', API_BASE_URL . '/modeltypes');
 define('OWNERS_ENDPOINT', API_BASE_URL . '/owners');
 define('ZONETYPES_ENDPOINT', API_BASE_URL . '/zonetypes');
 define('ZONES_ENDPOINT', API_BASE_URL . '/zones');
@@ -37,7 +37,6 @@ define('SCAN_CONNECTIONS_IMPORT_ENDPOINT', API_BASE_URL . '/scan/connections/imp
 define('SCAN_CONNECTIONS_PLACEHOLDERS_ENDPOINT', API_BASE_URL . '/scan/connections/placeholders');
 define('SCAN_CONNECTIONS_DIAGRAM_ENDPOINT', API_BASE_URL . '/scan/connections/diagram');
 // Add other endpoints as needed, e.g.:
-// define('DEVICECLASSES_ENDPOINT', API_BASE_URL . '/deviceclasses');
 //
 //
 ?>

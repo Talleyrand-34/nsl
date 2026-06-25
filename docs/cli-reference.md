@@ -45,16 +45,16 @@ nsl-graph add brand --name "Cisco"
 nsl-graph add brand --name "Juniper"
 ```
 
-#### add deviceclass
+#### add modeltype
 ```bash
-nsl-graph add deviceclass --name <class-name>
+nsl-graph add modeltype --name <class-name>
 ```
-Add a new device class (router, switch, firewall, etc.).
+Add a new model type (router, switch, firewall, etc.).
 
 **Example:**
 ```bash
-nsl-graph add deviceclass --name "router"
-nsl-graph add deviceclass --name "switch"
+nsl-graph add modeltype --name "router"
+nsl-graph add modeltype --name "switch"
 ```
 
 #### add owner
@@ -186,11 +186,11 @@ nsl-graph print brand
 ```
 Display all brands.
 
-#### print deviceclass
+#### print modeltype
 ```bash
-nsl-graph print deviceclass
+nsl-graph print modeltype
 ```
-Display all device classes.
+Display all model types.
 
 #### print owner
 ```bash
@@ -465,7 +465,7 @@ Here's a complete example of setting up a simple network:
 ```bash
 # Set up basic entities
 nsl-graph add brand --name "Cisco"
-nsl-graph add deviceclass --name "router"
+nsl-graph add modeltype --name "router"
 nsl-graph add owner --name "MyCompany"
 nsl-graph add zonetype --name "physical"
 

@@ -47,11 +47,11 @@ func (r BasicOpsCloverRepository) GetModels() ([]e.ModelDevice, error) {
 			}
 		}
 
-		// Get class name if class ID exists
-		if classID, ok := doc.Get("class_id").(string); ok && classID != "" {
-			classDoc, err := r.db.FindById(devclassesCollection, classID)
-			if err == nil && classDoc != nil {
-				model.Class = classDoc.Get("name").(string)
+		// Get model-type name if the model-type ID exists
+		if mtID, ok := doc.Get("model_type_id").(string); ok && mtID != "" {
+			mtDoc, err := r.db.FindById(modeltypesCollection, mtID)
+			if err == nil && mtDoc != nil {
+				model.ModelType = mtDoc.Get("name").(string)
 			}
 		}
 
@@ -65,7 +65,7 @@ func (r BasicOpsCloverRepository) GetModels() ([]e.ModelDevice, error) {
 func (r BasicOpsCloverRepository) AddModel(
 	modelName string,
 	brandName string,
-	className string,
+	modelTypeName string,
 ) error {
 	// Get brand ID from name (required)
 	brandID, err := r.getBrandID(brandName)
@@ -74,15 +74,15 @@ func (r BasicOpsCloverRepository) AddModel(
 	}
 
 	// Get class ID from name (required)
-	classID, err := r.getClassID(className)
+	classID, err := r.getModelTypeID(modelTypeName)
 	if err != nil {
-		return fmt.Errorf("class not found: %s", className)
+		return fmt.Errorf("class not found: %s", modelTypeName)
 	}
 
 	doc := d.NewDocument()
 	doc.Set("model", modelName)
 	doc.Set("brand", brandID)
-	doc.Set("class_id", classID)
+	doc.Set("model_type_id", classID)
 
 	_, err = r.db.InsertOne(modelsCollection, doc)
 	if err != nil {
@@ -96,15 +96,15 @@ func (r BasicOpsCloverRepository) UpdateModel(
 	modelId string,
 	newModelName string,
 	newBrandId string,
-	newDeviceClassId string,
+	newModelTypeId string,
 ) error {
 	updates := make(map[string]interface{})
 	updates["model"] = newModelName
 	if newBrandId != "" {
 		updates["brand"] = newBrandId
 	}
-	if newDeviceClassId != "" {
-		updates["class_id"] = newDeviceClassId
+	if newModelTypeId != "" {
+		updates["model_type_id"] = newModelTypeId
 	}
 
 	err := r.db.Update(q.NewQuery(modelsCollection).Where(q.Field("_id").Eq(modelId)), updates)

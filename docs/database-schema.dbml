@@ -18,7 +18,7 @@ Table brands {
 }
 
 // Types of network equipment (router, switch, firewall, etc.)
-Table devclasses {
+Table modeltypes {
   _id string [pk]
   name string
 }
@@ -71,7 +71,7 @@ Table models {
   _id string [pk]
   model string
   brand string
-  class_id string
+  model_type_id string
 }
 
 // Port layouts for device models
@@ -206,7 +206,7 @@ Ref: zones.location_type > zonetypes._id
 
 // Model references
 Ref: models.brand > brands._id
-Ref: models.class_id > devclasses._id
+Ref: models.model_type_id > modeltypes._id
 
 // ModelPort -> Model
 Ref: modelports.model_id > models._id

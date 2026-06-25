@@ -61,11 +61,11 @@ func RootHandler() http.HandlerFunc {
 			"POST   /connectiontypes",
 			"PUT    /connectiontypes",
 
-			// /deviceclasses
-			"DELETE /deviceclasses",
-			"GET    /deviceclasses",
-			"POST   /deviceclasses",
-			"PUT    /deviceclasses",
+			// /modeltypes
+			"DELETE /modeltypes",
+			"GET    /modeltypes",
+			"POST   /modeltypes",
+			"PUT    /modeltypes",
 
 			// /deviceports
 			"DELETE /deviceports",

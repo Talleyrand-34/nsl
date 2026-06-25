@@ -23,7 +23,7 @@ type All struct {
 	Brands          []BasicBrand
 	ConnectionTypes []BasicConnectiontype
 	Connections     []BasicConnection
-	DeviceClasses   []BasicDeviceclass
+	ModelTypes   []BasicModelType
 	DevicePorts     []BasicDeviceport
 	Devices         []BasicDevice
 	ModelDevices    []BasicModeldevice
@@ -60,7 +60,7 @@ type BasicConnection struct {
 	VlanIDs                   []string `json:"vlan_ids"`        // Array of VLAN IDs
 }
 
-type BasicDeviceclass struct {
+type BasicModelType struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 }
@@ -82,7 +82,7 @@ type BasicModeldevice struct {
 	ID      string `json:"id"`
 	Model   string `json:"model"`
 	Brand   int64  `json:"brand"`
-	ClassID string `json:"class_id"`
+	ModelTypeID string `json:"model_type_id"`
 }
 
 type BasicModelport struct {

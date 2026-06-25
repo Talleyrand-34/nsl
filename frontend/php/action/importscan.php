@@ -530,7 +530,7 @@ if (!empty($discovered)):
                 <td><?= htmlspecialchars($ip) ?></td>
                 <td><?= htmlspecialchars($d['brand'] ?? '') ?></td>
                 <td><?= htmlspecialchars($d['model'] ?? '') ?></td>
-                <td><?= htmlspecialchars($d['device_class'] ?? '') ?></td>
+                <td><?= htmlspecialchars($d['model_type'] ?? '') ?></td>
                 <td>
                     <?php if (!$done): ?>
                         <form method="post" action="import.php" style="margin:0;">
@@ -552,7 +552,7 @@ if ($plan !== null):
     <h4>Review &amp; import: <?= htmlspecialchars($dev['suggested_name'] ?? '') ?>
         <span style="font-weight:normal; color:#555;">
             (<?= htmlspecialchars($dev['device']['ip'] ?? '') ?> — <?= htmlspecialchars($dev['brand'] ?? '') ?> <?= htmlspecialchars($dev['model'] ?? '') ?>,
-            <?= htmlspecialchars($dev['device_class'] ?? '') ?>)
+            <?= htmlspecialchars($dev['model_type'] ?? '') ?>)
         </span>
     </h4>
     <p style="color:#555;"><?= htmlspecialchars($plan['summary'] ?? '') ?></p>

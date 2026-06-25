@@ -13,7 +13,7 @@ if (is_array($models)) {
         echo '<strong>' . htmlspecialchars($model['model']) . '</strong>';
         echo '<ul>';
         echo '<li>Brand: ' . htmlspecialchars($model['brand']) . '</li>';
-        echo '<li>Class: ' . htmlspecialchars($model['class']) . '</li>';
+        echo '<li>Model type: ' . htmlspecialchars($model['model_type']) . '</li>';
         echo '</ul>';
         echo '</li>';
     }

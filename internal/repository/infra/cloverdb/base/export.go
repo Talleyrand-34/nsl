@@ -166,13 +166,13 @@ func (r BasicOpsCloverRepository) ExportAllStructs() (e.All, error) {
 		})
 	}
 
-	// DeviceClasses
-	devClassDocs, err := r.db.FindAll(q.NewQuery(devclassesCollection))
+	// ModelTypes
+	modelTypeDocs, err := r.db.FindAll(q.NewQuery(modeltypesCollection))
 	if err != nil {
 		return result, err
 	}
-	for _, doc := range devClassDocs {
-		result.DeviceClasses = append(result.DeviceClasses, e.BasicDeviceclass{
+	for _, doc := range modelTypeDocs {
+		result.ModelTypes = append(result.ModelTypes, e.BasicModelType{
 			ID:   doc.ObjectId(),
 			Name: doc.Get("name").(string),
 		})
@@ -230,7 +230,7 @@ func (r BasicOpsCloverRepository) ExportAllStructs() (e.All, error) {
 			ID:      doc.ObjectId(),
 			Model:   doc.Get("model").(string),
 			Brand:   brandID,
-			ClassID: getStringField(doc, "class_id"),
+			ModelTypeID: getStringField(doc, "model_type_id"),
 		})
 	}
 

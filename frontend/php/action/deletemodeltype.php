@@ -3,8 +3,8 @@ require_once __DIR__ . '/../config.php';
 $message = '';
 
 // Fetch existing device classes for dropdown
-$devClassesJson = @file_get_contents(DEVCLASSES_ENDPOINT);
-$devClasses = json_decode($devClassesJson, true);
+$modelTypesJson = @file_get_contents(MODELTYPES_ENDPOINT);
+$modelTypes = json_decode($modelTypesJson, true);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim($_POST['name'] ?? '');
@@ -12,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($name !== '') {
         $data = json_encode(['name' => $name, 'cascade' => isset($_POST['cascade'])]);
 
-        $ch = curl_init(DEVCLASSES_ENDPOINT);
+        $ch = curl_init(MODELTYPES_ENDPOINT);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "DELETE");
         curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -27,8 +27,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($httpCode >= 200 && $httpCode < 300) {
             $message = "Device class deleted successfully!";
             // Refresh device classes list after deletion
-            $devClassesJson = @file_get_contents(DEVCLASSES_ENDPOINT);
-            $devClasses = json_decode($devClassesJson, true);
+            $modelTypesJson = @file_get_contents(MODELTYPES_ENDPOINT);
+            $modelTypes = json_decode($modelTypesJson, true);
         } else {
             $message = "Failed to delete device class. Server response: " . htmlspecialchars($response);
         }
@@ -44,14 +44,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <p><strong><?= htmlspecialchars($message) ?></strong></p>
 <?php endif; ?>
 
-<?php if (is_array($devClasses) && count($devClasses) > 0): ?>
+<?php if (is_array($modelTypes) && count($modelTypes) > 0): ?>
 <form method="post">
     <label for="name">Select Device Class to Delete:</label>
     <select id="name" name="name" required>
         <option value="">-- Select a Device Class --</option>
-        <?php foreach ($devClasses as $devClass): ?>
-            <option value="<?= htmlspecialchars($devClass['name']) ?>">
-                <?= htmlspecialchars($devClass['name']) ?>
+        <?php foreach ($modelTypes as $modelType): ?>
+            <option value="<?= htmlspecialchars($modelType['name']) ?>">
+                <?= htmlspecialchars($modelType['name']) ?>
             </option>
         <?php endforeach; ?>
     </select>

@@ -108,8 +108,8 @@ func printLevel1Summary(devices []e.Device, zones []e.Zone, connections []e.Conn
 	// Device counts by class
 	classCounts := make(map[string]int)
 	for _, device := range devices {
-		// Get device class from model (simplified - could be enhanced)
-		class := getDeviceClassFromModel(device.Model)
+		// Get model type from model (simplified - could be enhanced)
+		class := getModelTypeFromModel(device.Model)
 		classCounts[class]++
 	}
 
@@ -230,8 +230,8 @@ func printLevel3Summary(connections []e.Connection, devicePorts []e.DevicePort) 
 	}
 }
 
-// Helper function to determine device class from model name
-func getDeviceClassFromModel(model string) string {
+// Helper function to determine model type from model name
+func getModelTypeFromModel(model string) string {
 	model = strings.ToLower(model)
 	switch {
 	case strings.Contains(model, "switch"):

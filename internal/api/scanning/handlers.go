@@ -325,7 +325,7 @@ func ScanHostHandler(service q.NetServiceInt) http.HandlerFunc {
 				Device:        *device,
 				Brand:         brand,
 				Model:         model,
-				DeviceClass:   class,
+				ModelType:   class,
 				SuggestedName: discoverer.GenerateDeviceName(*device, class),
 				SuggestedZone: discoverer.SuggestZone(*device),
 			}, nil
@@ -746,7 +746,7 @@ func ScanHostSSHHandler(service q.NetServiceInt) http.HandlerFunc {
 				Device:        *device,
 				Brand:         brand,
 				Model:         model,
-				DeviceClass:   class,
+				ModelType:   class,
 				SuggestedName: discoverer.GenerateDeviceName(*device, class),
 				SuggestedZone: discoverer.SuggestZone(*device),
 			}, nil

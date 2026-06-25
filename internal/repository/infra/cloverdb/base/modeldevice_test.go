@@ -19,7 +19,7 @@ func TestModelDevice_AddAndGet(t *testing.T) {
 	if err := repo.AddBrand("Cisco"); err != nil {
 		t.Fatalf("failed to add brand: %v", err)
 	}
-	if err := repo.AddDeviceClass("Switch"); err != nil {
+	if err := repo.AddModelType("Switch"); err != nil {
 		t.Fatalf("failed to add device class: %v", err)
 	}
 
@@ -52,10 +52,10 @@ func TestModelDevice_CreateAndUpdate(t *testing.T) {
 	if err := repo.AddBrand("Juniper"); err != nil {
 		t.Fatalf("failed to add brand: %v", err)
 	}
-	if err := repo.AddDeviceClass("Switch"); err != nil {
+	if err := repo.AddModelType("Switch"); err != nil {
 		t.Fatalf("failed to add device class: %v", err)
 	}
-	if err := repo.AddDeviceClass("Router"); err != nil {
+	if err := repo.AddModelType("Router"); err != nil {
 		t.Fatalf("failed to add device class: %v", err)
 	}
 
@@ -92,9 +92,9 @@ func TestModelDevice_CreateAndUpdate(t *testing.T) {
 		}
 	}
 
-	devClasses, _ := repo.GetDeviceClasses()
+	modelTypes, _ := repo.GetModelTypes()
 	var routerID string
-	for _, dc := range devClasses {
+	for _, dc := range modelTypes {
 		if dc.Name == "Router" {
 			routerID = dc.ID
 			break
@@ -128,7 +128,7 @@ func TestModelDevice_CreateAndDelete(t *testing.T) {
 	if err := repo.AddBrand("Cisco"); err != nil {
 		t.Fatalf("failed to add brand: %v", err)
 	}
-	if err := repo.AddDeviceClass("Router"); err != nil {
+	if err := repo.AddModelType("Router"); err != nil {
 		t.Fatalf("failed to add device class: %v", err)
 	}
 

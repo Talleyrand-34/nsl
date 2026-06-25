@@ -27,12 +27,12 @@ import (
 )
 
 // brandModCmd represents the port command
-var deviceclassModCmd = &cobra.Command{
-	Use:   "deviceclass",
-	Short: "Add a device class",
+var modeltypeModCmd = &cobra.Command{
+	Use:   "modeltype",
+	Short: "Add a model type",
 	Long: `Specify the class of a device which consists of a name.
 
-		A deviceclass is the type of device for example router, switch...`,
+		A modeltype is the type of device for example router, switch...`,
 	Run: func(cmd *cobra.Command, args []string) {
 		flag := "name"
 		name, err := cmd.Flags().GetString("name")
@@ -44,17 +44,17 @@ var deviceclassModCmd = &cobra.Command{
 		if err != nil {
 			return
 		}
-		err = service.AddDeviceClass(name)
+		err = service.AddModelType(name)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error writing deviceclass: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error writing modeltype: %v\n", err)
 			os.Exit(1)
 		}
 	},
 }
 
 func init() {
-	cmd.AddCmd.AddCommand(deviceclassModCmd)
+	cmd.AddCmd.AddCommand(modeltypeModCmd)
 
-	deviceclassModCmd.Flags().
-		String("name", "", "Sets the name of the deviceclass")
+	modeltypeModCmd.Flags().
+		String("name", "", "Sets the name of the modeltype")
 }
