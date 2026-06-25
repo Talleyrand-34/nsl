@@ -800,27 +800,27 @@ func TestDeleteVlan_SucceedsWithoutLocalVlans(t *testing.T) {
 	}
 }
 
-// ---- Proprietary ---- //
+// ---- Owner ---- //
 
-func TestDeleteProprietary_SetsNullOnZones(t *testing.T) {
+func TestDeleteOwner_SetsNullOnZones(t *testing.T) {
 	repo, cleanup, err := setupTestCloverRepository(t)
 	if err != nil {
 		t.Fatalf("failed to setup repository: %v", err)
 	}
 	defer cleanup()
 
-	if err := repo.AddProprietary("Acme Corp"); err != nil {
-		t.Fatalf("failed to add proprietary: %v", err)
+	if err := repo.AddOwner("Acme Corp"); err != nil {
+		t.Fatalf("failed to add owner: %v", err)
 	}
 	if err := repo.AddZone("HQ", "", "", "Acme Corp", ""); err != nil {
 		t.Fatalf("failed to add zone: %v", err)
 	}
 
-	if err := repo.DeleteProprietary("Acme Corp"); err != nil {
-		t.Fatalf("expected success deleting proprietary (set-null), got: %v", err)
+	if err := repo.DeleteOwner("Acme Corp"); err != nil {
+		t.Fatalf("expected success deleting owner (set-null), got: %v", err)
 	}
 
-	// Zone should still exist with empty proprietary
+	// Zone should still exist with empty owner
 	zones, err := repo.GetZones()
 	if err != nil {
 		t.Fatalf("failed to get zones: %v", err)
@@ -829,18 +829,18 @@ func TestDeleteProprietary_SetsNullOnZones(t *testing.T) {
 	for _, z := range zones {
 		if z.Name == "HQ" {
 			found = true
-			if z.Proprietary != "" {
-				t.Errorf("expected zone proprietary to be cleared, got %q", z.Proprietary)
+			if z.Owner != "" {
+				t.Errorf("expected zone owner to be cleared, got %q", z.Owner)
 			}
 			break
 		}
 	}
 	if !found {
-		t.Errorf("zone 'HQ' should still exist after proprietary deletion")
+		t.Errorf("zone 'HQ' should still exist after owner deletion")
 	}
 }
 
-func TestDeleteProprietary_SetsNullOnDevices(t *testing.T) {
+func TestDeleteOwner_SetsNullOnDevices(t *testing.T) {
 	repo, cleanup, err := setupTestCloverRepository(t)
 	if err != nil {
 		t.Fatalf("failed to setup repository: %v", err)
@@ -856,18 +856,18 @@ func TestDeleteProprietary_SetsNullOnDevices(t *testing.T) {
 	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
-	if err := repo.AddProprietary("Acme Corp"); err != nil {
-		t.Fatalf("failed to add proprietary: %v", err)
+	if err := repo.AddOwner("Acme Corp"); err != nil {
+		t.Fatalf("failed to add owner: %v", err)
 	}
 	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", "Acme Corp", false, false); err != nil {
 		t.Fatalf("failed to add device: %v", err)
 	}
 
-	if err := repo.DeleteProprietary("Acme Corp"); err != nil {
-		t.Fatalf("expected success deleting proprietary (set-null), got: %v", err)
+	if err := repo.DeleteOwner("Acme Corp"); err != nil {
+		t.Fatalf("expected success deleting owner (set-null), got: %v", err)
 	}
 
-	// Device should still exist with empty proprietary
+	// Device should still exist with empty owner
 	devices, err := repo.GetDevices()
 	if err != nil {
 		t.Fatalf("failed to get devices: %v", err)
@@ -876,18 +876,18 @@ func TestDeleteProprietary_SetsNullOnDevices(t *testing.T) {
 	for _, d := range devices {
 		if d.Name == "SW-01" {
 			found = true
-			if d.Proprietary != "" {
-				t.Errorf("expected device proprietary to be cleared, got %q", d.Proprietary)
+			if d.Owner != "" {
+				t.Errorf("expected device owner to be cleared, got %q", d.Owner)
 			}
 			break
 		}
 	}
 	if !found {
-		t.Errorf("device 'SW-01' should still exist after proprietary deletion")
+		t.Errorf("device 'SW-01' should still exist after owner deletion")
 	}
 }
 
-func TestDeleteProprietaryCascade_SetsNullNotCascadeDelete(t *testing.T) {
+func TestDeleteOwnerCascade_SetsNullNotCascadeDelete(t *testing.T) {
 	repo, cleanup, err := setupTestCloverRepository(t)
 	if err != nil {
 		t.Fatalf("failed to setup repository: %v", err)
@@ -903,8 +903,8 @@ func TestDeleteProprietaryCascade_SetsNullNotCascadeDelete(t *testing.T) {
 	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
-	if err := repo.AddProprietary("Acme Corp"); err != nil {
-		t.Fatalf("failed to add proprietary: %v", err)
+	if err := repo.AddOwner("Acme Corp"); err != nil {
+		t.Fatalf("failed to add owner: %v", err)
 	}
 	if err := repo.AddZone("HQ", "", "", "Acme Corp", ""); err != nil {
 		t.Fatalf("failed to add zone: %v", err)
@@ -913,7 +913,7 @@ func TestDeleteProprietaryCascade_SetsNullNotCascadeDelete(t *testing.T) {
 		t.Fatalf("failed to add device: %v", err)
 	}
 
-	if err := repo.DeleteProprietaryCascade("Acme Corp"); err != nil {
+	if err := repo.DeleteOwnerCascade("Acme Corp"); err != nil {
 		t.Fatalf("expected cascade delete to succeed, got: %v", err)
 	}
 
@@ -923,14 +923,14 @@ func TestDeleteProprietaryCascade_SetsNullNotCascadeDelete(t *testing.T) {
 	for _, z := range zones {
 		if z.Name == "HQ" {
 			zoneFound = true
-			if z.Proprietary != "" {
-				t.Errorf("expected zone proprietary to be cleared, got %q", z.Proprietary)
+			if z.Owner != "" {
+				t.Errorf("expected zone owner to be cleared, got %q", z.Owner)
 			}
 			break
 		}
 	}
 	if !zoneFound {
-		t.Errorf("zone 'HQ' should still exist after proprietary cascade deletion (set-null, not cascade-delete)")
+		t.Errorf("zone 'HQ' should still exist after owner cascade deletion (set-null, not cascade-delete)")
 	}
 
 	devices, _ := repo.GetDevices()
@@ -938,13 +938,13 @@ func TestDeleteProprietaryCascade_SetsNullNotCascadeDelete(t *testing.T) {
 	for _, d := range devices {
 		if d.Name == "SW-01" {
 			deviceFound = true
-			if d.Proprietary != "" {
-				t.Errorf("expected device proprietary to be cleared, got %q", d.Proprietary)
+			if d.Owner != "" {
+				t.Errorf("expected device owner to be cleared, got %q", d.Owner)
 			}
 			break
 		}
 	}
 	if !deviceFound {
-		t.Errorf("device 'SW-01' should still exist after proprietary cascade deletion (set-null, not cascade-delete)")
+		t.Errorf("device 'SW-01' should still exist after owner cascade deletion (set-null, not cascade-delete)")
 	}
 }

@@ -5,12 +5,12 @@ $selectedZoneId = '';
 $selectedZoneName = '';
 $selectedFatherZoneId = '';
 $selectedZoneTypeId = '';
-$selectedProprietaryId = '';
+$selectedOwnerId = '';
 
 // Fetch data for form options
 $zones = json_decode(@file_get_contents(ZONES_ENDPOINT), true) ?: [];
 $zoneTypes = json_decode(@file_get_contents(ZONETYPES_ENDPOINT), true) ?: [];
-$proprietaries = json_decode(@file_get_contents(PROPRIETARIES_ENDPOINT), true) ?: [];
+$owners = json_decode(@file_get_contents(OWNERS_ENDPOINT), true) ?: [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Check if this is a zone selection (not form submission)
@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $selectedZoneName = $zone['name'];
                 $selectedFatherZoneId = $zone['father_zone_id'] ?? '';
                 $selectedZoneTypeId = $zone['zone_type_id'] ?? '';
-                $selectedProprietaryId = $zone['proprietary_id'] ?? '';
+                $selectedOwnerId = $zone['owner_id'] ?? '';
                 break;
             }
         }
@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $newZoneName = trim($_POST['zone_name'] ?? '');
         $fatherZoneId = $_POST['father_zone_id'] ?? '';
         $zoneTypeId = $_POST['zone_type_id'] ?? '';
-        $proprietaryId = $_POST['proprietary_id'] ?? '';
+        $ownerId = $_POST['owner_id'] ?? '';
         
         if ($zoneId === '') {
             $message = 'Please select a zone to update.';
@@ -43,15 +43,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $message = 'Please enter a new zone name.';
         } elseif ($zoneTypeId === '') {
             $message = 'Please select a zone type.';
-        } elseif ($proprietaryId === '') {
-            $message = 'Please select a proprietary.';
+        } elseif ($ownerId === '') {
+            $message = 'Please select a owner.';
         } else {
             $data = json_encode([
                 'id' => $zoneId,
                 'name' => $newZoneName,
                 'father_zone_id' => $fatherZoneId === '' ? null : $fatherZoneId,
                 'zone_type_id' => $zoneTypeId,
-                'proprietary_id' => $proprietaryId
+                'owner_id' => $ownerId
             ]);
             $ch = curl_init(ZONES_ENDPOINT);
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PUT');
@@ -72,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $selectedZoneName = '';
                 $selectedFatherZoneId = '';
                 $selectedZoneTypeId = '';
-                $selectedProprietaryId = '';
+                $selectedOwnerId = '';
             } else {
                 $message = 'Failed to update zone. Server response: ' . htmlspecialchars($response);
             }
@@ -131,13 +131,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <?php endforeach; ?>
             </select><br><br>
             
-            <label for="proprietary_id">Proprietary:</label>
-            <select id="proprietary_id" name="proprietary_id" required>
-                <option value="">-- Select Proprietary --</option>
-                <?php foreach ($proprietaries as $proprietary): ?>
-                    <option value="<?= htmlspecialchars($proprietary['id']) ?>" 
-                        <?= ($proprietary['id'] == $selectedProprietaryId) ? 'selected' : '' ?>>
-                        <?= htmlspecialchars($proprietary['name']) ?>
+            <label for="owner_id">Owner:</label>
+            <select id="owner_id" name="owner_id" required>
+                <option value="">-- Select Owner --</option>
+                <?php foreach ($owners as $owner): ?>
+                    <option value="<?= htmlspecialchars($owner['id']) ?>" 
+                        <?= ($owner['id'] == $selectedOwnerId) ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($owner['name']) ?>
                     </option>
                 <?php endforeach; ?>
             </select><br><br>

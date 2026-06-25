@@ -64,18 +64,18 @@ type NetServiceInt interface {
 	UpdateZoneType(zoneTypeId string, newZoneTypeName string) error
 	DeleteZoneType(zoneTypeName string) error
 
-	// Proprietary operations
-	AddProprietary(proprietaryName string) error
-	GetProperties() ([]e.Proprietary, error)
-	UpdateProprietary(proprietaryId string, newProprietaryName string) error
-	DeleteProprietary(proprietaryName string) error
+	// Owner operations
+	AddOwner(ownerName string) error
+	GetOwners() ([]e.Owner, error)
+	UpdateOwner(ownerId string, newOwnerName string) error
+	DeleteOwner(ownerName string) error
 
 	// Zone operations
 	AddZone(
 		zoneName string,
 		fatherZoneName string,
 		fatherZoneId string,
-		proprietaryName string,
+		ownerName string,
 		zoneTypeName string,
 	) error
 	GetZones() ([]e.Zone, error)
@@ -84,7 +84,7 @@ type NetServiceInt interface {
 		newZoneName string,
 		newFatherZoneId string,
 		newZoneTypeId string,
-		newProprietaryId string,
+		newOwnerId string,
 	) error
 	DeleteZone(zoneId string) error
 
@@ -109,7 +109,7 @@ type NetServiceInt interface {
 		modelName string,
 		zoneId string,
 		zoneName string,
-		proprietaryName string,
+		ownerName string,
 		isUnmanaged bool,
 		isInvisible bool,
 	) error
@@ -119,7 +119,7 @@ type NetServiceInt interface {
 		newDeviceLabel string,
 		newModelId string,
 		newZoneId string,
-		newProprietaryId string,
+		newOwnerId string,
 		isUnmanaged *bool,
 	) error
 	UpdateDeviceIPs(deviceId string, ips []string) error
@@ -201,7 +201,7 @@ type NetServiceInt interface {
 	DeleteBrandCascade(brandName string) error
 	DeleteDeviceClassCascade(deviceClassName string) error
 	DeleteZoneTypeCascade(zoneTypeName string) error
-	DeleteProprietaryCascade(proprietaryName string) error
+	DeleteOwnerCascade(ownerName string) error
 	DeleteZoneCascade(zoneId string) error
 	DeleteModelCascade(modelId string) error
 	DeleteDeviceCascade(deviceId string) error
@@ -382,22 +382,22 @@ func (ns *NetService) GetZonetypes() ([]e.ZoneType, error) {
 	return ns.netRepo.GetZonetypes()
 }
 
-func (ns *NetService) AddProprietary(proprietary string) error {
-	return ns.netRepo.AddProprietary(proprietary)
+func (ns *NetService) AddOwner(owner string) error {
+	return ns.netRepo.AddOwner(owner)
 }
 
-func (ns *NetService) GetProperties() ([]e.Proprietary, error) {
-	return ns.netRepo.GetProperties()
+func (ns *NetService) GetOwners() ([]e.Owner, error) {
+	return ns.netRepo.GetOwners()
 }
 
 func (ns *NetService) AddZone(
 	name string,
 	fatherid string,
 	father string,
-	proprietary string,
+	owner string,
 	zonename string,
 ) error {
-	return ns.netRepo.AddZone(name, fatherid, father, proprietary, zonename)
+	return ns.netRepo.AddZone(name, fatherid, father, owner, zonename)
 }
 
 func (ns *NetService) GetZones() ([]e.Zone, error) {
@@ -441,7 +441,7 @@ func (ns *NetService) AddDevice(
 	model string,
 	zoneId string,
 	zoneName string,
-	proprietary string,
+	owner string,
 	isUnmanaged bool,
 	isInvisible bool,
 ) error {
@@ -453,7 +453,7 @@ func (ns *NetService) AddDevice(
 		}
 		label = generatedLabel
 	}
-	return ns.netRepo.AddDevice(label, model, zoneId, zoneName, proprietary, isUnmanaged, isInvisible)
+	return ns.netRepo.AddDevice(label, model, zoneId, zoneName, owner, isUnmanaged, isInvisible)
 }
 
 func (ns *NetService) generateUnmanagedName() (string, error) {
@@ -622,12 +622,12 @@ func (ns *NetService) ensureZoneType(name string) error {
 	return ns.AddZoneType(name)
 }
 
-// ensureProprietary creates the named proprietary if it doesn't already exist.
-func (ns *NetService) ensureProprietary(name string) error {
+// ensureOwner creates the named owner if it doesn't already exist.
+func (ns *NetService) ensureOwner(name string) error {
 	if name == "" {
-		return fmt.Errorf("proprietary name is required")
+		return fmt.Errorf("owner name is required")
 	}
-	props, err := ns.GetProperties()
+	props, err := ns.GetOwners()
 	if err != nil {
 		return err
 	}
@@ -636,7 +636,7 @@ func (ns *NetService) ensureProprietary(name string) error {
 			return nil
 		}
 	}
-	return ns.AddProprietary(name)
+	return ns.AddOwner(name)
 }
 
 func (ns *NetService) GetAllPortsAll() ([]e.DevicePort, error) {
@@ -748,8 +748,8 @@ func (ns *NetService) DeleteZoneType(locationType string) error {
 	return ns.netRepo.DeleteZoneType(locationType)
 }
 
-func (ns *NetService) DeleteProprietary(proprietary string) error {
-	return ns.netRepo.DeleteProprietary(proprietary)
+func (ns *NetService) DeleteOwner(owner string) error {
+	return ns.netRepo.DeleteOwner(owner)
 }
 
 func (ns *NetService) DeleteZone(id string) error {
@@ -784,8 +784,8 @@ func (ns *NetService) UpdateZoneType(zoneTypeId string, newZoneTypeName string) 
 	return ns.netRepo.UpdateZoneType(zoneTypeId, newZoneTypeName)
 }
 
-func (ns *NetService) UpdateProprietary(proprietaryId string, newProprietaryName string) error {
-	return ns.netRepo.UpdateProprietary(proprietaryId, newProprietaryName)
+func (ns *NetService) UpdateOwner(ownerId string, newOwnerName string) error {
+	return ns.netRepo.UpdateOwner(ownerId, newOwnerName)
 }
 
 func (ns *NetService) UpdateZone(
@@ -793,9 +793,9 @@ func (ns *NetService) UpdateZone(
 	newZoneName string,
 	newFatherZoneId string,
 	newZoneTypeId string,
-	newProprietaryId string,
+	newOwnerId string,
 ) error {
-	return ns.netRepo.UpdateZone(zoneId, newZoneName, newFatherZoneId, newZoneTypeId, newProprietaryId)
+	return ns.netRepo.UpdateZone(zoneId, newZoneName, newFatherZoneId, newZoneTypeId, newOwnerId)
 }
 
 func (ns *NetService) UpdateModel(
@@ -812,10 +812,10 @@ func (ns *NetService) UpdateDevice(
 	newDeviceLabel string,
 	newModelId string,
 	newZoneId string,
-	newProprietaryId string,
+	newOwnerId string,
 	isUnmanaged *bool,
 ) error {
-	return ns.netRepo.UpdateDevice(deviceId, newDeviceLabel, newModelId, newZoneId, newProprietaryId, isUnmanaged)
+	return ns.netRepo.UpdateDevice(deviceId, newDeviceLabel, newModelId, newZoneId, newOwnerId, isUnmanaged)
 }
 
 func (ns *NetService) UpdateModelPort(
@@ -879,8 +879,8 @@ func (ns *NetService) DeleteZoneTypeCascade(zoneTypeName string) error {
 	return ns.netRepo.DeleteZoneTypeCascade(zoneTypeName)
 }
 
-func (ns *NetService) DeleteProprietaryCascade(proprietaryName string) error {
-	return ns.netRepo.DeleteProprietaryCascade(proprietaryName)
+func (ns *NetService) DeleteOwnerCascade(ownerName string) error {
+	return ns.netRepo.DeleteOwnerCascade(ownerName)
 }
 
 func (ns *NetService) DeleteZoneCascade(zoneId string) error {
@@ -1094,9 +1094,9 @@ func (ns *NetService) ensureRequiredEntities(options s.ImportOptions) error {
 		}
 	}
 
-	proprietaries, _ := ns.GetProperties()
-	proprietaryExists := func(name string) bool {
-		for _, p := range proprietaries {
+	owners, _ := ns.GetOwners()
+	ownerExists := func(name string) bool {
+		for _, p := range owners {
 			if p.Name == name {
 				return true
 			}
@@ -1104,8 +1104,8 @@ func (ns *NetService) ensureRequiredEntities(options s.ImportOptions) error {
 		return false
 	}
 
-	if !proprietaryExists("Discovered") {
-		ns.AddProprietary("Discovered")
+	if !ownerExists("Discovered") {
+		ns.AddOwner("Discovered")
 	}
 
 	// Ensure required zone types exist
@@ -1137,9 +1137,9 @@ func (ns *NetService) ensureRequiredEntities(options s.ImportOptions) error {
 			return false
 		}
 
-		// Ensure the proprietary and zone types referenced below exist first, so the
+		// Ensure the owner and zone types referenced below exist first, so the
 		// strict AddZone dependency checks pass (it never silently drops a ref).
-		_ = ns.ensureProprietary("Discovered")
+		_ = ns.ensureOwner("Discovered")
 		_ = ns.ensureZoneType("Office")
 		_ = ns.ensureZoneType("Unknown")
 

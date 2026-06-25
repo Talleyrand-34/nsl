@@ -36,4 +36,3 @@ connections, zones, and other network components.`,
 func init() {
 	cmd.RootCmd.AddCommand(DeleteCmd)
 }
-

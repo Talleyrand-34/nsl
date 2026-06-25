@@ -31,7 +31,7 @@ func (r BasicOpsCloverRepository) AddDevice(
 	model string,
 	zoneId string,
 	zoneName string,
-	proprietary string,
+	owner string,
 	isUnmanaged bool,
 	isInvisible bool,
 ) error {
@@ -46,8 +46,8 @@ func (r BasicOpsCloverRepository) AddDevice(
 		}
 	}
 
-	// Get proprietary ID
-	spropid := r.getProprietaryID(proprietary)
+	// Get owner ID
+	spropid := r.getOwnerID(owner)
 
 	// Get zone ID
 	szoneid := r.getZoneID(zoneId, zoneName)
@@ -64,7 +64,7 @@ func (r BasicOpsCloverRepository) AddDevice(
 	doc.Set("is_unmanaged", isUnmanaged)
 	doc.Set("is_invisible", isInvisible)
 	if spropid != "" {
-		doc.Set("proprietary", spropid)
+		doc.Set("owner", spropid)
 	}
 	if szoneid != "" {
 		doc.Set("zone_id", szoneid)
@@ -149,11 +149,11 @@ func (r BasicOpsCloverRepository) GetDevices() ([]e.Device, error) {
 			}
 		}
 
-		// Get proprietary name if proprietary ID exists
-		if proprietaryID, ok := doc.Get("proprietary").(string); ok && proprietaryID != "" {
-			proprietaryDoc, err := r.db.FindById(proprietariesCollection, proprietaryID)
-			if err == nil && proprietaryDoc != nil {
-				device.Proprietary = proprietaryDoc.Get("proprietary").(string)
+		// Get owner name if owner ID exists
+		if ownerID, ok := doc.Get("owner").(string); ok && ownerID != "" {
+			ownerDoc, err := r.db.FindById(ownersCollection, ownerID)
+			if err == nil && ownerDoc != nil {
+				device.Owner = ownerDoc.Get("owner").(string)
 			}
 		}
 
@@ -169,7 +169,7 @@ func (r BasicOpsCloverRepository) UpdateDevice(
 	newDeviceLabel string,
 	newModelId string,
 	newZoneId string,
-	newProprietaryId string,
+	newOwnerId string,
 	isUnmanaged *bool,
 ) error {
 	updates := make(map[string]interface{})
@@ -186,8 +186,8 @@ func (r BasicOpsCloverRepository) UpdateDevice(
 		updates["zone_id"] = newZoneId
 	}
 
-	if newProprietaryId != "" && newProprietaryId != "0" {
-		updates["proprietary"] = newProprietaryId
+	if newOwnerId != "" && newOwnerId != "0" {
+		updates["owner"] = newOwnerId
 	}
 
 	if isUnmanaged != nil {

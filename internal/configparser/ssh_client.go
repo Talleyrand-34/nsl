@@ -321,4 +321,3 @@ func ValidateHost(host string, creds SSHCredentials) error {
 	// Then try to establish an SSH connection
 	return TestConnection(host, creds)
 }
-

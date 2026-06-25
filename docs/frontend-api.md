@@ -42,7 +42,7 @@ The web interface provides:
 |--------|-----|-----|-------------|
 | Brand | ✓ | ✓ | Equipment manufacturers |
 | Device Class | ✓ | ✓ | Equipment types (router, switch, etc.) |
-| Proprietary | ✓ | ✓ | Ownership entities |
+| Owner | ✓ | ✓ | Ownership entities |
 | Zone Type | ✓ | ✓ | Zone classifications |
 | Zone | ✓ | ✓ | Network zones |
 | Model | ✓ | ✓ | Device models |
@@ -113,11 +113,11 @@ curl -X POST http://localhost:8081/deviceclasses \
   -d '{"name": "router"}'
 ```
 
-#### Proprietaries
+#### Owners
 ```http
-GET    /proprietaries
-POST   /proprietaries
-DELETE /proprietaries
+GET    /owners
+POST   /owners
+DELETE /owners
 ```
 
 #### Zone Types
@@ -141,7 +141,7 @@ curl -X POST http://localhost:8081/zones \
   -d '{
     "name": "datacenter",
     "zonetype": "physical",
-    "proprietary": "MyCompany"
+    "owner": "MyCompany"
   }'
 ```
 
@@ -172,7 +172,7 @@ DELETE /devices
 ```
 
 **POST Example** (create). `model_name`, `zone_id`/`zone_name`, and
-`proprietary` are required-ish; `ips` and `profile` are optional. `profile` is a
+`owner` are required-ish; `ips` and `profile` are optional. `profile` is a
 scan-profile **name** (device or generic) the device is associated with — also set
 automatically when a device is imported from a scan (see *Glossary › Profile*):
 ```bash
@@ -183,7 +183,7 @@ curl -X POST http://localhost:8081/devices \
     "model_name": "ISR4431",
     "zone_id": "<zone-id>",
     "zone_name": "datacenter",
-    "proprietary": "MyCompany",
+    "owner": "MyCompany",
     "ips": ["10.0.0.1"],
     "profile": "gen-ssh"
   }'
@@ -451,7 +451,7 @@ Error response format:
   "label": "router01",
   "model": "ISR4431",
   "zone": "datacenter",
-  "proprietary": "MyCompany"
+  "owner": "MyCompany"
 }
 ```
 
@@ -474,7 +474,7 @@ The PHP frontend uses individual action files in the `frontend/php/action/` dire
 ### Get Actions
 - `getbrand.php`: Display all brands
 - `getdevclass.php`: Display device classes
-- `getproprietary.php`: Display proprietaries
+- `getowner.php`: Display owners
 - `getzonetype.php`: Display zone types
 - `getzone.php`: Display zones
 - `getmodeldevice.php`: Display models
@@ -486,7 +486,7 @@ The PHP frontend uses individual action files in the `frontend/php/action/` dire
 ### Add Actions
 - `addbrand.php`: Add brand form
 - `adddevclass.php`: Add device class form
-- `addproprietary.php`: Add proprietary form
+- `addowner.php`: Add owner form
 - `addzonetype.php`: Add zone type form
 - `addzone.php`: Add zone form
 - `addmodeldevice.php`: Add model form

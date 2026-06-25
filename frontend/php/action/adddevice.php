@@ -6,14 +6,14 @@ $message = '';
 // Fetch select options
 $models = json_decode(@file_get_contents(MODELS_ENDPOINT), true) ?: [];
 $zones = json_decode(@file_get_contents(ZONES_ENDPOINT), true) ?: [];
-$proprietaries = json_decode(@file_get_contents(PROPRIETARIES_ENDPOINT), true) ?: [];
+$owners = json_decode(@file_get_contents(OWNERS_ENDPOINT), true) ?: [];
 $scanProfiles = json_decode(@file_get_contents(SCAN_PROFILES_ENDPOINT), true) ?: [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $label = trim($_POST['label'] ?? '');
     $model = $_POST['model'] ?? '';
     $zoneid = $_POST['zoneid'] ?? '';
-    $proprietary = $_POST['proprietary'] ?? '';
+    $owner = $_POST['owner'] ?? '';
     $profile = $_POST['profile'] ?? '';
 
     // Collect IPs from dynamic inputs
@@ -44,15 +44,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $message = 'Please select a model.';
     } elseif ($zoneid === '') {
         $message = 'Please select a zone.';
-    } elseif ($proprietary === '') {
-        $message = 'Please select a proprietary.';
+    } elseif ($owner === '') {
+        $message = 'Please select an owner.';
     } else {
         $data = json_encode([
             'label' => $label,
             'model_name' => $model,
             'zone_id' => $zoneid,
             'zone_name' => $zonename,
-            'proprietary' => $proprietary,
+            'owner' => $owner,
             'profile' => $profile,
             'ips' => $ips
         ]);
@@ -107,10 +107,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php endforeach; ?>
     </select><br><br>
 
-    <label for="proprietary">Proprietary:</label>
-    <select id="proprietary" name="proprietary" required>
+    <label for="owner">Owner:</label>
+    <select id="owner" name="owner" required>
         <option value="">-- Select --</option>
-        <?php foreach ($proprietaries as $prop): ?>
+        <?php foreach ($owners as $prop): ?>
             <option value="<?= htmlspecialchars($prop['name']) ?>">
                 <?= htmlspecialchars($prop['name']) ?>
             </option>

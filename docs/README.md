@@ -79,11 +79,11 @@ for precise definitions):
 - **Brands**: Equipment manufacturers (Cisco, Netgear, etc.)
 - **Device Classes**: Categories of network equipment (router, switch, firewall, AP)
 - **Models**: Specific products of a brand + device class
-- **Zones**: Logical or physical network segments (with a Zone Type and Proprietary)
+- **Zones**: Logical or physical network segments (with a Zone Type and Owner)
 - **Devices**: Instances of a model, optionally tied to a **scan profile**
 - **Ports**: Model Ports (template) and Device Ports (instance)
 - **Connections**: Links between device ports
-- **Proprietaries**: Ownership/administrative entities
+- **Owners**: Ownership/administrative entities
 - **Scan profiles** & **credential vault**: reusable scan parameters/credentials
 
 ### Data Flow

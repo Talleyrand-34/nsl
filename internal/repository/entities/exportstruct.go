@@ -29,7 +29,7 @@ type All struct {
 	ModelDevices    []BasicModeldevice
 	ModelPorts      []BasicModelport
 	Policies        []BasicPolicy
-	Proprietaries   []BasicProprietary
+	Owners          []BasicOwner
 	ZoneTypes       []BasicZonetype
 	Zones           []BasicZone
 	Vlans           []BasicVlan
@@ -71,11 +71,11 @@ type BasicDeviceport struct {
 }
 
 type BasicDevice struct {
-	ID          string `json:"id"`
-	Label       string `json:"label"`
-	ModelID     string `json:"model_id"`
-	ZoneID      string `json:"zone_id"`     // -1 if null
-	Proprietary int64  `json:"proprietary"` // -1 if null
+	ID      string `json:"id"`
+	Label   string `json:"label"`
+	ModelID string `json:"model_id"`
+	ZoneID  string `json:"zone_id"` // -1 if null
+	Owner   int64  `json:"owner"`   // -1 if null
 }
 
 type BasicModeldevice struct {
@@ -102,9 +102,9 @@ type BasicPolicy struct {
 	TODO                 string `json:"todo"`                  // "" if null
 }
 
-type BasicProprietary struct {
-	ID          string `json:"id"`
-	Proprietary string `json:"proprietary"`
+type BasicOwner struct {
+	ID    string `json:"id"`
+	Owner string `json:"owner"`
 }
 
 type BasicZonetype struct {
@@ -117,7 +117,7 @@ type BasicZone struct {
 	Name         string `json:"name"`
 	Father       int64  `json:"father"`        // -1 if null
 	Granularity  int64  `json:"granularity"`   // -1 if null
-	Proprietary  int64  `json:"proprietary"`   // -1 if null
+	Owner        int64  `json:"owner"`         // -1 if null
 	LocationType int64  `json:"location_type"` // -1 if null
 }
 

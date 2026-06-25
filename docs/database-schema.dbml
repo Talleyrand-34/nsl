@@ -24,9 +24,9 @@ Table devclasses {
 }
 
 // Ownership/management entities (TDS, Navantia, etc.)
-Table proprietaries {
+Table owners {
   _id string [pk]
-  proprietary string
+  owner string
 }
 
 // Zone classification types (physical, logical, security, management, etc.)
@@ -45,7 +45,7 @@ Table zones {
   _id string [pk]
   name string
   father string [null]
-  proprietary string [null]
+  owner string [null]
   location_type string [null]
   granularity int [null]
 }
@@ -96,7 +96,7 @@ Table devices {
   label string
   model_id string
   zone_id string [null]
-  proprietary string [null]
+  owner string [null]
   is_unmanaged boolean [note: 'unmanaged switch: replicates all VLANs through all ports']
   is_invisible boolean [note: 'hidden from rendered topology']
   ips string [note: 'string array of IP addresses', null]
@@ -201,7 +201,7 @@ Table vault {
 Ref: zones.father > zones._id
 
 // Zone references
-Ref: zones.proprietary > proprietaries._id
+Ref: zones.owner > owners._id
 Ref: zones.location_type > zonetypes._id
 
 // Model references
@@ -214,7 +214,7 @@ Ref: modelports.model_id > models._id
 // Device references
 Ref: devices.model_id > models._id
 Ref: devices.zone_id > zones._id
-Ref: devices.proprietary > proprietaries._id
+Ref: devices.owner > owners._id
 
 // DevicePort references
 Ref: deviceports.device_id > devices._id

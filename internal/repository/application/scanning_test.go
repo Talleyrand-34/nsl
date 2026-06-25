@@ -100,7 +100,7 @@ func TestNetService_ScanningMethods(t *testing.T) {
 	t.Run("Import discovered devices", func(t *testing.T) {
 		service.AddBrand("Test Brand")
 		service.AddDeviceClass("Test Class")
-		service.AddProprietary("Test Prop")
+		service.AddOwner("Test Prop")
 		service.AddModel("Test Model", "Test Brand", "Test Class")
 
 		devices := []s.DiscoveredDevice{

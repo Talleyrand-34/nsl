@@ -28,15 +28,15 @@ import (
 
 // DeviceWithInterfaces represents a device with its interfaces
 type DeviceWithInterfaces struct {
-	ID          string            `json:"id"`
-	Name        string            `json:"label"`
-	Model       string            `json:"model"`
-	Brand       string            `json:"brand"`
-	ZoneID      string            `json:"zoneid"`
-	ZoneName    string            `json:"zonename"`
-	ZoneFather  string            `json:"zonefathername"`
-	Proprietary string            `json:"proprietary"`
-	Interfaces  []InterfaceNameIP `json:"interfaces"`
+	ID         string            `json:"id"`
+	Name       string            `json:"label"`
+	Model      string            `json:"model"`
+	Brand      string            `json:"brand"`
+	ZoneID     string            `json:"zoneid"`
+	ZoneName   string            `json:"zonename"`
+	ZoneFather string            `json:"zonefathername"`
+	Owner      string            `json:"owner"`
+	Interfaces []InterfaceNameIP `json:"interfaces"`
 }
 
 // InterfaceNameIP represents an interface with its IP address
@@ -66,15 +66,15 @@ var devicePrintCmd = &cobra.Command{
 		result := make([]DeviceWithInterfaces, len(devs))
 		for i, d := range devs {
 			result[i] = DeviceWithInterfaces{
-				ID:          d.ID,
-				Name:        d.Name,
-				Model:       d.Model,
-				Brand:       d.Brand,
-				ZoneID:      d.ZoneID,
-				ZoneName:    d.ZoneName,
-				ZoneFather:  d.ZoneFather,
-				Proprietary: d.Proprietary,
-				Interfaces:  []InterfaceNameIP{},
+				ID:         d.ID,
+				Name:       d.Name,
+				Model:      d.Model,
+				Brand:      d.Brand,
+				ZoneID:     d.ZoneID,
+				ZoneName:   d.ZoneName,
+				ZoneFather: d.ZoneFather,
+				Owner:      d.Owner,
+				Interfaces: []InterfaceNameIP{},
 			}
 
 			// Get interfaces for this device

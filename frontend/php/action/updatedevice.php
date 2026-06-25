@@ -6,7 +6,7 @@ $message = '';
 $devices = json_decode(@file_get_contents(DEVICES_ENDPOINT), true) ?: [];
 $models = json_decode(@file_get_contents(MODELS_ENDPOINT), true) ?: [];
 $zones = json_decode(@file_get_contents(ZONES_ENDPOINT), true) ?: [];
-$proprietaries = json_decode(@file_get_contents(PROPRIETARIES_ENDPOINT), true) ?: [];
+$owners = json_decode(@file_get_contents(OWNERS_ENDPOINT), true) ?: [];
 $scanProfiles = json_decode(@file_get_contents(SCAN_PROFILES_ENDPOINT), true) ?: [];
 
 // Variables to hold selected device data
@@ -14,7 +14,7 @@ $selectedDeviceId = '';
 $selectedDeviceLabel = '';
 $selectedModelId = '';
 $selectedZoneId = '';
-$selectedProprietaryId = '';
+$selectedOwnerId = '';
 $selectedIPs = [];
 $selectedIsUnmanaged = false;
 $selectedProfile = '';
@@ -43,10 +43,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Get zone ID (already in device data)
                 $selectedZoneId = $device['zoneid'] ?? '';
 
-                // Find proprietary ID by name
-                foreach ($proprietaries as $prop) {
-                    if ($prop['name'] === ($device['proprietary'] ?? '')) {
-                        $selectedProprietaryId = $prop['id'];
+                // Find owner ID by name
+                foreach ($owners as $prop) {
+                    if ($prop['name'] === ($device['owner'] ?? '')) {
+                        $selectedOwnerId = $prop['id'];
                         break;
                     }
                 }
@@ -60,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $newDeviceLabel = trim($_POST['device_label'] ?? '');
         $modelId = $_POST['model_id'] ?? '';
         $zoneId = $_POST['zone_id'] ?? '';
-        $proprietaryId = $_POST['proprietary_id'] ?? '';
+        $ownerId = $_POST['owner_id'] ?? '';
         $isUnmanaged = isset($_POST['is_unmanaged']);
         $profile = $_POST['profile'] ?? '';
         // Preserve state if validation below fails and re-renders the form.
@@ -86,15 +86,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $message = 'Please select a model.';
         } elseif ($zoneId === '') {
             $message = 'Please select a zone.';
-        } elseif ($proprietaryId === '') {
-            $message = 'Please select a proprietary.';
+        } elseif ($ownerId === '') {
+            $message = 'Please select an owner.';
         } else {
             $data = json_encode([
                 'id' => $deviceId,
                 'label' => $newDeviceLabel,
                 'model_id' => $modelId,
                 'zone_id' => $zoneId,
-                'proprietary_id' => $proprietaryId,
+                'owner_id' => $ownerId,
                 'is_unmanaged' => $isUnmanaged,
                 'profile' => $profile,
                 'ips' => $ips
@@ -121,7 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $selectedDeviceLabel = '';
                 $selectedModelId = '';
                 $selectedZoneId = '';
-                $selectedProprietaryId = '';
+                $selectedOwnerId = '';
                 $selectedIPs = [];
                 $selectedIsUnmanaged = false;
             } else {
@@ -182,13 +182,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <?php endforeach; ?>
             </select><br><br>
 
-            <label for="proprietary_id">Proprietary:</label>
-            <select id="proprietary_id" name="proprietary_id" required>
-                <option value="">-- Select Proprietary --</option>
-                <?php foreach ($proprietaries as $proprietary): ?>
-                    <option value="<?= htmlspecialchars($proprietary['id']) ?>"
-                        <?= ($proprietary['id'] == $selectedProprietaryId) ? 'selected' : '' ?>>
-                        <?= htmlspecialchars($proprietary['name']) ?>
+            <label for="owner_id">Owner:</label>
+            <select id="owner_id" name="owner_id" required>
+                <option value="">-- Select Owner --</option>
+                <?php foreach ($owners as $owner): ?>
+                    <option value="<?= htmlspecialchars($owner['id']) ?>"
+                        <?= ($owner['id'] == $selectedOwnerId) ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($owner['name']) ?>
                     </option>
                 <?php endforeach; ?>
             </select><br><br>

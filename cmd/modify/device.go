@@ -36,8 +36,8 @@ A device is an instance of a model (like a specific router or switch) deployed i
 You can specify the zone either by ID (--zone-id) or by name (--zone-name).
 
 Examples:
-  nsl-graph add device --label "Router-01" --model "ISR4431" --zone-name "DataCenter" --proprietary "IT Department"
-  nsl-graph add device --label "Switch-Core-01" --model "Catalyst2960" --zone-id 1 --proprietary "Network Team"`,
+  nsl-graph add device --label "Router-01" --model "ISR4431" --zone-name "DataCenter" --owner "IT Department"
+  nsl-graph add device --label "Switch-Core-01" --model "Catalyst2960" --zone-id 1 --owner "Network Team"`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Get required device label
 		deviceLabel, err := cmd.Flags().GetString("label")
@@ -62,10 +62,10 @@ Examples:
 			os.Exit(1)
 		}
 
-		// Get required proprietary
-		proprietaryName, err := cmd.Flags().GetString("proprietary")
-		if err != nil || proprietaryName == "" {
-			fmt.Fprintf(os.Stderr, "Proprietary owner is required. Use --proprietary flag.\n")
+		// Get required owner
+		ownerName, err := cmd.Flags().GetString("owner")
+		if err != nil || ownerName == "" {
+			fmt.Fprintf(os.Stderr, "Owner owner is required. Use --owner flag.\n")
 			os.Exit(1)
 		}
 
@@ -79,7 +79,7 @@ Examples:
 		// Create the device
 		isUnmanaged, _ := cmd.Flags().GetBool("is-unmanaged")
 		isInvisible, _ := cmd.Flags().GetBool("is-invisible")
-		err = service.AddDevice(deviceLabel, modelName, zoneId, zoneName, proprietaryName, isUnmanaged, isInvisible)
+		err = service.AddDevice(deviceLabel, modelName, zoneId, zoneName, ownerName, isUnmanaged, isInvisible)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error creating device: %v\n", err)
 			os.Exit(1)
@@ -91,7 +91,7 @@ Examples:
 		} else {
 			fmt.Printf(" in zone '%s'", zoneName)
 		}
-		fmt.Printf(" owned by '%s'\n", proprietaryName)
+		fmt.Printf(" owned by '%s'\n", ownerName)
 		if isUnmanaged {
 			fmt.Printf("  Device is marked as unmanaged\n")
 		}
@@ -108,11 +108,11 @@ func init() {
 	DeviceModCmd.Flags().String("model", "", "Model name for the device (required)")
 	DeviceModCmd.Flags().String("zone-id", "", "Zone ID where device will be deployed")
 	DeviceModCmd.Flags().String("zone-name", "", "Zone name where device will be deployed")
-	DeviceModCmd.Flags().String("proprietary", "", "Proprietary owner of the device (required)")
+	DeviceModCmd.Flags().String("owner", "", "Owner owner of the device (required)")
 	DeviceModCmd.Flags().Bool("is-unmanaged", false, "Device is unmanaged (replicates all VLANs through all ports)")
 	DeviceModCmd.Flags().Bool("is-invisible", false, "Device is invisible in network scope (no IP)")
 
 	DeviceModCmd.MarkFlagRequired("label")
 	DeviceModCmd.MarkFlagRequired("model")
-	DeviceModCmd.MarkFlagRequired("proprietary")
+	DeviceModCmd.MarkFlagRequired("owner")
 }

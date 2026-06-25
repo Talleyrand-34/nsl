@@ -371,11 +371,11 @@ func (p *FortinetParser) parseFortinetPolicies(config *FortinetConfig) ([]config
 		name := p.extractQuotedValue(block, "set name")
 
 		rule := configparser.ConfigFirewallRule{
-			ID:          policyID,
-			Name:        name,
-			Enabled:     !strings.Contains(block, "set status disable"),
-			Action:      p.mapFortinetAction(p.extractValue(block, "set action")),
-			Direction:   "forward",
+			ID:        policyID,
+			Name:      name,
+			Enabled:   !strings.Contains(block, "set status disable"),
+			Action:    p.mapFortinetAction(p.extractValue(block, "set action")),
+			Direction: "forward",
 		}
 
 		// Parse source zone

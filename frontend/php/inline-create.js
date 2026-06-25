@@ -41,8 +41,8 @@
             matchField: 'name', matchProp: 'name',
             fields: [{ name: 'name', json: 'name', label: 'Name', type: 'text', required: true }],
         },
-        proprietary: {
-            title: 'Proprietary', path: '/proprietaries', labelProp: 'name',
+        owner: {
+            title: 'Owner', path: '/owners', labelProp: 'name',
             matchField: 'name', matchProp: 'name',
             fields: [{ name: 'name', json: 'name', label: 'Name', type: 'text', required: true }],
         },
@@ -71,7 +71,7 @@
             fields: [
                 { name: 'name', json: 'name', label: 'Zone name', type: 'text', required: true },
                 { name: 'fatherid', json: 'fatherid', label: 'Parent zone (optional)', type: 'ref', ref: 'zone', valueProp: 'id' },
-                { name: 'proprietary', json: 'proprietary', label: 'Proprietary', type: 'ref', ref: 'proprietary', valueProp: 'name', required: true },
+                { name: 'owner', json: 'owner', label: 'Owner', type: 'ref', ref: 'owner', valueProp: 'name', required: true },
                 { name: 'location_type', json: 'location_type', label: 'Zone type', type: 'ref', ref: 'zonetype', valueProp: 'name', required: true },
             ],
         },
@@ -95,7 +95,7 @@
                 { name: 'label', json: 'label', label: 'Device label', type: 'text', required: true },
                 { name: 'model', json: 'model_name', label: 'Model', type: 'ref', ref: 'model', valueProp: 'model', required: true },
                 { name: 'zoneid', json: 'zone_id', label: 'Zone', type: 'ref', ref: 'zone', valueProp: 'id', required: true },
-                { name: 'proprietary', json: 'proprietary', label: 'Proprietary', type: 'ref', ref: 'proprietary', valueProp: 'name', required: true },
+                { name: 'owner', json: 'owner', label: 'Owner', type: 'ref', ref: 'owner', valueProp: 'name', required: true },
             ],
         },
         modelport: {
@@ -118,9 +118,9 @@
     // device <select> name (model-filtered model-port lists) }. Record-picker
     // and filter selects are deliberately omitted (no "+ New" there).
     var FK_MAPS = {
-        addzone: { fatherid: { e: 'zone', v: 'id' }, proprietary: { e: 'proprietary', v: 'name' }, location_type: { e: 'zonetype', v: 'name' } },
+        addzone: { fatherid: { e: 'zone', v: 'id' }, owner: { e: 'owner', v: 'name' }, location_type: { e: 'zonetype', v: 'name' } },
         addmodeldevice: { brand: { e: 'brand', v: 'name' }, 'class': { e: 'devclass', v: 'name' } },
-        adddevice: { model: { e: 'model', v: 'model' }, zoneid: { e: 'zone', v: 'id' }, proprietary: { e: 'proprietary', v: 'name' } },
+        adddevice: { model: { e: 'model', v: 'model' }, zoneid: { e: 'zone', v: 'id' }, owner: { e: 'owner', v: 'name' } },
         addmodelport: { modelName: { e: 'model', v: 'model' } },
         adddeviceport: { device_id: { e: 'device', v: 'id' }, modelport_id: { e: 'modelport', v: 'id', filterBy: 'device_id' }, 'vlan_numbers[]': { e: 'vlan', v: 'vlanid' } },
         addconnections: {
@@ -128,9 +128,9 @@
             fromModelPort: { e: 'modelport', v: 'id', filterBy: 'fromDevice' }, toModelPort: { e: 'modelport', v: 'id', filterBy: 'toDevice' },
             connectionType: { e: 'connectiontype', v: 'name' },
         },
-        updatezone: { father_zone_id: { e: 'zone', v: 'id' }, zone_type_id: { e: 'zonetype', v: 'id' }, proprietary_id: { e: 'proprietary', v: 'id' } },
+        updatezone: { father_zone_id: { e: 'zone', v: 'id' }, zone_type_id: { e: 'zonetype', v: 'id' }, owner_id: { e: 'owner', v: 'id' } },
         updatemodeldevice: { brand_id: { e: 'brand', v: 'id' }, device_class_id: { e: 'devclass', v: 'id' } },
-        updatedevice: { model_id: { e: 'model', v: 'id' }, zone_id: { e: 'zone', v: 'id' }, proprietary_id: { e: 'proprietary', v: 'id' } },
+        updatedevice: { model_id: { e: 'model', v: 'id' }, zone_id: { e: 'zone', v: 'id' }, owner_id: { e: 'owner', v: 'id' } },
         updatemodelport: { model_id: { e: 'model', v: 'id' } },
         updatedeviceport: { 'vlan_numbers[]': { e: 'vlan', v: 'vlanid' } },
         updateconnections: {

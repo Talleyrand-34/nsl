@@ -26,9 +26,9 @@ import (
 
 func createSimpleDevice(sysDescr, sysName string) s.SNMPDevice {
 	return s.SNMPDevice{
-		IP:       "192.168.1.1",
-		SysName:  sysName,
-		SysDescr: sysDescr,
+		IP:        "192.168.1.1",
+		SysName:   sysName,
+		SysDescr:  sysDescr,
 		Reachable: true,
 	}
 }

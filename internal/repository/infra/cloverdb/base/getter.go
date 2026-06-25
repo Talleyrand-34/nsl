@@ -41,13 +41,13 @@ func (r BasicOpsCloverRepository) getFatherID(fatherid string, father string) st
 	return ""
 }
 
-// Helper function to get proprietary ID from proprietary name
-func (r BasicOpsCloverRepository) getProprietaryID(proprietary string) string {
-	if proprietary == "" {
+// Helper function to get owner ID from owner name
+func (r BasicOpsCloverRepository) getOwnerID(owner string) string {
+	if owner == "" {
 		return ""
 	}
 
-	doc, err := r.db.FindFirst(q.NewQuery(proprietariesCollection).Where(q.Field("proprietary").Eq(proprietary)))
+	doc, err := r.db.FindFirst(q.NewQuery(ownersCollection).Where(q.Field("owner").Eq(owner)))
 	if err == nil && doc != nil {
 		return doc.ObjectId()
 	}

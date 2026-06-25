@@ -32,7 +32,7 @@ owns the Model Ports that define the device's physical ports.
 
 ### Device
 A concrete piece of equipment: an **instance of a Model**, placed in a Zone, owned
-by a Proprietary, optionally carrying IP addresses, a scan **Profile**, and the
+by an Owner, optionally carrying IP addresses, a scan **Profile**, and the
 `unmanaged` / `invisible` flags.
 - Collection `devices`; API `/devices`; CLI `add/update/delete device`; UI "Device".
 - A device's human identifier is its **label** (Go `Device.Name`, JSON `label`).
@@ -40,7 +40,7 @@ by a Proprietary, optionally carrying IP addresses, a scan **Profile**, and the
 
 ### Zone
 A **network segment** (logical or physical) devices live in. Zones form a
-hierarchy via a parent (`father`) and each has a Zone Type and a Proprietary.
+hierarchy via a parent (`father`) and each has a Zone Type and an Owner.
 - Collection `zones`; API `/zones`; CLI `add/delete zone`; UI "Zone".
 
 ### Zone Type
@@ -49,11 +49,13 @@ The **category of a Zone** (e.g. building, rack, VLAN domain).
 - Alias: the field on a Zone is `location_type`. **Canonical UI label: "Zone Type"**
   (do not label it "Location Type").
 
-### Proprietary
+### Owner
 The **owner / administrative entity** responsible for a Zone or Device (an
-organization or admin domain). The word is used as a noun meaning "proprietor".
-- Collection `proprietaries`; API `/proprietaries`; UI "Proprietary".
-- Known awkward term; kept for compatibility (see *Terminology notes*).
+organization or admin domain).
+- Collection `owners`; API `/owners`; CLI `owner`; UI "Owner".
+- **Renamed from `proprietary`** (a Spanish-ism). Existing stores are migrated with
+  `scripts/migrate_phase1_owner.go` (renames the `proprietaries` collection and the
+  `proprietary` field on devices/zones).
 
 ### VLAN
 A virtual LAN, identified by its VLAN id, optionally named. Membership on a port
@@ -179,7 +181,7 @@ are documented rather than churned:
 | Device Class | `devclass` (UI entity), `deviceclasses` (API), `device_class`/`class` (JSON), `DevClass` (Go) |
 | Model | `modeldevice` (UI entity/route value) |
 | Zone Type | `location_type` (Zone field) — **don't** surface as "Location Type" |
-| Proprietary | "owner/administrative entity" (no rename; pervasive in DB/API/UI) |
+| Owner | formerly **`proprietary`** (renamed; migrate old stores via `scripts/migrate_phase1_owner.go`) |
 | Device label | `Device.Name` (Go), `label` (JSON/UI) |
 | Device type (OS/firmware) | `--device-type` (CLI), `device_type` (JSON) — **not** the hardware Model |
 | Device Port | `devport` (CLI `add` subcommand), `deviceport` (UI) |

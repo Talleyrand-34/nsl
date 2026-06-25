@@ -200,8 +200,8 @@ func (p *OPNsenseParser) parseInterfaces(config OPNsenseConfig) ([]configparser.
 		// Parse VLAN configuration
 		if iface.VlanTag != "" {
 			vlan := configparser.ConfigVLAN{
-				ID:      iface.VlanTag,
-				Tagged:  true,
+				ID:     iface.VlanTag,
+				Tagged: true,
 			}
 			configIface.VLANs = append(configIface.VLANs, vlan)
 		}
@@ -293,12 +293,12 @@ func (p *OPNsenseParser) parseFirewallRules(config OPNsenseConfig) ([]configpars
 		}
 
 		configRule := configparser.ConfigFirewallRule{
-			ID:          fmt.Sprintf("rule_%d", i),
-			Name:        rule.Descr,
-			Enabled:     !rule.Disabled,
-			Action:      mapOPNsenseAction(rule.Type),
-			Direction:   mapOPNsenseDirection(rule.Direction),
-			Protocol:    rule.Protocol,
+			ID:        fmt.Sprintf("rule_%d", i),
+			Name:      rule.Descr,
+			Enabled:   !rule.Disabled,
+			Action:    mapOPNsenseAction(rule.Type),
+			Direction: mapOPNsenseDirection(rule.Direction),
+			Protocol:  rule.Protocol,
 		}
 
 		// Parse source
@@ -388,13 +388,13 @@ func (m *OPNsenseInterfaceMap) UnmarshalXML(d *xml.Decoder, start xml.StartEleme
 }
 
 type OPNsenseConfig struct {
-	XMLName      xml.Name             `xml:"opnsense"`
-	Version      string               `xml:"version"`
-	System       OPNsenseSystem       `xml:"system"`
-	Interfaces   OPNsenseInterfaceMap `xml:"interfaces"`
-	VLANs        []OPNsenseVLAN       `xml:"vlans>vlan"`
+	XMLName      xml.Name              `xml:"opnsense"`
+	Version      string                `xml:"version"`
+	System       OPNsenseSystem        `xml:"system"`
+	Interfaces   OPNsenseInterfaceMap  `xml:"interfaces"`
+	VLANs        []OPNsenseVLAN        `xml:"vlans>vlan"`
 	StaticRoutes []OPNsenseStaticRoute `xml:"staticroutes>route"`
-	Filter       OPNsenseFilter       `xml:"filter"`
+	Filter       OPNsenseFilter        `xml:"filter"`
 }
 
 type OPNsenseSystem struct {
@@ -432,14 +432,14 @@ type OPNsenseFilter struct {
 }
 
 type OPNsenseFirewallRule struct {
-	Type        string                      `xml:"type"`
-	Interface   string                      `xml:"interface"`
-	Direction   string                      `xml:"direction"`
-	Protocol    string                      `xml:"protocol"`
-	Source      OPNsenseFirewallAddress     `xml:"source"`
-	Destination OPNsenseFirewallAddress     `xml:"destination"`
-	Descr       string                      `xml:"descr"`
-	Disabled    bool                        `xml:"disabled"`
+	Type        string                  `xml:"type"`
+	Interface   string                  `xml:"interface"`
+	Direction   string                  `xml:"direction"`
+	Protocol    string                  `xml:"protocol"`
+	Source      OPNsenseFirewallAddress `xml:"source"`
+	Destination OPNsenseFirewallAddress `xml:"destination"`
+	Descr       string                  `xml:"descr"`
+	Disabled    bool                    `xml:"disabled"`
 }
 
 type OPNsenseFirewallAddress struct {

@@ -26,10 +26,10 @@ import (
 	util "nsl-graph/cmd/utils"
 )
 
-var proprietaryDelCmd = &cobra.Command{
-	Use:   "proprietary [proprietary_name]",
-	Short: "Delete a proprietary",
-	Long:  `Delete a proprietary from the database by name. Use --cascade to also delete all dependent devices.`,
+var ownerDelCmd = &cobra.Command{
+	Use:   "owner [owner_name]",
+	Short: "Delete a owner",
+	Long:  `Delete a owner from the database by name. Use --cascade to also delete all dependent devices.`,
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		name := args[0]
@@ -41,25 +41,25 @@ var proprietaryDelCmd = &cobra.Command{
 		}
 
 		if cascade {
-			err = service.DeleteProprietaryCascade(name)
+			err = service.DeleteOwnerCascade(name)
 			if err == nil {
-				fmt.Printf("Proprietary '%s' and all dependencies deleted successfully\n", name)
+				fmt.Printf("Owner '%s' and all dependencies deleted successfully\n", name)
 			}
 		} else {
-			err = service.DeleteProprietary(name)
+			err = service.DeleteOwner(name)
 			if err == nil {
-				fmt.Printf("Proprietary '%s' deleted successfully\n", name)
+				fmt.Printf("Owner '%s' deleted successfully\n", name)
 			}
 		}
 
 		if err != nil {
-			return fmt.Errorf("error deleting proprietary: %w", err)
+			return fmt.Errorf("error deleting owner: %w", err)
 		}
 		return nil
 	},
 }
 
 func init() {
-	cmd_root.DeleteCmd.AddCommand(proprietaryDelCmd)
-	proprietaryDelCmd.Flags().Bool("cascade", false, "Delete proprietary and all dependent objects (devices)")
+	cmd_root.DeleteCmd.AddCommand(ownerDelCmd)
+	ownerDelCmd.Flags().Bool("cascade", false, "Delete owner and all dependent objects (devices)")
 }

@@ -30,17 +30,17 @@ func (r BasicOpsCloverRepository) AddZone(
 	name string,
 	fatherid string,
 	father string,
-	proprietary string,
+	owner string,
 	zonename string,
 ) error {
 	// Get father ID (handles all cases)
 	sfatherid := r.getFatherID(fatherid, father)
 
-	// Get proprietary ID. Strict: a named proprietary must exist (never silently
+	// Get owner ID. Strict: a named owner must exist (never silently
 	// drop an unresolved dependency).
-	spropid := r.getProprietaryID(proprietary)
-	if proprietary != "" && spropid == "" {
-		return fmt.Errorf("proprietary %q does not exist", proprietary)
+	spropid := r.getOwnerID(owner)
+	if owner != "" && spropid == "" {
+		return fmt.Errorf("owner %q does not exist", owner)
 	}
 
 	// Get zone type ID. Strict: a named zone type must exist.
@@ -58,7 +58,7 @@ func (r BasicOpsCloverRepository) AddZone(
 		doc.Set("location_type", szonetypeid)
 	}
 	if spropid != "" {
-		doc.Set("proprietary", spropid)
+		doc.Set("owner", spropid)
 	}
 
 	_, err := r.db.InsertOne(zonesCollection, doc)
@@ -99,11 +99,11 @@ func (r BasicOpsCloverRepository) GetZones() ([]e.Zone, error) {
 			}
 		}
 
-		// Get proprietary name if proprietary ID exists
-		if proprietaryID, ok := doc.Get("proprietary").(string); ok && proprietaryID != "" {
-			proprietaryDoc, err := r.db.FindById(proprietariesCollection, proprietaryID)
-			if err == nil && proprietaryDoc != nil {
-				zone.Proprietary = proprietaryDoc.Get("proprietary").(string)
+		// Get owner name if owner ID exists
+		if ownerID, ok := doc.Get("owner").(string); ok && ownerID != "" {
+			ownerDoc, err := r.db.FindById(ownersCollection, ownerID)
+			if err == nil && ownerDoc != nil {
+				zone.Owner = ownerDoc.Get("owner").(string)
 			}
 		}
 
@@ -119,7 +119,7 @@ func (r BasicOpsCloverRepository) UpdateZone(
 	newZoneName string,
 	newFatherZoneId string,
 	newZoneTypeId string,
-	newProprietaryId string,
+	newOwnerId string,
 ) error {
 	updates := make(map[string]interface{})
 	updates["name"] = newZoneName
@@ -132,8 +132,8 @@ func (r BasicOpsCloverRepository) UpdateZone(
 		updates["location_type"] = newZoneTypeId
 	}
 
-	if newProprietaryId != "" && newProprietaryId != "0" {
-		updates["proprietary"] = newProprietaryId
+	if newOwnerId != "" && newOwnerId != "0" {
+		updates["owner"] = newOwnerId
 	}
 
 	err := r.db.Update(q.NewQuery(zonesCollection).Where(q.Field("_id").Eq(zoneId)), updates)

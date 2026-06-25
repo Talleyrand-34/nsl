@@ -27,7 +27,7 @@ type Zone struct {
 	FatherID     string `json:"fatherid"`
 	Father       string `json:"father"`
 	LocationType string `json:"location_type"`
-	Proprietary  string `json:"proprietary"`
+	Owner        string `json:"owner"`
 }
 
 // ModelDevice This struct contains the info about a model
@@ -60,7 +60,7 @@ type Device struct {
 	ZoneID      string   `json:"zoneid"`
 	ZoneName    string   `json:"zonename"`
 	ZoneFather  string   `json:"zonefathername"`
-	Proprietary string   `json:"proprietary"`
+	Owner       string   `json:"owner"`
 	IsUnmanaged bool     `json:"is_unmanaged"`
 	IsInvisible bool     `json:"is_invisible"`
 	Ips         []string `json:"ips"`
@@ -191,8 +191,8 @@ type DevClass struct {
 	Name string `json:"name"`
 }
 
-// Proprietary represents a proprietary of a device o zone
-type Proprietary struct {
+// Owner represents a owner of a device o zone
+type Owner struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 }

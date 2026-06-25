@@ -56,7 +56,7 @@ $devices = json_decode($devicesJson, true);
                 <li>Zone ID: <?= htmlspecialchars($device['zoneid']) ?></li>
                 <li>Zone Name: <?= htmlspecialchars($device['zonename']) ?></li>
                 <li>Zone Father: <?= htmlspecialchars($device['zonefathername']) ?></li>
-                <li>Proprietary: <?= htmlspecialchars($device['proprietary']) ?></li>
+                <li>Owner: <?= htmlspecialchars($device['owner']) ?></li>
                 <li>
                     VLAN mode: <strong><?= $isUnmanaged ? 'Unmanaged' : 'Managed' ?></strong>
                     <form method="post" style="display:inline; margin-left:8px;">

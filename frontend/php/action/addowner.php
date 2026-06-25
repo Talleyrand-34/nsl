@@ -3,12 +3,12 @@ require_once __DIR__ . '/../config.php';
 $message = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $proprietary = trim($_POST['proprietary'] ?? '');
+    $owner = trim($_POST['owner'] ?? '');
 
-    if ($proprietary !== '') {
-        $data = json_encode(['name' => $proprietary]);
+    if ($owner !== '') {
+        $data = json_encode(['name' => $owner]);
 
-        $ch = curl_init(PROPRIETARIES_ENDPOINT);
+        $ch = curl_init(OWNERS_ENDPOINT);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "POST");
         curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -21,23 +21,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
         if ($httpCode === 201) {
-            $message = "Proprietary added successfully!";
+            $message = "Owner added successfully!";
         } else {
-            $message = "Failed to add proprietary. Server response: " . htmlspecialchars($response);
+            $message = "Failed to add owner. Server response: " . htmlspecialchars($response);
         }
         curl_close($ch);
     } else {
-        $message = "Please enter a proprietary name.";
+        $message = "Please enter a owner name.";
     }
 }
 ?>
 
-<h2>Add a New Proprietary</h2>
+<h2>Add a New Owner</h2>
 <?php if ($message): ?>
     <p><strong><?= htmlspecialchars($message) ?></strong></p>
 <?php endif; ?>
 <form method="post">
-    <label for="proprietary">Proprietary name:</label>
-    <input type="text" id="proprietary" name="proprietary" required>
-    <button type="submit">Add Proprietary</button>
+    <label for="owner">Owner name:</label>
+    <input type="text" id="owner" name="owner" required>
+    <button type="submit">Add Owner</button>
 </form>

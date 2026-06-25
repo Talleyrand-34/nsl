@@ -61,8 +61,8 @@ func TestDevice_AddWithZone(t *testing.T) {
 	if err := repo.AddZoneType("Room"); err != nil {
 		t.Fatalf("failed to add zone type: %v", err)
 	}
-	if err := repo.AddProprietary("Company A"); err != nil {
-		t.Fatalf("failed to add proprietary: %v", err)
+	if err := repo.AddOwner("Company A"); err != nil {
+		t.Fatalf("failed to add owner: %v", err)
 	}
 	if err := repo.AddZone("Server Room", "", "", "Company A", "Room"); err != nil {
 		t.Fatalf("failed to add zone: %v", err)

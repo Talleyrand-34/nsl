@@ -92,11 +92,11 @@ func RootHandler() http.HandlerFunc {
 			"POST   /models",
 			"PUT    /models",
 
-			// /proprietaries
-			"DELETE /proprietaries",
-			"GET    /proprietaries",
-			"POST   /proprietaries",
-			"PUT    /proprietaries",
+			// /owners
+			"DELETE /owners",
+			"GET    /owners",
+			"POST   /owners",
+			"PUT    /owners",
 
 			// /zones
 			"DELETE /zones",

@@ -176,8 +176,8 @@ func (ns *NetService) ensurePlaceholderZone() (string, error) {
 			return z.ID, nil
 		}
 	}
-	// Strict AddZone requires the referenced proprietary and zone type to exist.
-	if err := ns.ensureProprietary("Discovered"); err != nil {
+	// Strict AddZone requires the referenced owner and zone type to exist.
+	if err := ns.ensureOwner("Discovered"); err != nil {
 		return "", err
 	}
 	if err := ns.ensureZoneType("Unknown"); err != nil {

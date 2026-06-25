@@ -40,18 +40,18 @@ type repository interface {
 	UpdateZoneType(zoneTypeId string, newZoneTypeName string) error
 	DeleteZoneType(zoneTypeName string) error
 
-	// Proprietary interaction
-	AddProprietary(proprietaryName string) error
-	GetProperties() ([]e.Proprietary, error)
-	UpdateProprietary(proprietaryId string, newProprietaryName string) error
-	DeleteProprietary(proprietaryName string) error
+	// Owner interaction
+	AddOwner(ownerName string) error
+	GetOwners() ([]e.Owner, error)
+	UpdateOwner(ownerId string, newOwnerName string) error
+	DeleteOwner(ownerName string) error
 
 	// Zone interaction
 	AddZone(
 		zoneName string,
 		fatherZoneId string,
 		fatherZoneName string,
-		proprietaryName string,
+		ownerName string,
 		zoneTypeName string,
 	) error
 	GetZones() ([]e.Zone, error)
@@ -60,7 +60,7 @@ type repository interface {
 		newZoneName string,
 		newFatherZoneId string,
 		newZoneTypeId string,
-		newProprietaryId string,
+		newOwnerId string,
 	) error
 	DeleteZone(zoneId string) error
 
@@ -85,7 +85,7 @@ type repository interface {
 		modelName string,
 		zoneId string,
 		zoneName string,
-		proprietaryName string,
+		ownerName string,
 		isUnmanaged bool,
 		isInvisible bool,
 	) error
@@ -95,7 +95,7 @@ type repository interface {
 		newDeviceLabel string,
 		newModelId string,
 		newZoneId string,
-		newProprietaryId string,
+		newOwnerId string,
 		isUnmanaged *bool,
 	) error
 	UpdateDeviceIPs(deviceId string, ips []string) error
@@ -165,7 +165,7 @@ type repository interface {
 	DeleteBrandCascade(brandName string) error
 	DeleteDeviceClassCascade(deviceClassName string) error
 	DeleteZoneTypeCascade(zoneTypeName string) error
-	DeleteProprietaryCascade(proprietaryName string) error
+	DeleteOwnerCascade(ownerName string) error
 	DeleteZoneCascade(zoneId string) error
 	DeleteModelCascade(modelId string) error
 	DeleteDeviceCascade(deviceId string) error

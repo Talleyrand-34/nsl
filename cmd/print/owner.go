@@ -27,23 +27,23 @@ import (
 )
 
 // devicesCmd represents the devices command
-var proprietaryPrintCmd = &cobra.Command{
-	Use:   "proprietary",
-	Short: "Print the proprietarys",
+var ownerPrintCmd = &cobra.Command{
+	Use:   "owner",
+	Short: "Print the owners",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		service, err := util.ServiceConnection()
 		if err != nil {
 			return
 		}
-		props, err := service.GetProperties()
+		props, err := service.GetOwners()
 		if err != nil {
-			fmt.Println("Error getting Proprietaries:", err)
+			fmt.Println("Error getting Owners:", err)
 			return
 		}
 		jsonBytes, err := json.MarshalIndent(props, "", "  ")
 		if err != nil {
-			fmt.Println("Error marshaling Proprietaries to JSON:", err)
+			fmt.Println("Error marshaling Owners to JSON:", err)
 			return
 		}
 		fmt.Println(string(jsonBytes))
@@ -51,5 +51,5 @@ var proprietaryPrintCmd = &cobra.Command{
 }
 
 func init() {
-	cmd.PrintCmd.AddCommand(proprietaryPrintCmd)
+	cmd.PrintCmd.AddCommand(ownerPrintCmd)
 }

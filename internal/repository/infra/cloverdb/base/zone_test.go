@@ -19,8 +19,8 @@ func TestZone_AddAndGet(t *testing.T) {
 	if err := repo.AddZoneType("Building"); err != nil {
 		t.Fatalf("failed to add zone type: %v", err)
 	}
-	if err := repo.AddProprietary("Company A"); err != nil {
-		t.Fatalf("failed to add proprietary: %v", err)
+	if err := repo.AddOwner("Company A"); err != nil {
+		t.Fatalf("failed to add owner: %v", err)
 	}
 
 	// Add zone
@@ -52,8 +52,8 @@ func TestZone_AddWithFather(t *testing.T) {
 	if err := repo.AddZoneType("Floor"); err != nil {
 		t.Fatalf("failed to add zone type: %v", err)
 	}
-	if err := repo.AddProprietary("Company A"); err != nil {
-		t.Fatalf("failed to add proprietary: %v", err)
+	if err := repo.AddOwner("Company A"); err != nil {
+		t.Fatalf("failed to add owner: %v", err)
 	}
 
 	// Add parent zone
@@ -98,8 +98,8 @@ func TestZone_CreateAndDelete(t *testing.T) {
 	if err := repo.AddZoneType("Building"); err != nil {
 		t.Fatalf("failed to add zone type: %v", err)
 	}
-	if err := repo.AddProprietary("Company A"); err != nil {
-		t.Fatalf("failed to add proprietary: %v", err)
+	if err := repo.AddOwner("Company A"); err != nil {
+		t.Fatalf("failed to add owner: %v", err)
 	}
 
 	// Add zone

@@ -12,8 +12,8 @@ $actionFiles = [
     'addbrand' => 'action/addbrand.php',
     'getdevclass' => 'action/getdevclass.php',
     'adddevclass' => 'action/adddevclass.php',
-    'getproprietary' => 'action/getproprietary.php',
-    'addproprietary' => 'action/addproprietary.php',
+    'getowner' => 'action/getowner.php',
+    'addowner' => 'action/addowner.php',
     'getzonetype' => 'action/getzonetype.php',
     'addzonetype' => 'action/addzonetype.php',
     'getzone' => 'action/getzone.php',
@@ -33,7 +33,7 @@ $actionFiles = [
     // UPDATE actions
     'updatebrand' => 'action/updatebrand.php',
     'updatedevclass' => 'action/updatedevclass.php',
-    'updateproprietary' => 'action/updateproprietary.php',
+    'updateowner' => 'action/updateowner.php',
     'updatezonetype' => 'action/updatezonetype.php',
     'updatezone' => 'action/updatezone.php',
     'updatemodeldevice' => 'action/updatemodeldevice.php',
@@ -45,7 +45,7 @@ $actionFiles = [
     // DELETE actions
     'deletebrand' => 'action/deletebrand.php',
     'deletedevclass' => 'action/deletedevclass.php',
-    'deleteproprietary' => 'action/deleteproprietary.php',
+    'deleteowner' => 'action/deleteowner.php',
     'deletezonetype' => 'action/deletezonetype.php',
     'deletezone' => 'action/deletezone.php',
     'deletemodeldevice' => 'action/deletemodeldevice.php',
@@ -100,7 +100,7 @@ include __DIR__ . '/header.php';
                 <select id="entity" name="entity" onchange="this.form.submit()">
                     <option value="brand" <?= $entity == 'brand' ? 'selected' : '' ?>>Brand</option>
                     <option value="devclass" <?= $entity == 'devclass' ? 'selected' : '' ?>>Device Class</option>
-                    <option value="proprietary" <?= $entity == 'proprietary' ? 'selected' : '' ?>>Proprietary</option>
+                    <option value="owner" <?= $entity == 'owner' ? 'selected' : '' ?>>Owner</option>
                     <option value="zonetype" <?= $entity == 'zonetype' ? 'selected' : '' ?>>Zone Type</option>
                     <option value="zone" <?= $entity == 'zone' ? 'selected' : '' ?>>Zone</option>
                     <option value="modeldevice" <?= $entity == 'modeldevice' ? 'selected' : '' ?>>Model</option>

@@ -57,16 +57,16 @@ nsl-graph add deviceclass --name "router"
 nsl-graph add deviceclass --name "switch"
 ```
 
-#### add proprietary
+#### add owner
 ```bash
-nsl-graph add proprietary --name <proprietary-name>
+nsl-graph add owner --name <owner-name>
 ```
-Add a proprietary/ownership entity.
+Add a owner/ownership entity.
 
 **Example:**
 ```bash
-nsl-graph add proprietary --name "TDS"
-nsl-graph add proprietary --name "Navantia"
+nsl-graph add owner --name "TDS"
+nsl-graph add owner --name "Navantia"
 ```
 
 #### add zonetype
@@ -83,14 +83,14 @@ nsl-graph add zonetype --name "logical"
 
 #### add zone
 ```bash
-nsl-graph add zone --name <zone-name> --zonetype <type> --proprietary <owner> [--father <parent-zone>]
+nsl-graph add zone --name <zone-name> --zonetype <type> --owner <owner> [--father <parent-zone>]
 ```
 Add a network zone.
 
 **Example:**
 ```bash
-nsl-graph add zone --name "datacenter" --zonetype "physical" --proprietary "TDS"
-nsl-graph add zone --name "rack01" --zonetype "physical" --proprietary "TDS" --father "datacenter"
+nsl-graph add zone --name "datacenter" --zonetype "physical" --owner "TDS"
+nsl-graph add zone --name "rack01" --zonetype "physical" --owner "TDS" --father "datacenter"
 ```
 
 #### add model
@@ -107,14 +107,14 @@ nsl-graph add model --name "EX4300" --brand "Juniper" --class "switch"
 
 #### add device
 ```bash
-nsl-graph add device --name <device-name> --model <model-name> --zonename <zone> --proprietary <owner>
+nsl-graph add device --name <device-name> --model <model-name> --zonename <zone> --owner <owner>
 ```
 Add a network device.
 
 **Example:**
 ```bash
-nsl-graph add device --name "router01" --model "ISR4431" --zonename "datacenter" --proprietary "TDS"
-nsl-graph add device --name "switch01" --model "EX4300" --zonename "datacenter" --proprietary "TDS"
+nsl-graph add device --name "router01" --model "ISR4431" --zonename "datacenter" --owner "TDS"
+nsl-graph add device --name "switch01" --model "EX4300" --zonename "datacenter" --owner "TDS"
 ```
 
 #### add modelport
@@ -192,11 +192,11 @@ nsl-graph print deviceclass
 ```
 Display all device classes.
 
-#### print proprietary
+#### print owner
 ```bash
-nsl-graph print proprietary
+nsl-graph print owner
 ```
-Display all proprietary entities.
+Display all owner entities.
 
 #### print zonetype
 ```bash
@@ -466,16 +466,16 @@ Here's a complete example of setting up a simple network:
 # Set up basic entities
 nsl-graph add brand --name "Cisco"
 nsl-graph add deviceclass --name "router"
-nsl-graph add proprietary --name "MyCompany"
+nsl-graph add owner --name "MyCompany"
 nsl-graph add zonetype --name "physical"
 
 # Create zones
-nsl-graph add zone --name "datacenter" --zonetype "physical" --proprietary "MyCompany"
+nsl-graph add zone --name "datacenter" --zonetype "physical" --owner "MyCompany"
 
 # Create model and devices
 nsl-graph add model --name "ISR4431" --brand "Cisco" --class "router"
-nsl-graph add device --name "router01" --model "ISR4431" --zonename "datacenter" --proprietary "MyCompany"
-nsl-graph add device --name "router02" --model "ISR4431" --zonename "datacenter" --proprietary "MyCompany"
+nsl-graph add device --name "router01" --model "ISR4431" --zonename "datacenter" --owner "MyCompany"
+nsl-graph add device --name "router02" --model "ISR4431" --zonename "datacenter" --owner "MyCompany"
 
 # Add ports to model
 nsl-graph add modelport --name "GigE0/0/0" --posx 0 --posy 0 --modelname "ISR4431"

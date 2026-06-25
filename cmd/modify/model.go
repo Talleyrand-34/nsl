@@ -1,20 +1,19 @@
-
 /*
-  Copyright © 2025 Talleyrand-34 (t34@t34.dev)
- 
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU Affero General Public License as published
-  by the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
- 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-  GNU Affero General Public License for more details.
- 
-  You should have received a copy of the GNU Affero General Public License
-  along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+	Copyright © 2025 Talleyrand-34 (t34@t34.dev)
+
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU Affero General Public License as published
+	by the Free Software Foundation, either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+	GNU Affero General Public License for more details.
+
+	You should have received a copy of the GNU Affero General Public License
+	along with this program. If not, see <https://www.gnu.org/licenses/>.
+*/
 package cmd_modify
 
 import (
@@ -75,7 +74,7 @@ Examples:
 			os.Exit(1)
 		}
 
-		fmt.Printf("Successfully created model '%s' from brand '%s' with class '%s'\n", 
+		fmt.Printf("Successfully created model '%s' from brand '%s' with class '%s'\n",
 			modelName, brandName, deviceClass)
 	},
 }
@@ -86,7 +85,7 @@ func init() {
 	modelDeviceModCmd.Flags().String("name", "", "Model name/identifier (required)")
 	modelDeviceModCmd.Flags().String("brand", "", "Brand name for the model (required)")
 	modelDeviceModCmd.Flags().String("class", "", "Device class name for the model (required)")
-	
+
 	modelDeviceModCmd.MarkFlagRequired("name")
 	modelDeviceModCmd.MarkFlagRequired("brand")
 	modelDeviceModCmd.MarkFlagRequired("class")

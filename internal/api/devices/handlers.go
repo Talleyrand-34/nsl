@@ -46,11 +46,11 @@ func RegisterRoutes(r *mux.Router, service q.NetServiceInt) {
 	r.HandleFunc("/zonetypes", UpdateZoneTypeHandler(service)).Methods("PUT", "OPTIONS")
 	r.HandleFunc("/zonetypes", DeleteZoneTypeHandler(service)).Methods("DELETE", "OPTIONS")
 
-	// Proprietaries
-	r.HandleFunc("/proprietaries", AddProprietaryHandler(service)).Methods("POST", "OPTIONS")
-	r.HandleFunc("/proprietaries", GetProprietariesHandler(service)).Methods("GET", "OPTIONS")
-	r.HandleFunc("/proprietaries", UpdateProprietaryHandler(service)).Methods("PUT", "OPTIONS")
-	r.HandleFunc("/proprietaries", DeleteProprietaryHandler(service)).Methods("DELETE", "OPTIONS")
+	// Owners
+	r.HandleFunc("/owners", AddOwnerHandler(service)).Methods("POST", "OPTIONS")
+	r.HandleFunc("/owners", GetOwnersHandler(service)).Methods("GET", "OPTIONS")
+	r.HandleFunc("/owners", UpdateOwnerHandler(service)).Methods("PUT", "OPTIONS")
+	r.HandleFunc("/owners", DeleteOwnerHandler(service)).Methods("DELETE", "OPTIONS")
 
 	// Zones
 	r.HandleFunc("/zones", AddZoneHandler(service)).Methods("POST", "OPTIONS")
@@ -275,7 +275,7 @@ func DeleteBrandHandler(service q.NetServiceInt) http.HandlerFunc {
 }
 
 // Add placeholder handlers for other device entities...
-// (DeviceClass, ZoneType, Proprietary, Zone, Model, Device, ModelPort, DevicePort handlers)
+// (DeviceClass, ZoneType, Owner, Zone, Model, Device, ModelPort, DevicePort handlers)
 
 func AddDeviceClassHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -625,7 +625,7 @@ func DeleteZoneTypeHandler(service q.NetServiceInt) http.HandlerFunc {
 	}
 }
 
-func AddProprietaryHandler(service q.NetServiceInt) http.HandlerFunc {
+func AddOwnerHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -659,7 +659,7 @@ func AddProprietaryHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		err := service.AddProprietary(req.Name)
+		err := service.AddOwner(req.Name)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": "add_failed", "message": err.Error()})
@@ -667,11 +667,11 @@ func AddProprietaryHandler(service q.NetServiceInt) http.HandlerFunc {
 		}
 
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(map[string]string{"message": "Proprietary created successfully", "name": req.Name})
+		json.NewEncoder(w).Encode(map[string]string{"message": "Owner created successfully", "name": req.Name})
 	}
 }
 
-func GetProprietariesHandler(service q.NetServiceInt) http.HandlerFunc {
+func GetOwnersHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -683,18 +683,18 @@ func GetProprietariesHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		proprietaries, err := service.GetProperties()
+		owners, err := service.GetOwners()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(proprietaries)
+		json.NewEncoder(w).Encode(owners)
 	}
 }
 
-func UpdateProprietaryHandler(service q.NetServiceInt) http.HandlerFunc {
+func UpdateOwnerHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -735,7 +735,7 @@ func UpdateProprietaryHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		err := service.UpdateProprietary(req.ID, req.Name)
+		err := service.UpdateOwner(req.ID, req.Name)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": "update_failed", "message": err.Error()})
@@ -743,11 +743,11 @@ func UpdateProprietaryHandler(service q.NetServiceInt) http.HandlerFunc {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{"message": "Proprietary updated successfully", "id": req.ID, "name": req.Name})
+		json.NewEncoder(w).Encode(map[string]string{"message": "Owner updated successfully", "id": req.ID, "name": req.Name})
 	}
 }
 
-func DeleteProprietaryHandler(service q.NetServiceInt) http.HandlerFunc {
+func DeleteOwnerHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -784,9 +784,9 @@ func DeleteProprietaryHandler(service q.NetServiceInt) http.HandlerFunc {
 
 		var err error
 		if req.Cascade {
-			err = service.DeleteProprietaryCascade(req.Name)
+			err = service.DeleteOwnerCascade(req.Name)
 		} else {
-			err = service.DeleteProprietary(req.Name)
+			err = service.DeleteOwner(req.Name)
 		}
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -795,7 +795,7 @@ func DeleteProprietaryHandler(service q.NetServiceInt) http.HandlerFunc {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{"message": "Proprietary deleted successfully", "name": req.Name})
+		json.NewEncoder(w).Encode(map[string]string{"message": "Owner deleted successfully", "name": req.Name})
 	}
 }
 
@@ -822,7 +822,7 @@ func AddZoneHandler(service q.NetServiceInt) http.HandlerFunc {
 			Name         string `json:"name"`
 			FatherID     string `json:"fatherid"`
 			Father       string `json:"father"`
-			Proprietary  string `json:"proprietary"`
+			Owner        string `json:"owner"`
 			LocationType string `json:"location_type"`
 		}
 
@@ -838,7 +838,7 @@ func AddZoneHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		if err := service.AddZone(req.Name, req.FatherID, req.Father, req.Proprietary, req.LocationType); err != nil {
+		if err := service.AddZone(req.Name, req.FatherID, req.Father, req.Owner, req.LocationType); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": "creation_failed", "message": err.Error()})
 			return
@@ -1137,7 +1137,7 @@ func AddDeviceHandler(service q.NetServiceInt) http.HandlerFunc {
 			ModelName   string   `json:"model_name"`
 			ZoneID      string   `json:"zone_id"`
 			ZoneName    string   `json:"zone_name"`
-			Proprietary string   `json:"proprietary"`
+			Owner       string   `json:"owner"`
 			IsUnmanaged bool     `json:"is_unmanaged"`
 			IsInvisible bool     `json:"is_invisible"`
 			IPs         []string `json:"ips"`
@@ -1162,7 +1162,7 @@ func AddDeviceHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		err := service.AddDevice(req.Label, req.ModelName, req.ZoneID, req.ZoneName, req.Proprietary, req.IsUnmanaged, req.IsInvisible)
+		err := service.AddDevice(req.Label, req.ModelName, req.ZoneID, req.ZoneName, req.Owner, req.IsUnmanaged, req.IsInvisible)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": "creation_failed", "message": err.Error()})
@@ -1246,7 +1246,7 @@ func UpdateDeviceHandler(service q.NetServiceInt) http.HandlerFunc {
 			Label       string  `json:"label"`
 			ModelID     string  `json:"model_id"`
 			ZoneID      string  `json:"zone_id"`
-			Proprietary string  `json:"proprietary_id"`
+			Owner       string  `json:"owner_id"`
 			IsUnmanaged *bool   `json:"is_unmanaged"`
 			Profile     *string `json:"profile"` // nil = leave unchanged; "" = clear
 		}
@@ -1263,7 +1263,7 @@ func UpdateDeviceHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		err := service.UpdateDevice(req.ID, req.Label, req.ModelID, req.ZoneID, req.Proprietary, req.IsUnmanaged)
+		err := service.UpdateDevice(req.ID, req.Label, req.ModelID, req.ZoneID, req.Owner, req.IsUnmanaged)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": "update_failed", "message": err.Error()})

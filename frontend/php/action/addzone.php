@@ -5,25 +5,25 @@ $message = '';
 
 // Fetch select options
 $zones = json_decode(@file_get_contents(ZONES_ENDPOINT), true) ?: [];
-$proprietaries = json_decode(@file_get_contents(PROPRIETARIES_ENDPOINT), true) ?: [];
+$owners = json_decode(@file_get_contents(OWNERS_ENDPOINT), true) ?: [];
 $zonetypes = json_decode(@file_get_contents(ZONETYPES_ENDPOINT), true) ?: [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim($_POST['name'] ?? '');
     $fatherid = $_POST['fatherid'] ?? '';
-    $proprietary = $_POST['proprietary'] ?? '';
+    $owner = $_POST['owner'] ?? '';
     $location_type = $_POST['location_type'] ?? '';
 
     if ($name === '') {
         $message = 'Please enter a zone name.';
-    } elseif ($proprietary === '') {
-        $message = 'Please select a proprietary.';
+    } elseif ($owner === '') {
+        $message = 'Please select a owner.';
     } else {
         $data = json_encode([
             'name' => $name,
             'father' => '',  // Always empty
             'fatherid' => $fatherid,  // This is the zone id as string, or empty string if none selected
-            'proprietary' => $proprietary,
+            'owner' => $owner,
             'location_type' => $location_type
         ]);
         // Echo the JSON for debugging
@@ -68,11 +68,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php endforeach; ?>
     </select><br><br>
 
-    <!-- Proprietary -->
-    <label for="proprietary">Proprietary:</label>
-    <select id="proprietary" name="proprietary" required>
+    <!-- Owner -->
+    <label for="owner">Owner:</label>
+    <select id="owner" name="owner" required>
         <option value="">-- Select --</option>
-        <?php foreach ($proprietaries as $prop): ?>
+        <?php foreach ($owners as $prop): ?>
             <option value="<?= htmlspecialchars($prop['name']) ?>">
                 <?= htmlspecialchars($prop['name']) ?>
             </option>

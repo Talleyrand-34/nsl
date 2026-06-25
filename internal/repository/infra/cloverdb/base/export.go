@@ -196,20 +196,20 @@ func (r BasicOpsCloverRepository) ExportAllStructs() (e.All, error) {
 		return result, err
 	}
 	for _, doc := range deviceDocs {
-		proprietaryID := int64(-1)
-		if propID, ok := doc.Get("proprietary").(string); ok && propID != "" {
+		ownerID := int64(-1)
+		if propID, ok := doc.Get("owner").(string); ok && propID != "" {
 			// Try to convert to int64 if needed, otherwise use -1
 			if val, err := strconv.ParseInt(propID, 10, 64); err == nil {
-				proprietaryID = val
+				ownerID = val
 			}
 		}
 
 		result.Devices = append(result.Devices, e.BasicDevice{
-			ID:          doc.ObjectId(),
-			Label:       doc.Get("label").(string),
-			ModelID:     getStringField(doc, "model_id"),
-			ZoneID:      getStringField(doc, "zone_id"),
-			Proprietary: proprietaryID,
+			ID:      doc.ObjectId(),
+			Label:   doc.Get("label").(string),
+			ModelID: getStringField(doc, "model_id"),
+			ZoneID:  getStringField(doc, "zone_id"),
+			Owner:   ownerID,
 		})
 	}
 
@@ -265,15 +265,15 @@ func (r BasicOpsCloverRepository) ExportAllStructs() (e.All, error) {
 	// Policies (not implemented in CloverDB, return empty)
 	result.Policies = []e.BasicPolicy{}
 
-	// Proprietaries
-	propDocs, err := r.db.FindAll(q.NewQuery(proprietariesCollection))
+	// Owners
+	propDocs, err := r.db.FindAll(q.NewQuery(ownersCollection))
 	if err != nil {
 		return result, err
 	}
 	for _, doc := range propDocs {
-		result.Proprietaries = append(result.Proprietaries, e.BasicProprietary{
-			ID:          doc.ObjectId(),
-			Proprietary: doc.Get("proprietary").(string),
+		result.Owners = append(result.Owners, e.BasicOwner{
+			ID:    doc.ObjectId(),
+			Owner: doc.Get("owner").(string),
 		})
 	}
 
@@ -302,10 +302,10 @@ func (r BasicOpsCloverRepository) ExportAllStructs() (e.All, error) {
 			}
 		}
 
-		proprietaryID := int64(-1)
-		if propID, ok := doc.Get("proprietary").(string); ok && propID != "" {
+		ownerID := int64(-1)
+		if propID, ok := doc.Get("owner").(string); ok && propID != "" {
 			if val, err := strconv.ParseInt(propID, 10, 64); err == nil {
-				proprietaryID = val
+				ownerID = val
 			}
 		}
 
@@ -321,7 +321,7 @@ func (r BasicOpsCloverRepository) ExportAllStructs() (e.All, error) {
 			Name:         doc.Get("name").(string),
 			Father:       fatherID,
 			Granularity:  -1, // Not tracked in CloverDB
-			Proprietary:  proprietaryID,
+			Owner:        ownerID,
 			LocationType: locationTypeID,
 		})
 	}

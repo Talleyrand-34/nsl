@@ -94,12 +94,12 @@ func (r BasicOpsCloverRepository) DeleteZoneTypeCascade(zoneTypeName string) err
 	return r.DeleteZoneType(zoneTypeName)
 }
 
-// DeleteProprietaryCascade deletes a proprietary, setting the proprietary field to empty
+// DeleteOwnerCascade deletes a owner, setting the owner field to empty
 // on all referencing zones and devices (set-null, not cascade-delete).
-func (r BasicOpsCloverRepository) DeleteProprietaryCascade(proprietaryName string) error {
-	log.Printf("Cascade deleting proprietary: %s", proprietaryName)
-	// DeleteProprietary already handles set-null on zones and devices before deleting
-	return r.DeleteProprietary(proprietaryName)
+func (r BasicOpsCloverRepository) DeleteOwnerCascade(ownerName string) error {
+	log.Printf("Cascade deleting owner: %s", ownerName)
+	// DeleteOwner already handles set-null on zones and devices before deleting
+	return r.DeleteOwner(ownerName)
 }
 
 // DeleteZoneCascade deletes a zone and all dependent devices

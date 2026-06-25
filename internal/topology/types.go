@@ -133,8 +133,8 @@ type Intermediary struct {
 // derived edges, the detected intermediary devices, and the discrepancies to
 // review. Only resolved, confirmed/candidate edges are eligible to be imported.
 type ConnectionScanResult struct {
-	Hosts         []HostScan       `json:"hosts"`
-	Edges         []ConnectionEdge `json:"edges"`
-	Intermediaries []Intermediary  `json:"intermediaries,omitempty"`
-	Discrepancies []Discrepancy    `json:"discrepancies,omitempty"`
+	Hosts          []HostScan       `json:"hosts"`
+	Edges          []ConnectionEdge `json:"edges"`
+	Intermediaries []Intermediary   `json:"intermediaries,omitempty"`
+	Discrepancies  []Discrepancy    `json:"discrepancies,omitempty"`
 }

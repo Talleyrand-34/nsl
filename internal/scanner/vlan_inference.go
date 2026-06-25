@@ -30,9 +30,9 @@ func extractVLANFromName(name string) VLANInference {
 
 	// Pattern for vlan interfaces: vlan0.X, vlanX, vlan.X, etc.
 	vlanPatterns := []string{
-		`vlan0?\.(\d+)`,      // vlan0.10, vlan.10
-		`vlan(\d+)`,          // vlan10
-		`.*vlan.*?(\d+)`,     // any variation with vlan and numbers
+		`vlan0?\.(\d+)`,  // vlan0.10, vlan.10
+		`vlan(\d+)`,      // vlan10
+		`.*vlan.*?(\d+)`, // any variation with vlan and numbers
 	}
 
 	for _, pattern := range vlanPatterns {
