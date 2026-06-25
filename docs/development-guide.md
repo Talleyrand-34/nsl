@@ -7,13 +7,14 @@ This guide covers setting up a development environment and understanding the cod
 ### Required Software
 - **Go 1.24.2+**: Backend API and CLI tool
 - **PHP 7.4+**: Web frontend
-- **SQLite3**: Database (usually bundled with Go)
 - **Git**: Version control
+
+The data store is **CloverDB** (a pure-Go embedded document store, pulled in as a
+Go module) — no external database engine to install.
 
 ### Optional Tools
 - **D2**: For diagram generation (installed automatically via Go modules)
 - **Web browser**: For frontend development
-- **SQLite browser**: For database inspection
 
 ## Project Setup
 
@@ -58,20 +59,24 @@ php -S localhost:8091 -t frontend/php &
 
 ```
 nsl-graph/
-├── cmd/                    # CLI command definitions
-│   ├── modify/            # Data modification commands
+├── cmd/                    # CLI command definitions (Cobra)
+│   ├── add/ update/ delete/   # Data modification commands
 │   ├── print/             # Data display commands
+│   ├── scan/              # Device + connection scanning
 │   ├── export/            # Data export commands
 │   └── root/              # Core commands (server, diagram, etc.)
 ├── internal/              # Internal packages
+│   ├── api/               # HTTP API handlers
 │   ├── repository/        # Data layer
 │   │   ├── application/   # Business logic service layer
 │   │   ├── domain/        # Business interfaces
 │   │   ├── entities/      # Data structures
-│   │   └── infra/         # Infrastructure (SQLite implementation)
-│   ├── format/            # Diagram generation
-│   └── types/             # Shared data types
-├── api/                   # HTTP API handlers
+│   │   └── infra/cloverdb/    # CloverDB document-store implementation
+│   ├── scanner/           # SNMP/SSH scanning primitives
+│   ├── configparser/      # Device-config parsers (openwrt, opnsense, …)
+│   ├── secret/            # Credential vault
+│   ├── format/            # Diagram generation (D2/SVG)
+│   └── topology/          # Connection-scan correlation types
 ├── frontend/php/          # PHP web interface
 ├── docs/                  # Documentation
 ├── main.go               # Application entry point
@@ -90,9 +95,9 @@ The project follows clean architecture principles:
 
 #### Repository Pattern
 Data access is abstracted through repository interfaces:
-- `domain/interfaces.go`: Defines repository contracts
-- `infra/sqlc_sqlite/`: SQLite implementation
-- `application/app.go`: Service layer consuming repositories
+- `domain/interfaces.go`: Defines the `NetRepository` contract
+- `infra/cloverdb/base/`: CloverDB implementation of that contract
+- `application/app.go`: Service layer (`NetService`) consuming the repository
 
 #### Command Pattern
 CLI commands are organized using Cobra:
@@ -104,36 +109,27 @@ CLI commands are organized using Cobra:
 
 ### 1. Database Schema Changes
 
-#### Using SQLC
-The project uses SQLC for type-safe database operations:
+CloverDB is schemaless (documents are JSON), so there is **no SQL schema or code
+generation**. A "schema change" is just a code + docs change:
 
-```bash
-# Install sqlc (if not already installed)
-go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
-
-# Generate code after schema changes
-cd internal/repository/infra/sqlc_sqlite
-sqlc generate
-```
-
-#### Schema Files
-- `schema.sql`: Database schema definition
-- `query.sql`: SQL queries
-- `sqlc.yml`: SQLC configuration
-
-#### Making Schema Changes
-1. Modify `schema.sql`
-2. Update `query.sql` if needed
-3. Run `sqlc generate`
-4. Update entity structs in `entities/`
-5. Update service layer in `application/`
+1. Update the entity struct in `internal/repository/entities/datastruct.go`.
+2. Read/write the new field in `internal/repository/infra/cloverdb/base/` (the
+   relevant `Add*` / `Update*` / `Get*` methods — set it with `doc.Set(...)`, read
+   it with a type-guarded `doc.Get(...)`). Add a focused setter (e.g.
+   `UpdateDeviceProfile`) rather than changing a widely-called signature when a
+   field is optional.
+3. Extend the `NetRepository` (`domain/interfaces.go`) and `NetService`
+   (`application/app.go`) interfaces if you added a method.
+4. Surface it in the API handlers (`internal/api/`), CLI (`cmd/`), and web UI
+   (`frontend/php/`) as needed.
+5. Document it in `docs/database-schema.dbml` and the [Glossary](glossary.md).
 
 ### 2. Adding New CLI Commands
 
 #### Create Command File
 ```go
-// cmd/modify/newentity.go
-package modify
+// cmd/add/newentity.go  (mirror in cmd/update/, cmd/delete/, cmd/print/)
+package cmd_add
 
 import (
     "github.com/spf13/cobra"
@@ -259,11 +255,9 @@ go test -run TestSpecificFunction ./internal/repository/application
 ```
 
 ### Test Database
-Tests use a separate test database:
-```bash
-# Test files create their own databases
-ls internal/repository/infra/sqlc_sqlite/basicops/test.db
-```
+Tests create their own throwaway CloverDB store (via `t.TempDir()`), e.g. the
+`setupTestScanningService` helper in
+`internal/repository/application/scanning_test.go`. Nothing to set up by hand.
 
 ### Manual Testing
 ```bash
@@ -291,43 +285,36 @@ GOOS=windows GOARCH=amd64 go build -o nsl-graph-windows-amd64.exe main.go
 ```
 
 ### Database Debugging
+CloverDB stores its data as files in the database directory (default `test.db/`),
+not a SQL database — inspect data through the API or CLI instead:
 ```bash
-# Open SQLite CLI
-sqlite3 test.db
+# Inspect via the running API
+curl http://localhost:8081/devices | jq
 
-# Common queries
-.tables
-.schema Device
-SELECT * FROM Device;
+# Or via the CLI
+go run main.go print device
 ```
 
 ### Log Debugging
-The application uses logrus for logging:
+The application logs with the standard library's structured logger (`log/slog`):
 ```go
-import "github.com/sirupsen/logrus"
+import "log/slog"
 
-logrus.WithFields(logrus.Fields{
-    "entity": "device",
-    "id": deviceId,
-}).Info("Processing device")
+slog.Info("processing device", "entity", "device", "id", deviceId)
 ```
 
-Enable verbose logging:
+Enable verbose / debug logging:
 ```bash
-go run main.go -v add device --name "test"
+go run main.go -v add device --label "test"   # verbose
+go run main.go -d server --port 8081           # debug
 ```
 
 ### Code Generation
+There is no code generation (no SQLC). Just format and lint:
 ```bash
-# Regenerate SQLC code
-cd internal/repository/infra/sqlc_sqlite
-sqlc generate
-
-# Format Go code
 go fmt ./...
-
-# Run linter (if installed)
-golangci-lint run
+go vet ./...
+golangci-lint run   # if installed
 ```
 
 ## Best Practices
@@ -339,10 +326,10 @@ golangci-lint run
 - Add comments for complex logic
 
 ### Database Operations
-- Always use SQLC-generated code for queries
+- Go through the `NetRepository` interface / `NetService`, not CloverDB directly
 - Handle errors appropriately
-- Use transactions for multi-table operations
-- Validate foreign key relationships
+- Enforce referential integrity at the application layer (CloverDB has no FKs)
+- Validate input before storing
 
 ### API Design
 - Return consistent JSON formats
@@ -384,15 +371,6 @@ lsof -i :8091
 # Kill processes if needed
 pkill -f "go run main.go server"
 pkill -f "php -S"
-```
-
-### SQLC Issues
-```bash
-# Verify SQLC installation
-sqlc version
-
-# Check configuration
-cat internal/repository/infra/sqlc_sqlite/sqlc.yml
 ```
 
 ## Contributing

@@ -171,26 +171,35 @@ PUT    /devices
 DELETE /devices
 ```
 
-**POST Example:**
+**POST Example** (create). `model_name`, `zone_id`/`zone_name`, and
+`proprietary` are required-ish; `ips` and `profile` are optional. `profile` is a
+scan-profile **name** (device or generic) the device is associated with — also set
+automatically when a device is imported from a scan (see *Glossary › Profile*):
 ```bash
 curl -X POST http://localhost:8081/devices \
   -H "Content-Type: application/json" \
   -d '{
     "label": "router01",
-    "model": "ISR4431",
-    "zonename": "datacenter",
-    "proprietary": "MyCompany"
+    "model_name": "ISR4431",
+    "zone_id": "<zone-id>",
+    "zone_name": "datacenter",
+    "proprietary": "MyCompany",
+    "ips": ["10.0.0.1"],
+    "profile": "gen-ssh"
   }'
 ```
 
 **PUT Example** (partial update; omitted fields are left unchanged). Use
-`is_unmanaged` to toggle a device between managed and unmanaged VLAN modes:
+`is_unmanaged` to toggle managed/unmanaged VLAN mode; `profile` is nullable —
+omit it to leave unchanged, set `""` to clear. A bare `{id, profile}` PUT just
+(re)assigns the scan profile:
 ```bash
 curl -X PUT http://localhost:8081/devices \
   -H "Content-Type: application/json" \
   -d '{
     "id": "<device-id>",
-    "is_unmanaged": true
+    "is_unmanaged": true,
+    "profile": "dev-snmp"
   }'
 ```
 
@@ -316,7 +325,15 @@ POST /scan/connections/placeholders {"intermediaries": [<Intermediary>...]}
 
 `/scan/connections` correlates LLDP/CDP/bridge-FDB evidence into edges and detects
 **intermediaries** — MACs seen by 2+ hosts that don't speak LLDP and aren't in the DB
-(unknown device(s) "in the middle"). `/scan/connections/placeholders` materializes a
+(unknown device(s) "in the middle").
+
+In **from-db** mode every device must have an associated scan **profile** (its own
+`device.profile`, else one auto-matched by host). Devices without one are excluded
+and reported as a `device-no-profile` discrepancy (the device labels in
+`provenance`); the web review then offers a per-device profile dropdown that
+assigns it (`PUT /devices {id, profile}`) so you can re-run.
+
+`/scan/connections/placeholders` materializes a
 single shared **placeholder unmanaged device** (in an "Unknown infrastructure" zone)
 for the selected intermediaries and wires each observing `device:port` endpoint to it,
 for VLAN attestation/documentation of the gap. Returns

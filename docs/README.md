@@ -1,18 +1,20 @@
 # NSL-Graph Documentation
 
-NSL-Graph is a network specification tool that manages network infrastructure data through a SQLite database, provides a web interface via PHP frontend, and offers comprehensive CLI commands for network management.
+NSL-Graph is a network specification tool that manages network infrastructure data in a **CloverDB** document store, provides a web interface via PHP frontend, and offers comprehensive CLI commands for network management.
+
+> New here? See the **[Glossary](glossary.md)** for the canonical terms used across the code, CLI, and web UI.
 
 ## Architecture Overview
 
 The tool consists of three main components:
 
 ### 1. Internal Database Layer (`internal/`)
-- **Purpose**: SQLite-based data persistence layer for network specifications
+- **Purpose**: CloverDB-based document persistence layer for network specifications
 - **Location**: `internal/repository/`
 - **Components**:
   - **Entities**: Data structures representing network components (brands, devices, connections, etc.)
   - **Domain**: Business logic interfaces and contracts
-  - **Infrastructure**: SQLite implementation with SQLC-generated queries
+  - **Infrastructure**: CloverDB document-store implementation (`infra/cloverdb/`)
   - **Application**: Service layer providing business operations
 
 ### 2. PHP Frontend (`frontend/php/`)
@@ -63,28 +65,31 @@ go run main.go --help
 
 ## Documentation Structure
 
+- **[Glossary](glossary.md)**: Canonical terms used across code, CLI, and web UI
 - **[CLI Reference](cli-reference.md)**: Complete command-line interface documentation
-- **[Database Schema](database-schema.md)**: SQLite database structure and relationships
+- **[Database Schema](database-schema.md)**: CloverDB document structure and relationships
 - **[Frontend API](frontend-api.md)**: PHP web interface and HTTP API endpoints
 - **[Development Guide](development-guide.md)**: Setup and development workflow
 
 ## Core Concepts
 
 ### Network Entities
-The tool manages the following network entities:
-- **Brands**: Equipment manufacturers (Cisco, Juniper, etc.)
-- **Device Classes**: Types of network equipment (router, switch, firewall)
-- **Models**: Specific equipment models from brands
-- **Zones**: Logical or physical network segments
-- **Devices**: Individual network equipment instances
-- **Ports**: Connection points on devices
+The tool manages the following network entities (see the [Glossary](glossary.md)
+for precise definitions):
+- **Brands**: Equipment manufacturers (Cisco, Netgear, etc.)
+- **Device Classes**: Categories of network equipment (router, switch, firewall, AP)
+- **Models**: Specific products of a brand + device class
+- **Zones**: Logical or physical network segments (with a Zone Type and Proprietary)
+- **Devices**: Instances of a model, optionally tied to a **scan profile**
+- **Ports**: Model Ports (template) and Device Ports (instance)
 - **Connections**: Links between device ports
-- **Proprietaries**: Ownership/management entities
+- **Proprietaries**: Ownership/administrative entities
+- **Scan profiles** & **credential vault**: reusable scan parameters/credentials
 
 ### Data Flow
-1. **CLI Commands** → SQLite Database
-2. **PHP Frontend** → HTTP API → SQLite Database
-3. **Diagram Generation** → Reads from SQLite → Generates D2/SVG diagrams
+1. **CLI Commands** → CloverDB store
+2. **PHP Frontend** → HTTP API → CloverDB store
+3. **Diagram Generation** → Reads from the store → Generates D2/SVG diagrams
 
 ## Getting Started
 

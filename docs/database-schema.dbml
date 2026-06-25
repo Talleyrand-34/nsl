@@ -99,6 +99,8 @@ Table devices {
   proprietary string [null]
   is_unmanaged boolean [note: 'unmanaged switch: replicates all VLANs through all ports']
   is_invisible boolean [note: 'hidden from rendered topology']
+  ips string [note: 'string array of IP addresses', null]
+  profile string [note: 'associated scanprofiles.name (device or generic); set on the dashboard or tied automatically on import; required by from-db connection scans', null]
 }
 
 // Physical port instances on devices with VLAN configurations

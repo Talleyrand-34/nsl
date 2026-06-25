@@ -15,7 +15,7 @@ if (is_array($zones)) {
         echo "<li>Name: " . htmlspecialchars($zone['name']) . "</li>";
         echo "<li>Father ID: " . htmlspecialchars($zone['fatherid']) . "</li>";
         echo "<li>Father: " . htmlspecialchars($zone['father']) . "</li>";
-        echo "<li>Location Type: " . htmlspecialchars($zone['location_type']) . "</li>";
+        echo "<li>Zone Type: " . htmlspecialchars($zone['location_type']) . "</li>";
         echo "<li>Proprietary: " . htmlspecialchars($zone['proprietary']) . "</li>";
         echo "</ul>";
         echo "</li>";

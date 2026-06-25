@@ -1,6 +1,6 @@
 # CLI Reference
 
-The `nsl-graph` command-line tool provides comprehensive network management capabilities. All commands operate on a SQLite database and support various output formats.
+The `nsl-graph` command-line tool provides comprehensive network management capabilities. All commands operate on a **CloverDB** document store and support various output formats. See the [Glossary](glossary.md) for the terms used below.
 
 ## Basic Usage
 
@@ -18,7 +18,8 @@ These flags are available for all commands:
 
 | Flag | Short | Type | Default | Description |
 |------|-------|------|---------|-------------|
-| `--source` | `-s` | string | `test.db` | SQLite database file path |
+| `--source` | `-s` | string | `test.db` | CloverDB store path (a directory) |
+| `--backend` | `-b` | string | `cloverdb` | Database backend (only `cloverdb`) |
 | `--config-file` | `-c` | string | | Configuration file path |
 | `--outPath` | | string | `out/` | Output directory for generated files |
 | `--outFile` | | string | `out.d2` | Output script filename |
@@ -499,10 +500,10 @@ nsl-graph print connection
 
 ## Database Files
 
-The tool uses SQLite database files:
-- **Default**: `test.db` (created automatically)
-- **Custom**: Specify with `-s` flag
-- **Location**: Current working directory or absolute path
+The tool uses a **CloverDB** document store (a directory of data files):
+- **Default**: `test.db/` (created automatically on first use)
+- **Custom**: Specify with `-s` / `--source`
+- **Location**: Current working directory or an absolute path
 
 ## Output Files
 
