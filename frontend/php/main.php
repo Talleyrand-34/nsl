@@ -191,4 +191,8 @@ include __DIR__ . '/header.php';
     </div>
 </form>
     </div>
+    <!-- Inline recursive "create object" for composed fields. NSL_DASH tells the
+         engine which add/update form is shown, so it enhances the right selects. -->
+    <script>window.NSL_DASH = { action: <?= json_encode($selectedAction) ?> };</script>
+    <script src="inline-create.js"></script>
 <?php include __DIR__ . '/footer.php'; ?>

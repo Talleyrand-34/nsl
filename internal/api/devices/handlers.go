@@ -801,7 +801,51 @@ func DeleteProprietaryHandler(service q.NetServiceInt) http.HandlerFunc {
 
 func AddZoneHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotImplemented)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		if r.Method != "POST" {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			json.NewEncoder(w).Encode(map[string]string{"error": "method_not_allowed", "message": "Only POST method is allowed"})
+			return
+		}
+
+		// location_type carries the zone-type name (AddZone's 5th argument).
+		var req struct {
+			Name         string `json:"name"`
+			FatherID     string `json:"fatherid"`
+			Father       string `json:"father"`
+			Proprietary  string `json:"proprietary"`
+			LocationType string `json:"location_type"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "invalid_json", "message": err.Error()})
+			return
+		}
+
+		if req.Name == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "missing_name", "message": "name is required"})
+			return
+		}
+
+		if err := service.AddZone(req.Name, req.FatherID, req.Father, req.Proprietary, req.LocationType); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"error": "creation_failed", "message": err.Error()})
+			return
+		}
+
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Zone created successfully", "name": req.Name})
 	}
 }
 

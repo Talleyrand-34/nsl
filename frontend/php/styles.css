@@ -83,6 +83,54 @@ body.page-connections label { display: block; margin: 6px 0; }
 }
 .appbar-api input { width: 260px; max-width: 50vw; }
 
+/* ---- Inline "create object" (composed fields) ------------------------- */
+.inline-create-btn {
+    margin-left: 6px;
+    padding: 1px 7px;
+    font-size: 0.85em;
+    cursor: pointer;
+    vertical-align: middle;
+}
+.nsl-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    z-index: 1000;
+    padding: 40px 12px;
+    overflow: auto;
+}
+/* Stacked modals dim slightly more so the top one stands out. */
+.nsl-modal-overlay + .nsl-modal-overlay { background: rgba(0, 0, 0, 0.25); }
+.nsl-modal {
+    background: #fff;
+    border: 1px solid #99c;
+    border-radius: 8px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+    padding: 16px 18px;
+    width: 360px;
+    max-width: 90vw;
+}
+.nsl-modal h4 { margin: 0 0 10px; }
+.nsl-modal .nsl-field { margin-bottom: 8px; }
+.nsl-modal .nsl-field label { display: block; font-size: 0.9em; margin-bottom: 2px; }
+.nsl-modal .nsl-field input[type=text],
+.nsl-modal .nsl-field input[type=number],
+.nsl-modal .nsl-field select { min-width: 200px; }
+.nsl-modal-error {
+    background: #ffe5e5;
+    border: 1px solid #e29; /* reads red, inverts fine in dark mode */
+    color: #900;
+    padding: 6px 8px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    font-size: 0.9em;
+}
+.nsl-modal-actions { margin-top: 12px; text-align: right; }
+.nsl-modal-actions button { margin-left: 8px; }
+
 /* ---- Derived-edge table ----------------------------------------------- */
 /* A discarded edge is grayed and parked at the end of the table (restorable). */
 tr.edge-discarded { background: #f0f0f0 !important; opacity: 0.55; }
