@@ -265,6 +265,7 @@ type DiscoveredDevice struct {
 	SuggestedName string     `json:"suggested_name"`
 	SuggestedZone string     `json:"suggested_zone"`
 	Profile       string     `json:"profile,omitempty"` // scan profile used to discover it (tied on import)
+	OsType        string     `json:"os_type,omitempty"` // OS/firmware family used to parse it (tied to the model on import)
 }
 
 // DiscoveredDeviceInfo holds ALL discovered information from a scan.

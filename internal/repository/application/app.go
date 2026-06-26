@@ -58,6 +58,13 @@ type NetServiceInt interface {
 	UpdateModelType(modelTypeId string, newModelTypeName string) error
 	DeleteModelType(modelTypeName string) error
 
+	// OsType operations
+	AddOsType(osTypeName string) error
+	GetOsTypes() ([]e.OsType, error)
+	UpdateOsType(osTypeId string, newOsTypeName string) error
+	DeleteOsType(osTypeName string) error
+	EnsureOsType(osTypeName string) error
+
 	// ZoneType operations
 	AddZoneType(zoneTypeName string) error
 	GetZonetypes() ([]e.ZoneType, error)
@@ -93,6 +100,7 @@ type NetServiceInt interface {
 		modelName string,
 		brandName string,
 		modelTypeName string,
+		osTypeName string,
 	) error
 	GetModels() ([]e.ModelDevice, error)
 	UpdateModel(
@@ -100,6 +108,7 @@ type NetServiceInt interface {
 		newModelName string,
 		newBrandId string,
 		newModelTypeId string,
+		newOsTypeId string,
 	) error
 	DeleteModel(modelId string) error
 
@@ -244,7 +253,7 @@ type NetServiceInt interface {
 	ExecuteApprovedImportPlan(plan s.DeviceImportPlan, options s.ImportOptions) error
 
 	// Model management
-	EnsureModelExists(modelName, brandName, defaultBrand string) error
+	EnsureModelExists(modelName, brandName, defaultBrand, osTypeName string) error
 
 	// Scan profiles. Encryption/decryption of the SSH password goes through the
 	// vault (unlocked once); the service stores the blob as-is and sanitizes it
@@ -259,7 +268,13 @@ type NetServiceInt interface {
 
 func NewNetService(netRepository d.NetRepository) NetServiceInt {
 	v := secret.NewVault(netRepository.GetVaultMeta, netRepository.SetVaultMeta, vaultIdleTimeout)
-	return &NetService{netRepo: netRepository, vault: v}
+	ns := &NetService{netRepo: netRepository, vault: v}
+	// Seed the OS-type catalogue from the available config parsers so the
+	// dropdowns are populated out of the box (idempotent).
+	for _, name := range configparser.DefaultRegistry.ListParsers() {
+		_ = ns.EnsureOsType(name)
+	}
+	return ns
 }
 
 // Vault returns the server-side credential vault (unlock/lock + encrypt/decrypt).
@@ -374,6 +389,35 @@ func (ns *NetService) GetModelTypes() ([]e.ModelType, error) {
 	return ns.netRepo.GetModelTypes()
 }
 
+func (ns *NetService) AddOsType(osTypeName string) error {
+	return ns.netRepo.AddOsType(osTypeName)
+}
+
+func (ns *NetService) GetOsTypes() ([]e.OsType, error) {
+	return ns.netRepo.GetOsTypes()
+}
+
+func (ns *NetService) UpdateOsType(osTypeId string, newOsTypeName string) error {
+	return ns.netRepo.UpdateOsType(osTypeId, newOsTypeName)
+}
+
+func (ns *NetService) DeleteOsType(osTypeName string) error {
+	return ns.netRepo.DeleteOsType(osTypeName)
+}
+
+// EnsureOsType creates the OS type if it doesn't exist yet (idempotent).
+func (ns *NetService) EnsureOsType(osTypeName string) error {
+	if osTypeName == "" {
+		return nil
+	}
+	for _, o := range func() []e.OsType { os, _ := ns.netRepo.GetOsTypes(); return os }() {
+		if o.Name == osTypeName {
+			return nil
+		}
+	}
+	return ns.netRepo.AddOsType(osTypeName)
+}
+
 func (ns *NetService) AddZoneType(zoneTypeName string) error {
 	return ns.netRepo.AddZoneType(zoneTypeName)
 }
@@ -428,8 +472,9 @@ func (ns *NetService) AddModel(
 	modelName string,
 	brandName string,
 	modelTypeName string,
+	osTypeName string,
 ) error {
-	return ns.netRepo.AddModel(modelName, brandName, modelTypeName)
+	return ns.netRepo.AddModel(modelName, brandName, modelTypeName, osTypeName)
 }
 
 func (ns *NetService) GetDevices() ([]e.Device, error) {
@@ -803,8 +848,9 @@ func (ns *NetService) UpdateModel(
 	newModelName string,
 	newBrandId string,
 	newModelTypeId string,
+	newOsTypeId string,
 ) error {
-	return ns.netRepo.UpdateModel(modelId, newModelName, newBrandId, newModelTypeId)
+	return ns.netRepo.UpdateModel(modelId, newModelName, newBrandId, newModelTypeId, newOsTypeId)
 }
 
 func (ns *NetService) UpdateDevice(
@@ -1088,7 +1134,7 @@ func (ns *NetService) ensureRequiredEntities(options s.ImportOptions) error {
 				brandName, modelTypeName = "Generic", "Generic"
 			}
 
-			if err := ns.AddModel(modelName, brandName, modelTypeName); err != nil {
+			if err := ns.AddModel(modelName, brandName, modelTypeName, ""); err != nil {
 				log.Printf("Warning: failed to create model %s: %v", modelName, err)
 			}
 		}
@@ -1196,7 +1242,7 @@ func (ns *NetService) importSingleDevice(discovered s.DiscoveredDevice, options 
 	}
 
 	// Ensure model exists before adding device
-	err := ns.EnsureModelExists(discovered.Model, discovered.Brand, options.DefaultBrand)
+	err := ns.EnsureModelExists(discovered.Model, discovered.Brand, options.DefaultBrand, discovered.OsType)
 	if err != nil {
 		return fmt.Errorf("failed to ensure model exists: %w", err)
 	}
@@ -1264,7 +1310,7 @@ func (ns *NetService) createDevicePortsForDevice(deviceID string, discovered s.D
 		if modelName == "" {
 			modelName = "Generic Model"
 		}
-		if err := ns.AddModel(modelName, discovered.Brand, discovered.ModelType); err != nil {
+		if err := ns.AddModel(modelName, discovered.Brand, discovered.ModelType, discovered.OsType); err != nil {
 			return err
 		}
 	}
@@ -1703,7 +1749,7 @@ func (ns *NetService) ipBelongsToSegment(ip, segment string) bool {
 }
 
 // EnsureModelExists checks if a model exists and creates it with fallback defaults if not
-func (ns *NetService) EnsureModelExists(modelName, brandName, defaultBrand string) error {
+func (ns *NetService) EnsureModelExists(modelName, brandName, defaultBrand, osTypeName string) error {
 	// Check if model already exists
 	models, err := ns.GetModels()
 	if err != nil {
@@ -1743,8 +1789,8 @@ func (ns *NetService) EnsureModelExists(modelName, brandName, defaultBrand strin
 		// Continue with model creation
 	}
 
-	// Create the model with fallback defaults
-	err = ns.AddModel(modelName, finalBrand, "Router")
+	// Create the model with fallback defaults (os_type is auto-registered if new)
+	err = ns.AddModel(modelName, finalBrand, "Router", osTypeName)
 	if err != nil {
 		return fmt.Errorf("failed to create model %s: %w", modelName, err)
 	}
@@ -1901,7 +1947,7 @@ func (ns *NetService) importSingleDeviceWithPlan(discovered s.DiscoveredDevice, 
 	}
 
 	// Ensure model exists before adding device
-	err := ns.EnsureModelExists(discovered.Model, discovered.Brand, options.DefaultBrand)
+	err := ns.EnsureModelExists(discovered.Model, discovered.Brand, options.DefaultBrand, discovered.OsType)
 	if err != nil {
 		return fmt.Errorf("failed to ensure model exists: %w", err)
 	}
@@ -1969,7 +2015,7 @@ func (ns *NetService) createDevicePortsWithPlan(deviceID string, discovered s.Di
 		if modelName == "" {
 			modelName = "Generic Model"
 		}
-		if err := ns.AddModel(modelName, discovered.Brand, discovered.ModelType); err != nil {
+		if err := ns.AddModel(modelName, discovered.Brand, discovered.ModelType, discovered.OsType); err != nil {
 			return err
 		}
 	}

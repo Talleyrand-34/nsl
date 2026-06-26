@@ -60,6 +60,9 @@ Examples:
 			os.Exit(1)
 		}
 
+		// Optional OS type (openwrt/opnsense/…); auto-registered if new.
+		osType, _ := cmd.Flags().GetString("os-type")
+
 		// Get service connection
 		service, err := util.ServiceConnection()
 		if err != nil {
@@ -68,13 +71,13 @@ Examples:
 		}
 
 		// Create the model
-		err = service.AddModel(modelName, brandName, modelType)
+		err = service.AddModel(modelName, brandName, modelType, osType)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error creating model: %v\n", err)
 			os.Exit(1)
 		}
 
-		fmt.Printf("Successfully created model '%s' from brand '%s' with class '%s'\n",
+		fmt.Printf("Successfully created model '%s' from brand '%s' with model type '%s'\n",
 			modelName, brandName, modelType)
 	},
 }
@@ -85,6 +88,7 @@ func init() {
 	modelDeviceModCmd.Flags().String("name", "", "Model name/identifier (required)")
 	modelDeviceModCmd.Flags().String("brand", "", "Brand name for the model (required)")
 	modelDeviceModCmd.Flags().String("model-type", "", "Model type name for the model (required)")
+	modelDeviceModCmd.Flags().String("os-type", "", "OS/firmware type (openwrt, opnsense, …); auto-registered if new (optional)")
 
 	modelDeviceModCmd.MarkFlagRequired("name")
 	modelDeviceModCmd.MarkFlagRequired("brand")

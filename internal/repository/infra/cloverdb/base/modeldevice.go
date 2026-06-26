@@ -55,17 +55,28 @@ func (r BasicOpsCloverRepository) GetModels() ([]e.ModelDevice, error) {
 			}
 		}
 
+		// Get OS-type name if the os-type ID exists
+		if osID, ok := doc.Get("os_type_id").(string); ok && osID != "" {
+			osDoc, err := r.db.FindById(ostypesCollection, osID)
+			if err == nil && osDoc != nil {
+				model.OsType = osDoc.Get("name").(string)
+			}
+		}
+
 		result = append(result, model)
 	}
 
 	return result, nil
 }
 
-// AddModel creates new model entry resolving brand/class names to IDs
+// AddModel creates new model entry resolving brand/model-type/os-type names to
+// IDs. An unknown os-type name is auto-registered (so scans that detect a new OS
+// family populate the catalogue); os-type is optional.
 func (r BasicOpsCloverRepository) AddModel(
 	modelName string,
 	brandName string,
 	modelTypeName string,
+	osTypeName string,
 ) error {
 	// Get brand ID from name (required)
 	brandID, err := r.getBrandID(brandName)
@@ -73,16 +84,17 @@ func (r BasicOpsCloverRepository) AddModel(
 		return fmt.Errorf("brand not found: %s", brandName)
 	}
 
-	// Get class ID from name (required)
+	// Get model-type ID from name (required)
 	classID, err := r.getModelTypeID(modelTypeName)
 	if err != nil {
-		return fmt.Errorf("class not found: %s", modelTypeName)
+		return fmt.Errorf("model type not found: %s", modelTypeName)
 	}
 
 	doc := d.NewDocument()
 	doc.Set("model", modelName)
 	doc.Set("brand", brandID)
 	doc.Set("model_type_id", classID)
+	doc.Set("os_type_id", r.ensureOsTypeID(osTypeName))
 
 	_, err = r.db.InsertOne(modelsCollection, doc)
 	if err != nil {
@@ -91,12 +103,26 @@ func (r BasicOpsCloverRepository) AddModel(
 	return nil
 }
 
+// ensureOsTypeID resolves an os-type name to its id, creating the os-type if it
+// doesn't exist yet. Empty name -> empty id.
+func (r BasicOpsCloverRepository) ensureOsTypeID(osTypeName string) string {
+	if osTypeName == "" {
+		return ""
+	}
+	if id := r.getOsTypeID(osTypeName); id != "" {
+		return id
+	}
+	_ = r.AddOsType(osTypeName)
+	return r.getOsTypeID(osTypeName)
+}
+
 // UpdateModel updates a model in the database by its ID
 func (r BasicOpsCloverRepository) UpdateModel(
 	modelId string,
 	newModelName string,
 	newBrandId string,
 	newModelTypeId string,
+	newOsTypeId string,
 ) error {
 	updates := make(map[string]interface{})
 	updates["model"] = newModelName
@@ -105,6 +131,9 @@ func (r BasicOpsCloverRepository) UpdateModel(
 	}
 	if newModelTypeId != "" {
 		updates["model_type_id"] = newModelTypeId
+	}
+	if newOsTypeId != "" {
+		updates["os_type_id"] = newOsTypeId
 	}
 
 	err := r.db.Update(q.NewQuery(modelsCollection).Where(q.Field("_id").Eq(modelId)), updates)

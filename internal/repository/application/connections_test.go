@@ -232,7 +232,7 @@ func TestDiscoverConnections_DeviceNoProfileWarning(t *testing.T) {
 	service, cleanup := setupTestScanningService(t)
 	defer cleanup()
 
-	if err := service.EnsureModelExists("M1", "B1", "B1"); err != nil {
+	if err := service.EnsureModelExists("M1", "B1", "B1", ""); err != nil {
 		t.Fatalf("EnsureModelExists: %v", err)
 	}
 	if err := service.AddDevice("dev-noprof", "M1", "", "Generic", "Discovered", false, false); err != nil {
@@ -280,7 +280,7 @@ func TestUpdateDeviceProfile_RoundTrip(t *testing.T) {
 	service, cleanup := setupTestScanningService(t)
 	defer cleanup()
 
-	if err := service.EnsureModelExists("M1", "B1", "B1"); err != nil {
+	if err := service.EnsureModelExists("M1", "B1", "B1", ""); err != nil {
 		t.Fatalf("EnsureModelExists: %v", err)
 	}
 	if err := service.AddDevice("dev-p", "M1", "", "Generic", "Discovered", false, false); err != nil {

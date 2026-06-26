@@ -6,11 +6,13 @@ $message = '';
 // Fetch select options
 $brands = json_decode(@file_get_contents(BRANDS_ENDPOINT), true) ?: [];
 $modeltypes = json_decode(@file_get_contents(MODELTYPES_ENDPOINT), true) ?: [];
+$ostypes = json_decode(@file_get_contents(OSTYPES_ENDPOINT), true) ?: [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $model = trim($_POST['model'] ?? '');
     $brand = $_POST['brand'] ?? '';
     $modelType = $_POST['model_type'] ?? '';
+    $osType = $_POST['os_type'] ?? '';
 
     if ($model === '') {
         $message = 'Please enter a model name.';
@@ -22,7 +24,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $data = json_encode([
             'model_name' => $model,
             'brand_name' => $brand,
-            'model_type_name' => $modelType
+            'model_type_name' => $modelType,
+            'os_type_name' => $osType
         ]);
 
         $ch = curl_init(MODELS_ENDPOINT);
@@ -72,6 +75,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <option value="<?= htmlspecialchars($dc['name']) ?>">
                 <?= htmlspecialchars($dc['name']) ?>
             </option>
+        <?php endforeach; ?>
+    </select><br><br>
+
+    <label for="os_type">OS type (optional):</label>
+    <select id="os_type" name="os_type">
+        <option value="">-- None --</option>
+        <?php foreach ($ostypes as $os): ?>
+            <option value="<?= htmlspecialchars($os['name']) ?>"><?= htmlspecialchars($os['name']) ?></option>
         <?php endforeach; ?>
     </select><br><br>
 

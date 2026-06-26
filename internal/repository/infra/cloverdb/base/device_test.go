@@ -22,7 +22,7 @@ func TestDevice_AddAndGet(t *testing.T) {
 	if err := repo.AddModelType("Switch"); err != nil {
 		t.Fatalf("failed to add device class: %v", err)
 	}
-	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
+	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch", ""); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
 
@@ -55,7 +55,7 @@ func TestDevice_AddWithZone(t *testing.T) {
 	if err := repo.AddModelType("Switch"); err != nil {
 		t.Fatalf("failed to add device class: %v", err)
 	}
-	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
+	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch", ""); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
 	if err := repo.AddZoneType("Room"); err != nil {
@@ -108,7 +108,7 @@ func TestDevice_CreateAndDelete(t *testing.T) {
 	if err := repo.AddModelType("Router"); err != nil {
 		t.Fatalf("failed to add device class: %v", err)
 	}
-	if err := repo.AddModel("ISR 4000", "Cisco", "Router"); err != nil {
+	if err := repo.AddModel("ISR 4000", "Cisco", "Router", ""); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
 

@@ -54,10 +54,11 @@ Examples:
 		newModelName, _ := cmd.Flags().GetString("name")
 		newBrandId, _ := cmd.Flags().GetString("brand-id")
 		newModelTypeId, _ := cmd.Flags().GetString("model-type-id")
+		newOsTypeId, _ := cmd.Flags().GetString("os-type-id")
 
 		// For this implementation, require all fields
 		if newModelName == "" || newBrandId == "" || newModelTypeId == "" {
-			fmt.Fprintf(os.Stderr, "All fields are required: --name, --brand-id, --modeltype-id.\n")
+			fmt.Fprintf(os.Stderr, "All fields are required: --name, --brand-id, --model-type-id.\n")
 			os.Exit(1)
 		}
 
@@ -69,7 +70,7 @@ Examples:
 		}
 
 		// Update the model
-		err = service.UpdateModel(modelId, newModelName, newBrandId, newModelTypeId)
+		err = service.UpdateModel(modelId, newModelName, newBrandId, newModelTypeId, newOsTypeId)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error updating model: %v\n", err)
 			os.Exit(1)
@@ -88,6 +89,7 @@ func init() {
 	ModelUpdateCmd.Flags().String("id", "", "ID of the model to update (required)")
 	ModelUpdateCmd.Flags().String("name", "", "New name for the model (required)")
 	ModelUpdateCmd.Flags().String("brand-id", "", "New brand ID for the model (required)")
+	ModelUpdateCmd.Flags().String("os-type-id", "", "New OS type ID for the model (optional)")
 	ModelUpdateCmd.Flags().String("model-type-id", "", "New model type ID for the model (required)")
 	// ModelUpdateCmd.MarkFlagRequired("id")
 	// ModelUpdateCmd.MarkFlagRequired("name")

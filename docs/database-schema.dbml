@@ -23,6 +23,13 @@ Table modeltypes {
   name string
 }
 
+// OS / firmware families used to pick the config parser (openwrt, opnsense,
+// fortinet, cisco, freebsd, ...). Seeded from the config-parser registry.
+Table ostypes {
+  _id string [pk]
+  name string
+}
+
 // Ownership/management entities (TDS, Navantia, etc.)
 Table owners {
   _id string [pk]
@@ -72,6 +79,7 @@ Table models {
   model string
   brand string
   model_type_id string
+  os_type_id string [note: 'OS/firmware family; DB-authoritative, scan-overridable', null]
 }
 
 // Port layouts for device models
@@ -207,6 +215,7 @@ Ref: zones.location_type > zonetypes._id
 // Model references
 Ref: models.brand > brands._id
 Ref: models.model_type_id > modeltypes._id
+Ref: models.os_type_id > ostypes._id
 
 // ModelPort -> Model
 Ref: modelports.model_id > models._id

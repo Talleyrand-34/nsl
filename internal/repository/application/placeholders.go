@@ -83,7 +83,7 @@ func (ns *NetService) CreatePlaceholderForIntermediaries(intermediaries []topolo
 	if err := ns.ensureModelType("Switch"); err != nil {
 		return res, fmt.Errorf("ensure device class: %w", err)
 	}
-	if err := ns.AddModel(placeholderModelName, "Unknown", "Switch"); err != nil &&
+	if err := ns.AddModel(placeholderModelName, "Unknown", "Switch", ""); err != nil &&
 		!strings.Contains(err.Error(), "already exists") {
 		return res, fmt.Errorf("create placeholder model: %w", err)
 	}

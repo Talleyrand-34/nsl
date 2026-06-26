@@ -12,6 +12,8 @@ $actionFiles = [
     'addbrand' => 'action/addbrand.php',
     'getmodeltype' => 'action/getmodeltype.php',
     'addmodeltype' => 'action/addmodeltype.php',
+    'getostype' => 'action/getostype.php',
+    'addostype' => 'action/addostype.php',
     'getowner' => 'action/getowner.php',
     'addowner' => 'action/addowner.php',
     'getzonetype' => 'action/getzonetype.php',
@@ -33,6 +35,7 @@ $actionFiles = [
     // UPDATE actions
     'updatebrand' => 'action/updatebrand.php',
     'updatemodeltype' => 'action/updatemodeltype.php',
+    'updateostype' => 'action/updateostype.php',
     'updateowner' => 'action/updateowner.php',
     'updatezonetype' => 'action/updatezonetype.php',
     'updatezone' => 'action/updatezone.php',
@@ -45,6 +48,7 @@ $actionFiles = [
     // DELETE actions
     'deletebrand' => 'action/deletebrand.php',
     'deletemodeltype' => 'action/deletemodeltype.php',
+    'deleteostype' => 'action/deleteostype.php',
     'deleteowner' => 'action/deleteowner.php',
     'deletezonetype' => 'action/deletezonetype.php',
     'deletezone' => 'action/deletezone.php',
@@ -100,6 +104,7 @@ include __DIR__ . '/header.php';
                 <select id="entity" name="entity" onchange="this.form.submit()">
                     <option value="brand" <?= $entity == 'brand' ? 'selected' : '' ?>>Brand</option>
                     <option value="modeltype" <?= $entity == 'modeltype' ? 'selected' : '' ?>>Model Type</option>
+                    <option value="ostype" <?= $entity == 'ostype' ? 'selected' : '' ?>>OS Type</option>
                     <option value="owner" <?= $entity == 'owner' ? 'selected' : '' ?>>Owner</option>
                     <option value="zonetype" <?= $entity == 'zonetype' ? 'selected' : '' ?>>Zone Type</option>
                     <option value="zone" <?= $entity == 'zone' ? 'selected' : '' ?>>Zone</option>

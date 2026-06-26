@@ -9,6 +9,7 @@ session_start();
 define('API_BASE_URL', $_SESSION['api_base_url'] ?? API_BASE_URL_DEFAULT);
 define('BRANDS_ENDPOINT', API_BASE_URL . '/brands');
 define('MODELTYPES_ENDPOINT', API_BASE_URL . '/modeltypes');
+define('OSTYPES_ENDPOINT', API_BASE_URL . '/ostypes');
 define('OWNERS_ENDPOINT', API_BASE_URL . '/owners');
 define('ZONETYPES_ENDPOINT', API_BASE_URL . '/zonetypes');
 define('ZONES_ENDPOINT', API_BASE_URL . '/zones');

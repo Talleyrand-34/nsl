@@ -34,6 +34,12 @@ type repository interface {
 	UpdateModelType(modelTypeId string, newModelTypeName string) error
 	DeleteModelType(modelTypeName string) error
 
+	// OsType interaction
+	AddOsType(osTypeName string) error
+	GetOsTypes() ([]e.OsType, error)
+	UpdateOsType(osTypeId string, newOsTypeName string) error
+	DeleteOsType(osTypeName string) error
+
 	// ZoneType interaction
 	AddZoneType(zoneTypeName string) error
 	GetZonetypes() ([]e.ZoneType, error)
@@ -69,6 +75,7 @@ type repository interface {
 		modelName string,
 		brandName string,
 		modelTypeName string,
+		osTypeName string,
 	) error
 	GetModels() ([]e.ModelDevice, error)
 	UpdateModel(
@@ -76,6 +83,7 @@ type repository interface {
 		newModelName string,
 		newBrandId string,
 		newModelTypeId string,
+		newOsTypeId string,
 	) error
 	DeleteModel(modelId string) error
 

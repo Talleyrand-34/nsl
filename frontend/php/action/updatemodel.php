@@ -6,12 +6,14 @@ $message = '';
 $models = json_decode(@file_get_contents(MODELS_ENDPOINT), true) ?: [];
 $brands = json_decode(@file_get_contents(BRANDS_ENDPOINT), true) ?: [];
 $modelTypes = json_decode(@file_get_contents(MODELTYPES_ENDPOINT), true) ?: [];
+$osTypes = json_decode(@file_get_contents(OSTYPES_ENDPOINT), true) ?: [];
 
 // Variables to hold selected model data
 $selectedModelId = '';
 $selectedModelName = '';
 $selectedBrandId = '';
 $selectedModelTypeId = '';
+$selectedOsTypeId = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Handle model selection (Load Model button)
@@ -38,6 +40,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         break;
                     }
                 }
+
+                // Find OS-type ID by name
+                foreach ($osTypes as $osType) {
+                    if ($osType['name'] === ($model['os_type'] ?? '')) {
+                        $selectedOsTypeId = $osType['id'];
+                        break;
+                    }
+                }
                 break;
             }
         }
@@ -48,6 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $newModelName = trim($_POST['model_name'] ?? '');
         $brandId = $_POST['brand_id'] ?? '';
         $modelTypeId = $_POST['model_type_id'] ?? '';
+        $osTypeId = $_POST['os_type_id'] ?? '';
 
         if ($modelId === '') {
             $message = 'Please select a model to update.';
@@ -62,7 +73,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'id' => $modelId,
                 'name' => $newModelName,
                 'brand_id' => $brandId,
-                'model_type_id' => $modelTypeId
+                'model_type_id' => $modelTypeId,
+                'os_type_id' => $osTypeId
             ]);
 
             $ch = curl_init(MODELS_ENDPOINT);
@@ -140,6 +152,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <option value="<?= htmlspecialchars($modelType['id']) ?>"
                         <?= ($modelType['id'] == $selectedModelTypeId) ? 'selected' : '' ?>>
                         <?= htmlspecialchars($modelType['name']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select><br><br>
+
+            <label for="os_type_id">OS type (optional):</label>
+            <select id="os_type_id" name="os_type_id">
+                <option value="">-- None --</option>
+                <?php foreach ($osTypes as $osType): ?>
+                    <option value="<?= htmlspecialchars($osType['id']) ?>"
+                        <?= ($osType['id'] == $selectedOsTypeId) ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($osType['name']) ?>
                     </option>
                 <?php endforeach; ?>
             </select><br><br>

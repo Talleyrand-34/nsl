@@ -125,7 +125,7 @@ func (ns *NetService) runSNMPScan(opts RunScanOptions, target string, batch bool
 		if err == nil {
 			em.Emit("info", "snmp sweep complete", "devices", len(devs))
 		}
-		return tagProfile(devs, profileName), err
+		return tagProfile(devs, profileName, ""), err
 	}
 	em.Emit("info", "scanning host over SNMP", "ip", target)
 	em.Progress(0, 1)
@@ -140,15 +140,18 @@ func (ns *NetService) runSNMPScan(opts RunScanOptions, target string, batch bool
 		em.Emit("info", "host responded", "ip", target, "sysname", dev.SysName)
 	}
 	devs, err := ns.DiscoverDevices(&s.ScanResult{Devices: []s.SNMPDevice{*dev}})
-	return tagProfile(devs, profileName), err
+	return tagProfile(devs, profileName, ""), err
 }
 
-// tagProfile records the scan-profile name on each discovered device so the
-// association is persisted when the device is imported.
-func tagProfile(devs []s.DiscoveredDevice, profile string) []s.DiscoveredDevice {
-	if profile != "" {
-		for i := range devs {
+// tagProfile records the scan-profile name (and, for SSH scans, the OS type used)
+// on each discovered device so both are persisted when the device is imported.
+func tagProfile(devs []s.DiscoveredDevice, profile, osType string) []s.DiscoveredDevice {
+	for i := range devs {
+		if profile != "" {
 			devs[i].Profile = profile
+		}
+		if osType != "" {
+			devs[i].OsType = osType
 		}
 	}
 	return devs
@@ -263,5 +266,5 @@ func (ns *NetService) runSSHScan(opts RunScanOptions, tokens []string, batch boo
 		return nil, nil // no SSH-reachable hosts in the target
 	}
 	devs, err := ns.DiscoverDevices(&s.ScanResult{Devices: devices})
-	return tagProfile(devs, profile.Name), err
+	return tagProfile(devs, profile.Name, osType), err
 }

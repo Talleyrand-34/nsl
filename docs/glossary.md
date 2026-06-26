@@ -119,9 +119,13 @@ The **operating system / firmware family** used to pick the right config parser
 over SSH — `openwrt`, `opnsense`, `fortinet`, `cisco`, … It is **not** the hardware
 Model Type (router/switch/…). UI label: "OS / firmware type"; CLI flag `--os-type`;
 field `os_type`.
-- **Renamed from `device_type`** (which read like the hardware type). Today it is a
-  scan-time selector on the scan profile; a planned follow-up promotes `os_type` to
-  its own table and a `Model.os_type` reference (DB-authoritative, scan-overridable).
+- **Renamed from `device_type`** (which read like the hardware type). It is now its
+  **own catalogue** (`ostypes`, CRUD via `add|update|delete|print ostype` and the
+  dashboard), seeded from the config-parser registry (openwrt/opnsense/fortinet/
+  cisco/freebsd). A **Model** carries an `os_type` reference alongside its Model Type.
+- The stored `Model.os_type` is **authoritative**; a scan may **override** it when it
+  detects an inconsistency. A scan profile still carries an `os_type` used as the
+  first-time selector (you don't yet know the model), then reconciled on import.
 
 ### Scan (device scan / import)
 Discovering one or more **devices** (SNMP or SSH) for import into the DB — the

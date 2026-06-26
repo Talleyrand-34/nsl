@@ -22,7 +22,7 @@ func TestModelPort_AddAndGet(t *testing.T) {
 	if err := repo.AddModelType("Switch"); err != nil {
 		t.Fatalf("failed to add device class: %v", err)
 	}
-	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
+	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch", ""); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
 
@@ -55,7 +55,7 @@ func TestModelPort_CreateAndUpdate(t *testing.T) {
 	if err := repo.AddModelType("Switch"); err != nil {
 		t.Fatalf("failed to add device class: %v", err)
 	}
-	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
+	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch", ""); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
 
@@ -122,7 +122,7 @@ func TestModelPort_CreateAndDelete(t *testing.T) {
 	if err := repo.AddModelType("Switch"); err != nil {
 		t.Fatalf("failed to add device class: %v", err)
 	}
-	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
+	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch", ""); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
 

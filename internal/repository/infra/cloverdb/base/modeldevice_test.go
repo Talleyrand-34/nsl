@@ -24,7 +24,7 @@ func TestModelDevice_AddAndGet(t *testing.T) {
 	}
 
 	// Add models
-	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
+	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch", ""); err != nil {
 		t.Errorf("failed to add model: %v", err)
 	}
 
@@ -60,7 +60,7 @@ func TestModelDevice_CreateAndUpdate(t *testing.T) {
 	}
 
 	// Add model
-	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
+	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch", ""); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
 
@@ -102,7 +102,7 @@ func TestModelDevice_CreateAndUpdate(t *testing.T) {
 	}
 
 	// Update model
-	if err := repo.UpdateModel(modelId, "EX4300", juniperID, routerID); err != nil {
+	if err := repo.UpdateModel(modelId, "EX4300", juniperID, routerID, ""); err != nil {
 		t.Errorf("failed to update model: %v", err)
 	}
 
@@ -133,7 +133,7 @@ func TestModelDevice_CreateAndDelete(t *testing.T) {
 	}
 
 	// Add model
-	if err := repo.AddModel("ISR 4000", "Cisco", "Router"); err != nil {
+	if err := repo.AddModel("ISR 4000", "Cisco", "Router", ""); err != nil {
 		t.Errorf("failed to add model: %v", err)
 	}
 

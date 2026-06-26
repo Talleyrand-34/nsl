@@ -23,7 +23,7 @@ func TestDeleteBrand_BlocksWithDependentModel(t *testing.T) {
 	if err := repo.AddModelType("Switch"); err != nil {
 		t.Fatalf("failed to add device class: %v", err)
 	}
-	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
+	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch", ""); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
 
@@ -60,7 +60,7 @@ func TestDeleteBrandCascade_SucceedsWithDependents(t *testing.T) {
 	if err := repo.AddModelType("Switch"); err != nil {
 		t.Fatalf("failed to add device class: %v", err)
 	}
-	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
+	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch", ""); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
 
@@ -89,7 +89,7 @@ func TestDeleteModelType_BlocksWithDependentModel(t *testing.T) {
 	if err := repo.AddModelType("Switch"); err != nil {
 		t.Fatalf("failed to add device class: %v", err)
 	}
-	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
+	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch", ""); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
 
@@ -193,7 +193,7 @@ func TestDeleteZone_BlocksWithDevice(t *testing.T) {
 	if err := repo.AddModelType("Switch"); err != nil {
 		t.Fatalf("failed to add device class: %v", err)
 	}
-	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
+	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch", ""); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
 	if err := repo.AddZone("DC", "", "", "", ""); err != nil {
@@ -258,7 +258,7 @@ func TestDeleteModel_BlocksWithDependentDevice(t *testing.T) {
 	if err := repo.AddModelType("Switch"); err != nil {
 		t.Fatalf("failed to add device class: %v", err)
 	}
-	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
+	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch", ""); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
 	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", "", false, false); err != nil {
@@ -292,7 +292,7 @@ func TestDeleteModel_BlocksWithDependentModelPort(t *testing.T) {
 	if err := repo.AddModelType("Switch"); err != nil {
 		t.Fatalf("failed to add device class: %v", err)
 	}
-	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
+	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch", ""); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
 	if err := repo.AddModelPort("Gi1/0/1", "0", "0", "Catalyst 9300", false, "", ""); err != nil {
@@ -326,7 +326,7 @@ func TestDeleteModel_SucceedsWithoutDependents(t *testing.T) {
 	if err := repo.AddModelType("Switch"); err != nil {
 		t.Fatalf("failed to add device class: %v", err)
 	}
-	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
+	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch", ""); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
 
@@ -359,7 +359,7 @@ func TestDeleteDevice_BlocksWithDependentDevicePort(t *testing.T) {
 	if err := repo.AddModelType("Switch"); err != nil {
 		t.Fatalf("failed to add device class: %v", err)
 	}
-	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
+	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch", ""); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
 	if err := repo.AddModelPort("Gi1/0/1", "0", "0", "Catalyst 9300", false, "", ""); err != nil {
@@ -409,7 +409,7 @@ func TestDeleteDevice_BlocksWithDependentConnection(t *testing.T) {
 	if err := repo.AddModelType("Switch"); err != nil {
 		t.Fatalf("failed to add device class: %v", err)
 	}
-	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
+	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch", ""); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
 	if err := repo.AddModelPort("Gi1/0/1", "0", "0", "Catalyst 9300", false, "", ""); err != nil {
@@ -481,7 +481,7 @@ func TestDeleteDevice_SucceedsWithoutDependents(t *testing.T) {
 	if err := repo.AddModelType("Switch"); err != nil {
 		t.Fatalf("failed to add device class: %v", err)
 	}
-	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
+	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch", ""); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
 	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", "", false, false); err != nil {
@@ -517,7 +517,7 @@ func TestDeleteModelPort_BlocksWithDependentDevicePort(t *testing.T) {
 	if err := repo.AddModelType("Switch"); err != nil {
 		t.Fatalf("failed to add device class: %v", err)
 	}
-	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
+	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch", ""); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
 	if err := repo.AddModelPort("Gi1/0/1", "0", "0", "Catalyst 9300", false, "", ""); err != nil {
@@ -567,7 +567,7 @@ func TestDeleteModelPort_SucceedsWithoutDependents(t *testing.T) {
 	if err := repo.AddModelType("Switch"); err != nil {
 		t.Fatalf("failed to add device class: %v", err)
 	}
-	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
+	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch", ""); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
 	if err := repo.AddModelPort("Gi1/0/1", "0", "0", "Catalyst 9300", false, "", ""); err != nil {
@@ -603,7 +603,7 @@ func TestDeleteDevicePort_BlocksWithDependentConnection(t *testing.T) {
 	if err := repo.AddModelType("Switch"); err != nil {
 		t.Fatalf("failed to add device class: %v", err)
 	}
-	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
+	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch", ""); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
 	if err := repo.AddModelPort("Gi1/0/1", "0", "0", "Catalyst 9300", false, "", ""); err != nil {
@@ -672,7 +672,7 @@ func TestDeleteDevicePort_SucceedsWithoutDependents(t *testing.T) {
 	if err := repo.AddModelType("Switch"); err != nil {
 		t.Fatalf("failed to add device class: %v", err)
 	}
-	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
+	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch", ""); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
 	if err := repo.AddModelPort("Gi1/0/1", "0", "0", "Catalyst 9300", false, "", ""); err != nil {
@@ -724,7 +724,7 @@ func TestDeleteVlan_CleansDeviceInterfaceVlanConfigs(t *testing.T) {
 	if err := repo.AddModelType("Switch"); err != nil {
 		t.Fatalf("failed to add device class: %v", err)
 	}
-	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
+	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch", ""); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
 	if err := repo.AddDevice("SW-01", "Catalyst 9300", "", "", "", false, false); err != nil {
@@ -853,7 +853,7 @@ func TestDeleteOwner_SetsNullOnDevices(t *testing.T) {
 	if err := repo.AddModelType("Switch"); err != nil {
 		t.Fatalf("failed to add device class: %v", err)
 	}
-	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
+	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch", ""); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
 	if err := repo.AddOwner("Acme Corp"); err != nil {
@@ -900,7 +900,7 @@ func TestDeleteOwnerCascade_SetsNullNotCascadeDelete(t *testing.T) {
 	if err := repo.AddModelType("Switch"); err != nil {
 		t.Fatalf("failed to add device class: %v", err)
 	}
-	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch"); err != nil {
+	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch", ""); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
 	if err := repo.AddOwner("Acme Corp"); err != nil {

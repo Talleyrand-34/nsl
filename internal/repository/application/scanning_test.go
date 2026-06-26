@@ -101,7 +101,7 @@ func TestNetService_ScanningMethods(t *testing.T) {
 		service.AddBrand("Test Brand")
 		service.AddModelType("Test Class")
 		service.AddOwner("Test Prop")
-		service.AddModel("Test Model", "Test Brand", "Test Class")
+		service.AddModel("Test Model", "Test Brand", "Test Class", "")
 
 		devices := []s.DiscoveredDevice{
 			{
@@ -193,7 +193,7 @@ func TestDeviceExists_Check(t *testing.T) {
 
 	service.AddBrand("TestBrand")
 	service.AddModelType("TestClass")
-	service.AddModel("TestModel", "TestBrand", "TestClass")
+	service.AddModel("TestModel", "TestBrand", "TestClass", "")
 	service.AddModelPort("eth0", "0", "0", "TestModel", false, "", "")
 
 	if err := service.AddDevice("TestDevice", "TestModel", "", "", "", false, false); err != nil {

@@ -63,7 +63,7 @@ func TestNetService_EnsureModelExists(t *testing.T) {
 	service := application.NewNetService(repo)
 
 	// Test ensureModelExists with a non-existing model
-	err := service.EnsureModelExists("Linux Server", "Unknown", "")
+	err := service.EnsureModelExists("Linux Server", "Unknown", "", "")
 	assert.NoError(t, err)
 
 	// Verify the model was created
@@ -89,6 +89,6 @@ func TestNetService_EnsureModelExists(t *testing.T) {
 	}
 
 	// Test ensureModelExists with an existing model (should not error)
-	err = service.EnsureModelExists("Linux Server", "Unknown", "")
+	err = service.EnsureModelExists("Linux Server", "Unknown", "", "")
 	assert.NoError(t, err)
 }

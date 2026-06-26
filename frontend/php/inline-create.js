@@ -41,6 +41,11 @@
             matchField: 'name', matchProp: 'name',
             fields: [{ name: 'name', json: 'name', label: 'Name', type: 'text', required: true }],
         },
+        ostype: {
+            title: 'OS Type', path: '/ostypes', labelProp: 'name',
+            matchField: 'name', matchProp: 'name',
+            fields: [{ name: 'name', json: 'name', label: 'Name', type: 'text', required: true }],
+        },
         owner: {
             title: 'Owner', path: '/owners', labelProp: 'name',
             matchField: 'name', matchProp: 'name',
@@ -82,6 +87,7 @@
                 { name: 'model', json: 'model_name', label: 'Model name', type: 'text', required: true },
                 { name: 'brand', json: 'brand_name', label: 'Brand', type: 'ref', ref: 'brand', valueProp: 'name', required: true },
                 { name: 'model_type', json: 'model_type_name', label: 'Model type', type: 'ref', ref: 'modeltype', valueProp: 'name', required: true },
+                { name: 'os_type', json: 'os_type_name', label: 'OS type (optional)', type: 'ref', ref: 'ostype', valueProp: 'name' },
             ],
         },
         device: {
@@ -119,7 +125,7 @@
     // and filter selects are deliberately omitted (no "+ New" there).
     var FK_MAPS = {
         addzone: { fatherid: { e: 'zone', v: 'id' }, owner: { e: 'owner', v: 'name' }, location_type: { e: 'zonetype', v: 'name' } },
-        addmodel: { brand: { e: 'brand', v: 'name' }, model_type: { e: 'modeltype', v: 'name' } },
+        addmodel: { brand: { e: 'brand', v: 'name' }, model_type: { e: 'modeltype', v: 'name' }, os_type: { e: 'ostype', v: 'name' } },
         adddevice: { model: { e: 'model', v: 'model' }, zoneid: { e: 'zone', v: 'id' }, owner: { e: 'owner', v: 'name' } },
         addmodelport: { modelName: { e: 'model', v: 'model' } },
         adddeviceport: { device_id: { e: 'device', v: 'id' }, modelport_id: { e: 'modelport', v: 'id', filterBy: 'device_id' }, 'vlan_numbers[]': { e: 'vlan', v: 'vlanid' } },
@@ -129,7 +135,7 @@
             connectionType: { e: 'connectiontype', v: 'name' },
         },
         updatezone: { father_zone_id: { e: 'zone', v: 'id' }, zone_type_id: { e: 'zonetype', v: 'id' }, owner_id: { e: 'owner', v: 'id' } },
-        updatemodel: { brand_id: { e: 'brand', v: 'id' }, model_type_id: { e: 'modeltype', v: 'id' } },
+        updatemodel: { brand_id: { e: 'brand', v: 'id' }, model_type_id: { e: 'modeltype', v: 'id' }, os_type_id: { e: 'ostype', v: 'id' } },
         updatedevice: { model_id: { e: 'model', v: 'id' }, zone_id: { e: 'zone', v: 'id' }, owner_id: { e: 'owner', v: 'id' } },
         updatemodelport: { model_id: { e: 'model', v: 'id' } },
         updatedeviceport: { 'vlan_numbers[]': { e: 'vlan', v: 'vlanid' } },

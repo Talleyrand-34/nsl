@@ -39,6 +39,10 @@ func RegisterRoutes(r *mux.Router, service q.NetServiceInt) {
 	r.HandleFunc("/modeltypes", GetModelTypesHandler(service)).Methods("GET", "OPTIONS")
 	r.HandleFunc("/modeltypes", UpdateModelTypeHandler(service)).Methods("PUT", "OPTIONS")
 	r.HandleFunc("/modeltypes", DeleteModelTypeHandler(service)).Methods("DELETE", "OPTIONS")
+	r.HandleFunc("/ostypes", AddOsTypeHandler(service)).Methods("POST", "OPTIONS")
+	r.HandleFunc("/ostypes", GetOsTypesHandler(service)).Methods("GET", "OPTIONS")
+	r.HandleFunc("/ostypes", UpdateOsTypeHandler(service)).Methods("PUT", "OPTIONS")
+	r.HandleFunc("/ostypes", DeleteOsTypeHandler(service)).Methods("DELETE", "OPTIONS")
 
 	// Zone Types
 	r.HandleFunc("/zonetypes", AddZoneTypeHandler(service)).Methods("POST", "OPTIONS")
@@ -952,6 +956,7 @@ func AddModelHandler(service q.NetServiceInt) http.HandlerFunc {
 			ModelName     string `json:"model_name"`
 			BrandName     string `json:"brand_name"`
 			ModelTypeName string `json:"model_type_name"`
+			OsTypeName    string `json:"os_type_name"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -978,7 +983,7 @@ func AddModelHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		err := service.AddModel(req.ModelName, req.BrandName, req.ModelTypeName)
+		err := service.AddModel(req.ModelName, req.BrandName, req.ModelTypeName, req.OsTypeName)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": "add_failed", "message": err.Error()})
@@ -1036,6 +1041,7 @@ func UpdateModelHandler(service q.NetServiceInt) http.HandlerFunc {
 			ModelName   string `json:"model_name"`
 			BrandID     string `json:"brand_id"`
 			ModelTypeID string `json:"model_type_id"`
+			OsTypeID    string `json:"os_type_id"`
 		}
 
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1050,7 +1056,7 @@ func UpdateModelHandler(service q.NetServiceInt) http.HandlerFunc {
 			return
 		}
 
-		err := service.UpdateModel(req.ModelID, req.ModelName, req.BrandID, req.ModelTypeID)
+		err := service.UpdateModel(req.ModelID, req.ModelName, req.BrandID, req.ModelTypeID, req.OsTypeID)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{"error": "update_failed", "message": err.Error()})

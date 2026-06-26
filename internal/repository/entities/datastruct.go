@@ -36,6 +36,14 @@ type ModelDevice struct {
 	Model     string `json:"model"`
 	Brand     string `json:"brand"`
 	ModelType string `json:"model_type"`
+	OsType    string `json:"os_type"` // OS/firmware family (config-parser key); may be empty
+}
+
+// OsType is an operating-system / firmware family (openwrt, opnsense, …) used to
+// pick the config parser. It is its own catalogue; a Model references one.
+type OsType struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 // ModelPort This struct contains the info about a port from the model perspective
