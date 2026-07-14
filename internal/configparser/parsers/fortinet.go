@@ -106,19 +106,20 @@ func (p *FortinetParser) ParseConfig(rawConfig string, deviceInfo s.SNMPDevice) 
 }
 
 // GetConfigViaSSH retrieves Fortinet configuration via SSH
-func (p *FortinetParser) GetConfigViaSSH(ip string, creds configparser.SSHCredentials) (string, error) {
-	client := configparser.NewSSHClient(creds)
-	if err := client.Connect(ip); err != nil {
-		return "", fmt.Errorf("failed to connect to FortiGate device: %w", err)
-	}
-	defer client.Close()
-
+// Fetch reads a FortiGate's configuration with targeted commands, falling back to the
+// full dump.
+//
+// `show system interface` is preferred because its output is flat; `show
+// full-configuration` nests config...end blocks several deep, which the depth-tracking
+// parser can handle but would rather not. The fallback exists for devices where the
+// targeted command is unavailable or the account lacks the privilege.
+func (p *FortinetParser) Fetch(sess configparser.Session) (string, error) {
 	// Use targeted commands to avoid nested config blocks in show full-configuration.
 	// show system interface output is clean (no nested config...end blocks).
-	sysInterface, ifErr := client.Execute("show system interface")
+	sysInterface, ifErr := sess.Execute("show system interface")
 	if ifErr != nil {
 		// Fallback: full configuration (handled by depth-tracking parser)
-		output, err := client.Execute("show full-configuration")
+		output, err := sess.Execute("show full-configuration")
 		if err != nil {
 			return "", fmt.Errorf("failed to retrieve FortiGate configuration: %w", ifErr)
 		}
@@ -127,7 +128,7 @@ func (p *FortinetParser) GetConfigViaSSH(ip string, creds configparser.SSHCreden
 
 	// Also fetch system global for hostname extraction
 	var parts []string
-	if sysGlobal, err := client.Execute("show system global"); err == nil {
+	if sysGlobal, err := sess.Execute("show system global"); err == nil {
 		parts = append(parts, sysGlobal)
 	}
 	parts = append(parts, sysInterface)

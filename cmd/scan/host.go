@@ -263,7 +263,7 @@ Examples:
 				Timeout:  time.Duration(hostConfigTimeout) * time.Second,
 			}
 			fmt.Fprintf(os.Stderr, "Scanning %s via SSH (user=%s, type=%s)...\n", ip, hostSSHUsername, hostOsType)
-			rawConfig, err := parser.GetConfigViaSSH(ip, creds)
+			rawConfig, err := configparser.FetchConfig(configparser.DefaultTransport, parser, ip, creds)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "SSH connection failed: %v\n", err)
 				os.Exit(1)

@@ -106,13 +106,13 @@ func (p *OpenWrtParser) ParseConfig(rawConfig string, deviceInfo s.SNMPDevice) (
 }
 
 // GetConfigViaSSH retrieves OpenWrt configuration via SSH
-func (p *OpenWrtParser) GetConfigViaSSH(ip string, creds configparser.SSHCredentials) (string, error) {
-	client := configparser.NewSSHClient(creds)
-	if err := client.Connect(ip); err != nil {
-		return "", fmt.Errorf("failed to connect to OpenWrt device: %w", err)
-	}
-	defer client.Close()
-
+// Fetch runs the UCI commands OpenWrt keeps its configuration in, plus the board
+// description and the switch layout, tagging each block with "# <command>" so
+// ParseConfig can re-split the combined output.
+//
+// A failing command is not fatal: swconfig is absent on DSA-based devices, and
+// /etc/board.json on older ones. The error is recorded in-band and the rest still parses.
+func (p *OpenWrtParser) Fetch(sess configparser.Session) (string, error) {
 	commands := []string{
 		"uci show network",
 		"uci show wireless",
@@ -125,7 +125,7 @@ func (p *OpenWrtParser) GetConfigViaSSH(ip string, creds configparser.SSHCredent
 
 	var allConfig strings.Builder
 	for _, cmd := range commands {
-		output, err := client.Execute(cmd)
+		output, err := sess.Execute(cmd)
 		if err != nil {
 			allConfig.WriteString(fmt.Sprintf("# Error executing %s: %v\n", cmd, err))
 			continue

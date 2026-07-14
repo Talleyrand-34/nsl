@@ -59,7 +59,7 @@ func (m *ConfigurationMerger) EnhanceDeviceWithConfig(
 		if options.SSHCredentials == nil {
 			return enhanced, fmt.Errorf("SSH credentials required for SSH config source")
 		}
-		rawConfig, err = parser.GetConfigViaSSH(device.Device.IP, *options.SSHCredentials)
+		rawConfig, err = FetchConfig(DefaultTransport, parser, device.Device.IP, *options.SSHCredentials)
 		if err != nil {
 			return enhanced, fmt.Errorf("failed to retrieve config via SSH: %w", err)
 		}

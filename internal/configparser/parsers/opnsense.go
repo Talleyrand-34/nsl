@@ -101,21 +101,21 @@ func isXMLContent(s string) bool {
 
 // GetConfigViaSSH retrieves OPNsense configuration via SSH.
 // Tries cat /conf/config.xml first (most reliable), then configctl as fallback.
-func (p *OPNsenseParser) GetConfigViaSSH(ip string, creds configparser.SSHCredentials) (string, error) {
-	client := configparser.NewSSHClient(creds)
-	if err := client.Connect(ip); err != nil {
-		return "", fmt.Errorf("failed to connect to OPNsense device: %w", err)
-	}
-	defer client.Close()
-
+// Fetch reads OPNsense's config.xml, falling back to configctl.
+//
+// Reading the file directly is the most reliable route across OPNsense versions;
+// configctl may be absent or restricted on some setups. Either way the output must
+// actually be XML -- a shell that answers "permission denied" on stdout would otherwise
+// be parsed as a configuration.
+func (p *OPNsenseParser) Fetch(sess configparser.Session) (string, error) {
 	// Read config file directly — most reliable across OPNsense versions.
-	output, err := client.Execute("cat /conf/config.xml")
+	output, err := sess.Execute("cat /conf/config.xml")
 	if err == nil && isXMLContent(output) {
 		return output, nil
 	}
 
 	// Fallback: configctl (may not exist or may be restricted on some setups).
-	output2, err2 := client.Execute("configctl system config show")
+	output2, err2 := sess.Execute("configctl system config show")
 	if err2 == nil && isXMLContent(output2) {
 		return output2, nil
 	}

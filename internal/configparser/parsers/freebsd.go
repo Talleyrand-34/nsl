@@ -40,23 +40,25 @@ func (p *FreeBSDParser) SupportsDevice(device s.SNMPDevice) bool {
 //
 // Uses -f inet:cidr,inet6:cidr for CIDR notation (FreeBSD 12+); falls back to
 // plain ifconfig -a for older releases.
-func (p *FreeBSDParser) GetConfigViaSSH(ip string, creds configparser.SSHCredentials) (string, error) {
-	client := configparser.NewSSHClient(creds)
-	if err := client.Connect(ip); err != nil {
-		return "", fmt.Errorf("failed to connect to FreeBSD device: %w", err)
-	}
-	defer client.Close()
-
-	hostname, err := client.Execute("hostname")
+// Fetch reads live interface state from a FreeBSD host (which is what OPNsense is
+// underneath, so this is also the auto-detected parser for it).
+//
+// The CIDR output format is tried first — FreeBSD 12+ and every current OPNsense
+// release support it, and it carries the prefix length, which the plain form does not.
+// Older hosts fall back to plain ifconfig and simply lose the netmask.
+//
+// A missing hostname is not fatal: the interfaces are what we came for.
+func (p *FreeBSDParser) Fetch(sess configparser.Session) (string, error) {
+	hostname, err := sess.Execute("hostname")
 	if err != nil {
 		hostname = ""
 	}
 	hostname = strings.TrimSpace(hostname)
 
 	// Try CIDR-format ifconfig first (FreeBSD 12+, all current OPNsense releases).
-	ifcfgOut, err := client.Execute("ifconfig -a -f inet:cidr,inet6:cidr")
+	ifcfgOut, err := sess.Execute("ifconfig -a -f inet:cidr,inet6:cidr")
 	if err != nil || strings.TrimSpace(ifcfgOut) == "" {
-		ifcfgOut, err = client.Execute("ifconfig -a")
+		ifcfgOut, err = sess.Execute("ifconfig -a")
 		if err != nil {
 			return "", fmt.Errorf("failed to execute ifconfig: %w", err)
 		}

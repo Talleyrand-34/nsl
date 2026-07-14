@@ -166,7 +166,13 @@ type EnhancedDiscoveredDevice struct {
 	EnhancedBy         []string            `json:"enhanced_by"` // Sources of enhancement: ["snmp", "config"]
 }
 
-// ConfigParser defines the interface that all device-specific configuration parsers must implement
+// ConfigParser defines the interface that all device-specific configuration parsers must
+// implement.
+//
+// It knows what to ASK a device and how to read the answer. It knows nothing about how
+// the connection is made -- that is the Transport's job (transport.go). The two used to
+// be fused: every parser opened its own SSH connection, so there were five copies of the
+// same client code and not one of the fetch strategies could be tested without a device.
 type ConfigParser interface {
 	// GetOsType returns the OS type this parser handles (e.g., "opnsense", "fortinet")
 	GetOsType() string
@@ -174,11 +180,17 @@ type ConfigParser interface {
 	// SupportsDevice returns true if this parser can handle the given device
 	SupportsDevice(device s.SNMPDevice) bool
 
+	// Fetch assembles the device's raw configuration over an already-open session.
+	//
+	// This is where each OS's real knowledge lives: which commands to run, in what
+	// order, and what to fall back on when one is unavailable. OPNsense reads
+	// /conf/config.xml and falls back to configctl; FreeBSD tries a CIDR-formatted
+	// ifconfig and falls back to the plain one; OpenWrt runs seven uci commands and
+	// tags each block so ParseConfig can re-split them.
+	Fetch(sess Session) (string, error)
+
 	// ParseConfig parses raw configuration data and returns structured ConfigData
 	ParseConfig(rawConfig string, deviceInfo s.SNMPDevice) (*ConfigData, error)
-
-	// GetConfigViaSSH retrieves configuration from device via SSH
-	GetConfigViaSSH(ip string, creds SSHCredentials) (string, error)
 
 	// ValidateConfig performs basic validation on parsed configuration
 	ValidateConfig(config *ConfigData) []error

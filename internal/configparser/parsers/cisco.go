@@ -73,19 +73,18 @@ func (p *CiscoParser) ParseConfig(rawConfig string, deviceInfo s.SNMPDevice) (*c
 }
 
 // GetConfigViaSSH retrieves Cisco configuration via SSH
-func (p *CiscoParser) GetConfigViaSSH(ip string, creds configparser.SSHCredentials) (string, error) {
-	client := configparser.NewSSHClient(creds)
-	if err := client.Connect(ip); err != nil {
-		return "", fmt.Errorf("failed to connect to Cisco device: %w", err)
-	}
-	defer client.Close()
-
+// Fetch reads the running configuration from a Cisco IOS device.
+//
+// Note that `show running-config` requires enable mode on most devices; `show config` is
+// the older fallback. The parser itself is still a placeholder (see ParseConfig), so
+// what comes back is barely used.
+func (p *CiscoParser) Fetch(sess configparser.Session) (string, error) {
 	// Cisco IOS commands to show configuration
 	// Note: Some devices might require enable mode
-	output, err := client.Execute("show running-config")
+	output, err := sess.Execute("show running-config")
 	if err != nil {
 		// Try alternative command
-		output, err = client.Execute("show config")
+		output, err = sess.Execute("show config")
 		if err != nil {
 			return "", fmt.Errorf("failed to retrieve Cisco configuration: %w", err)
 		}

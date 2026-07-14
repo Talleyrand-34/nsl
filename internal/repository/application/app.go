@@ -1518,7 +1518,7 @@ func (ns *NetService) ScanDeviceViaSSH(ip, osType string, creds configparser.SSH
 		return nil, fmt.Errorf("unsupported OS type %q (supported: %s)",
 			osType, strings.Join(configparser.DefaultRegistry.ListParsers(), ", "))
 	}
-	rawConfig, err := parser.GetConfigViaSSH(ip, creds)
+	rawConfig, err := configparser.FetchConfig(configparser.DefaultTransport, parser, ip, creds)
 	if err != nil {
 		return nil, fmt.Errorf("SSH connection failed: %w", err)
 	}
