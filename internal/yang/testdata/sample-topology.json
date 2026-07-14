@@ -17,6 +17,10 @@
     "zone-type": [
       { "name": "Security" }
     ],
+    "zone": [
+      { "id": "zone-hq", "name": "HQ", "zone-type": "Security", "owner": "IT" },
+      { "id": "zone-dmz", "name": "DMZ", "parent": "zone-hq", "zone-type": "Security", "owner": "IT" }
+    ],
     "model": [
       {
         "id": "model-xc206",
@@ -44,18 +48,17 @@
   "ietf-network:networks": {
     "network": [
       {
-        "network-id": "urn:nsl:net:dmz",
+        "network-id": "urn:nsl:net:specification",
         "network-types": {
           "ietf-l2-topology:l2-topology": {},
           "nsl-topology:nsl-topology": {}
         },
-        "nsl-inventory:zone-type": "Security",
-        "nsl-inventory:owner": "IT",
 
         "node": [
           {
             "node-id": "urn:nsl:device:sw1",
             "nsl-inventory:model": "model-xc206",
+            "nsl-inventory:zone": "zone-dmz",
             "nsl-inventory:owner": "IT",
             "nsl-topology:unmanaged": false,
             "nsl-topology:scan-profile": "lab-snmp",
@@ -81,6 +84,8 @@
           {
             "node-id": "urn:nsl:device:fw1",
             "nsl-inventory:model": "model-dec740",
+            "nsl-inventory:zone": "zone-hq",
+            "nsl-inventory:owner": "IT",
             "ietf-l2-topology:l2-node-attributes": {
               "name": "opnsense",
               "management-address": ["10.0.2.1"]

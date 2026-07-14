@@ -63,7 +63,8 @@ read the Go.
 ### `nsl-inventory.yang`
 
 The catalogues and the physical layer — brands, model types, OS types, owners, zone types,
-device **models** and their **port templates** (including faceplate `position-x` / `position-y`).
+**zones**, and device **models** with their **port templates** (including faceplate
+`position-x` / `position-y`).
 
 No IETF counterpart exists, and that is not an oversight: RFC 8345 models a topology a device
 already knows about. It has no notion of a catalogue of models you might buy, or of where a
@@ -73,6 +74,24 @@ is.
 It also carries the **model vs. device** distinction that the rest of the codebase rests on: a
 *model* is a catalogue entry with a port template; a *device* (an RFC 8345 node) is an instance
 of one, and its termination points are instances of the model's ports.
+
+#### Why a zone is not an RFC 8345 `network`
+
+The tempting mapping — one zone, one `network` — is wrong, and it is worth recording why,
+because it looks right until you try to use it.
+
+RFC 8345 requires both endpoints of a link to sit in the same network: `source-node` is a
+leafref to `../../../nw:node/node-id`, and the RFC says so in words — *"Must be in the same
+topology."* Zones-as-networks therefore makes every **inter-zone** link unrepresentable — and
+the firewall between the DMZ and the LAN is precisely the link that matters most.
+
+The mismatch is conceptual rather than incidental. An RFC 8345 `network` is a topology
+**layer** — an L3 topology riding on an optical one, related by `supporting-network`. A zone
+is an administrative grouping *within* one layer. They are different axes.
+
+So: the L2 topology is a **single** `network` (`urn:nsl:net:specification`), and zone
+membership is a leafref on the node. Zone nesting lives in the zone list's own `parent`
+leafref, not in `supporting-network`.
 
 ## The standards we build on
 

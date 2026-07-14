@@ -2,7 +2,7 @@
   "ietf-network:networks": {
     "network": [
       {
-        "network-id": "urn:nsl:net:dmz",
+        "network-id": "urn:nsl:net:specification",
         "network-types": {
           "nsl-topology:nsl-topology": {}
         },

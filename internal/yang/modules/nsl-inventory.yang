@@ -147,6 +147,60 @@ module nsl-inventory {
       }
     }
 
+    list zone {
+      key "id";
+      description
+        "An NSL-Graph zone: an administrative, security or location grouping
+         of devices, nestable to any depth.
+
+         A zone is deliberately NOT an RFC 8345 'network'. That mapping is
+         tempting and it is wrong: RFC 8345 requires both endpoints of a link
+         to be in the same network ('Must be in the same topology' --
+         ietf-network-topology.yang, leaf source-node), so modelling zones as
+         networks would make every INTER-zone link unrepresentable -- and a
+         firewall between the DMZ and the LAN is exactly the link that matters
+         most.
+
+         The mismatch is conceptual, not incidental: an RFC 8345 network is a
+         topology LAYER (an L3 topology riding on an optical one, related by
+         'supporting-network'), whereas a zone is an administrative grouping
+         WITHIN one layer. So the L2 topology is a single RFC 8345 network,
+         and zone membership is an attribute of a node.";
+
+      leaf id {
+        type string;
+        description
+          "Stable identifier for the zone.";
+      }
+      leaf name {
+        type string;
+        mandatory true;
+        description
+          "Zone name, e.g. 'DMZ'.";
+      }
+      leaf parent {
+        type leafref {
+          path "../../zone/id";
+        }
+        description
+          "The enclosing zone, if any. Zones nest to arbitrary depth.";
+      }
+      leaf zone-type {
+        type leafref {
+          path "../../zone-type/name";
+        }
+        description
+          "The kind of zone this is.";
+      }
+      leaf owner {
+        type leafref {
+          path "../../owner/name";
+        }
+        description
+          "Administrative owner of the zone.";
+      }
+    }
+
     list model {
       key "id";
       description
@@ -244,39 +298,6 @@ module nsl-inventory {
   }
 
   /*
-   * Zone attributes -- a zone IS an RFC 8345 network
-   */
-
-  augment "/nw:networks/nw:network" {
-    when '/nw:networks/nw:network/nw:network-types/nslt:nsl-topology' {
-      description
-        "Applies only to NSL-Graph topologies.";
-    }
-    description
-      "Administrative attributes of a zone.
-
-       An NSL-Graph zone maps onto an RFC 8345 'network', and zone nesting
-       (a zone's parent) maps onto 'supporting-network'. What RFC 8345 has no
-       place for is the zone's administrative metadata -- who owns it and what
-       kind of zone it is -- so that is added here.";
-
-    leaf zone-type {
-      type leafref {
-        path "/nsli:inventory/nsli:zone-type/nsli:name";
-      }
-      description
-        "The kind of zone this is.";
-    }
-    leaf owner {
-      type leafref {
-        path "/nsli:inventory/nsli:owner/nsli:name";
-      }
-      description
-        "Administrative owner of the zone.";
-    }
-  }
-
-  /*
    * Device attributes -- a device IS an RFC 8345 node, and an instance of a model
    */
 
@@ -286,8 +307,17 @@ module nsl-inventory {
         "Applies only to NSL-Graph topologies.";
     }
     description
-      "Binds a device to its catalogue model and its owner.";
+      "Binds a device to its catalogue model, its zone and its owner.";
 
+    leaf zone {
+      type leafref {
+        path "/nsli:inventory/nsli:zone/nsli:id";
+      }
+      description
+        "The zone this device belongs to. See the 'zone' list for why zone
+         membership is an attribute of the node rather than a separate RFC 8345
+         network.";
+    }
     leaf model {
       type leafref {
         path "/nsli:inventory/nsli:model/nsli:id";
