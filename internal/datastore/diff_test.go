@@ -247,3 +247,41 @@ func TestChangeRendersReadably(t *testing.T) {
 		Change{Op: OpDiffers, Path: "/x", Intended: "untagged", Observed: "tagged"}.String(),
 		"intended untagged, observed tagged")
 }
+
+// Every change carries BOTH addresses: the instance-identifier for the schema and the
+// machine, and a human location for the operator. Nobody has ever found a switch by its
+// UUID, and the path is nothing but UUIDs.
+func TestEveryChangeCarriesAHumanLocation(t *testing.T) {
+	intended := tree([]canon.Node{
+		node("sw1", "eth0",
+			canon.VlanMembership{VlanID: 10, Tagged: false},
+			canon.VlanMembership{VlanID: 20, Tagged: true},
+		),
+		node("sw2", "eth0"),
+	}, link("sw1", "eth0", "sw2", "eth0"))
+
+	observed := tree([]canon.Node{
+		node("sw1", "eth0", canon.VlanMembership{VlanID: 10, Tagged: true}),
+		node("rogue", "eth0"),
+	})
+
+	changes := Diff(intended, observed)
+	require.NotEmpty(t, changes)
+
+	for _, c := range changes {
+		assert.NotEmpty(t, c.Where, "change at %s has no human location", c.Path)
+		assert.NotContains(t, c.Where, "urn:nsl:", "Where must not leak URNs: %q", c.Where)
+		assert.NotEmpty(t, c.Path, "change at %q has no machine path", c.Where)
+	}
+
+	// And they say what an operator would say.
+	var located []string
+	for _, c := range changes {
+		located = append(located, c.Where)
+	}
+	assert.Contains(t, located, "sw1/eth0 VLAN 10", "the tagging change is on sw1's eth0, VLAN 10")
+	assert.Contains(t, located, "sw1/eth0 VLAN 20", "VLAN 20 is missing from sw1's eth0")
+	assert.Contains(t, located, "device sw2", "sw2 was not observed")
+	assert.Contains(t, located, "device rogue", "rogue was not specified")
+	assert.Contains(t, located, "cable sw1/eth0 <-> sw2/eth0", "the cable names both ends by port")
+}

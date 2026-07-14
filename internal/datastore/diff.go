@@ -21,7 +21,6 @@ package datastore
 import (
 	"fmt"
 	"sort"
-	"strings"
 
 	"nsl-graph/internal/yang/canon"
 )
@@ -40,25 +39,35 @@ const (
 
 // Change is one difference between the intended and observed trees.
 //
-// Path is a YANG instance-identifier: the same address the schema uses, so a change
-// reported here names the node a `yanglint` error would name. It is not a Go field path
-// and deliberately not a line number -- both are meaningless to an operator holding a
-// switch.
+// It carries two addresses for the same thing, because two different readers need it:
+//
+//	Path  a YANG instance-identifier -- the address the SCHEMA uses, so a change
+//	      reported here names the node a yanglint error would name. Precise, stable,
+//	      machine-readable, and full of UUIDs.
+//	Where the same location as a human would say it: "sw1/eth0 VLAN 20". This is what
+//	      an operator standing at a rack can act on. Nobody has ever found a switch by
+//	      its UUID.
 type Change struct {
 	Op       Op
 	Path     string
+	Where    string
 	Intended string // rendered value; empty for OpUnexpected
 	Observed string // rendered value; empty for OpMissing
 }
 
+// String renders the change for a human, using Where.
 func (c Change) String() string {
+	at := c.Where
+	if at == "" {
+		at = c.Path
+	}
 	switch c.Op {
 	case OpMissing:
-		return fmt.Sprintf("- %s: %s (intended, not observed)", c.Path, c.Intended)
+		return fmt.Sprintf("- %s: %s — intended, not observed", at, c.Intended)
 	case OpUnexpected:
-		return fmt.Sprintf("+ %s: %s (observed, not intended)", c.Path, c.Observed)
+		return fmt.Sprintf("+ %s: %s — observed, not intended", at, c.Observed)
 	default:
-		return fmt.Sprintf("~ %s: intended %s, observed %s", c.Path, c.Intended, c.Observed)
+		return fmt.Sprintf("~ %s: intended %s, observed %s", at, c.Intended, c.Observed)
 	}
 }
 
@@ -155,6 +164,7 @@ func diffNodes(intended, observed *canon.Root) []Change {
 			changes = append(changes, Change{
 				Op:       OpMissing,
 				Path:     nodePath(id),
+				Where:    "device " + nodeName(want),
 				Intended: nodeName(want),
 			})
 			continue
@@ -167,6 +177,7 @@ func diffNodes(intended, observed *canon.Root) []Change {
 			changes = append(changes, Change{
 				Op:       OpUnexpected,
 				Path:     nodePath(id),
+				Where:    "device " + nodeName(got),
 				Observed: nodeName(got),
 			})
 		}
@@ -177,6 +188,8 @@ func diffNodes(intended, observed *canon.Root) []Change {
 
 func diffTerminationPoints(nodeID string, want, got canon.Node) []Change {
 	var changes []Change
+
+	dev := nodeName(want)
 
 	index := func(n canon.Node) map[string]canon.TerminationPoint {
 		out := map[string]canon.TerminationPoint{}
@@ -193,11 +206,12 @@ func diffTerminationPoints(nodeID string, want, got canon.Node) []Change {
 			changes = append(changes, Change{
 				Op:       OpMissing,
 				Path:     tpPath(nodeID, id),
+				Where:    dev + "/" + portName(wantTP),
 				Intended: portName(wantTP),
 			})
 			continue
 		}
-		changes = append(changes, diffVlans(nodeID, id, wantTP, gotTP)...)
+		changes = append(changes, diffVlans(nodeID, id, dev, wantTP, gotTP)...)
 	}
 
 	for id, gotTP := range obs {
@@ -205,6 +219,7 @@ func diffTerminationPoints(nodeID string, want, got canon.Node) []Change {
 			changes = append(changes, Change{
 				Op:       OpUnexpected,
 				Path:     tpPath(nodeID, id),
+				Where:    dev + "/" + portName(gotTP),
 				Observed: portName(gotTP),
 			})
 		}
@@ -223,7 +238,7 @@ func portName(tp canon.TerminationPoint) string {
 // diffVlans is the comparison that matters most in practice: a VLAN missing from a
 // trunk, or present on a port that should not carry it, is the single most common way a
 // network drifts from its specification -- and the hardest to see by eye.
-func diffVlans(nodeID, tpID string, want, got canon.TerminationPoint) []Change {
+func diffVlans(nodeID, tpID, dev string, want, got canon.TerminationPoint) []Change {
 	var changes []Change
 
 	index := func(tp canon.TerminationPoint) map[uint16]canon.VlanMembership {
@@ -238,6 +253,9 @@ func diffVlans(nodeID, tpID string, want, got canon.TerminationPoint) []Change {
 	path := func(vid uint16) string {
 		return tpPath(nodeID, tpID) + fmt.Sprintf("/vlan-membership[vlan-id='%d']", vid)
 	}
+	where := func(vid uint16) string {
+		return fmt.Sprintf("%s/%s VLAN %d", dev, portName(want), vid)
+	}
 
 	for vid, wantV := range in {
 		gotV, present := obs[vid]
@@ -245,6 +263,7 @@ func diffVlans(nodeID, tpID string, want, got canon.TerminationPoint) []Change {
 			changes = append(changes, Change{
 				Op:       OpMissing,
 				Path:     path(vid),
+				Where:    where(vid),
 				Intended: tagging(wantV.Tagged),
 			})
 			continue
@@ -256,6 +275,7 @@ func diffVlans(nodeID, tpID string, want, got canon.TerminationPoint) []Change {
 			changes = append(changes, Change{
 				Op:       OpDiffers,
 				Path:     path(vid),
+				Where:    where(vid),
 				Intended: tagging(wantV.Tagged),
 				Observed: tagging(gotV.Tagged),
 			})
@@ -267,6 +287,7 @@ func diffVlans(nodeID, tpID string, want, got canon.TerminationPoint) []Change {
 			changes = append(changes, Change{
 				Op:       OpUnexpected,
 				Path:     path(vid),
+				Where:    where(vid),
 				Observed: tagging(gotV.Tagged),
 			})
 		}
@@ -293,8 +314,29 @@ func diffLinks(intended, observed *canon.Root) []Change {
 		}
 	}
 
+	// ports maps a tp-id to its interface name, across both trees, so a cable can be
+	// named the way it is patched: "sw1/eth0 <-> fw1/igc1".
+	ports := map[string]string{}
+	for _, n := range names {
+		for _, tp := range n.TerminationPoints {
+			ports[tp.TpID] = portName(tp)
+		}
+	}
+
+	endpoint := func(nodeID, tpID string) string {
+		dev := nodeID
+		if n, ok := names[nodeID]; ok {
+			dev = nodeName(n)
+		}
+		if p, ok := ports[tpID]; ok {
+			return dev + "/" + p
+		}
+		return dev
+	}
+
 	describe := func(l canon.Link) string {
-		return strings.ReplaceAll(endpointKey(l), "|", ":")
+		return endpoint(l.Source.SourceNode, l.Source.SourceTp) + " <-> " +
+			endpoint(l.Destination.DestNode, l.Destination.DestTp)
 	}
 
 	for key, wantL := range in {
@@ -302,6 +344,7 @@ func diffLinks(intended, observed *canon.Root) []Change {
 			changes = append(changes, Change{
 				Op:       OpMissing,
 				Path:     "/networks/network/link[" + key + "]",
+				Where:    "cable " + describe(wantL),
 				Intended: describe(wantL),
 			})
 		}
@@ -312,6 +355,7 @@ func diffLinks(intended, observed *canon.Root) []Change {
 			changes = append(changes, Change{
 				Op:       OpUnexpected,
 				Path:     "/networks/network/link[" + key + "]",
+				Where:    "cable " + describe(gotL),
 				Observed: describe(gotL),
 			})
 		}
