@@ -22,6 +22,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -436,8 +437,11 @@ func SweepSubnet(cidr, community, version string, timeout time.Duration, sshPort
 }
 
 // tcpOpen reports whether a TCP connection to ip:port succeeds within timeout.
+//
+// net.JoinHostPort, not fmt.Sprintf("%s:%d", ...): an IPv6 host must be bracketed, or
+// the address is unparseable ("::1:22" -> "too many colons in address").
 func tcpOpen(ip string, port int, timeout time.Duration) bool {
-	c, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", ip, port), timeout)
+	c, err := net.DialTimeout("tcp", net.JoinHostPort(ip, strconv.Itoa(port)), timeout)
 	if err != nil {
 		return false
 	}
