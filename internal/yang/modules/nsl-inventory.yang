@@ -1,0 +1,311 @@
+module nsl-inventory {
+  yang-version 1.1;
+  namespace "urn:nsl:params:xml:ns:yang:nsl-inventory";
+  prefix nsli;
+
+  import ietf-network {
+    prefix nw;
+    reference
+      "RFC 8345: A YANG Data Model for Network Topologies";
+  }
+  import nsl-topology {
+    prefix nslt;
+  }
+
+  organization
+    "NSL-Graph";
+  contact
+    "Author: t34 <mailto:t34@t34.dev>";
+
+  description
+    "The NSL-Graph inventory: the catalogues a network specification is built
+     from, and the administrative and physical attributes of the things in it.
+
+     None of this has an IETF counterpart, and that is not an oversight on the
+     IETF's part. RFC 8345 models a topology that a device or controller
+     already knows about; it has no notion of a catalogue of device models you
+     might buy, of the ports a given model physically has, or of where those
+     ports sit on the faceplate -- because the IETF is not drawing pictures of
+     switches, and NSL-Graph is.
+
+     The distinction this module rests on is MODEL versus DEVICE:
+
+       - a 'model' is a catalogue entry (a Siemens XC206), with a template of
+         the ports it has and where they are on the front panel;
+       - a device (an RFC 8345 node) is an INSTANCE of a model, and each of
+         its termination points is an instance of one of the model's ports.
+
+     Two devices of the same model share one port template. That is why
+     diagrams can be drawn without re-entering the physical layout of every
+     switch, and it is the half of the data model the standards do not reach.
+
+     Copyright (c) 2026 t34. Licensed under AGPL-3.0, as the rest of NSL-Graph.";
+
+  revision 2026-07-14 {
+    description
+      "Initial revision.";
+    reference
+      "NSL-Graph: inv/yang.md";
+  }
+
+  /*
+   * Types
+   */
+
+  typedef port-type {
+    type enumeration {
+      enum ethernet {
+        description
+          "A wired port.";
+      }
+      enum wifi {
+        description
+          "A WiFi radio. Carries SSIDs rather than cables; a link from one is
+           a wireless association, not a cable.";
+      }
+    }
+    default "ethernet";
+    description
+      "The physical nature of a port on a device model.";
+  }
+
+  typedef wifi-band {
+    type enumeration {
+      enum 2.4GHz;
+      enum 5GHz;
+      enum 6GHz;
+    }
+    description
+      "Radio band of a WiFi port. Meaningful only when port-type is 'wifi'.";
+  }
+
+  /*
+   * The catalogues
+   */
+
+  container inventory {
+    description
+      "Catalogues shared across the whole specification. Every reference into
+       these from the topology tree is a leafref, so a name that does not
+       exist here is a schema violation rather than a dangling string.";
+
+    list brand {
+      key "name";
+      description
+        "Equipment manufacturers: Siemens, MikroTik, ...";
+      leaf name {
+        type string;
+        description
+          "Brand name, unique.";
+      }
+    }
+
+    list model-type {
+      key "name";
+      description
+        "The class of a device model: Switch, Router, Firewall, Access Point.
+         Formerly 'device class'.";
+      leaf name {
+        type string;
+        description
+          "Model-type name, unique.";
+      }
+    }
+
+    list os-type {
+      key "name";
+      description
+        "OS / firmware families. Selects the configuration parser today and,
+         once configuration generation exists, the renderer:
+         openwrt, opnsense-xml, freebsd, fortinet, cisco.";
+      leaf name {
+        type string;
+        description
+          "OS-type name, unique.";
+      }
+    }
+
+    list owner {
+      key "name";
+      description
+        "Administrative owner of a device or a zone.";
+      leaf name {
+        type string;
+        description
+          "Owner name, unique.";
+      }
+    }
+
+    list zone-type {
+      key "name";
+      description
+        "The kind of a zone: Security, Location, Building, ...";
+      leaf name {
+        type string;
+        description
+          "Zone-type name, unique.";
+      }
+    }
+
+    list model {
+      key "id";
+      description
+        "A device model in the catalogue, with its physical port template.";
+
+      leaf id {
+        type string;
+        description
+          "Stable identifier for the model.";
+      }
+      leaf name {
+        type string;
+        mandatory true;
+        description
+          "Model name, e.g. 'XC206'.";
+      }
+      leaf brand {
+        type leafref {
+          path "../../brand/name";
+        }
+        description
+          "The manufacturer. A leafref: an unknown brand cannot be referenced.";
+      }
+      leaf model-type {
+        type leafref {
+          path "../../model-type/name";
+        }
+        description
+          "The class of this model.";
+      }
+      leaf os-type {
+        type leafref {
+          path "../../os-type/name";
+        }
+        description
+          "The OS / firmware family this model runs. Devices reach their
+           os-type through their model, not directly.";
+      }
+
+      list model-port {
+        key "id";
+        description
+          "The port template: the ports every device of this model has, and
+           where they sit on the faceplate.
+
+           A device's termination points are instances of these. Two devices
+           of the same model share this template, which is what lets a diagram
+           be drawn without re-entering the layout of each switch.";
+
+        leaf id {
+          type string;
+          description
+            "Stable identifier for this port within the model.";
+        }
+        leaf name {
+          type string;
+          mandatory true;
+          description
+            "Port name as silkscreened on the device, e.g. 'P1', 'lan1'.";
+        }
+        leaf position-x {
+          type int32;
+          description
+            "Horizontal position of the port on the faceplate, for diagram
+             layout. No IETF counterpart -- the IETF does not model where a
+             port physically sits, because it is not drawing the switch.";
+        }
+        leaf position-y {
+          type int32;
+          description
+            "Vertical position of the port on the faceplate.";
+        }
+        leaf port-type {
+          type port-type;
+          description
+            "Wired port or WiFi radio.";
+        }
+        leaf band {
+          type wifi-band;
+          when "../port-type = 'wifi'";
+          description
+            "Radio band. Present only for WiFi ports -- enforced by 'when',
+             so a band on an ethernet port is a schema violation rather than
+             a field everyone agrees to ignore.";
+        }
+        leaf allow-multiple-connections {
+          type boolean;
+          default "false";
+          description
+            "True for ports that may legitimately terminate more than one
+             link -- an Internet uplink, or a port facing an unmanaged switch.";
+        }
+      }
+    }
+  }
+
+  /*
+   * Zone attributes -- a zone IS an RFC 8345 network
+   */
+
+  augment "/nw:networks/nw:network" {
+    when '/nw:networks/nw:network/nw:network-types/nslt:nsl-topology' {
+      description
+        "Applies only to NSL-Graph topologies.";
+    }
+    description
+      "Administrative attributes of a zone.
+
+       An NSL-Graph zone maps onto an RFC 8345 'network', and zone nesting
+       (a zone's parent) maps onto 'supporting-network'. What RFC 8345 has no
+       place for is the zone's administrative metadata -- who owns it and what
+       kind of zone it is -- so that is added here.";
+
+    leaf zone-type {
+      type leafref {
+        path "/nsli:inventory/nsli:zone-type/nsli:name";
+      }
+      description
+        "The kind of zone this is.";
+    }
+    leaf owner {
+      type leafref {
+        path "/nsli:inventory/nsli:owner/nsli:name";
+      }
+      description
+        "Administrative owner of the zone.";
+    }
+  }
+
+  /*
+   * Device attributes -- a device IS an RFC 8345 node, and an instance of a model
+   */
+
+  augment "/nw:networks/nw:network/nw:node" {
+    when '/nw:networks/nw:network/nw:network-types/nslt:nsl-topology' {
+      description
+        "Applies only to NSL-Graph topologies.";
+    }
+    description
+      "Binds a device to its catalogue model and its owner.";
+
+    leaf model {
+      type leafref {
+        path "/nsli:inventory/nsli:model/nsli:id";
+      }
+      description
+        "The model this device is an instance of. Its brand, model-type and
+         os-type are reached through it rather than duplicated here.
+
+         A leafref: today Device.Model is a model NAME held as a bare string,
+         with no referential integrity, which is what makes renames orphan
+         devices silently.";
+    }
+    leaf owner {
+      type leafref {
+        path "/nsli:inventory/nsli:owner/nsli:name";
+      }
+      description
+        "Administrative owner of the device.";
+    }
+  }
+}

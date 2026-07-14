@@ -1,0 +1,329 @@
+module nsl-topology {
+  yang-version 1.1;
+  namespace "urn:nsl:params:xml:ns:yang:nsl-topology";
+  prefix nslt;
+
+  import ietf-network {
+    prefix nw;
+    reference
+      "RFC 8345: A YANG Data Model for Network Topologies";
+  }
+  import ietf-network-topology {
+    prefix nt;
+    reference
+      "RFC 8345: A YANG Data Model for Network Topologies";
+  }
+  import ieee802-dot1q-types {
+    prefix dot1q-types;
+    reference
+      "IEEE Std 802.1Q: Bridges and Bridged Networks";
+  }
+
+  organization
+    "NSL-Graph";
+  contact
+    "Author: t34 <mailto:t34@t34.dev>";
+
+  description
+    "Augments the IETF network topology model (RFC 8345) with the concepts
+     NSL-Graph adds and the standards do not have.
+
+     RFC 8345 and RFC 8944 model a topology as a set of facts: a link either
+     exists or it does not. NSL-Graph discovers links by fusing several
+     independent, individually-unreliable evidence sources (LLDP and CDP over
+     both SNMP and SSH, plus the bridge forwarding database), so a discovered
+     link is not a fact but a claim with a strength and a provenance, pending
+     human review before it is committed to the specification.
+
+     This module models that: 'confidence' grades the evidence, 'discovered-via'
+     records which sources observed the link and from where, and 'reviewed'
+     records that a human has accepted it. The accompanying 'must' statement
+     lifts NSL-Graph's import rule -- weak evidence may not be committed
+     unreviewed -- out of Go and into the schema, where every interface (CLI,
+     HTTP API, web frontend) is bound by it identically.
+
+     Copyright (c) 2026 t34. Licensed under AGPL-3.0, as the rest of NSL-Graph.";
+
+  revision 2026-07-14 {
+    description
+      "Initial revision.";
+    reference
+      "NSL-Graph: inv/yang.md";
+  }
+
+  /*
+   * Identities and types
+   */
+
+  typedef confidence {
+    type enumeration {
+      enum confirmed {
+        description
+          "The link was observed from BOTH endpoints -- bidirectional LLDP or
+           CDP. The strongest evidence available; no ambiguity about which
+           ports are joined.";
+      }
+      enum candidate {
+        description
+          "A single direct LLDP or CDP observation, from one endpoint only.
+           The neighbour did not corroborate it, typically because the
+           neighbour does not run a discovery protocol or was not scanned.";
+      }
+      enum weak {
+        description
+          "Corroborated only by the bridge forwarding database (FDB): a MAC
+           address was seen on a port. This does NOT establish adjacency --
+           the MAC may belong to a device several hops away, behind an
+           unmanaged switch. Never committed without review.";
+      }
+    }
+    description
+      "Strength of the evidence supporting a discovered link.
+
+       No IETF equivalent exists. RFC 8345 models topology as fact; NMDA's
+       'origin' (RFC 8342) distinguishes 'learned' from 'intended' but says
+       nothing about how strongly something was learned, from how many
+       independent sources, or whether it is awaiting review.";
+  }
+
+  typedef discovery-source {
+    type enumeration {
+      enum snmp-lldp {
+        description
+          "LLDP-MIB walked over SNMP (OID 1.0.8802.1.1.2.1.4).";
+      }
+      enum snmp-cdp {
+        description
+          "CDP cache table walked over SNMP.";
+      }
+      enum snmp-fdb {
+        description
+          "Bridge forwarding database over SNMP (BRIDGE-MIB dot1dTpFdbPort /
+           Q-BRIDGE-MIB dot1qTpFdbPort).";
+      }
+      enum ssh-lldp {
+        description
+          "LLDP neighbours read over SSH, via 'lldpcli show neighbors'.";
+      }
+      enum ssh-fdb {
+        description
+          "Bridge forwarding database read over SSH.";
+      }
+      enum local-lldp {
+        description
+          "LLDP neighbours of the host running NSL-Graph itself.";
+      }
+    }
+    description
+      "A single evidence source, as the transport-and-protocol pair it
+       actually is. Mirrors the source constants in internal/topology.";
+  }
+
+  /*
+   * Network type marker
+   */
+
+  grouping nsl-topology-type {
+    description
+      "Marks a network as an NSL-Graph topology.";
+    container nsl-topology {
+      presence "Indicates an NSL-Graph topology";
+      description
+        "The presence of this container means the network is an NSL-Graph
+         topology and carries this module's discovery metadata.";
+    }
+  }
+
+  augment "/nw:networks/nw:network/nw:network-types" {
+    description
+      "Introduces the NSL-Graph network type.";
+    uses nsl-topology-type;
+  }
+
+  /*
+   * Link augmentation -- the discovery evidence model
+   */
+
+  grouping nsl-link-attributes {
+    description
+      "Evidence and review state for a discovered link.";
+
+    leaf confidence {
+      type confidence;
+      must ". != 'weak' or ../reviewed = 'true'" {
+        error-message
+          "A link whose only evidence is the forwarding database (weak) must
+           be reviewed by an operator before it can be committed: the MAC may
+           be behind an intermediate device, so the link may not exist.";
+        description
+          "NSL-Graph's import rule, stated in the schema rather than in Go.
+           Only reviewed weak links may be committed; confirmed and candidate
+           links may be committed directly.";
+      }
+      description
+        "Strength of the evidence for this link. Absent on links that were
+         specified by hand rather than discovered.";
+    }
+
+    leaf reviewed {
+      type boolean;
+      default "false";
+      description
+        "True once an operator has accepted this link into the specification.
+         Discovered links start false; hand-specified links are true.";
+    }
+
+    list discovered-via {
+      key "source observed-on";
+      description
+        "Provenance: every source that observed this link, and the endpoint it
+         was observed from. A link seen by ssh-lldp from both of its endpoints
+         has two entries here -- which is precisely what makes it 'confirmed'.
+
+         An empty list means the link was specified by hand, not discovered.";
+
+      leaf source {
+        type discovery-source;
+        description
+          "The evidence source that made this observation.";
+      }
+      leaf observed-on {
+        type string;
+        description
+          "The endpoint the observation was made from, as 'device:port' --
+           e.g. 'opnsense:igc1'. Together with 'source' this reproduces the
+           provenance strings NSL-Graph records today, e.g.
+           'ssh-lldp@opnsense:igc1'.";
+      }
+    }
+  }
+
+  augment "/nw:networks/nw:network/nt:link" {
+    when '/nw:networks/nw:network/nw:network-types/nslt:nsl-topology' {
+      description
+        "Applies only to NSL-Graph topologies.";
+    }
+    description
+      "Adds discovery evidence, provenance and review state to a link.";
+    uses nsl-link-attributes;
+  }
+
+  /*
+   * Node augmentation -- device attributes with no IETF counterpart
+   */
+
+  grouping nsl-node-attributes {
+    description
+      "NSL-Graph device attributes not covered by ietf-network or
+       ietf-l2-topology.
+
+       Deliberately absent, because RFC 8944 already models them:
+         - the device label      -> l2t:l2-node-attributes/name
+         - its management IPs    -> l2t:l2-node-attributes/management-address
+                                    (typed inet:ip-address, not a bare string)
+       Also absent: the OS/firmware family, which belongs to the device MODEL
+       (nsl-inventory), not to the device instance -- os_type is a catalogue
+       with a Model reference, and a node reaches it through its model.";
+
+    leaf unmanaged {
+      type boolean;
+      default "false";
+      description
+        "True for devices NSL-Graph does not manage or scan -- unmanaged
+         switches, patch panels, third-party equipment. They appear in the
+         topology because links terminate on them.";
+    }
+    leaf invisible {
+      type boolean;
+      default "false";
+      description
+        "True for devices modelled but deliberately hidden from diagrams.";
+    }
+    leaf scan-profile {
+      type string;
+      description
+        "Name of the scan profile used to reach this device. Credentials
+         themselves are never modelled here -- they live in the encrypted
+         vault.";
+    }
+  }
+
+  augment "/nw:networks/nw:network/nw:node" {
+    when '/nw:networks/nw:network/nw:network-types/nslt:nsl-topology' {
+      description
+        "Applies only to NSL-Graph topologies.";
+    }
+    description
+      "Adds NSL-Graph device attributes to a node.";
+    uses nsl-node-attributes;
+  }
+
+  /*
+   * Termination-point augmentation
+   */
+
+  augment "/nw:networks/nw:network/nw:node/nt:termination-point" {
+    when '/nw:networks/nw:network/nw:network-types/nslt:nsl-topology' {
+      description
+        "Applies only to NSL-Graph topologies.";
+    }
+    description
+      "Adds VLAN membership and the port-template back-reference to a
+       termination point.
+
+       Deliberately absent, because RFC 8944 already models them:
+         - the port name -> l2t:l2-termination-point-attributes/interface-name
+         - its MAC       -> l2t:l2-termination-point-attributes/mac-address
+                            (typed yang:mac-address, not a bare string)";
+
+    list vlan-membership {
+      key "vlan-id";
+      description
+        "The VLANs this port is a member of, and whether each is tagged.
+
+         This is the topology-tree projection of the IEEE 802.1Q member set.
+         ieee802-dot1q-bridge models the same fact from the other direction --
+         per VLAN, an 'egress-ports' set with an 'untagged-ports' subset --
+         but it is rooted in the bridge component of ietf-interfaces, not in
+         the RFC 8345 topology tree, so it cannot be attached to a
+         termination-point. The two are equivalent and interconvertible: this
+         port appears in VLAN V's egress-ports iff it has a vlan-membership
+         entry for V, and in its untagged-ports iff that entry has
+         tagged = false.
+
+         When generating device configuration (as opposed to exporting
+         topology), ieee802-dot1q-bridge is the model to render into.";
+
+      leaf vlan-id {
+        type dot1q-types:vlanid;
+        description
+          "The 12-bit 802.1Q VLAN ID. Typed uint16, range 1..4094 -- which is
+           the constraint NSL-Graph's 'string' VLAN identifiers do not
+           currently enforce anywhere.";
+      }
+      leaf tagged {
+        type boolean;
+        mandatory true;
+        description
+          "True if frames for this VLAN egress the port with an 802.1Q tag
+           (trunk membership); false if they egress untagged (access
+           membership).";
+      }
+    }
+
+    leaf model-port {
+      type string;
+      description
+        "Identifier of the nsl-inventory model-port this device port was
+         instantiated from. Carries the faceplate position used for
+         diagramming.";
+    }
+    leaf allow-multiple-connections {
+      type boolean;
+      default "false";
+      description
+        "True for ports that may legitimately terminate more than one link --
+         e.g. an uplink to the Internet, or a port facing an unmanaged switch.";
+    }
+  }
+}
