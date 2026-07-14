@@ -17,7 +17,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 package cmd_scan
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -50,6 +49,8 @@ var (
 
 	scanProfile     string
 	scanSaveProfile string
+	scanHuman       bool
+	scanRaw         bool
 )
 
 var networkScanCmd = &cobra.Command{
@@ -59,12 +60,16 @@ var networkScanCmd = &cobra.Command{
 (interfaces, MACs, VLANs). Pass several CIDRs as separate arguments or as a
 single comma-separated value.
 
+Output is JSON on stdout by default — an editable import plan, ready for
+"scan import" (status goes to stderr, so it pipes cleanly). Pass -H/--human for
+a readable summary plus interactive review, or --raw to emit the raw ScanResult.
+
 Examples:
-  nsl-graph scan network 192.168.1.0/24
-  nsl-graph scan network 192.168.1.0/24 10.0.0.0/24
-  nsl-graph scan network 192.168.1.0/24,10.0.0.0/24 --community private
+  nsl-graph scan network 192.168.1.0/24 > plan.json
+  nsl-graph scan network 192.168.1.0/24 10.0.0.0/24 > plan.json
+  nsl-graph scan network 192.168.1.0/24,10.0.0.0/24 --community private -H
   nsl-graph scan network 10.0.0.0/24 --community public --auto-import
-  nsl-graph scan network 172.16.1.0/24 --output scan_results.json --review`,
+  nsl-graph scan network 172.16.1.0/24 --raw -o scan_results.json`,
 	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		subnet := strings.Join(args, ",")
@@ -74,7 +79,7 @@ Examples:
 
 		service, err := util.GetServiceConnection(cmd_pkg.Srcdbpath)
 		if err != nil {
-			fmt.Printf("Error connecting to database: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error connecting to database: %v\n", err)
 			os.Exit(1)
 		}
 
@@ -94,9 +99,9 @@ Examples:
 			if !fl.Changed("timeout") && p.TimeoutSec != 0 {
 				scanTimeout = p.TimeoutSec
 			}
-			fmt.Printf("Applied scan profile %q\n", p.Name)
+			fmt.Fprintf(os.Stderr, "Applied scan profile %q\n", p.Name)
 		} else if scanProfile != "" {
-			fmt.Printf("Error: no scan profile named %q\n", scanProfile)
+			fmt.Fprintf(os.Stderr, "Error: no scan profile named %q\n", scanProfile)
 			os.Exit(1)
 		}
 
@@ -111,10 +116,10 @@ Examples:
 				ScanSource:    "snmp",
 			}
 			if err := service.AddScanProfile(p); err != nil {
-				fmt.Printf("Error saving profile: %v\n", err)
+				fmt.Fprintf(os.Stderr, "Error saving profile: %v\n", err)
 				os.Exit(1)
 			}
-			fmt.Printf("Saved scan profile %q (host %s).\n", scanSaveProfile, subnet)
+			fmt.Fprintf(os.Stderr, "Saved scan profile %q (host %s).\n", scanSaveProfile, subnet)
 		}
 
 		options := s.ScanOptions{
@@ -127,120 +132,81 @@ Examples:
 			},
 		}
 
-		fmt.Printf("Starting SNMP scan of %s (community=%s, version=%s)...\n",
+		fmt.Fprintf(os.Stderr, "Starting SNMP scan of %s (community=%s, version=%s)...\n",
 			subnet, scanCommunity, scanSNMPVersion)
 
 		scanResult, err := service.ScanNetwork(subnet, options)
 		if err != nil {
-			fmt.Printf("Network scan failed: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Network scan failed: %v\n", err)
 			os.Exit(1)
 		}
 
 		duration := scanResult.EndTime.Sub(scanResult.StartTime)
-		fmt.Printf("Scan completed in %v\n", duration)
-		fmt.Printf("Found %d reachable devices\n", len(scanResult.Devices))
+		fmt.Fprintf(os.Stderr, "Scan completed in %v\n", duration)
+		fmt.Fprintf(os.Stderr, "Found %d reachable devices\n", len(scanResult.Devices))
 
-		if scanOutputFile != "" {
-			if err := saveScanResults(scanResult, scanOutputFile); err != nil {
-				fmt.Printf("Failed to save results: %v\n", err)
+		// --raw: emit the raw ScanResult (back-compat with the old output).
+		if scanRaw {
+			if err := emitScanJSON(scanResult, scanOutputFile); err != nil {
+				fmt.Fprintf(os.Stderr, "%v\n", err)
 				os.Exit(1)
 			}
-			fmt.Printf("Results saved to %s\n", scanOutputFile)
+			return
 		}
 
 		if len(scanResult.Devices) == 0 {
-			fmt.Println("No SNMP-reachable devices found.")
+			fmt.Fprintln(os.Stderr, "No SNMP-reachable devices found.")
 			return
 		}
 
 		devices, err := service.DiscoverDevices(scanResult)
 		if err != nil {
-			fmt.Printf("Device discovery failed: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Device discovery failed: %v\n", err)
 			os.Exit(1)
 		}
 
-		fmt.Printf("\nDiscovered %d devices:\n", len(devices))
-		for _, device := range devices {
-			fmt.Printf("  - %s (%s) - %s %s [%s]\n",
-				device.SuggestedName,
-				device.Device.IP,
-				device.Brand,
-				device.Model,
-				device.ModelType)
-			if len(device.Device.Interfaces) > 0 {
-				fmt.Printf("    Interfaces: %d", len(device.Device.Interfaces))
-				for _, iface := range device.Device.Interfaces {
-					if iface.MAC != "" {
-						fmt.Printf("  %s/%s", iface.Name, iface.MAC)
-					}
-				}
-				fmt.Println()
-			}
+		importOptions := s.ImportOptions{
+			AutoImport:        true,
+			MergeIPs:          scanMergeIPs,
+			CreateZones:       scanCreateZones,
+			DefaultZone:       scanDefaultZone,
+			DefaultBrand:      scanDefaultBrand,
+			SkipExisting:      scanSkipExisting,
+			InteractiveVLANs:  true,
+			VLANAccuracyLevel: 2,
 		}
 
-		if scanAutoImport || scanReviewMode {
-			importOptions := s.ImportOptions{
-				AutoImport:       scanAutoImport,
-				MergeIPs:         scanMergeIPs,
-				CreateZones:      scanCreateZones,
-				DefaultZone:      scanDefaultZone,
-				DefaultBrand:     scanDefaultBrand,
-				SkipExisting:     scanSkipExisting,
-				ReviewMode:       scanReviewMode,
-				InteractiveVLANs: true, // Enable interactive VLAN mapping
-			}
-
-			if scanReviewMode && !scanAutoImport {
-				fmt.Println("\nReview mode enabled. Would you like to import these devices? (y/n)")
-				var confirm string
-				fmt.Scanln(&confirm)
-				if strings.ToLower(confirm) != "y" && strings.ToLower(confirm) != "yes" {
-					fmt.Println("Import cancelled.")
-					return
-				}
-				importOptions.AutoImport = true
-			}
-
-			fmt.Printf("Importing %d discovered devices with interactive VLAN mapping...\n", len(devices))
+		// --auto-import: bulk import non-interactively (status to stderr).
+		if scanAutoImport {
 			if err := importDevicesWithVLANMapping(service, devices, importOptions); err != nil {
-				fmt.Printf("Import failed: %v\n", err)
+				fmt.Fprintf(os.Stderr, "Import failed: %v\n", err)
 				os.Exit(1)
 			}
+			fmt.Fprintln(os.Stderr, "Devices imported successfully!")
+			return
+		}
 
-			fmt.Println("Devices imported successfully!")
-		} else {
-			fmt.Println("\nUse --auto-import to automatically add devices to database")
-			fmt.Println("Use --review to review devices before importing")
+		// Default: emit the editable import plan; -H/--review: interactive review.
+		if err := emitOrReviewDevices(service, devices, scanHuman || scanReviewMode, scanOutputFile, importOptions); err != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+			os.Exit(1)
 		}
 	},
-}
-
-func saveScanResults(result *s.ScanResult, filename string) error {
-	data, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal results: %w", err)
-	}
-
-	if err := os.WriteFile(filename, data, 0644); err != nil {
-		return fmt.Errorf("failed to write file: %w", err)
-	}
-
-	return nil
 }
 
 // importDevicesWithVLANMapping imports devices using interactive VLAN mapping
 func importDevicesWithVLANMapping(service q.NetServiceInt, devices []s.DiscoveredDevice, options s.ImportOptions) error {
 	for i, device := range devices {
-		fmt.Printf("\n=== Device %d/%d: %s (%s) ===\n", i+1, len(devices), device.SuggestedName, device.Device.IP)
+		fmt.Fprintf(os.Stderr, "\n=== Device %d/%d: %s (%s) ===\n", i+1, len(devices), device.SuggestedName, device.Device.IP)
 
 		// Use the same logic as scan host for consistency
 		if err := importSingleDeviceWithVLANMapping(service, device, options); err != nil {
-			fmt.Printf("Failed to import device %s: %v\n", device.SuggestedName, err)
+			fmt.Fprintf(os.Stderr, "Failed to import device %s: %v\n", device.SuggestedName, err)
 			if !options.ReviewMode {
 				return err
 			}
 		} else {
-			fmt.Printf("✓ Device %s imported successfully\n", device.SuggestedName)
+			fmt.Fprintf(os.Stderr, "✓ Device %s imported successfully\n", device.SuggestedName)
 		}
 	}
 	return nil
@@ -255,7 +221,9 @@ func init() {
 	networkScanCmd.Flags().StringVar(&scanSNMPVersion, "snmp-version", "v2c", "SNMP version (v1, v2c)")
 	networkScanCmd.Flags().Uint16Var(&scanSNMPPort, "snmp-port", 161, "SNMP UDP port")
 
-	networkScanCmd.Flags().StringVarP(&scanOutputFile, "output", "o", "", "Save scan results to JSON file")
+	networkScanCmd.Flags().StringVarP(&scanOutputFile, "output", "o", "", "Write the JSON output to this file instead of stdout")
+	networkScanCmd.Flags().BoolVarP(&scanHuman, "human", "H", false, "Human-readable summary + interactive review (default output is the plan JSON)")
+	networkScanCmd.Flags().BoolVar(&scanRaw, "raw", false, "Emit the raw ScanResult JSON instead of the editable import plan")
 
 	networkScanCmd.Flags().BoolVar(&scanAutoImport, "auto-import", false, "Automatically import discovered devices")
 	networkScanCmd.Flags().BoolVar(&scanMergeIPs, "merge-ips", false, "Merge IP addresses with existing devices")

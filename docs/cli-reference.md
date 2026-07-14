@@ -335,6 +335,61 @@ Query devices via SNMP (and optionally SSH config). See the README for full
 scanning usage; the subcommands below manage **scan profiles** — reusable
 per-host parameters that are auto-applied when a host matches.
 
+#### Output convention (scan → edit → import)
+
+The device-scan commands (`run`, `host`, `network`) and `connections` share one
+output convention, matching the web "Import devices" workflow:
+
+- **stdout** carries the machine-readable artifact; **stderr** carries all
+  progress/status — so a scan pipes cleanly (`scan ... > plan.json`).
+- The default artifact is an **import plan** (a JSON array of per-device plans,
+  the same data the web UI lets you edit: per-IP `subnet` and `vlan_number`, plus
+  the suggested name/zone).
+- `-H/--human` switches to a readable summary plus interactive review/import.
+- `--raw` (host/network) emits the raw `ScanResult` instead of the plan.
+
+This makes the full round-trip a three-step pipe:
+
+```bash
+nsl-graph scan run --method ssh --target 10.0.2.0/24 \
+                   --profile owrt --os-type openwrt > plan.json
+$EDITOR plan.json          # tweak subnet / vlan_number / suggested name / zone
+nsl-graph scan import plan.json
+```
+
+> **Note:** this changed the default of `scan host`/`scan network` from a
+> human-readable summary to the plan JSON on stdout. Use `-H` for the old
+> interactive view, or `--raw` for the previous `ScanResult` output.
+
+#### scan run
+
+```bash
+nsl-graph scan run [target] [--method snmp|ssh] [--target <ip|cidr|list>] \
+                   [--profile <name>] [--os-type <type>] \
+                   [--community <c>] [--snmp-version <v>] [--snmp-port <p>] [--timeout <s>] \
+                   [-H] [-o <file>]
+```
+
+The unified scan that mirrors the web `/scan/run` → analyze → import flow. The
+method (`snmp`|`ssh`) is explicit; single host vs subnet sweep is inferred from
+the target (a bare IP is one host; a CIDR or comma/space-separated list is a
+batch). Emits the import plan to stdout by default; `-H` reviews and imports
+interactively; `-o` writes the JSON to a file instead of stdout. An SSH scan
+requires a `--profile` supplying credentials and an `--os-type` (or a device
+profile that carries one).
+
+#### scan import
+
+```bash
+nsl-graph scan import <file> [-H] [--auto-import] [--review]
+```
+
+Imports devices from a scan JSON file. The shape is **auto-detected**: a JSON
+**array** is an import plan (as emitted by `scan run`/`host`/`network` and edited
+by you) and is executed as-is — `-H` reviews each device (Approve/Edit/Skip/Quit)
+first. A JSON **object** is a raw `ScanResult` (from `--raw` or older scans); it
+is discovered, analyzed, then imported (`--auto-import`/`--review` as before).
+
 #### scan profile
 
 ```bash

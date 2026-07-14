@@ -17,7 +17,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 package cmd_scan
 
 import (
-	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -65,6 +64,9 @@ var (
 
 	hostProfile     string // use a named saved profile
 	hostSaveProfile string // persist effective params as a profile
+
+	hostHuman bool // -H: human-readable summary + interactive review
+	hostRaw   bool // emit the raw ScanResult instead of the import plan
 )
 
 var hostScanCmd = &cobra.Command{
@@ -108,11 +110,11 @@ Examples:
 		if net.ParseIP(ip) == nil {
 			entry, err := parseSSHConfigAlias(ip)
 			if err != nil {
-				fmt.Printf("Error: %q is not a valid IP address and could not be resolved from ~/.ssh/config: %v\n", ip, err)
+				fmt.Fprintf(os.Stderr, "Error: %q is not a valid IP address and could not be resolved from ~/.ssh/config: %v\n", ip, err)
 				os.Exit(1)
 			}
 			if entry.HostName != "" {
-				fmt.Printf("Resolved SSH alias %q → %s\n", ip, entry.HostName)
+				fmt.Fprintf(os.Stderr, "Resolved SSH alias %q → %s\n", ip, entry.HostName)
 				ip = entry.HostName
 			}
 			// Apply resolved values only when the flag was not set explicitly
@@ -133,7 +135,7 @@ Examples:
 
 		service, err := util.GetServiceConnection(cmd_pkg.Srcdbpath)
 		if err != nil {
-			fmt.Printf("Error connecting to database: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error connecting to database: %v\n", err)
 			os.Exit(1)
 		}
 
@@ -191,22 +193,22 @@ Examples:
 				hostVLANAccuracy = profile.VLANAccuracy
 			}
 			if hostProfile != "" {
-				fmt.Printf("Using scan profile %q\n", profile.Name)
+				fmt.Fprintf(os.Stderr, "Using scan profile %q\n", profile.Name)
 			} else {
-				fmt.Printf("Auto-applied scan profile %q (host %s)\n", profile.Name, profile.Host)
+				fmt.Fprintf(os.Stderr, "Auto-applied scan profile %q (host %s)\n", profile.Name, profile.Host)
 			}
 		} else if hostProfile != "" {
-			fmt.Printf("Error: no scan profile named %q\n", hostProfile)
+			fmt.Fprintf(os.Stderr, "Error: no scan profile named %q\n", hostProfile)
 			os.Exit(1)
 		}
 
 		// Persist the effective parameters as a profile if requested.
 		if hostSaveProfile != "" {
 			if err := saveHostProfile(service, hostSaveProfile, ip); err != nil {
-				fmt.Printf("Error saving profile: %v\n", err)
+				fmt.Fprintf(os.Stderr, "Error saving profile: %v\n", err)
 				os.Exit(1)
 			}
-			fmt.Printf("Saved scan profile %q (host %s).\n", hostSaveProfile, ip)
+			fmt.Fprintf(os.Stderr, "Saved scan profile %q (host %s).\n", hostSaveProfile, ip)
 		}
 
 		var device *s.SNMPDevice
@@ -214,17 +216,17 @@ Examples:
 		switch hostScanSource {
 		case "ssh":
 			if hostSSHUsername == "" {
-				fmt.Println("Error: --ssh-user is required when using --scan-source ssh")
+				fmt.Fprintln(os.Stderr, "Error: --ssh-user is required when using --scan-source ssh")
 				os.Exit(1)
 			}
 			if hostOsType == "" {
-				fmt.Printf("Error: --os-type is required with --scan-source ssh\n")
-				fmt.Printf("  Supported: %s\n", strings.Join(configparser.DefaultRegistry.ListParsers(), ", "))
+				fmt.Fprintf(os.Stderr, "Error: --os-type is required with --scan-source ssh\n")
+				fmt.Fprintf(os.Stderr, "  Supported: %s\n", strings.Join(configparser.DefaultRegistry.ListParsers(), ", "))
 				os.Exit(1)
 			}
 			parser, found := configparser.DefaultRegistry.GetParser(hostOsType)
 			if !found {
-				fmt.Printf("Error: unknown OS type %q\n  Supported: %s\n",
+				fmt.Fprintf(os.Stderr, "Error: unknown OS type %q\n  Supported: %s\n",
 					hostOsType, strings.Join(configparser.DefaultRegistry.ListParsers(), ", "))
 				os.Exit(1)
 			}
@@ -232,22 +234,22 @@ Examples:
 			// vault to decrypt it instead of prompting for the raw password.
 			if hostSSHKeyFile == "" && hostSSHPassword == "" && profile != nil && profile.SSHPassword != "" {
 				if err := ensureVaultUnlocked(service.Vault()); err != nil {
-					fmt.Printf("Failed to unlock credential vault: %v\n", err)
+					fmt.Fprintf(os.Stderr, "Failed to unlock credential vault: %v\n", err)
 					os.Exit(1)
 				}
 				pw, err := service.Vault().Decrypt(profile.SSHPassword)
 				if err != nil {
-					fmt.Printf("%v\n", err)
+					fmt.Fprintf(os.Stderr, "%v\n", err)
 					os.Exit(1)
 				}
 				hostSSHPassword = pw
 			}
 			if hostSSHKeyFile == "" && hostSSHPassword == "" {
-				fmt.Printf("Password for %s@%s: ", hostSSHUsername, ip)
+				fmt.Fprintf(os.Stderr, "Password for %s@%s: ", hostSSHUsername, ip)
 				raw, err := term.ReadPassword(int(os.Stdin.Fd()))
-				fmt.Println()
+				fmt.Fprintln(os.Stderr)
 				if err != nil {
-					fmt.Printf("Failed to read password: %v\n", err)
+					fmt.Fprintf(os.Stderr, "Failed to read password: %v\n", err)
 					os.Exit(1)
 				}
 				hostSSHPassword = string(raw)
@@ -260,24 +262,26 @@ Examples:
 				Port:     hostSSHPort,
 				Timeout:  time.Duration(hostConfigTimeout) * time.Second,
 			}
-			fmt.Printf("Scanning %s via SSH (user=%s, type=%s)...\n", ip, hostSSHUsername, hostOsType)
+			fmt.Fprintf(os.Stderr, "Scanning %s via SSH (user=%s, type=%s)...\n", ip, hostSSHUsername, hostOsType)
 			rawConfig, err := parser.GetConfigViaSSH(ip, creds)
 			if err != nil {
-				fmt.Printf("SSH connection failed: %v\n", err)
+				fmt.Fprintf(os.Stderr, "SSH connection failed: %v\n", err)
 				os.Exit(1)
 			}
 			stub := s.SNMPDevice{IP: ip, Reachable: true, SysName: ip}
 			configData, err := parser.ParseConfig(rawConfig, stub)
 			if err != nil {
-				fmt.Printf("Config parsing failed: %v\n", err)
+				fmt.Fprintf(os.Stderr, "Config parsing failed: %v\n", err)
 				os.Exit(1)
 			}
 			device = configparser.ConfigDataToSNMPDevice(configData, ip)
-			fmt.Printf("\nSSH Results for %s:\n", ip)
-			if device.SysName != ip {
-				fmt.Printf("Name:     %s\n", device.SysName)
+			if hostHuman {
+				fmt.Printf("\nSSH Results for %s:\n", ip)
+				if device.SysName != ip {
+					fmt.Printf("Name:     %s\n", device.SysName)
+				}
+				printDeviceInfo(device)
 			}
-			printDeviceInfo(device)
 
 		default: // "snmp"
 			options := s.ScanOptions{
@@ -289,155 +293,133 @@ Examples:
 				},
 			}
 
-			fmt.Printf("Querying %s via SNMP (community=%s)...\n", ip, hostCommunity)
+			fmt.Fprintf(os.Stderr, "Querying %s via SNMP (community=%s)...\n", ip, hostCommunity)
 
 			var err error
 			device, err = service.ScanDevice(ip, options)
 			if err != nil {
-				fmt.Printf("Device scan failed: %v\n", err)
+				fmt.Fprintf(os.Stderr, "Device scan failed: %v\n", err)
 				os.Exit(1)
 			}
 
 			if !device.Reachable {
-				fmt.Printf("Device %s did not respond to SNMP\n", ip)
+				fmt.Fprintf(os.Stderr, "Device %s did not respond to SNMP\n", ip)
 				return
 			}
 
-			fmt.Printf("\nSNMP Results for %s:\n", ip)
-			if device.SysName != "" {
-				fmt.Printf("Name:     %s\n", device.SysName)
-			}
-			if device.SysDescr != "" {
-				descr := device.SysDescr
-				if len(descr) > 80 {
-					descr = descr[:80] + "..."
+			if hostHuman {
+				fmt.Printf("\nSNMP Results for %s:\n", ip)
+				if device.SysName != "" {
+					fmt.Printf("Name:     %s\n", device.SysName)
 				}
-				fmt.Printf("Descr:    %s\n", descr)
-			}
-			if device.SysLocation != "" {
-				fmt.Printf("Location: %s\n", device.SysLocation)
-			}
-			if device.SysContact != "" {
-				fmt.Printf("Contact:  %s\n", device.SysContact)
-			}
-			printDeviceInfo(device)
-
-			if len(device.Neighbors) > 0 {
-				fmt.Printf("\nNeighbors (%d):\n", len(device.Neighbors))
-				for _, n := range device.Neighbors {
-					fmt.Printf(
-						"  [%s] local:%s → remote:%s (%s)",
-						n.Protocol, n.LocalPort, n.RemoteName, n.RemotePort,
-					)
-					if n.RemoteIP != "" {
-						fmt.Printf(" IP:%s", n.RemoteIP)
+				if device.SysDescr != "" {
+					descr := device.SysDescr
+					if len(descr) > 80 {
+						descr = descr[:80] + "..."
 					}
-					fmt.Println()
+					fmt.Printf("Descr:    %s\n", descr)
+				}
+				if device.SysLocation != "" {
+					fmt.Printf("Location: %s\n", device.SysLocation)
+				}
+				if device.SysContact != "" {
+					fmt.Printf("Contact:  %s\n", device.SysContact)
+				}
+				printDeviceInfo(device)
+
+				if len(device.Neighbors) > 0 {
+					fmt.Printf("\nNeighbors (%d):\n", len(device.Neighbors))
+					for _, n := range device.Neighbors {
+						fmt.Printf(
+							"  [%s] local:%s → remote:%s (%s)",
+							n.Protocol, n.LocalPort, n.RemoteName, n.RemotePort,
+						)
+						if n.RemoteIP != "" {
+							fmt.Printf(" IP:%s", n.RemoteIP)
+						}
+						fmt.Println()
+					}
 				}
 			}
 		}
 
-		// Save to JSON file if requested
-		if hostOutputFile != "" {
-			scanResult := &s.ScanResult{
-				ID:        fmt.Sprintf("host_%s_%d", ip, time.Now().Unix()),
-				Subnet:    ip + "/32", // Single host as /32
-				StartTime: time.Now(),
-				EndTime:   time.Now(),
-				Devices:   []s.SNMPDevice{*device},
-			}
-
-			if err := saveHostScanResults(scanResult, hostOutputFile); err != nil {
-				fmt.Printf("Failed to save results: %v\n", err)
-				os.Exit(1)
-			}
-
-			fmt.Printf("Results saved to %s\n", hostOutputFile)
+		scanResult := &s.ScanResult{
+			ID:        fmt.Sprintf("host_%s_%d", ip, time.Now().Unix()),
+			Subnet:    ip + "/32", // Single host as /32
+			StartTime: time.Now(),
+			EndTime:   time.Now(),
+			Devices:   []s.SNMPDevice{*device},
 		}
 
+		// --raw: emit the raw ScanResult (back-compat with the old --output).
+		if hostRaw {
+			if err := emitScanJSON(scanResult, hostOutputFile); err != nil {
+				fmt.Fprintf(os.Stderr, "%v\n", err)
+				os.Exit(1)
+			}
+			return
+		}
+
+		devices, err := service.DiscoverDevices(scanResult)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Device discovery failed: %v\n", err)
+			os.Exit(1)
+		}
+		if len(devices) == 0 {
+			fmt.Fprintln(os.Stderr, "No devices discovered from scan result.")
+			return
+		}
+		if hostDefaultZone != "" {
+			devices[0].SuggestedZone = hostDefaultZone
+		}
+
+		importOptions := s.ImportOptions{
+			AutoImport:        true,
+			CreateZones:       true,
+			DefaultZone:       hostDefaultZone,
+			DefaultBrand:      hostDefaultBrand,
+			SkipExisting:      true,
+			InteractiveVLANs:  true,
+			VLANAccuracyLevel: hostVLANAccuracy,
+
+			// Configuration parsing options. When --scan-source ssh is used, SSH is
+			// already the primary source.
+			ConfigSource:       hostConfigSource,
+			ConfigFile:         hostConfigFile,
+			OsType:             hostOsType,
+			SSHUsername:        hostSSHUsername,
+			SSHPassword:        hostSSHPassword,
+			SSHKeyFile:         hostSSHKeyFile,
+			SSHPort:            hostSSHPort,
+			DiscrepancyAction:  hostDiscrepancyAction,
+			MergeWithConfig:    hostMergeConfig,
+			ParseConfigTimeout: hostConfigTimeout,
+		}
+
+		// When using --scan-source ssh without --merge-configs, disable config merging.
+		if hostScanSource == "ssh" && !hostMergeConfig {
+			importOptions.ConfigSource = "none"
+			importOptions.MergeWithConfig = false
+		}
+		// When --merge-configs is used, default to prefer-config unless explicitly set.
+		if hostMergeConfig && hostDiscrepancyAction == "prefer-snmp" {
+			importOptions.DiscrepancyAction = "prefer-config"
+		}
+
+		// --auto-import: import directly (non-interactive); status to stderr.
 		if hostAutoImport {
-			fmt.Println("\nImporting device...")
-
-			// Create a ScanResult to match the file-based import workflow
-			scanResult := &s.ScanResult{
-				ID:        fmt.Sprintf("host_%s_%d", ip, time.Now().Unix()),
-				Subnet:    ip + "/32", // Single host as /32
-				StartTime: time.Now(),
-				EndTime:   time.Now(),
-				Devices:   []s.SNMPDevice{*device},
-			}
-
-			// Use the same discovery pipeline as file-based import
-			devices, err := service.DiscoverDevices(scanResult)
-			if err != nil {
-				fmt.Printf("Device discovery failed: %v\n", err)
+			if err := importSingleDeviceWithVLANMapping(service, devices[0], importOptions); err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to import device: %v\n", err)
 				os.Exit(1)
 			}
+			fmt.Fprintf(os.Stderr, "Device '%s' imported successfully!\n", devices[0].SuggestedName)
+			return
+		}
 
-			if len(devices) == 0 {
-				fmt.Println("No devices discovered from scan result.")
-				return
-			}
-
-			// Get the first (and only) discovered device
-			discoveredDevice := devices[0]
-
-			// Override zone if specified
-			if hostDefaultZone != "" {
-				discoveredDevice.SuggestedZone = hostDefaultZone
-			}
-
-			fmt.Printf(
-				"Classification: %s %s [%s]\n",
-				discoveredDevice.Brand,
-				discoveredDevice.Model,
-				discoveredDevice.ModelType,
-			)
-
-			importOptions := s.ImportOptions{
-				AutoImport:        true,
-				CreateZones:       true,
-				DefaultZone:       hostDefaultZone,
-				DefaultBrand:      hostDefaultBrand,
-				SkipExisting:      true,
-				InteractiveVLANs:  true, // Enable interactive VLAN mapping
-				VLANAccuracyLevel: hostVLANAccuracy,
-
-				// Configuration parsing options
-				// Only pass config source if explicitly requested (not auto-detected)
-				// When --scan-source ssh is used, SSH is already the primary source
-				ConfigSource:       hostConfigSource,
-				ConfigFile:         hostConfigFile,
-				OsType:             hostOsType,
-				SSHUsername:        hostSSHUsername,
-				SSHPassword:        hostSSHPassword,
-				SSHKeyFile:         hostSSHKeyFile,
-				SSHPort:            hostSSHPort,
-				DiscrepancyAction:  hostDiscrepancyAction,
-				MergeWithConfig:    hostMergeConfig,
-				ParseConfigTimeout: hostConfigTimeout,
-			}
-
-			// When using --scan-source ssh without --merge-configs, disable config merging
-			// When using --scan-source ssh WITH --merge-configs, use SSH for config (not SNMP)
-			if hostScanSource == "ssh" && !hostMergeConfig {
-				hostConfigSource = "none"
-				importOptions.MergeWithConfig = false
-			}
-
-			// When --merge-configs is used, default to prefer-config unless explicitly set
-			if hostMergeConfig && hostDiscrepancyAction == "prefer-snmp" {
-				importOptions.DiscrepancyAction = "prefer-config"
-			}
-
-			if err := importSingleDeviceWithVLANMapping(service, discoveredDevice, importOptions); err != nil {
-				fmt.Printf("Failed to import device: %v\n", err)
-				os.Exit(1)
-			}
-
-			fmt.Printf("Device '%s' imported successfully!\n", discoveredDevice.SuggestedName)
-		} else {
-			fmt.Println("\nUse --auto-import to add this device to the database")
+		// Default: emit the editable import plan; -H: interactive review.
+		if err := emitOrReviewDevices(service, devices, hostHuman, hostOutputFile, importOptions); err != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+			os.Exit(1)
 		}
 	},
 }
@@ -680,19 +662,6 @@ func printIfaceTable(ifaces []s.DeviceInterface, showParent bool) {
 	}
 }
 
-func saveHostScanResults(result *s.ScanResult, filename string) error {
-	data, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal results: %w", err)
-	}
-
-	if err := os.WriteFile(filename, data, 0o644); err != nil {
-		return fmt.Errorf("failed to write file: %w", err)
-	}
-
-	return nil
-}
-
 // importSingleDeviceWithVLANMapping imports a device with interactive VLAN mapping
 func importSingleDeviceWithVLANMapping(
 	service q.NetServiceInt,
@@ -705,21 +674,21 @@ func importSingleDeviceWithVLANMapping(
 		return fmt.Errorf("failed to analyze device: %w", err)
 	}
 
-	fmt.Printf("Analysis: %s\n", plan.Summary)
+	fmt.Fprintf(os.Stderr, "Analysis: %s\n", plan.Summary)
 
 	// Show interface details with IP-VLAN mappings if any
 	for i, interfacePlan := range plan.InterfacePlans {
 		iface := interfacePlan.Interface
-		fmt.Printf("  Interface %d: %s", i+1, iface.Name)
+		fmt.Fprintf(os.Stderr, "  Interface %d: %s", i+1, iface.Name)
 
 		if len(iface.IPAddresses) > 0 {
-			fmt.Printf(" (IPs: %v)", iface.IPAddresses)
+			fmt.Fprintf(os.Stderr, " (IPs: %v)", iface.IPAddresses)
 		}
 
 		if len(interfacePlan.IPMappings) > 0 {
-			fmt.Printf("\n    Proposed VLAN mappings:")
+			fmt.Fprintf(os.Stderr, "\n    Proposed VLAN mappings:")
 			for _, mapping := range interfacePlan.IPMappings {
-				fmt.Printf(
+				fmt.Fprintf(os.Stderr,
 					"\n      %s → VLAN %s (%s)",
 					mapping.IP,
 					mapping.VLANNumber,
@@ -727,19 +696,19 @@ func importSingleDeviceWithVLANMapping(
 				)
 			}
 		}
-		fmt.Println()
+		fmt.Fprintln(os.Stderr)
 	}
 
 	if plan.RequiresInput {
 		if hostApproveAll {
-			fmt.Printf("Auto-approving VLAN mapping (--approve-all flag)\n")
+			fmt.Fprintf(os.Stderr, "Auto-approving VLAN mapping (--approve-all flag)\n")
 		} else {
-			fmt.Printf("\nApprove this VLAN mapping? (y/n): ")
+			fmt.Fprintf(os.Stderr, "\nApprove this VLAN mapping? (y/n): ")
 			var response string
 			fmt.Scanln(&response)
 
 			if strings.ToLower(strings.TrimSpace(response)) != "y" && strings.ToLower(strings.TrimSpace(response)) != "yes" {
-				fmt.Println("Import cancelled by user.")
+				fmt.Fprintln(os.Stderr, "Import cancelled by user.")
 				return nil
 			}
 		}
@@ -802,7 +771,11 @@ func init() {
 	hostScanCmd.Flags().Uint16Var(&hostSNMPPort, "snmp-port", 161, "SNMP UDP port")
 
 	hostScanCmd.Flags().
-		StringVarP(&hostOutputFile, "output", "o", "", "Save scan results to JSON file")
+		StringVarP(&hostOutputFile, "output", "o", "", "Write the JSON output to this file instead of stdout")
+	hostScanCmd.Flags().
+		BoolVarP(&hostHuman, "human", "H", false, "Human-readable summary + interactive review (default output is the plan JSON)")
+	hostScanCmd.Flags().
+		BoolVar(&hostRaw, "raw", false, "Emit the raw ScanResult JSON instead of the editable import plan")
 
 	hostScanCmd.Flags().
 		BoolVar(&hostAutoImport, "auto-import", false, "Automatically import discovered device")

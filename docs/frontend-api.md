@@ -2,6 +2,9 @@
 
 NSL-Graph provides both a PHP web interface and HTTP REST API for managing network data. The system runs on two services that work together.
 
+> Looking for a **how-to** walkthrough of the web interface? See the
+> **[Web UI Usage Guide](usage-webui.md)**.
+
 ## Architecture
 
 ### Services
@@ -306,6 +309,8 @@ curl http://localhost:8081/diagram > network.svg
 #### Network Scanning
 
 ```http
+POST /scan/run           <RunScanOptions>   (async; returns {scan_id})
+GET  /scan/status?scan_id=<id>               (poll: {state, done, total, result:{devices:[...]}, events, error})
 POST /scan/host          {"ip": "...", "community": "...", "snmp_version": "...", "snmp_port": 0, "profile": "..."}
 POST /scan/network       {"subnet": "...", "community": "...", ..., "profile": "..."}
 POST /scan/host-ssh      {"profile": "...", "ip": "...(optional override)"}
@@ -314,6 +319,18 @@ POST /scan/execute       {"plan": <DeviceImportPlan>, "options": {...}}
 POST /scan/import        {"devices": [...], "options": {...}}
 POST /scan/import-file   <raw scanner.ScanResult JSON>
 ```
+
+**Unified async scan (the web "Import devices" page and CLI `scan run`):**
+
+`POST /scan/run` takes a `RunScanOptions` body — `{"method":"snmp|ssh","target":
+"<ip|cidr|list>","community":"...","snmp_version":"...","snmp_port":0,"timeout":0,
+"profile":"...","os_type":"..."}` — and returns `{"scan_id":"..."}` immediately.
+The client polls `GET /scan/status?scan_id=<id>` until `state` is `completed` or
+`failed`; the result carries the discovered devices. Each device is then sent to
+`/scan/analyze` to get its editable `DeviceImportPlan`, and the (edited) plan is
+imported via `/scan/execute`. This `run → analyze → (edit) → execute` flow is the
+exact server-side counterpart of the CLI's `scan run > plan.json` → edit →
+`scan import` round-trip.
 
 **Connection (L2/L1 link) discovery:**
 
