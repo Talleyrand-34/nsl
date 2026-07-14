@@ -182,11 +182,9 @@ type NetServiceInt interface {
 	GetConnections() ([]e.Connection, error)
 
 	// DiscoverConnections collects multi-source L2/L1 evidence from the given
-	// targets and correlates it into connection edges; ImportConnectionEdges
-	// persists the resolved edges (with provenance).
+	// targets and correlates it into connection edges; ImportConnectionEdgesChecked
+	// persists the ones the commit rules allow, with their evidence.
 	DiscoverConnections(targets []topology.Target, only string) (*topology.ConnectionScanResult, error)
-	ImportConnectionEdges(edges []topology.ConnectionEdge) (int, error)
-
 	// ImportConnectionEdgesChecked stages edges, validates them against the commit
 	// rules, and commits only those that pass — returning every violation that stopped
 	// the rest. This is where "a weak link may not be committed unreviewed" is
@@ -576,11 +574,44 @@ func (ns *NetService) AddDevicePort(
 	macAddress string,
 	vlanConfigs []e.PortVlanConfig,
 ) (string, error) {
+	if err := validatePortVlans(deviceid, modelportid, vlanConfigs); err != nil {
+		return "", err
+	}
 	return ns.netRepo.AddDevicePort(deviceid, modelportid, macAddress, vlanConfigs)
 }
 
 func (ns *NetService) UpdateDevicePort(deviceid string, modelportid string, macAddress string, vlanConfigs []e.PortVlanConfig) error {
+	if err := validatePortVlans(deviceid, modelportid, vlanConfigs); err != nil {
+		return err
+	}
 	return ns.netRepo.UpdateDevicePort(deviceid, modelportid, macAddress, vlanConfigs)
+}
+
+// validatePortVlans refuses a VLAN configuration the commit rules reject: an identifier
+// outside the 802.1Q range, or the same VLAN configured both tagged and untagged.
+//
+// The second is why this exists. A port either tags a VLAN's frames on egress or it does
+// not; recording both is a contradiction, not a duplicate, and it means one of the two is
+// wrong. test-dbs/real.db contains nine of them -- almost certainly from merging the
+// 802.1Q egress-port and untagged-port sets on import without reconciling them -- and
+// nothing in the model could refuse them, so they were simply stored.
+//
+// The YANG schema cannot catch this: vlan-id is the KEY of vlan-membership, so the
+// contradiction is unrepresentable there and would be silently collapsed on export. It
+// can only be caught on the way in.
+func validatePortVlans(deviceid, portid string, vlanConfigs []e.PortVlanConfig) error {
+	if len(vlanConfigs) == 0 {
+		return nil
+	}
+
+	var c datastore.Candidate
+	vlans := make([]datastore.VLANMembership, 0, len(vlanConfigs))
+	for _, vc := range vlanConfigs {
+		vlans = append(vlans, datastore.VLANMembership{VLAN: vc.VlanNumber, Tagged: vc.Tagged})
+	}
+	c.StagePort(deviceid, portid, vlans)
+
+	return datastore.ViolationsError(datastore.Validate(c))
 }
 
 func (ns *NetService) AddConnectionType(connectionTypeName string) error {

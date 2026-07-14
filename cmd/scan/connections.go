@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -33,6 +34,7 @@ import (
 	util "nsl-graph/cmd/utils"
 
 	configparser "nsl-graph/internal/configparser"
+	"nsl-graph/internal/datastore"
 	q "nsl-graph/internal/repository/application"
 	e "nsl-graph/internal/repository/entities"
 	s "nsl-graph/internal/scanner"
@@ -799,14 +801,11 @@ func reviewAndImport(service q.NetServiceInt, result *topology.ConnectionScanRes
 	mark := edgeMark
 
 	if connYes {
-		// Non-interactive: only commit fully-resolved confirmed/candidate edges
-		// (never auto-create ports).
-		for _, edge := range result.Edges {
-			if edge.RemoteResolved && edge.FromDevicePortID != "" && edge.ToDevicePortID != "" &&
-				edge.Confidence != topology.ConfidenceWeak {
-				toImport = append(toImport, edge)
-			}
-		}
+		// Non-interactive: stage everything and let the commit rules decide. Nobody has
+		// reviewed anything, so weak edges will be refused by datastore.Validate —
+		// which is where that rule now lives, rather than being restated here.
+		commitEdges(service, stage(result.Edges, false), os.Stdout)
+		return
 	} else {
 		reader := bufio.NewReader(os.Stdin)
 		acceptRest := false
@@ -856,10 +855,41 @@ done:
 		fmt.Println("\nNo edges selected; nothing imported.")
 		return
 	}
-	n, err := service.ImportConnectionEdges(toImport)
-	fmt.Printf("\nImported %d connection(s).\n", n)
+	// Selecting an edge in the review loop IS the review: the operator looked at its
+	// confidence and said yes. That is what lets a weak edge be committed here and not
+	// under --yes.
+	commitEdges(service, stage(toImport, true), os.Stdout)
+}
+
+// stage builds a candidate from edges, all with the same review verdict.
+func stage(edges []topology.ConnectionEdge, reviewed bool) datastore.Candidate {
+	var c datastore.Candidate
+	for _, edge := range edges {
+		c.Stage(edge, reviewed)
+	}
+	return c
+}
+
+// commitEdges commits a candidate and reports what the rules refused.
+//
+// The refusals are the interesting part: an edge rejected here is one the forwarding
+// database alone suggested, and committing it would have invented a cable that may not
+// exist.
+func commitEdges(service q.NetServiceInt, c datastore.Candidate, out io.Writer) {
+	n, violations, err := service.ImportConnectionEdgesChecked(c)
+
+	fmt.Fprintf(out, "\nImported %d connection(s).\n", n)
+
+	if len(violations) > 0 {
+		fmt.Fprintf(os.Stderr, "\n%d edge(s) were not committed:\n", len(violations))
+		for _, v := range violations {
+			fmt.Fprintf(os.Stderr, "  %s\n", v.Error())
+		}
+		fmt.Fprintln(os.Stderr, "\nRe-run with -H to review them interactively; "+
+			"accepting one there commits it.")
+	}
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Some edges were not imported:\n%v\n", err)
+		fmt.Fprintf(os.Stderr, "Some edges failed to persist:\n%v\n", err)
 	}
 }
 
@@ -881,21 +911,15 @@ func importNonInteractive(service q.NetServiceInt, result *topology.ConnectionSc
 		fmt.Fprintln(os.Stderr, "note: default JSON mode is non-interactive — pass --yes to import, or -H to review interactively. Nothing written.")
 		return
 	}
-	var toImport []topology.ConnectionEdge
-	for _, edge := range result.Edges {
-		if edge.RemoteResolved && edge.FromDevicePortID != "" && edge.ToDevicePortID != "" && edge.Confidence != topology.ConfidenceWeak {
-			toImport = append(toImport, edge)
-		}
-	}
-	if len(toImport) == 0 {
+	if len(result.Edges) == 0 {
 		fmt.Fprintln(os.Stderr, "No importable edges.")
 		return
 	}
-	n, err := service.ImportConnectionEdges(toImport)
-	fmt.Fprintf(os.Stderr, "Imported %d connection(s).\n", n)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Some edges were not imported:\n%v\n", err)
-	}
+	// Nobody reviewed anything: --yes means "do not ask me", not "I have looked at the
+	// evidence". Weak edges are refused by the commit rules, and said so.
+	//
+	// Status goes to stderr so stdout stays valid JSON.
+	commitEdges(service, stage(result.Edges, false), os.Stderr)
 }
 
 // writeJSONFile writes the full result as indented JSON to path.

@@ -116,23 +116,15 @@ func (ns *NetService) DiscoverConnectionsByMode(opts ConnectionScanOptions, em o
 			to = time.Duration(p.TimeoutSec) * time.Second
 		}
 		t.SNMP = &s.ScanOptions{Timeout: to, SNMP: s.SNMPOptions{Community: comm, Version: ver, Port: uint16(p.SNMPPort)}}
-		if p.SSHUser == "" {
-			return
+
+		// One place builds SSH credentials from a profile. This used to be a second,
+		// drifted copy of profileSSHCreds that silently ignored p.SSHKey -- the
+		// vault-stored in-memory PEM -- so a profile authenticating with an uploaded
+		// private key worked when scanning and failed, without explanation, when
+		// discovering connections.
+		if creds := profileSSHCreds(p, ns.vault); creds != nil {
+			t.SSH = creds
 		}
-		creds := configparser.SSHCredentials{Username: p.SSHUser, Port: p.SSHPort}
-		switch {
-		case p.SSHKeyFile != "":
-			creds.KeyFile = p.SSHKeyFile
-		case p.SSHPassword != "":
-			pw, err := ns.vault.Decrypt(p.SSHPassword)
-			if err != nil {
-				return // vault locked / can't decrypt — skip SSH for this host
-			}
-			creds.Password = pw
-		default:
-			return
-		}
-		t.SSH = &creds
 	}
 
 	// Per-host runtime SSH resolver, used by the subnet sweep and the from-db
@@ -557,29 +549,6 @@ func (ns *NetService) DiscoverConnections(targets []topology.Target, only string
 		return result, err
 	}
 	return result, nil
-}
-
-// ImportConnectionEdges persists each edge as a Connection, preserving its confidence
-// grade and provenance. An endpoint that isn't yet a device port but names one (e.g. a
-// "possible" edge like OpenWrt:eth0) has that port created on the fly.
-//
-// Every edge passed here is treated as REVIEWED: reaching this function means an
-// operator selected it. Callers that have not obtained that consent must go through
-// ImportConnectionEdgesChecked, which refuses to commit a weak link without it.
-//
-// Deprecated in spirit rather than in fact: prefer ImportConnectionEdgesChecked.
-func (ns *NetService) ImportConnectionEdges(edges []topology.ConnectionEdge) (int, error) {
-	c := datastore.Candidate{}
-	for _, edge := range edges {
-		c.Stage(edge, true)
-	}
-	n, violations, err := ns.commitCandidate(c)
-	if err != nil {
-		return n, err
-	}
-	// Endpoints that don't resolve were previously reported as errors here, and still
-	// are -- they simply arrive as violations now.
-	return n, datastore.ViolationsError(violations)
 }
 
 // ImportConnectionEdgesChecked stages the edges, validates them against the commit
