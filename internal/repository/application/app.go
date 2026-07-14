@@ -238,6 +238,12 @@ type NetServiceInt interface {
 	GetAllPortsAll() ([]e.DevicePort, error)
 	ExportAllStructs() []byte
 
+	// ExportYANG renders the specification as RFC 7951 JSON, valid against the
+	// standard YANG models (RFC 8345/8944, IEEE 802.1Q) plus the nsl-* augments.
+	// The warnings list values the domain model holds but the schema rejects; they
+	// are dropped from the output rather than failing the export.
+	ExportYANG() ([]byte, []string, error)
+
 	// Network scanning operations
 	RunScan(opts RunScanOptions, em observ.Emitter) ([]s.DiscoveredDevice, error)
 	ScanNetwork(subnet string, options s.ScanOptions) (*s.ScanResult, error)
