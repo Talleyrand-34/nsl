@@ -446,24 +446,22 @@ func (m *mapper) links() []canon.Link {
 		}
 
 		via := m.provenance(c.DiscoveredVia, where)
+		confidence := m.confidence(c.Confidence, where)
 
-		// Confidence is deliberately absent. It is computed during a scan
-		// (internal/topology grades an edge confirmed/candidate/weak) and then
-		// DISCARDED at import: entities.Connection has no field for it. A
-		// persisted connection is one an operator has already accepted into the
-		// specification, so it is reported as reviewed.
 		fwd := canon.Link{
 			LinkID:        linkURIPrefix + c.ID + ":fwd",
 			Source:        canon.Source{SourceNode: deviceURIPrefix + fromDev, SourceTp: tpURIPrefix + fromTP},
 			Destination:   canon.Destination{DestNode: deviceURIPrefix + toDev, DestTp: tpURIPrefix + toTP},
-			Reviewed:      true,
+			Confidence:    confidence,
+			Reviewed:      c.Reviewed,
 			DiscoveredVia: via,
 		}
 		rev := canon.Link{
 			LinkID:        linkURIPrefix + c.ID + ":rev",
 			Source:        canon.Source{SourceNode: deviceURIPrefix + toDev, SourceTp: tpURIPrefix + toTP},
 			Destination:   canon.Destination{DestNode: deviceURIPrefix + fromDev, DestTp: tpURIPrefix + fromTP},
-			Reviewed:      true,
+			Confidence:    confidence,
+			Reviewed:      c.Reviewed,
 			DiscoveredVia: via,
 		}
 
@@ -471,6 +469,28 @@ func (m *mapper) links() []canon.Link {
 	}
 
 	return links
+}
+
+// confidences are the values nsl-topology:confidence permits. A grade outside them
+// would fail validation, so it is dropped and reported rather than emitted.
+var confidences = map[string]bool{
+	"confirmed": true,
+	"candidate": true,
+	"weak":      true,
+}
+
+// confidence validates a persisted grade. Empty is legitimate and common: a link a
+// human specified by hand has no evidence to grade, because it states intent rather
+// than reporting an observation.
+func (m *mapper) confidence(c, where string) string {
+	if c == "" {
+		return ""
+	}
+	if !confidences[c] {
+		m.warnf("%s: confidence %q is not one of confirmed/candidate/weak; dropped", where, c)
+		return ""
+	}
+	return c
 }
 
 func (m *mapper) deviceIDByLabel(label string) (string, bool) {

@@ -62,6 +62,8 @@ func lab() Source {
 			{
 				ID: "c1", FromDevice: "sw1", FromModelPort: "P1", ToDevice: "sw2", ToModelPort: "P1",
 				DiscoveredVia: []string{"ssh-lldp@sw1:P1", "snmp-lldp@sw2:P1"},
+				Confidence:    "confirmed",
+				Reviewed:      true,
 			},
 		},
 	}
@@ -437,17 +439,58 @@ func TestEmptySourceProducesAValidEmptyDocument(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// A persisted connection is one an operator has already accepted into the
-// specification, so it is reported as reviewed. Confidence is absent because it is
-// never persisted: internal/topology grades each edge confirmed/candidate/weak during
-// a scan and the grade is discarded at import.
-func TestPersistedLinksAreReviewedAndCarryNoConfidence(t *testing.T) {
-	root, _ := FromEntities(lab())
+// The confidence grade and the review state now survive the round trip. They used to
+// be computed during a scan and DISCARDED at import, so a weak link and a confirmed one
+// were indistinguishable once in the database -- which made the confidence ladder, the
+// whole point of multi-source discovery, a per-scan curiosity.
+//
+// Both links of a connection carry the same evidence: it is one cable, and the fact
+// that RFC 8345 makes us describe it as two arrows does not make it two observations.
+func TestConfidenceAndReviewSurviveTheMapping(t *testing.T) {
+	src := lab()
+	src.Connections[0].Confidence = "weak"
+	src.Connections[0].Reviewed = false
+
+	root, warnings := FromEntities(src)
+	assert.Empty(t, warnings)
+
+	links := network(t, root).Links
+	require.Len(t, links, 2)
+	for _, l := range links {
+		assert.Equal(t, "weak", l.Confidence)
+		assert.False(t, l.Reviewed)
+	}
+}
+
+// A link a human specified by hand carries no confidence: there is no evidence to
+// grade, because it states intent rather than reporting an observation. It is reviewed
+// by definition -- someone said so.
+func TestHandSpecifiedLinkHasNoConfidence(t *testing.T) {
+	src := lab()
+	src.Connections[0].Confidence = ""
+	src.Connections[0].Reviewed = true
+	src.Connections[0].DiscoveredVia = nil
+
+	root, warnings := FromEntities(src)
+	assert.Empty(t, warnings)
 
 	for _, l := range network(t, root).Links {
-		assert.True(t, l.Reviewed)
 		assert.Empty(t, l.Confidence)
+		assert.True(t, l.Reviewed)
+		assert.Empty(t, l.DiscoveredVia)
 	}
+}
+
+// nsl-topology:confidence is an enumeration. A grade outside it would fail validation,
+// so it is dropped and reported rather than smuggled into the document.
+func TestUnknownConfidenceIsDropped(t *testing.T) {
+	src := lab()
+	src.Connections[0].Confidence = "pretty-sure"
+
+	root, warnings := FromEntities(src)
+
+	assert.Empty(t, network(t, root).Links[0].Confidence)
+	assert.True(t, hasWarning(warnings, `confidence "pretty-sure" is not one of`), "got: %v", warnings)
 }
 
 // MAC addresses are typed yang:mac-address in the schema, whose canonical form is
