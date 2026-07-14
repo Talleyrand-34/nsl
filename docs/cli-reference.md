@@ -2,6 +2,9 @@
 
 The `nsl-graph` command-line tool provides comprehensive network management capabilities. All commands operate on a **CloverDB** document store and support various output formats. See the [Glossary](glossary.md) for the terms used below.
 
+> Looking for **how-to** workflows rather than a flag list? See the
+> **[CLI Usage Guide](usage-cli.md)**.
+
 ## Basic Usage
 
 ```bash

@@ -66,7 +66,9 @@ go run main.go --help
 ## Documentation Structure
 
 - **[Glossary](glossary.md)**: Canonical terms used across code, CLI, and web UI
-- **[CLI Reference](cli-reference.md)**: Complete command-line interface documentation
+- **[CLI Usage Guide](usage-cli.md)**: Task-oriented walkthrough of the command line
+- **[Web UI Usage Guide](usage-webui.md)**: Task-oriented walkthrough of the web interface
+- **[CLI Reference](cli-reference.md)**: Complete command-line flag reference
 - **[Database Schema](database-schema.md)**: CloverDB document structure and relationships
 - **[Frontend API](frontend-api.md)**: PHP web interface and HTTP API endpoints
 - **[Development Guide](development-guide.md)**: Setup and development workflow
@@ -94,9 +96,9 @@ for precise definitions):
 ## Getting Started
 
 1. **[Set up your development environment](development-guide.md)**
-2. **[Understand the database schema](database-schema.md)**
-3. **[Learn the CLI commands](cli-reference.md)**
-4. **[Explore the web frontend](frontend-api.md)**
+2. **[Learn the CLI workflows](usage-cli.md)** (reference: [CLI Reference](cli-reference.md))
+3. **[Explore the web UI workflows](usage-webui.md)** (reference: [Frontend API](frontend-api.md))
+4. **[Understand the database schema](database-schema.md)**
 
 ## License
 
