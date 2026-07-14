@@ -141,6 +141,36 @@ type Connection struct {
 	Vlans          []ConnectionVlanInfo `json:"vlans,omitempty"`           // Intersection: VLANs present on BOTH ports
 	MissingVlans   []ConnectionVlanInfo `json:"missing_vlans,omitempty"`   // Symmetric difference: VLANs on ONLY ONE port (not both)
 	DiscoveredVia  []string             `json:"discovered_via,omitempty"`  // provenance: sources that observed this link (e.g. "ssh-lldp@opnsense:igc1")
+
+	// Confidence grades the evidence behind a DISCOVERED link:
+	//   confirmed — observed from both endpoints (bidirectional LLDP/CDP)
+	//   candidate — a single direct LLDP/CDP observation
+	//   weak      — forwarding-database corroboration only; the MAC may be behind an
+	//               intermediate device, so the link may not exist at all
+	// Empty for a link a human specified by hand: there is no evidence to grade,
+	// because it is not a claim about what was observed but a statement of intent.
+	//
+	// This was previously computed during a scan (internal/topology) and then DISCARDED
+	// at import, so the confidence ladder — the whole point of multi-source discovery —
+	// survived only for the lifetime of a single scan.
+	Confidence string `json:"confidence,omitempty"`
+
+	// Reviewed records that an operator has accepted this link into the specification.
+	// Hand-specified links are reviewed by definition. Discovered links are not, until
+	// someone says so — and a `weak` link may not be committed until they do.
+	Reviewed bool `json:"reviewed"`
+}
+
+// ConnectionEvidence is what is known about a link at the moment it is committed:
+// how strongly it was observed, by which sources, and whether a human has accepted it.
+//
+// A hand-specified link carries the zero value with Reviewed set: no confidence,
+// because there is no evidence to grade — it is a statement of intent, not a claim
+// about what was observed.
+type ConnectionEvidence struct {
+	Confidence    string   // "confirmed" | "candidate" | "weak"; empty when hand-specified
+	Reviewed      bool     // an operator has accepted this link into the specification
+	DiscoveredVia []string // e.g. "ssh-lldp@opnsense:igc1"
 }
 
 type Vlan struct {

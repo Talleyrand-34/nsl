@@ -153,6 +153,15 @@ type repository interface {
 		connectionType string,
 		discoveredVia ...string,
 	) error
+	// AddConnectionWithEvidence commits a DISCOVERED link, preserving the confidence
+	// grade and review state. AddConnection is the hand-specified case, which is
+	// reviewed by definition and carries no grade.
+	AddConnectionWithEvidence(
+		fromDeviceportID string,
+		toDeviceportID string,
+		connectionType string,
+		ev e.ConnectionEvidence,
+	) error
 	GetConnections() ([]e.Connection, error)
 	UpdateConnection(
 		connectionId string,

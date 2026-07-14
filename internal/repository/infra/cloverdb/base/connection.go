@@ -56,6 +56,18 @@ func (r BasicOpsCloverRepository) GetConnections() ([]e.Connection, error) {
 			}
 		}
 
+		// Evidence behind a discovered link. Absent on links written before this was
+		// persisted, and on hand-specified ones — both of which are already committed
+		// to the specification, so they read back as reviewed with no grade.
+		if conf, ok := doc.Get("confidence").(string); ok {
+			connection.Confidence = conf
+		}
+		if reviewed, ok := doc.Get("reviewed").(bool); ok {
+			connection.Reviewed = reviewed
+		} else {
+			connection.Reviewed = true
+		}
+
 		// Get from deviceport info
 		if fromDeviceportID, ok := doc.Get("from_deviceport_id").(string); ok && fromDeviceportID != "" {
 			deviceportDoc, err := r.db.FindById(deviceportsCollection, fromDeviceportID)
@@ -124,14 +136,32 @@ func (r BasicOpsCloverRepository) GetConnections() ([]e.Connection, error) {
 	return result, nil
 }
 
-// AddConnection creates a new connection between two device ports. Optional
-// discoveredVia strings record the provenance of an auto-discovered link.
+// AddConnection creates a connection a human specified by hand. It is reviewed by
+// definition: someone stated the intent. Optional discoveredVia strings record the
+// provenance when the caller has it but no confidence grade to attach.
 func (r BasicOpsCloverRepository) AddConnection(
 	fromDeviceportID string,
 	toDeviceportID string,
 	connectionType string,
 	discoveredVia ...string,
 ) error {
+	return r.AddConnectionWithEvidence(fromDeviceportID, toDeviceportID, connectionType,
+		e.ConnectionEvidence{Reviewed: true, DiscoveredVia: discoveredVia})
+}
+
+// AddConnectionWithEvidence creates a connection carrying the discovery evidence
+// behind it: the confidence grade, the sources that observed it, and whether an
+// operator has reviewed it.
+//
+// The confidence grade used to be computed during a scan and then dropped on the floor
+// here, so a `weak` link and a `confirmed` one were indistinguishable once committed.
+func (r BasicOpsCloverRepository) AddConnectionWithEvidence(
+	fromDeviceportID string,
+	toDeviceportID string,
+	connectionType string,
+	ev e.ConnectionEvidence,
+) error {
+	discoveredVia := ev.DiscoveredVia
 	// A connection must reference an existing connection type (strict: the data
 	// layer never silently drops an unresolved dependency).
 	if connectionType == "" {
@@ -177,6 +207,10 @@ func (r BasicOpsCloverRepository) AddConnection(
 	if len(discoveredVia) > 0 {
 		doc.Set("discovered_via", discoveredVia)
 	}
+	if ev.Confidence != "" {
+		doc.Set("confidence", ev.Confidence)
+	}
+	doc.Set("reviewed", ev.Reviewed)
 
 	if _, err := r.db.InsertOne(connectionsCollection, doc); err != nil {
 		return fmt.Errorf("failed to create connection: %v", err)
