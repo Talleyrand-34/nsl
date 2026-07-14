@@ -1,0 +1,44 @@
+{
+  "ietf-network:networks": {
+    "network": [
+      {
+        "network-id": "urn:nsl:net:dmz",
+        "network-types": {
+          "nsl-topology:nsl-topology": {}
+        },
+        "node": [
+          {
+            "node-id": "urn:nsl:device:sw1",
+            "ietf-network-topology:termination-point": [
+              { "tp-id": "urn:nsl:tp:sw1-p1" }
+            ]
+          },
+          {
+            "node-id": "urn:nsl:device:unknown",
+            "ietf-network-topology:termination-point": [
+              { "tp-id": "urn:nsl:tp:unknown-p1" }
+            ]
+          }
+        ],
+        "ietf-network-topology:link": [
+          {
+            "link-id": "urn:nsl:link:fdb-only",
+            "source": {
+              "source-node": "urn:nsl:device:sw1",
+              "source-tp": "urn:nsl:tp:sw1-p1"
+            },
+            "destination": {
+              "dest-node": "urn:nsl:device:unknown",
+              "dest-tp": "urn:nsl:tp:unknown-p1"
+            },
+            "nsl-topology:confidence": "weak",
+            "nsl-topology:reviewed": false,
+            "nsl-topology:discovered-via": [
+              { "source": "snmp-fdb", "observed-on": "sw1:P1" }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

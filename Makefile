@@ -114,7 +114,38 @@ vet: ## Run go vet
 	@echo "Running go vet..."
 	go vet ./...
 
-check: fmt vet lint ## Run all code quality checks
+check: fmt vet lint yang-validate ## Run all code quality checks
+
+## YANG schema
+# Order matters: a module must be listed after the modules it augments, or
+# libyang treats the augmented module as merely imported and silently SKIPS the
+# "when" checks that gate our augments.
+YANG_DIR   := internal/yang/modules
+YANG_DATA  := internal/yang/testdata
+YANG_MODS  := $(YANG_DIR)/ietf-network.yang $(YANG_DIR)/ietf-network-topology.yang \
+              $(YANG_DIR)/ietf-l2-topology.yang $(YANG_DIR)/nsl-topology.yang \
+              $(YANG_DIR)/nsl-inventory.yang
+YANG_ALL   := $(YANG_MODS) $(YANG_DIR)/ietf-interfaces.yang $(YANG_DIR)/ietf-ip.yang \
+              $(YANG_DIR)/ieee802-dot1q-bridge.yang
+
+yang-validate: ## Validate the YANG modules and their instance fixtures (requires yanglint)
+	@if ! command -v yanglint > /dev/null; then \
+		echo "yanglint not found. Install with: sudo apt install libyang3-tools"; \
+		exit 1; \
+	fi
+	@echo "==> Schema: all modules parse and augments resolve"
+	@yanglint -p $(YANG_DIR) $(YANG_ALL)
+	@echo "==> Instance: sample-topology.json must PASS"
+	@yanglint -t config -p $(YANG_DIR) $(YANG_MODS) $(YANG_DATA)/sample-topology.json
+	@echo "==> Instance: invalid-weak-unreviewed.json must FAIL (the 'must' constraint)"
+	@if yanglint -t config -p $(YANG_DIR) $(YANG_MODS) \
+	      $(YANG_DATA)/invalid-weak-unreviewed.json 2>/dev/null; then \
+		echo "FAIL: a weak, unreviewed link was ACCEPTED — the 'must' constraint is not working."; \
+		exit 1; \
+	else \
+		echo "    correctly rejected"; \
+	fi
+	@echo "YANG validation passed."
 
 ## Dependency management
 deps-update: ## Update Go dependencies

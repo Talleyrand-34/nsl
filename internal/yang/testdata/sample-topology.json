@@ -1,0 +1,143 @@
+{
+  "nsl-inventory:inventory": {
+    "brand": [
+      { "name": "Siemens" },
+      { "name": "OPNsense" }
+    ],
+    "model-type": [
+      { "name": "Switch" },
+      { "name": "Firewall" }
+    ],
+    "os-type": [
+      { "name": "opnsense-xml" }
+    ],
+    "owner": [
+      { "name": "IT" }
+    ],
+    "zone-type": [
+      { "name": "Security" }
+    ],
+    "model": [
+      {
+        "id": "model-xc206",
+        "name": "XC206",
+        "brand": "Siemens",
+        "model-type": "Switch",
+        "model-port": [
+          { "id": "mp-xc206-p1", "name": "P1", "position-x": 0, "position-y": 0, "port-type": "ethernet" },
+          { "id": "mp-xc206-p2", "name": "P2", "position-x": 1, "position-y": 0, "port-type": "ethernet" }
+        ]
+      },
+      {
+        "id": "model-dec740",
+        "name": "DEC740",
+        "brand": "OPNsense",
+        "model-type": "Firewall",
+        "os-type": "opnsense-xml",
+        "model-port": [
+          { "id": "mp-dec740-igc1", "name": "igc1", "position-x": 0, "position-y": 0, "port-type": "ethernet" }
+        ]
+      }
+    ]
+  },
+
+  "ietf-network:networks": {
+    "network": [
+      {
+        "network-id": "urn:nsl:net:dmz",
+        "network-types": {
+          "ietf-l2-topology:l2-topology": {},
+          "nsl-topology:nsl-topology": {}
+        },
+        "nsl-inventory:zone-type": "Security",
+        "nsl-inventory:owner": "IT",
+
+        "node": [
+          {
+            "node-id": "urn:nsl:device:sw1",
+            "nsl-inventory:model": "model-xc206",
+            "nsl-inventory:owner": "IT",
+            "nsl-topology:unmanaged": false,
+            "nsl-topology:scan-profile": "lab-snmp",
+            "ietf-l2-topology:l2-node-attributes": {
+              "name": "sw1",
+              "management-address": ["10.0.2.20"]
+            },
+            "ietf-network-topology:termination-point": [
+              {
+                "tp-id": "urn:nsl:tp:sw1-p1",
+                "ietf-l2-topology:l2-termination-point-attributes": {
+                  "interface-name": "P1",
+                  "mac-address": "00:1b:1b:00:00:01"
+                },
+                "nsl-topology:model-port": "mp-xc206-p1",
+                "nsl-topology:vlan-membership": [
+                  { "vlan-id": 10, "tagged": false },
+                  { "vlan-id": 20, "tagged": true }
+                ]
+              }
+            ]
+          },
+          {
+            "node-id": "urn:nsl:device:fw1",
+            "nsl-inventory:model": "model-dec740",
+            "ietf-l2-topology:l2-node-attributes": {
+              "name": "opnsense",
+              "management-address": ["10.0.2.1"]
+            },
+            "ietf-network-topology:termination-point": [
+              {
+                "tp-id": "urn:nsl:tp:fw1-igc1",
+                "ietf-l2-topology:l2-termination-point-attributes": {
+                  "interface-name": "igc1",
+                  "mac-address": "00:1b:1b:00:00:02"
+                },
+                "nsl-topology:model-port": "mp-dec740-igc1",
+                "nsl-topology:vlan-membership": [
+                  { "vlan-id": 20, "tagged": true }
+                ]
+              }
+            ]
+          }
+        ],
+
+        "ietf-network-topology:link": [
+          {
+            "link-id": "urn:nsl:link:sw1-p1_fw1-igc1",
+            "source": {
+              "source-node": "urn:nsl:device:sw1",
+              "source-tp": "urn:nsl:tp:sw1-p1"
+            },
+            "destination": {
+              "dest-node": "urn:nsl:device:fw1",
+              "dest-tp": "urn:nsl:tp:fw1-igc1"
+            },
+            "nsl-topology:confidence": "confirmed",
+            "nsl-topology:reviewed": true,
+            "nsl-topology:discovered-via": [
+              { "source": "ssh-lldp", "observed-on": "opnsense:igc1" },
+              { "source": "snmp-lldp", "observed-on": "sw1:P1" }
+            ]
+          },
+          {
+            "link-id": "urn:nsl:link:fw1-igc1_sw1-p1",
+            "source": {
+              "source-node": "urn:nsl:device:fw1",
+              "source-tp": "urn:nsl:tp:fw1-igc1"
+            },
+            "destination": {
+              "dest-node": "urn:nsl:device:sw1",
+              "dest-tp": "urn:nsl:tp:sw1-p1"
+            },
+            "nsl-topology:confidence": "confirmed",
+            "nsl-topology:reviewed": true,
+            "nsl-topology:discovered-via": [
+              { "source": "ssh-lldp", "observed-on": "opnsense:igc1" },
+              { "source": "snmp-lldp", "observed-on": "sw1:P1" }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
