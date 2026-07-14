@@ -63,7 +63,7 @@ func Execute() {
 
 func init() {
 	RootCmd.PersistentFlags().
-		StringVarP(&Srcdbpath, "source", "s", "test.db", "database file or directory path")
+		StringVarP(&Srcdbpath, "source", "s", "test-dbs/test.db", "database file or directory path")
 	RootCmd.PersistentFlags().
 		StringVarP(&Backend, "backend", "b", "cloverdb", "database backend type (cloverdb)")
 	RootCmd.PersistentFlags().

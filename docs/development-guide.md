@@ -40,7 +40,7 @@ go build -o nsl-graph main.go
 go run main.go add brand --name "TestBrand"
 
 # Verify database creation
-ls -la test.db
+ls -la test-dbs/test.db
 ```
 
 ### 3. Start Development Services
@@ -285,7 +285,7 @@ GOOS=windows GOARCH=amd64 go build -o nsl-graph-windows-amd64.exe main.go
 ```
 
 ### Database Debugging
-CloverDB stores its data as files in the database directory (default `test.db/`),
+CloverDB stores its data as files in the database directory (default `test-dbs/test.db/`),
 not a SQL database — inspect data through the API or CLI instead:
 ```bash
 # Inspect via the running API
@@ -358,7 +358,7 @@ go mod tidy
 ### Database Issues
 ```bash
 # Reset database
-rm test.db
+rm test-dbs/test.db
 go run main.go add brand --name "FirstBrand"
 ```
 

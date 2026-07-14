@@ -4,13 +4,13 @@
 # and relaunches, so you always run the latest binary.
 #
 # Usage:   ./scripts/run-server.sh [db]
-#   db         database dir/file (default: test.db; or set DB=...)
+#   db         database dir/file (default: test-dbs/test.db; or set DB=...)
 #   API_PORT   API server port   (default: 8081)
 #   WEB_PORT   PHP frontend port (default: 8091)
 
 cd "$(dirname "$0")/.." || exit 1
 
-DB="${1:-${DB:-test.db}}"
+DB="${1:-${DB:-test-dbs/test.db}}"
 API_PORT="${API_PORT:-8081}"
 WEB_PORT="${WEB_PORT:-8091}"
 

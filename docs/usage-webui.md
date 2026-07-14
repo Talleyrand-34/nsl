@@ -20,7 +20,7 @@ The web UI is a thin PHP frontend that calls the Go HTTP API. Start both:
 
 ```bash
 # 1. API server (reads/writes the CloverDB store)
-nsl-graph server --port 8081 -s demo.db
+nsl-graph server --port 8081 -s test-dbs/demo.db
 
 # 2. PHP frontend (talks to the API)
 php -S localhost:8091 -t frontend/php

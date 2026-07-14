@@ -40,7 +40,7 @@
 
 set -e
 
-DB="${1:-demo.db}"
+DB="${1:-test-dbs/demo.db}"
 NSL="./nsl-graph"
 
 echo "==> Creating demo network in database: $DB"

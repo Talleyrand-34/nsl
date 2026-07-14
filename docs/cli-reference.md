@@ -21,7 +21,7 @@ These flags are available for all commands:
 
 | Flag | Short | Type | Default | Description |
 |------|-------|------|---------|-------------|
-| `--source` | `-s` | string | `test.db` | CloverDB store path (a directory) |
+| `--source` | `-s` | string | `test-dbs/test.db` | CloverDB store path (a directory) |
 | `--backend` | `-b` | string | `cloverdb` | Database backend (only `cloverdb`) |
 | `--config-file` | `-c` | string | | Configuration file path |
 | `--outPath` | | string | `out/` | Output directory for generated files |
@@ -319,17 +319,17 @@ Port-focused diagram (lists all ports per device). Same flags as `connection`.
 **Examples:**
 ```bash
 # Plain connection diagram
-nsl-graph diagram connection -s demo.db
+nsl-graph diagram connection -s test-dbs/demo.db
 
 # VLAN-colored, every shared VLAN as a separate line per trunk link
-nsl-graph diagram connection --vlan --vlan-scope all -s demo.db
+nsl-graph diagram connection --vlan --vlan-scope all -s test-dbs/demo.db
 
 # Port diagram, color port nodes only
-nsl-graph diagram port --vlan --color-target ports -s demo.db
+nsl-graph diagram port --vlan --color-target ports -s test-dbs/demo.db
 
 # ASCII art straight to the terminal (also writes out/out.txt)
-nsl-graph diagram connection --ascii -s demo.db
-nsl-graph diagram connection --ascii --charset ascii -s demo.db
+nsl-graph diagram connection --ascii -s test-dbs/demo.db
+nsl-graph diagram connection --ascii --charset ascii -s test-dbs/demo.db
 ```
 
 ### scan
@@ -571,7 +571,7 @@ nsl-graph print connection
 ## Database Files
 
 The tool uses a **CloverDB** document store (a directory of data files):
-- **Default**: `test.db/` (created automatically on first use)
+- **Default**: `test-dbs/test.db/` (created automatically on first use)
 - **Custom**: Specify with `-s` / `--source`
 - **Location**: Current working directory or an absolute path
 

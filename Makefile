@@ -6,7 +6,7 @@ MAIN_FILE=main.go
 BUILD_DIR=bin
 API_PORT=8081
 PHP_PORT=8091
-DB_FILE=test.db
+DB_FILE=test-dbs/test.db
 
 # Go build flags
 LDFLAGS=-ldflags "-s -w"

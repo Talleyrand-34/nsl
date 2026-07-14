@@ -31,14 +31,14 @@ Global flags apply to every command:
 
 | Flag | Default | Meaning |
 |------|---------|---------|
-| `-s, --source <path>` | `test.db` | CloverDB store (a directory). Created on first use. |
+| `-s, --source <path>` | `test-dbs/test.db` | CloverDB store (a directory). Created on first use. |
 | `-b, --backend <type>` | `cloverdb` | Storage backend. |
 | `-d, --debug` | `false` | Verbose debug output. |
 | `-v, --verbose` | `false` | More console output. |
 | `--outPath` / `--outFile` / `--outImage` | `out/` / `out.d2` / `out.svg` | Diagram output locations (see [§7](#7-diagrams-svg--ascii)). |
 
 Every command operates on the store given by `-s`. Point it at whichever store
-you want — `./nsl-graph print device -s demo.db`.
+you want — `./nsl-graph print device -s test-dbs/demo.db`.
 
 The command tree mirrors the data model:
 
@@ -87,9 +87,9 @@ Most `add`/`update` commands take their fields as flags (use `--help` to see
 them). Names are generally accepted where IDs are; print first if unsure:
 
 ```bash
-nsl-graph add brand --name Cisco -s demo.db
-nsl-graph print brand -s demo.db          # JSON list with ids
-nsl-graph delete brand Cisco -s demo.db
+nsl-graph add brand --name Cisco -s test-dbs/demo.db
+nsl-graph print brand -s test-dbs/demo.db          # JSON list with ids
+nsl-graph delete brand Cisco -s test-dbs/demo.db
 ```
 
 ---
@@ -97,10 +97,10 @@ nsl-graph delete brand Cisco -s demo.db
 ## 3. Building a topology from scratch
 
 Create the catalogue entities first, then the model, then device instances,
-then wire them up. A minimal end-to-end example (all against `demo.db`):
+then wire them up. A minimal end-to-end example (all against `test-dbs/demo.db`):
 
 ```bash
-S="-s demo.db"
+S="-s test-dbs/demo.db"
 
 # 1. Catalogue
 nsl-graph add brand     --name OpenWrt-Brand $S
@@ -151,13 +151,13 @@ workflow:
 ```bash
 # 1. Scan → emit an editable plan
 nsl-graph scan run --method ssh --target 10.0.2.0/24 \
-                   --profile owrt --os-type openwrt -s demo.db > plan.json
+                   --profile owrt --os-type openwrt -s test-dbs/demo.db > plan.json
 
 # 2. Edit the plan: fix VLAN ids, subnets, suggested names/zones
 $EDITOR plan.json
 
 # 3. Import the edited plan
-nsl-graph scan import plan.json -s demo.db
+nsl-graph scan import plan.json -s test-dbs/demo.db
 ```
 
 A plan entry looks like:
@@ -192,16 +192,16 @@ or comma/space-separated list is a batch).
 
 ```bash
 # SNMP single host → plan on stdout
-nsl-graph scan run 10.0.2.245 -s demo.db > plan.json
+nsl-graph scan run 10.0.2.245 -s test-dbs/demo.db > plan.json
 
 # SNMP subnet sweep
-nsl-graph scan run --method snmp --target 10.0.2.0/24 --community public -s demo.db > plan.json
+nsl-graph scan run --method snmp --target 10.0.2.0/24 --community public -s test-dbs/demo.db > plan.json
 
 # SSH (needs a profile for credentials + an os-type)
-nsl-graph scan run --method ssh --target 10.0.2.0/24 --profile owrt --os-type openwrt -s demo.db > plan.json
+nsl-graph scan run --method ssh --target 10.0.2.0/24 --profile owrt --os-type openwrt -s test-dbs/demo.db > plan.json
 
 # Human summary + interactive import (no JSON)
-nsl-graph scan run 10.0.2.245 -H -s demo.db
+nsl-graph scan run 10.0.2.245 -H -s test-dbs/demo.db
 ```
 
 ### `scan host` / `scan network`
@@ -212,12 +212,12 @@ the interactive summary, `--raw` for the legacy `ScanResult`, `--auto-import` to
 import directly.
 
 ```bash
-nsl-graph scan host 10.0.2.1 -s demo.db > plan.json     # plan (default)
-nsl-graph scan host 10.0.2.1 -H -s demo.db              # human + review
-nsl-graph scan host 10.0.2.1 --raw -o host.json -s demo.db   # raw ScanResult to a file
-nsl-graph scan host opnsense --scan-source ssh --auto-import -s demo.db  # SSH via alias, import now
+nsl-graph scan host 10.0.2.1 -s test-dbs/demo.db > plan.json     # plan (default)
+nsl-graph scan host 10.0.2.1 -H -s test-dbs/demo.db              # human + review
+nsl-graph scan host 10.0.2.1 --raw -o host.json -s test-dbs/demo.db   # raw ScanResult to a file
+nsl-graph scan host opnsense --scan-source ssh --auto-import -s test-dbs/demo.db  # SSH via alias, import now
 
-nsl-graph scan network 10.0.0.0/24 10.0.1.0/24 -s demo.db > plan.json
+nsl-graph scan network 10.0.0.0/24 10.0.1.0/24 -s test-dbs/demo.db > plan.json
 ```
 
 > **Behaviour change:** `scan host`/`scan network` used to print a human summary
@@ -234,9 +234,9 @@ Auto-detects the input shape:
   discovered, analyzed, then imported (`--auto-import`/`--review`).
 
 ```bash
-nsl-graph scan import plan.json -s demo.db          # execute edited plan
-nsl-graph scan import plan.json -H -s demo.db       # review each device first
-nsl-graph scan import host.json --auto-import -s demo.db   # raw ScanResult
+nsl-graph scan import plan.json -s test-dbs/demo.db          # execute edited plan
+nsl-graph scan import plan.json -H -s test-dbs/demo.db       # review each device first
+nsl-graph scan import host.json --auto-import -s test-dbs/demo.db   # raw ScanResult
 ```
 
 ---
@@ -251,11 +251,11 @@ SSH user/key/password, os-type…) so you enter them once. There are two kinds:
   fallback (e.g. `--generic-profile <name>` / `--profile` for `scan run`).
 
 ```bash
-nsl-graph scan profile add owrt --host 10.0.2.1 --ssh-user root --os-type openwrt --scan-source ssh -s demo.db
-nsl-graph scan profile add lab-creds --generic --ssh-user admin --ssh-key ~/.ssh/lab -s demo.db
-nsl-graph scan profile list   -s demo.db    # KIND column = device / generic
-nsl-graph scan profile show   owrt -s demo.db   # SSH password is never printed
-nsl-graph scan profile delete owrt -s demo.db
+nsl-graph scan profile add owrt --host 10.0.2.1 --ssh-user root --os-type openwrt --scan-source ssh -s test-dbs/demo.db
+nsl-graph scan profile add lab-creds --generic --ssh-user admin --ssh-key ~/.ssh/lab -s test-dbs/demo.db
+nsl-graph scan profile list   -s test-dbs/demo.db    # KIND column = device / generic
+nsl-graph scan profile show   owrt -s test-dbs/demo.db   # SSH password is never printed
+nsl-graph scan profile delete owrt -s test-dbs/demo.db
 ```
 
 When a profile carries an SSH **password**, it is encrypted by the **credential
@@ -281,16 +281,16 @@ for the readable summary + interactive review.
 
 ```bash
 # Every DB device with a mgmt IP and a resolvable profile (the default target)
-nsl-graph scan connections --from-db -s demo.db
+nsl-graph scan connections --from-db -s test-dbs/demo.db
 
 # Sweep a CIDR, collect from responders, commit without prompting
-nsl-graph scan connections --subnet 10.0.0.0/24 --community public --yes -s demo.db
+nsl-graph scan connections --subnet 10.0.0.0/24 --community public --yes -s test-dbs/demo.db
 
 # One source only, don't write to the DB, save the gather
-nsl-graph scan connections --collector ssh-lldp --dry-run --output gather.json -s demo.db
+nsl-graph scan connections --collector ssh-lldp --dry-run --output gather.json -s test-dbs/demo.db
 
 # Human review
-nsl-graph scan connections --from-db -H -s demo.db
+nsl-graph scan connections --from-db -H -s test-dbs/demo.db
 ```
 
 Targets (`--from-db`, `--subnet`, `--profiles`) combine freely; sources default
@@ -308,9 +308,9 @@ Render the stored topology as a [d2](https://d2lang.com) diagram. Two focuses �
 
 ```bash
 # SVG (default) → out/out.d2 + out/out.svg
-nsl-graph diagram connection -s demo.db
-nsl-graph diagram port --vlan --color-target ports -s demo.db
-nsl-graph diagram connection --vlan --vlan-scope all -s demo.db
+nsl-graph diagram connection -s test-dbs/demo.db
+nsl-graph diagram port --vlan --color-target ports -s test-dbs/demo.db
+nsl-graph diagram connection --vlan --vlan-scope all -s test-dbs/demo.db
 ```
 
 ### ASCII output
@@ -322,8 +322,8 @@ to a `.txt` file next to the `.d2` source. `--charset` chooses `unicode`
 diagram subcommand.
 
 ```bash
-nsl-graph diagram connection --ascii -s demo.db                 # to terminal + out/out.txt
-nsl-graph diagram connection --ascii --charset ascii -s demo.db # plain ASCII
+nsl-graph diagram connection --ascii -s test-dbs/demo.db                 # to terminal + out/out.txt
+nsl-graph diagram connection --ascii --charset ascii -s test-dbs/demo.db # plain ASCII
 ```
 
 ```
@@ -341,10 +341,10 @@ flags (the ASCII `.txt` filename is derived from `--outImage`, e.g. `out.svg →
 
 ```bash
 # Dump the entire store as JSON
-nsl-graph export json -s demo.db > backup.json
+nsl-graph export json -s test-dbs/demo.db > backup.json
 
 # Network summary (counts / detail)
-nsl-graph print summary -s demo.db
+nsl-graph print summary -s test-dbs/demo.db
 
 # Compare an SNMP scan against an SSH scan of the same host
 nsl-graph compare --help
@@ -357,7 +357,7 @@ nsl-graph compare --help
 The web UI talks to a Go HTTP API. Start it with:
 
 ```bash
-nsl-graph server --port 8081 -s demo.db
+nsl-graph server --port 8081 -s test-dbs/demo.db
 ```
 
 Then serve the PHP frontend against it (see the **[Web UI Usage
