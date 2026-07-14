@@ -42,6 +42,8 @@ the coloring.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		vals := util.Flagproc(cmd, []string{"outPath", "outFile", "outImage"})
 		op, of, oi := vals[0], vals[1], vals[2]
+		ascii, _ := cmd.Flags().GetBool("ascii")
+		unicode := mustCharsetUnicode(cmd)
 		service, err := util.ServiceConnection()
 		if err != nil {
 			return
@@ -61,7 +63,7 @@ the coloring.`,
 		} else {
 			d2diagram = format.GenerateD2FocusPorts(devices, connections, zones, devicePorts, allInterfaces, ifacePorts, false, diagramPortAllPorts)
 		}
-		format.WriteDiagram(d2diagram, op, of, oi)
+		format.WriteDiagram(d2diagram, op, of, oi, ascii, unicode)
 	},
 }
 

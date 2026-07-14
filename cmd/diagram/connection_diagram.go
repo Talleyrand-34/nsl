@@ -42,6 +42,8 @@ tune the coloring.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		vals := util.Flagproc(cmd, []string{"outPath", "outFile", "outImage"})
 		op, of, oi := vals[0], vals[1], vals[2]
+		ascii, _ := cmd.Flags().GetBool("ascii")
+		unicode := mustCharsetUnicode(cmd)
 		service, err := util.ServiceConnection()
 		if err != nil {
 			return
@@ -61,8 +63,15 @@ tune the coloring.`,
 		} else {
 			d2diagram = format.GenerateD2FocusConnections(devices, connections, zones, devicePorts, allInterfaces, ifacePorts, false, diagramConnectionAllPorts)
 		}
-		format.WriteDiagram(d2diagram, op, of, oi)
+		format.WriteDiagram(d2diagram, op, of, oi, ascii, unicode)
 	},
+}
+
+// mustCharsetUnicode reads the shared --charset flag and reports whether the
+// unicode (box-drawing) charset was requested. Unknown values default to unicode.
+func mustCharsetUnicode(c *cobra.Command) bool {
+	cs, _ := c.Flags().GetString("charset")
+	return cs != "ascii"
 }
 
 func init() {

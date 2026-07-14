@@ -28,7 +28,12 @@ import (
 var DiagramCmd = &cobra.Command{
 	Use:   "diagram",
 	Short: "Generate a network diagram",
-	Long:  `Generate a D2/SVG network diagram. Use a subcommand to choose the focus: "connection" or "port" (add --vlan for VLAN coloring).`,
+	Long: `Generate a network diagram. Use a subcommand to choose the focus:
+"connection" or "port" (add --vlan for VLAN coloring).
+
+By default an SVG is rendered. With --ascii the same diagram is rendered as
+ASCII art: it is printed to stdout and also written to a .txt file alongside the
+.d2 source. Use --charset ascii for plain characters instead of box-drawing.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
@@ -39,12 +44,7 @@ var DiagramCmd = &cobra.Command{
 
 func init() {
 	cmd.RootCmd.AddCommand(DiagramCmd)
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
-
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.modtest.yaml)")
-
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
+	// Persistent flags shared by all diagram subcommands.
+	DiagramCmd.PersistentFlags().Bool("ascii", false, "Render ASCII art (printed to stdout and written to a .txt file) instead of SVG")
+	DiagramCmd.PersistentFlags().String("charset", "unicode", "ASCII charset when --ascii is set: 'unicode' (box-drawing) or 'ascii' (plain + - |)")
 }

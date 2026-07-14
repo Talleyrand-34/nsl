@@ -283,6 +283,12 @@ Generate network diagrams. Output files default to `out/out.d2` and `out/out.svg
 There are two focuses — `connection` and `port` — each with an optional `--vlan`
 mode for VLAN coloring.
 
+By default an **SVG** is rendered. Pass `--ascii` to render the same diagram as
+**ASCII art** instead (using d2's in-process ASCII renderer): the art is printed
+to stdout and also written to a `.txt` file alongside the `.d2` source (e.g.
+`out/out.txt`). `--charset` selects `unicode` (box-drawing, the default) or
+`ascii` (plain `+ - |`). Both flags are shared by every diagram subcommand.
+
 #### diagram connection
 ```bash
 nsl-graph diagram connection [--all-ports] [--vlan [--vlan-scope <s>] [--color-target <t>]]
@@ -304,6 +310,8 @@ Port-focused diagram (lists all ports per device). Same flags as `connection`.
 | `--vlan` | `false` | Color by VLAN and add a legend. |
 | `--vlan-scope` | `untagged` | With `--vlan`: `untagged` (one line per link, colored by the source port's untagged VLAN) or `all` (one colored line per VLAN in the **intersection** of both port ends). |
 | `--color-target` | `both` | With `--vlan`: `both` (connections + port nodes), `connections` (port nodes plain), or `ports` (connection lines plain). |
+| `--ascii` | `false` | Render ASCII art (printed to stdout and written to `out/out.txt`) instead of SVG. |
+| `--charset` | `unicode` | With `--ascii`: `unicode` (box-drawing) or `ascii` (plain `+ - \|`). |
 
 **Examples:**
 ```bash
@@ -315,6 +323,10 @@ nsl-graph diagram connection --vlan --vlan-scope all -s demo.db
 
 # Port diagram, color port nodes only
 nsl-graph diagram port --vlan --color-target ports -s demo.db
+
+# ASCII art straight to the terminal (also writes out/out.txt)
+nsl-graph diagram connection --ascii -s demo.db
+nsl-graph diagram connection --ascii --charset ascii -s demo.db
 ```
 
 ### scan
