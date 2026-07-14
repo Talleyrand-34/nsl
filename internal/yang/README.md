@@ -125,9 +125,25 @@ Not hypothetical. Each of these is exercised by a fixture in `testdata/` and enf
 | Today in Go | In the schema |
 |---|---|
 | `Vlan.VlanID` is a **`string`** — `"4999"` and `"eth0"` are storable | `dot1q-types:vlanid` — `uint16`, range `1..4094`. Rejected. |
-| `Connection.FromDevice` is a device **name**, a bare string — a rename orphans it silently | a **`leafref`**. A dangling reference is a validation error, not a support ticket. |
+| `Device.Model` is a model **name**, a bare string — a rename orphans it silently | a **`leafref`**. A dangling reference is a validation error, not a support ticket. |
 | The weak-link import rule lives in one Go function | a **`must`**, enforced for every interface at once |
 | `DevicePort.MacAddress`, `Device.Ips` are strings | `yang:mac-address`, `inet:ip-address` |
+
+#### One limit, so it isn't over-claimed
+
+The leafrefs into `nsl-inventory` (model, owner, zone, brand, os-type, zone-type,
+parent zone) **do** enforce referential integrity — a dangling one fails validation.
+
+**Link endpoints do not.** RFC 8345 sets `require-instance false` on all four of
+`source-node` / `source-tp` / `dest-node` / `dest-tp`
+(`ietf-network-topology.yang:161-198`), deliberately: a topology may reference nodes it
+does not itself hold — one in an underlay layer, say. So a link pointing at a device
+that does not exist **validates**.
+
+The guard there is the *mapper's*, not the schema's: `FromEntities` resolves both
+endpoints and drops the connection with a warning if either fails. `TestSchemaAllows
+DanglingLinkEndpoint_ByDesign` pins this, so nobody later "fixes" a failing validation
+by weakening the mapper's check in the belief that the schema is backing them up.
 
 ## Exporting
 
