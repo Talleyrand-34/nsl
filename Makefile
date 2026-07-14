@@ -147,6 +147,27 @@ yang-validate: ## Validate the YANG modules and their instance fixtures (require
 	fi
 	@echo "YANG validation passed."
 
+# Validate a real export, not just the fixtures. This is the claim that matters:
+# not "the modules parse" but "what this tool actually emits conforms to RFC 8345".
+# DB is not in the repo (test-dbs/ is gitignored), so this is a separate target and
+# skips cleanly when the database is absent.
+YANG_DB ?= test-dbs/real.db
+
+yang-validate-export: build ## Export a DB as YANG JSON and validate it (usage: make yang-validate-export YANG_DB=test-dbs/real.db)
+	@if [ ! -d "$(YANG_DB)" ]; then \
+		echo "skip: database $(YANG_DB) not found (set YANG_DB=...)"; \
+		exit 0; \
+	fi
+	@if ! command -v yanglint > /dev/null; then \
+		echo "yanglint not found. Install with: sudo apt install libyang3-tools"; \
+		exit 1; \
+	fi
+	@echo "==> Exporting $(YANG_DB) as RFC 7951 JSON"
+	@./bin/nsl-graph export yang -s "$(YANG_DB)" > /tmp/nsl-yang-export.json
+	@echo "==> Validating the export against the modules"
+	@yanglint -t config -p $(YANG_DIR) $(YANG_MODS) /tmp/nsl-yang-export.json
+	@echo "The export conforms to RFC 8345 / RFC 8944 / IEEE 802.1Q."
+
 ## Dependency management
 deps-update: ## Update Go dependencies
 	@echo "Updating dependencies..."

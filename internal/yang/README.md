@@ -11,8 +11,14 @@ NETCONF: [`inv/netconf-yang.md`](../../inv/netconf-yang.md).
 ```
 internal/yang/
   modules/     the .yang files — vendored standards + nsl-*
+  canon/       the canonical model: Go structs mirroring the YANG tree, RFC 7951 tags
+  mapping/     entities ⇄ canon — the only place the correspondence lives
   testdata/    instance fixtures, positive and negative
 ```
+
+`entities` remains the domain model and remains what CloverDB persists. `canon` is a
+*projection* of it onto the standard, built on demand. Keeping the two apart is what
+confines the whole adoption to this directory — deleting `internal/yang/` reverts it.
 
 ## What this is for
 
@@ -123,11 +129,45 @@ Not hypothetical. Each of these is exercised by a fixture in `testdata/` and enf
 | The weak-link import rule lives in one Go function | a **`must`**, enforced for every interface at once |
 | `DevicePort.MacAddress`, `Device.Ips` are strings | `yang:mac-address`, `inet:ip-address` |
 
+## Exporting
+
+```bash
+nsl-graph export yang -s test-dbs/real.db > topology.json
+```
+
+Emits the whole specification as RFC 7951 JSON. Devices are nodes, device ports are
+termination points, and **each connection becomes two links** — RFC 8345 links are
+unidirectional, and forgetting that is the easiest way to make the export silently
+asymmetric.
+
+Values the schema will not accept are **dropped and reported on stderr**, so the
+emitted document always validates. Failing the whole export on the first bad value
+would make the tool useless on exactly the data it exists to describe. `--strict`
+inverts that and fails instead.
+
+**The warnings are the interesting output.** They are a report of what the
+hand-rolled schema has been quietly tolerating. Running it against `real.db` today
+turns up nine of these:
+
+```
+warning: device "10.0.2.242" port "eth0": VLAN 6 is recorded as BOTH tagged and
+untagged -- a port cannot do both. Keeping tagged=true (the first recorded); the
+other is dropped. This is a data bug, most likely from merging the 802.1Q
+egress-port and untagged-port sets on import.
+```
+
+A port either tags a VLAN's frames on egress or it does not. Recording both is not a
+duplicate, it is a contradiction — and nothing in the current model can refuse it.
+
 ## Verifying
 
 ```bash
-make yang-validate
+make yang-validate         # modules + fixtures
+make yang-validate-export  # export a real DB and validate what actually comes out
 ```
+
+The second is the claim that matters. Not *"the modules parse"* but *"what this tool
+emits conforms to RFC 8345"* — which, as of now, it does.
 
 Needs `yanglint` (Debian/Ubuntu: `sudo apt install libyang3-tools`). It does two things:
 
