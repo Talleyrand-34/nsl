@@ -18,11 +18,12 @@ package main
 
 import (
 	"nsl-graph/cmd"
+	_ "nsl-graph/cmd/add"
 	_ "nsl-graph/cmd/compare"
 	_ "nsl-graph/cmd/delete"
 	_ "nsl-graph/cmd/diagram"
+	_ "nsl-graph/cmd/diff"
 	_ "nsl-graph/cmd/export"
-	_ "nsl-graph/cmd/add"
 	_ "nsl-graph/cmd/print"
 	_ "nsl-graph/cmd/root"
 	_ "nsl-graph/cmd/scan"

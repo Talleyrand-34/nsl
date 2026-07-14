@@ -22,8 +22,6 @@ package application
 import (
 	"encoding/json"
 	"fmt"
-
-	"nsl-graph/internal/yang/mapping"
 )
 
 // ExportYANG renders the whole specification as RFC 7951 JSON, valid against
@@ -42,32 +40,12 @@ import (
 // no longer resolve against CloverDB's string IDs. Composing the resolved getters
 // instead costs one more call each and loses nothing.
 func (ns *NetService) ExportYANG() ([]byte, []string, error) {
-	src := mapping.Source{}
-
-	// Each getter is fatal: a partial export would silently produce a document that
-	// validates but describes a network that does not exist.
-	for _, load := range []struct {
-		what string
-		fn   func() error
-	}{
-		{"brands", func() (err error) { src.Brands, err = ns.GetBrands(); return }},
-		{"model types", func() (err error) { src.ModelTypes, err = ns.GetModelTypes(); return }},
-		{"os types", func() (err error) { src.OsTypes, err = ns.GetOsTypes(); return }},
-		{"owners", func() (err error) { src.Owners, err = ns.GetOwners(); return }},
-		{"zone types", func() (err error) { src.ZoneTypes, err = ns.GetZonetypes(); return }},
-		{"zones", func() (err error) { src.Zones, err = ns.GetZones(); return }},
-		{"models", func() (err error) { src.Models, err = ns.GetModels(); return }},
-		{"model ports", func() (err error) { src.ModelPorts, err = ns.GetModelPorts(); return }},
-		{"devices", func() (err error) { src.Devices, err = ns.GetDevices(); return }},
-		{"device ports", func() (err error) { src.DevicePorts, err = ns.GetDevicePorts(); return }},
-		{"connections", func() (err error) { src.Connections, err = ns.GetConnections(); return }},
-	} {
-		if err := load.fn(); err != nil {
-			return nil, nil, fmt.Errorf("loading %s: %w", load.what, err)
-		}
+	// loadSpec is shared with the diff: an export and an audit must be looking at the
+	// same specification, or the audit is auditing something else.
+	root, warnings, err := ns.IntendedTree()
+	if err != nil {
+		return nil, nil, err
 	}
-
-	root, warnings := mapping.FromEntities(src)
 
 	out, err := json.MarshalIndent(root, "", "  ")
 	if err != nil {

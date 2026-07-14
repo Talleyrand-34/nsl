@@ -34,6 +34,7 @@ import (
 	s "nsl-graph/internal/scanner"
 	"nsl-graph/internal/secret"
 	"nsl-graph/internal/topology"
+	"nsl-graph/internal/yang/canon"
 )
 
 // vaultIdleTimeout auto-locks the credential vault after this much inactivity.
@@ -250,6 +251,14 @@ type NetServiceInt interface {
 	// The warnings list values the domain model holds but the schema rejects; they
 	// are dropped from the output rather than failing the export.
 	ExportYANG() ([]byte, []string, error)
+
+	// IntendedTree is the specification — what the network SHOULD be.
+	IntendedTree() (*canon.Root, []string, error)
+	// ObservedTree is a scan — what the network IS — resolved against the
+	// specification so the same device carries the same identity in both.
+	ObservedTree(devices []s.SNMPDevice) (*canon.Root, []string, error)
+	// DiffAgainstScan reports how the network differs from its specification.
+	DiffAgainstScan(devices []s.SNMPDevice) ([]datastore.Change, []string, error)
 
 	// Network scanning operations
 	RunScan(opts RunScanOptions, em observ.Emitter) ([]s.DiscoveredDevice, error)
