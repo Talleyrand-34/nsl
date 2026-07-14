@@ -50,6 +50,7 @@ package datastore
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"nsl-graph/internal/topology"
@@ -64,6 +65,19 @@ const (
 	// OriginLearned: it is here because a scan discovered it.
 	OriginLearned Origin = "learned"
 )
+
+// StagedPort is a proposed VLAN configuration for one device port.
+type StagedPort struct {
+	Device string // device label, for the message
+	Port   string // port name
+	VLANs  []VLANMembership
+}
+
+// VLANMembership is one VLAN a port is proposed to carry.
+type VLANMembership struct {
+	VLAN   string // as the domain model holds it: a string
+	Tagged bool
+}
 
 // StagedEdge is one proposed link in a candidate, together with the operator's verdict
 // on it.
@@ -80,11 +94,17 @@ type StagedEdge struct {
 // touched the database.
 type Candidate struct {
 	Edges []StagedEdge
+	Ports []StagedPort
 }
 
 // Stage adds an edge to the candidate.
 func (c *Candidate) Stage(edge topology.ConnectionEdge, reviewed bool) {
 	c.Edges = append(c.Edges, StagedEdge{Edge: edge, Reviewed: reviewed})
+}
+
+// StagePort adds a port's proposed VLAN configuration to the candidate.
+func (c *Candidate) StagePort(device, port string, vlans []VLANMembership) {
+	c.Ports = append(c.Ports, StagedPort{Device: device, Port: port, VLANs: vlans})
 }
 
 // Violation is a rule the candidate breaks. It names the rule so the message can be
@@ -109,6 +129,14 @@ const (
 	// hold. We do not, because our topology is a closed specification rather than a
 	// partial view of someone else's.
 	RuleEndpointsResolved = "endpoints-must-resolve"
+	// RuleVlanIsValid mirrors the dot1q-types:vlanid range (uint16, 1..4094).
+	RuleVlanIsValid = "vlan-id-must-be-valid"
+	// RuleVlanTaggingIsConsistent mirrors nothing in the schema, because the schema
+	// makes it unrepresentable: vlan-id is the key of vlan-membership, so a port simply
+	// cannot hold two entries for one VLAN. The domain model stores a flat list and can,
+	// which is how real.db ended up with nine ports carrying the same VLAN both tagged
+	// and untagged.
+	RuleVlanTaggingIsConsistent = "vlan-tagging-must-be-consistent"
 )
 
 // Validate checks a candidate against the commit rules and returns every violation, not
@@ -146,6 +174,56 @@ func Validate(c Candidate) []Violation {
 				Detail: "an endpoint does not resolve to a known device port; the far end is " +
 					"probably a device that is not modelled (an unmanaged switch, say)",
 			})
+		}
+	}
+
+	violations = append(violations, validatePorts(c.Ports)...)
+
+	return violations
+}
+
+// validatePorts checks proposed VLAN configurations.
+func validatePorts(ports []StagedPort) []Violation {
+	var violations []Violation
+
+	for _, p := range ports {
+		target := p.Device + ":" + p.Port
+
+		// tagging remembers how each VLAN was first seen on this port.
+		tagging := map[uint16]bool{}
+
+		for _, v := range p.VLANs {
+			n, err := strconv.ParseUint(strings.TrimSpace(v.VLAN), 10, 16)
+			if err != nil || n < 1 || n > 4094 {
+				violations = append(violations, Violation{
+					Rule:   RuleVlanIsValid,
+					Target: target,
+					Detail: fmt.Sprintf("VLAN %q is not an 802.1Q VLAN ID; they are numbers in 1..4094", v.VLAN),
+				})
+				continue
+			}
+			vid := uint16(n)
+
+			// A port either tags a VLAN's frames on egress or it does not. Recording
+			// both is not a duplicate to be de-duplicated -- it is a contradiction, and
+			// it means one of the two is wrong. Whichever we picked, we would be
+			// guessing about how frames leave a switch port.
+			//
+			// This is not hypothetical: real.db contains nine of them, almost certainly
+			// from merging the 802.1Q egress-port and untagged-port sets on import
+			// without reconciling them. The schema cannot express the contradiction --
+			// vlan-id is the key of vlan-membership -- so it can only be caught here,
+			// on the way in.
+			if first, seen := tagging[vid]; seen && first != v.Tagged {
+				violations = append(violations, Violation{
+					Rule:   RuleVlanTaggingIsConsistent,
+					Target: target,
+					Detail: fmt.Sprintf("VLAN %d is configured as BOTH tagged and untagged; a port "+
+						"cannot do both, so one of the two is wrong", vid),
+				})
+				continue
+			}
+			tagging[vid] = v.Tagged
 		}
 	}
 

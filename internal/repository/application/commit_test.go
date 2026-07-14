@@ -25,6 +25,7 @@ import (
 
 	"nsl-graph/internal/datastore"
 	"nsl-graph/internal/repository/application"
+	e "nsl-graph/internal/repository/entities"
 	"nsl-graph/internal/topology"
 )
 
@@ -145,6 +146,49 @@ func TestConfirmedLinkCommitsWithoutReview(t *testing.T) {
 	require.Len(t, connections, 1)
 	assert.Equal(t, topology.ConfidenceConfirmed, connections[0].Confidence)
 	assert.False(t, connections[0].Reviewed, "nobody reviewed it; it did not need reviewing")
+}
+
+// The nine contradictions in real.db, refused at the door.
+//
+// A port either tags a VLAN's frames on egress or it does not. Recording both is a
+// contradiction, not a duplicate, and until now nothing in the model could refuse it --
+// so it was simply stored, and the export could only report it after the fact.
+//
+// The YANG schema cannot catch this: vlan-id is the KEY of vlan-membership, so the
+// contradiction is unrepresentable there and gets silently collapsed on export. It can
+// only be caught on the way in, which is what this asserts.
+func TestDevicePortRefusesContradictoryVlanTagging(t *testing.T) {
+	service, _, _ := twoWiredDevices(t)
+
+	devices, err := service.GetDevices()
+	require.NoError(t, err)
+	modelPorts, err := service.GetModelPorts()
+	require.NoError(t, err)
+
+	_, err = service.AddDevicePort(devices[0].ID, modelPorts[0].ID, "", []e.PortVlanConfig{
+		{VlanNumber: "10", Tagged: true},
+		{VlanNumber: "10", Tagged: false},
+	})
+
+	require.Error(t, err, "a port cannot be both tagged and untagged on one VLAN")
+	assert.Contains(t, err.Error(), "cannot do both")
+	assert.Contains(t, err.Error(), datastore.RuleVlanTaggingIsConsistent)
+}
+
+func TestDevicePortRefusesAnOutOfRangeVlan(t *testing.T) {
+	service, _, _ := twoWiredDevices(t)
+
+	devices, err := service.GetDevices()
+	require.NoError(t, err)
+	modelPorts, err := service.GetModelPorts()
+	require.NoError(t, err)
+
+	_, err = service.AddDevicePort(devices[0].ID, modelPorts[0].ID, "", []e.PortVlanConfig{
+		{VlanNumber: "4999", Tagged: true},
+	})
+
+	require.Error(t, err, "802.1Q VLAN IDs are 1..4094")
+	assert.Contains(t, err.Error(), datastore.RuleVlanIsValid)
 }
 
 // A hand-specified connection carries no confidence -- there is no evidence to grade,

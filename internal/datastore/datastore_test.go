@@ -165,6 +165,74 @@ func TestEmptyCandidateIsValid(t *testing.T) {
 	assert.NoError(t, ViolationsError(nil))
 }
 
+// The contradiction that real.db actually contains, nine times over.
+//
+// A port either tags a VLAN's frames on egress or it does not. Recording both is not a
+// duplicate to be de-duplicated -- it is a contradiction, and it means one of the two is
+// wrong. Whichever we picked, we would be guessing about how frames leave a switch port.
+func TestVlanTaggedAndUntaggedOnOnePortIsRejected(t *testing.T) {
+	var c Candidate
+	c.StagePort("sw1", "eth0", []VLANMembership{
+		{VLAN: "10", Tagged: true},
+		{VLAN: "10", Tagged: false},
+	})
+
+	violations := Validate(c)
+
+	require.Len(t, violations, 1)
+	assert.Equal(t, RuleVlanTaggingIsConsistent, violations[0].Rule)
+	assert.Equal(t, "sw1:eth0", violations[0].Target)
+	assert.Contains(t, violations[0].Detail, "cannot do both")
+}
+
+// The same VLAN listed twice with the SAME tagging is merely redundant, not
+// contradictory. It says nothing false, so it is not a violation.
+func TestVlanRepeatedWithSameTaggingIsNotAViolation(t *testing.T) {
+	var c Candidate
+	c.StagePort("sw1", "eth0", []VLANMembership{
+		{VLAN: "10", Tagged: true},
+		{VLAN: "10", Tagged: true},
+	})
+
+	assert.Empty(t, Validate(c))
+}
+
+// The same VLAN on DIFFERENT ports may of course be tagged on one and untagged on the
+// other -- that is an ordinary trunk-and-access arrangement, not a contradiction.
+func TestSameVlanMayDifferAcrossPorts(t *testing.T) {
+	var c Candidate
+	c.StagePort("sw1", "eth0", []VLANMembership{{VLAN: "10", Tagged: true}})
+	c.StagePort("sw1", "eth1", []VLANMembership{{VLAN: "10", Tagged: false}})
+
+	assert.Empty(t, Validate(c))
+}
+
+// dot1q-types:vlanid is a uint16 in 1..4094. The domain model holds VLAN ids as strings,
+// so every one of these is storable today.
+func TestInvalidVlanIdIsRejected(t *testing.T) {
+	for _, vlan := range []string{"0", "4095", "4999", "70000", "-1", "eth0", ""} {
+		t.Run(vlan, func(t *testing.T) {
+			var c Candidate
+			c.StagePort("sw1", "eth0", []VLANMembership{{VLAN: vlan}})
+
+			violations := Validate(c)
+			require.Len(t, violations, 1)
+			assert.Equal(t, RuleVlanIsValid, violations[0].Rule)
+		})
+	}
+}
+
+func TestValidVlanIdsAreAccepted(t *testing.T) {
+	var c Candidate
+	c.StagePort("sw1", "eth0", []VLANMembership{
+		{VLAN: "1", Tagged: false},
+		{VLAN: "4094", Tagged: true},
+		{VLAN: " 20 ", Tagged: true}, // whitespace is tolerated, not a reason to refuse
+	})
+
+	assert.Empty(t, Validate(c))
+}
+
 // The error must name the edge and the reason, because it is read by someone deciding
 // what to do about a switch.
 func TestViolationsErrorNamesTheEdgeAndTheReason(t *testing.T) {
