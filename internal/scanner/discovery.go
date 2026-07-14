@@ -14,13 +14,13 @@ func NewDeviceDiscoverer() *DeviceDiscoverer {
 }
 
 // ClassifyDevice returns (brand, model, modelType) based on sysDescr.
-// For SSH config sources, sysDescr may contain the OS type key (e.g., "opnsense-xml", "openwrt-uci").
+// For SSH config sources, sysDescr may contain the OS type key (e.g., "opnsense", "openwrt-uci").
 func (dd *DeviceDiscoverer) ClassifyDevice(device SNMPDevice) (brand, model, modelType string) {
 	descr := strings.ToLower(device.SysDescr)
 
 	switch {
 	// SSH config OS type keys
-	case strings.Contains(descr, "opnsense") || strings.Contains(descr, "opnsense-xml"):
+	case strings.Contains(descr, "opnsense"):
 		return "OPNsense", "OPNsense Firewall", "Firewall"
 	case strings.Contains(descr, "openwrt") || strings.Contains(descr, "openwrt-uci"):
 		return "OpenWrt", "OpenWrt Router", "Router"

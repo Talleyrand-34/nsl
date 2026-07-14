@@ -133,7 +133,7 @@ type SwitchPortInfo struct {
 
 // ConfigData contains the parsed configuration data from a network device
 type ConfigData struct {
-	OsType        string               `json:"os_type"`      // "opnsense", "openwrt", "fortinet", "cisco"
+	OsType        string               `json:"os_type"`      // "opnsense", "openwrt", "fortinet", "cisco", "freebsd"
 	DeviceModel   string               `json:"device_model"` // Specific model/version info
 	Hostname      string               `json:"hostname"`
 	Domain        string               `json:"domain,omitempty"`

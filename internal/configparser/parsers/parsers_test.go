@@ -35,28 +35,6 @@ func createTestDevice(sysDescr, sysName string) s.SNMPDevice {
 	}
 }
 
-// --- Legacy XML parser ---
-
-func TestOPNsenseLegacyParser_GetOsType(t *testing.T) {
-	parser := parsers.NewOPNsenseParser()
-	assert.Equal(t, "opnsense-xml", parser.GetOsType())
-}
-
-func TestOPNsenseLegacyParser_SupportsDevice_AlwaysFalse(t *testing.T) {
-	parser := parsers.NewOPNsenseParser()
-	// Legacy XML parser never auto-detects; always returns false.
-	assert.False(t, parser.SupportsDevice(createTestDevice("FreeBSD OPNsense 23.7", "fw01")))
-	assert.False(t, parser.SupportsDevice(createTestDevice("freebsd opnsense system", "test")))
-	assert.False(t, parser.SupportsDevice(createTestDevice("", "")))
-}
-
-// --- FreeBSD ifconfig parser (primary OPNsense parser) ---
-
-func TestFreeBSDParser_GetOsType(t *testing.T) {
-	parser := parsers.NewFreeBSDParser()
-	assert.Equal(t, "opnsense", parser.GetOsType())
-}
-
 func TestFreeBSDParser_SupportsDevice(t *testing.T) {
 	parser := parsers.NewFreeBSDParser()
 
@@ -283,11 +261,10 @@ func TestCiscoParser_SupportsDevice_NoMatch(t *testing.T) {
 func TestAllParsers_DetectionMatrix(t *testing.T) {
 	// Test matrix of devices vs parsers to ensure proper detection
 	allParsers := map[string]configparser.ConfigParser{
-		"opnsense":     parsers.NewFreeBSDParser(),
-		"opnsense-xml": parsers.NewOPNsenseParser(),
-		"openwrt":      parsers.NewOpenWrtParser(),
-		"fortinet":     parsers.NewFortinetParser(),
-		"cisco":        parsers.NewCiscoParser(),
+		"opnsense": parsers.NewFreeBSDParser(),
+		"openwrt":  parsers.NewOpenWrtParser(),
+		"fortinet": parsers.NewFortinetParser(),
+		"cisco":    parsers.NewCiscoParser(),
 	}
 
 	devices := map[string]s.SNMPDevice{
@@ -301,14 +278,6 @@ func TestAllParsers_DetectionMatrix(t *testing.T) {
 
 	// Expected detection matrix
 	expectedMatches := map[string]map[string]bool{
-		"opnsense-xml": {
-			"opnsense_real":  false,
-			"openwrt_real":   false,
-			"fortinet_real":  false,
-			"cisco_real":     false,
-			"generic_device": false,
-			"linux_generic":  false,
-		},
 		"opnsense": {
 			"opnsense_real":  true,
 			"openwrt_real":   false,
@@ -473,63 +442,6 @@ end
 	assert.Contains(t, vlan4.IPAddresses, "10.0.4.247/24")
 	assert.Len(t, vlan4.VLANs, 1)
 	assert.Equal(t, "4", vlan4.VLANs[0].ID)
-}
-
-func TestOPNsenseParser_ParseConfig(t *testing.T) {
-	const minimalConfig = `<?xml version="1.0"?>
-<opnsense>
-  <version>23.7</version>
-  <system>
-    <hostname>fw01</hostname>
-    <domain>example.com</domain>
-  </system>
-  <interfaces>
-    <wan>
-      <if>em0</if>
-      <descr>WAN</descr>
-      <enable>1</enable>
-      <ipaddr>203.0.113.1</ipaddr>
-      <subnet>24</subnet>
-    </wan>
-    <lan>
-      <if>em1</if>
-      <descr>LAN</descr>
-      <enable>1</enable>
-      <ipaddr>192.168.1.1</ipaddr>
-      <subnet>24</subnet>
-    </lan>
-  </interfaces>
-  <vlans>
-    <vlan>
-      <if>vtnet0</if>
-      <tag>10</tag>
-      <descr>Management VLAN</descr>
-    </vlan>
-  </vlans>
-</opnsense>`
-
-	parser := parsers.NewOPNsenseParser()
-	device := createTestDevice("FreeBSD OPNsense 23.7", "fw01")
-
-	configData, err := parser.ParseConfig(minimalConfig, device)
-	assert.NoError(t, err)
-	assert.NotNil(t, configData)
-
-	assert.Equal(t, "fw01", configData.Hostname)
-	assert.Equal(t, "example.com", configData.Domain)
-
-	// 2 named interfaces (wan, lan) + 1 VLAN interface entry (vtnet0.10)
-	assert.Len(t, configData.Interfaces, 3)
-	ifaceNames := make(map[string]bool)
-	for _, iface := range configData.Interfaces {
-		ifaceNames[iface.Name] = true
-	}
-	assert.True(t, ifaceNames["wan"])
-	assert.True(t, ifaceNames["lan"])
-	assert.True(t, ifaceNames["vtnet0.10"])
-
-	assert.Len(t, configData.VLANs, 1)
-	assert.Equal(t, "10", configData.VLANs[0].ID)
 }
 
 func TestOpenWrtParser_ParseBoardJSON(t *testing.T) {

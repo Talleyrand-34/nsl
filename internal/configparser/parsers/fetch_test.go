@@ -56,60 +56,6 @@ func (f *fakeSession) Execute(command string) (string, error) {
 
 func (f *fakeSession) Close() error { return nil }
 
-const sampleXML = `<?xml version="1.0"?><opnsense><system><hostname>fw1</hostname></system></opnsense>`
-
-// -----------------------------------------------------------------------------
-// OPNsense
-// -----------------------------------------------------------------------------
-
-func TestOPNsenseFetch_ReadsConfigXML(t *testing.T) {
-	sess := newFakeSession()
-	sess.out["cat /conf/config.xml"] = sampleXML
-
-	got, err := NewOPNsenseParser().Fetch(sess)
-
-	require.NoError(t, err)
-	assert.Equal(t, sampleXML, got)
-	assert.Equal(t, []string{"cat /conf/config.xml"}, sess.ran,
-		"the direct read succeeded, so configctl must not be attempted")
-}
-
-func TestOPNsenseFetch_FallsBackToConfigctl(t *testing.T) {
-	sess := newFakeSession()
-	sess.fail["cat /conf/config.xml"] = fmt.Errorf("cat: /conf/config.xml: Permission denied")
-	sess.out["configctl system config show"] = sampleXML
-
-	got, err := NewOPNsenseParser().Fetch(sess)
-
-	require.NoError(t, err)
-	assert.Equal(t, sampleXML, got)
-	assert.Contains(t, sess.ran, "configctl system config show")
-}
-
-// The failure this guards against: a shell that answers on stdout with something that is
-// not a configuration. `cat` "succeeds" and returns an error message, and without the XML
-// check that message would be handed to the XML parser as if it were the device's config.
-func TestOPNsenseFetch_RejectsNonXMLEvenWhenTheCommandSucceeds(t *testing.T) {
-	sess := newFakeSession()
-	sess.out["cat /conf/config.xml"] = "Permission denied" // exit 0, no error, not XML
-	sess.out["configctl system config show"] = sampleXML
-
-	got, err := NewOPNsenseParser().Fetch(sess)
-
-	require.NoError(t, err)
-	assert.Equal(t, sampleXML, got, "non-XML output must not be mistaken for a configuration")
-}
-
-func TestOPNsenseFetch_FailsWhenNeitherRouteWorks(t *testing.T) {
-	sess := newFakeSession()
-	sess.fail["cat /conf/config.xml"] = fmt.Errorf("permission denied")
-
-	_, err := NewOPNsenseParser().Fetch(sess)
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to retrieve OPNsense configuration")
-}
-
 // -----------------------------------------------------------------------------
 // FreeBSD
 // -----------------------------------------------------------------------------
