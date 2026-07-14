@@ -28,6 +28,7 @@ import (
 	"time"
 
 	configparser "nsl-graph/internal/configparser"
+	"nsl-graph/internal/datastore"
 	"nsl-graph/internal/observ"
 	e "nsl-graph/internal/repository/entities"
 	s "nsl-graph/internal/scanner"
@@ -558,14 +559,54 @@ func (ns *NetService) DiscoverConnections(targets []topology.Target, only string
 	return result, nil
 }
 
-// ImportConnectionEdges persists each edge as a Connection (with provenance). An
-// endpoint that isn't yet a device port but names one (e.g. a "possible" edge
-// like OpenWrt:eth0) has that port created on the fly. Endpoints that are only a
-// device (no port name) or unknown can't be imported and are reported.
+// ImportConnectionEdges persists each edge as a Connection, preserving its confidence
+// grade and provenance. An endpoint that isn't yet a device port but names one (e.g. a
+// "possible" edge like OpenWrt:eth0) has that port created on the fly.
+//
+// Every edge passed here is treated as REVIEWED: reaching this function means an
+// operator selected it. Callers that have not obtained that consent must go through
+// ImportConnectionEdgesChecked, which refuses to commit a weak link without it.
+//
+// Deprecated in spirit rather than in fact: prefer ImportConnectionEdgesChecked.
 func (ns *NetService) ImportConnectionEdges(edges []topology.ConnectionEdge) (int, error) {
+	c := datastore.Candidate{}
+	for _, edge := range edges {
+		c.Stage(edge, true)
+	}
+	n, violations, err := ns.commitCandidate(c)
+	if err != nil {
+		return n, err
+	}
+	// Endpoints that don't resolve were previously reported as errors here, and still
+	// are -- they simply arrive as violations now.
+	return n, datastore.ViolationsError(violations)
+}
+
+// ImportConnectionEdgesChecked stages the edges, validates them against the commit
+// rules, and commits only those that pass. It returns how many were committed and every
+// violation that stopped the rest.
+//
+// This is where the rule "a weak link may not be committed unreviewed" now lives. It
+// used to live in cmd/scan/connections.go -- in the CLI -- which meant the HTTP API
+// could write a weak link into the same database through a different door, and the
+// service itself did not know the rule existed. One rule, one place, every caller.
+//
+// It deliberately does NOT refuse the whole scan when some edges fail: a scan of a real
+// network always turns up edges that cannot be committed (a MAC behind an unmanaged
+// switch), and rejecting everything because of them would make discovery useless. What
+// it will not do is commit them silently.
+func (ns *NetService) ImportConnectionEdgesChecked(c datastore.Candidate) (int, []datastore.Violation, error) {
+	return ns.commitCandidate(c)
+}
+
+func (ns *NetService) commitCandidate(c datastore.Candidate) (int, []datastore.Violation, error) {
+	committable, violations := datastore.Committable(c)
+
 	n := 0
 	var errs []string
-	for _, edge := range edges {
+	for _, se := range committable {
+		edge := se.Edge
+
 		fromID, ferr := ns.resolveOrCreatePort(edge.FromDevicePortID, edge.FromLabel)
 		toID, terr := ns.resolveOrCreatePort(edge.ToDevicePortID, edge.ToLabel)
 		if ferr != nil || terr != nil {
@@ -576,21 +617,33 @@ func (ns *NetService) ImportConnectionEdges(edges []topology.ConnectionEdge) (in
 			errs = append(errs, fmt.Sprintf("%s <-> %s: %v", edge.FromLabel, edge.ToLabel, err))
 			continue
 		}
+
 		connType := inferConnectionType(edge.FromLabel, edge.ToLabel)
 		if err := ns.ensureConnectionType(connType); err != nil {
 			errs = append(errs, fmt.Sprintf("%s <-> %s: %v", edge.FromLabel, edge.ToLabel, err))
 			continue
 		}
-		if err := ns.AddConnection(fromID, toID, connType, edge.Provenance...); err != nil {
+
+		// The confidence grade survives the commit now. It used to be computed during
+		// the scan and dropped here, so a weak link and a confirmed one were
+		// indistinguishable once in the database.
+		ev := e.ConnectionEvidence{
+			Confidence:    edge.Confidence,
+			Reviewed:      se.Reviewed,
+			DiscoveredVia: edge.Provenance,
+		}
+		if err := ns.netRepo.AddConnectionWithEvidence(fromID, toID, connType, ev); err != nil {
 			errs = append(errs, fmt.Sprintf("%s <-> %s: %v", edge.FromLabel, edge.ToLabel, err))
 			continue
 		}
 		n++
 	}
+
 	if len(errs) > 0 {
-		return n, fmt.Errorf("%d edge(s) skipped/failed:\n  %s", len(errs), strings.Join(errs, "\n  "))
+		return n, violations, fmt.Errorf("%d edge(s) failed to persist:\n  %s",
+			len(errs), strings.Join(errs, "\n  "))
 	}
-	return n, nil
+	return n, violations, nil
 }
 
 // inferConnectionType picks a connection type from the endpoint port names: wifi

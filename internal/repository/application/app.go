@@ -26,6 +26,7 @@ import (
 	"time"
 
 	configparser "nsl-graph/internal/configparser"
+	"nsl-graph/internal/datastore"
 	fmtd2 "nsl-graph/internal/format"
 	"nsl-graph/internal/observ"
 	d "nsl-graph/internal/repository/domain"
@@ -184,6 +185,12 @@ type NetServiceInt interface {
 	// persists the resolved edges (with provenance).
 	DiscoverConnections(targets []topology.Target, only string) (*topology.ConnectionScanResult, error)
 	ImportConnectionEdges(edges []topology.ConnectionEdge) (int, error)
+
+	// ImportConnectionEdgesChecked stages edges, validates them against the commit
+	// rules, and commits only those that pass — returning every violation that stopped
+	// the rest. This is where "a weak link may not be committed unreviewed" is
+	// enforced, for every caller rather than only the CLI.
+	ImportConnectionEdgesChecked(c datastore.Candidate) (int, []datastore.Violation, error)
 	// CreatePlaceholderForIntermediaries materializes one shared placeholder
 	// unmanaged device (in a placeholder zone) for unknown device(s) detected
 	// between known hosts, wiring each observing endpoint to it.
