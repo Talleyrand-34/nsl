@@ -238,7 +238,14 @@ func looksLikeCommandTag(line string) bool {
 	if rest == "" {
 		return false
 	}
-	for _, verb := range []string{"uci ", "cat ", "swconfig ", "sudo ", "ifconfig", "hostname", "show ", "/"} {
+	// Every verb any parser uses to open a command block. A verb missing here is
+	// not a cosmetic gap: the block for the *previous* command then runs on
+	// through the unrecognised tag and swallows every command after it. FortiOS
+	// contributed `get` and `diagnose`.
+	for _, verb := range []string{
+		"uci ", "cat ", "swconfig ", "sudo ", "ifconfig", "hostname",
+		"show ", "get ", "diagnose ", "/",
+	} {
 		if strings.HasPrefix(rest, verb) {
 			return true
 		}
