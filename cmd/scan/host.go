@@ -281,6 +281,7 @@ Examples:
 					fmt.Printf("Name:     %s\n", device.SysName)
 				}
 				printDeviceInfo(device)
+				printControlPlane(configData)
 			}
 
 		default: // "snmp"
@@ -490,6 +491,84 @@ func printDeviceInfo(device *s.SNMPDevice) {
 	}
 }
 
+// printControlPlane reports how the device learns routes.
+//
+// On a topology where every variant shares one physical shape and one
+// addressing plan — the lab's static/OSPF/iBGP rings are exactly that — the
+// interface table is identical across all three and says nothing about which
+// design is deployed. This is the part of a scan that does.
+func printControlPlane(cd *configparser.ConfigData) {
+	plane := cd.ControlPlane()
+	if len(plane) == 0 {
+		return
+	}
+
+	fmt.Printf("\nControl Plane: %s\n", strings.Join(plane, " + "))
+	for _, p := range cd.RoutingProtocols {
+		if !p.Enabled {
+			continue
+		}
+		line := "  " + p.Type
+		if p.Instance != "" {
+			line += fmt.Sprintf(" [%s]", p.Instance)
+		}
+		if p.RouterID != "" {
+			line += fmt.Sprintf("  router-id %s", p.RouterID)
+		}
+		if p.LocalAS != "" {
+			line += fmt.Sprintf("  AS %s", p.LocalAS)
+			if p.HasIBGP() {
+				line += " (iBGP)"
+			}
+		}
+		if p.VRF != "" {
+			line += fmt.Sprintf("  vrf %s", p.VRF)
+		}
+		fmt.Println(line)
+
+		for _, a := range p.Areas {
+			detail := ""
+			switch {
+			case len(a.Networks) > 0:
+				detail = strings.Join(a.Networks, ", ")
+			case len(a.Interfaces) > 0:
+				detail = strings.Join(a.Interfaces, ", ")
+			}
+			areaLine := fmt.Sprintf("    area %s", a.ID)
+			if a.Type != "" && a.Type != "default" {
+				areaLine += fmt.Sprintf(" (%s)", a.Type)
+			}
+			if detail != "" {
+				areaLine += ": " + detail
+			}
+			fmt.Println(areaLine)
+		}
+		for _, n := range p.Neighbors {
+			nb := fmt.Sprintf("    neighbor %s  remote-as %s", n.Address, n.RemoteAS)
+			if n.IsIBGP(p.LocalAS) {
+				nb += " (internal)"
+			}
+			if n.UpdateSource != "" {
+				nb += fmt.Sprintf("  via %s", n.UpdateSource)
+			}
+			if n.Description != "" {
+				nb += fmt.Sprintf("  %q", n.Description)
+			}
+			fmt.Println(nb)
+		}
+		if len(p.Networks) > 0 {
+			fmt.Printf("    networks: %s\n", strings.Join(p.Networks, ", "))
+		}
+		if len(p.Redistribute) > 0 {
+			fmt.Printf("    redistribute: %s\n", strings.Join(p.Redistribute, ", "))
+		}
+	}
+
+	if n := len(cd.Routes); n > 0 {
+		fmt.Printf("  static routes: %d\n", n)
+	}
+}
+
 func printSwitchPortsTable(ports []s.PhysicalPortInfo) {
 	const (
 		wName   = 22
@@ -603,7 +682,10 @@ func printIfaceTable(ifaces []s.DeviceInterface, showParent bool) {
 			status = "up"
 		}
 
-		// Info column: wifi band for radios, SSID+security for wifi-iface, empty otherwise
+		// Info column: wifi band for radios, SSID+security for wifi-iface, and
+		// otherwise the operator's own description — on a firewall whose ports
+		// are all named vtnetN, "RINGOWRTO (opt1)" is the only thing in the row
+		// that says what the link actually is.
 		info := ""
 		if iface.WifiBand != "" {
 			info = iface.WifiBand
@@ -612,6 +694,8 @@ func printIfaceTable(ifaces []s.DeviceInterface, showParent bool) {
 			if iface.WifiSecurity != "" && iface.WifiSecurity != "open" {
 				info += " (" + iface.WifiSecurity + ")"
 			}
+		} else if iface.Description != "" {
+			info = iface.Description
 		}
 		if len(info) > wInfo {
 			info = info[:wInfo-1] + "…"
@@ -641,7 +725,13 @@ func printIfaceTable(ifaces []s.DeviceInterface, showParent bool) {
 		if showParent {
 			parent := iface.Parent
 			if parent == "" && iface.MAC != "" {
-				parent = macToPort[iface.MAC]
+				// Inferring the parent from a shared MAC finds the physical port
+				// a subinterface sits on — but a physical port shares its MAC
+				// with itself, so the lookup returns the row's own name. That is
+				// not a parent relationship, it is the absence of one.
+				if p := macToPort[iface.MAC]; p != iface.Name {
+					parent = p
+				}
 			}
 			line += fmt.Sprintf(" %-*s", wParent, parent)
 		}

@@ -64,7 +64,18 @@ func (p *FreeBSDParser) Fetch(sess configparser.Session) (string, error) {
 		}
 	}
 
-	return fmt.Sprintf("HOSTNAME:%s\n%s", hostname, ifcfgOut), nil
+	out := fmt.Sprintf("HOSTNAME:%s\n%s", hostname, ifcfgOut)
+
+	// ifconfig describes the data plane only. On OPNsense the control plane is
+	// the os-frr plugin, which keeps an ordinary frr.conf — so a routed
+	// OPNsense (an OSPF or iBGP ring member) is indistinguishable from a
+	// statically-routed one until this file is read. Its absence is the normal
+	// case and not an error: most FreeBSD hosts do not run FRR.
+	if frrOut, err := sess.Execute("cat /usr/local/etc/frr/frr.conf"); err == nil {
+		out += fmt.Sprintf("\n# cat /usr/local/etc/frr/frr.conf\n%s\n", frrOut)
+	}
+
+	return out, nil
 }
 
 // ParseConfig parses the combined HOSTNAME+ifconfig output produced by GetConfigViaSSH,
@@ -75,12 +86,21 @@ func (p *FreeBSDParser) ParseConfig(rawConfig string, deviceInfo s.SNMPDevice) (
 		hostname = deviceInfo.SysName
 	}
 
+	// The FRR block, when present, is appended after the ifconfig output. Split
+	// it off first: ifconfig's block grammar keys on indentation, and feeding it
+	// frr.conf lines would invent interfaces out of routing statements.
+	const frrCmd = "cat /usr/local/etc/frr/frr.conf"
+	frrBody := extractCommandBlock(rawConfig, frrCmd)
+	if idx := strings.Index(ifcfgBody, "# "+frrCmd); idx >= 0 {
+		ifcfgBody = ifcfgBody[:idx]
+	}
+
 	interfaces, vlans, err := parseIfconfigOutput(ifcfgBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse ifconfig output: %w", err)
 	}
 
-	return &configparser.ConfigData{
+	cd := &configparser.ConfigData{
 		OsType:      p.GetOsType(),
 		DeviceModel: "OPNsense Firewall",
 		Hostname:    hostname,
@@ -89,7 +109,11 @@ func (p *FreeBSDParser) ParseConfig(rawConfig string, deviceInfo s.SNMPDevice) (
 		VLANs:       vlans,
 		ParsedAt:    time.Now(),
 		Raw:         rawConfig,
-	}, nil
+	}
+	if frrConfigLooksReal(frrBody) {
+		cd.RoutingProtocols = ParseFRRConfig(frrBody)
+	}
+	return cd, nil
 }
 
 // ValidateConfig performs basic structural validation on parsed FreeBSD configuration.
@@ -244,6 +268,13 @@ func parseInterfaceBlock(name string, lines []string) (configparser.ConfigInterf
 			if len(fields) >= 2 && !strings.Contains(fields[1], "%") {
 				iface.IPAddresses = append(iface.IPAddresses, fields[1])
 			}
+
+		case strings.HasPrefix(trimmed, "description: "):
+			// OPNsense writes the interface's configured role here — "RINGOWRTO
+			// (opt1)", "LAN (lan)". On a firewall whose ports are otherwise just
+			// vtnet0..vtnet5 this is the only thing that says which link is which,
+			// so it is topology data, not decoration.
+			iface.Description = strings.TrimSpace(strings.TrimPrefix(trimmed, "description:"))
 
 		case strings.HasPrefix(trimmed, "vlan: "):
 			// VLAN membership: "vlan: N vlanpcp: P parent interface: IFACE"

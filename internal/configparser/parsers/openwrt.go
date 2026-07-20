@@ -86,7 +86,17 @@ func (p *OpenWrtParser) ParseConfig(rawConfig string, deviceInfo s.SNMPDevice) (
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse routes: %w", err)
 	}
+	for i := range routes {
+		// Everything UCI declares is a static route by construction; UCI has no
+		// way to express a learned one.
+		routes[i].Protocol = configparser.RoutingProtoStatic
+	}
 	configData.Routes = routes
+
+	// Dynamic routing, if any, comes from FRR rather than UCI.
+	if frr := extractCommandBlock(rawConfig, "cat /etc/frr/frr.conf"); frrConfigLooksReal(frr) {
+		configData.RoutingProtocols = ParseFRRConfig(frr)
+	}
 
 	// Parse firewall rules
 	firewallRules, err := p.parseFirewallRules(uciConfig)
@@ -121,6 +131,11 @@ func (p *OpenWrtParser) Fetch(sess configparser.Session) (string, error) {
 		"uci show dhcp",
 		"cat /etc/board.json",
 		"swconfig dev switch0 show",
+		// UCI has no notion of a dynamic routing protocol: on OpenWrt those live
+		// in FRR, whose configuration is a separate file in its own grammar. A
+		// box without the frr package simply errors here, which is not a fault —
+		// it means the device routes statically, and ParseConfig records that.
+		"cat /etc/frr/frr.conf",
 	}
 
 	var allConfig strings.Builder
