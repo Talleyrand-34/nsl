@@ -1,0 +1,192 @@
+# show system global
+FGT60C3G13029672 # config system global
+    set fgd-alert-subscription advisory latest-threat
+    set hostname "FGT60C3G13029672"
+    set timezone 04
+end
+
+FGT60C3G13029672 #
+
+
+# show system interface
+FGT60C3G13029672 # config system interface
+    edit "dmz"
+        set vdom "root"
+        set ip 10.10.10.1 255.255.255.0
+        set allowaccess ping https ssh http fgfm capwap
+        set type physical
+        set snmp-index 1
+    next
+    edit "wan2"
+        set vdom "root"
+        set mode dhcp
+        set allowaccess ping fgfm auto-ipsec
+        set type physical
+        set snmp-index 2
+    next
+    edit "wan1"
+        set vdom "root"
+        set mode dhcp
+        set allowaccess ping https ssh snmp http fgfm auto-ipsec
+        set type physical
+        set snmp-index 3
+    next
+    edit "modem"
+        set vdom "root"
+--More--
+
+        set mode pppoe
+        set type physical
+        set snmp-index 4
+    next
+    edit "ssl.root"
+        set vdom "root"
+        set type tunnel
+        set alias "SSL VPN interface"
+        set snmp-index 7
+    next
+    edit "internal"
+        set vdom "root"
+        set ip 192.168.1.99 255.255.255.0
+        set allowaccess ping https ssh http fgfm capwap
+        set type physical
+        set snmp-index 8
+    next
+end
+
+FGT60C3G13029672 #
+
+
+# get system interface physical
+FGT60C3G13029672 # == [onboard]
+	==[dmz]
+		mode: static
+		ip: 10.10.10.1 255.255.255.0
+		ipv6: ::/0
+		status: down
+		speed: n/a
+	==[internal]
+		mode: static
+		ip: 192.168.1.99 255.255.255.0
+		ipv6: ::/0
+		status: up
+		speed: 1000Mbps (Duplex: full)
+	==[wan1]
+		mode: dhcp
+		ip: 10.0.50.105 255.255.255.0
+		ipv6: ::/0
+		status: up
+		speed: 1000Mbps (Duplex: full)
+	==[wan2]
+		mode: dhcp
+		ip: 0.0.0.0 0.0.0.0
+		ipv6: ::/0
+		status: down
+--More--
+
+		speed: n/a
+	==[modem]
+		mode: pppoe
+		ip: 0.0.0.0 0.0.0.0
+		ipv6: ::/0
+		status: down
+		speed: n/a
+
+FGT60C3G13029672 #
+
+
+# show router static
+FGT60C3G13029672 #
+FGT60C3G13029672 #
+
+
+# show router ospf
+FGT60C3G13029672 # config router ospf
+        config redistribute "connected"
+        end
+        config redistribute "static"
+        end
+        config redistribute "rip"
+        end
+        config redistribute "bgp"
+        end
+        config redistribute "isis"
+        end
+end
+
+FGT60C3G13029672 #
+
+
+# show router bgp
+FGT60C3G13029672 # config router bgp
+        config redistribute "connected"
+        end
+        config redistribute "rip"
+        end
+        config redistribute "ospf"
+        end
+        config redistribute "static"
+        end
+        config redistribute "isis"
+        end
+        config redistribute6 "connected"
+        end
+        config redistribute6 "rip"
+        end
+        config redistribute6 "ospf"
+        end
+        config redistribute6 "static"
+        end
+        config redistribute6 "isis"
+        end
+end
+
+FGT60C3G13029672 #
+
+
+# diagnose hardware deviceinfo nic wan1
+FGT60C3G13029672 # Driver Name     :Fortinet Nplite Driver
+Version         :1.0
+Admin           :up
+Current_HWaddr   08:5b:0e:3f:49:79
+Permanent_HWaddr 08:5b:0e:3f:49:79
+Status          :up
+Speed           :1000
+Duplex          :Full
+Host Rx Pkts    :83516
+Host Rx Bytes   :16835437
+Host Tx Pkts    :33671
+Host Tx Bytes   :4583592
+Rx Pkts         :143780
+Rx Bytes        :81422935
+Tx Pkts         :78205
+Tx Bytes        :16183283
+rx_buffer_len   :2048
+Hidden          :No
+cmd_in_list     :0
+
+FGT60C3G13029672 #
+
+
+# diagnose hardware deviceinfo nic internal
+FGT60C3G13029672 # Driver Name     :Fortinet Nplite Driver
+Version         :1.0
+Admin           :up
+Current_HWaddr   08:5b:0e:3f:49:78
+Permanent_HWaddr 08:5b:0e:3f:49:78
+Status          :up
+Speed           :1000
+Duplex          :Full
+Host Rx Pkts    :5106
+Host Rx Bytes   :1388779
+Host Tx Pkts    :4822
+Host Tx Bytes   :2609330
+Rx Pkts         :49748
+Rx Bytes        :13386048
+Tx Pkts         :65196
+Tx Bytes        :65987133
+rx_buffer_len   :2048
+Hidden          :No
+cmd_in_list     :0
+
+FGT60C3G13029672 #

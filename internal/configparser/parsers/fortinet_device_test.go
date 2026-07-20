@@ -23,8 +23,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 // into the middle of a config block, and — the one that mattered — an interface
 // whose address the configuration simply does not state.
 //
-// The fixtures here are captured verbatim from a FortiGate-30D running FortiOS
-// 6.0.12, prompt echo and all.
+// The fixtures here are captured verbatim from two real boxes, prompt echo and
+// all: a FortiGate-30D on FortiOS 6.0.12, and a FortiGate-60C on 5.2.15. Two
+// devices rather than one on purpose — a parser built against a single box
+// cannot tell which of its behaviours are FortiOS and which are that box.
 package parsers_test
 
 import (
@@ -165,5 +167,100 @@ func TestFortinetParser_StripsPromptEcho(t *testing.T) {
 
 func TestFortinetParser_RealDeviceValidates(t *testing.T) {
 	cd, _ := fgt30d(t)
+	assert.Empty(t, parsers.NewFortinetParser().ValidateConfig(cd))
+}
+
+// -----------------------------------------------------------------------------
+// A second, independent FortiGate — FortiOS 5.2 on different hardware
+// -----------------------------------------------------------------------------
+//
+// The parser was rebuilt against exactly one device, which is one device's worth
+// of evidence: every shape it handles could have been an accident of that box's
+// model and firmware. This fixture is a FortiGate-60C on FortiOS 5.2.15 — a major
+// version older, different hardware, different port names — and it is here to
+// catch the assumptions the 30D let pass.
+//
+// It differs in ways that matter: 5.2 stamps `set vdom "root"` on every interface,
+// indents the router blocks twice as deep, and reports the built-in switch port as
+// `type physical` where the 30D called its equivalent `hard-switch`.
+
+func fgt60c(t *testing.T) (*configparser.ConfigData, map[string]configparser.ConfigInterface) {
+	t.Helper()
+	cd, err := parsers.NewFortinetParser().ParseConfig(
+		fixture(t, "fortios-5.2-fgt60c.txt"), s.SNMPDevice{IP: "10.0.50.105"})
+	require.NoError(t, err)
+
+	byName := make(map[string]configparser.ConfigInterface, len(cd.Interfaces))
+	for _, i := range cd.Interfaces {
+		byName[i.Name] = i
+	}
+	return cd, byName
+}
+
+func TestFortinetParser_FortiOS52_InterfacesAndIdentity(t *testing.T) {
+	cd, byName := fgt60c(t)
+
+	assert.Equal(t, "FGT60C3G13029672", cd.Hostname)
+	require.Len(t, cd.Interfaces, 6, "dmz, wan2, wan1, modem, ssl.root, internal")
+
+	for _, n := range []string{"dmz", "wan2", "wan1", "modem", "ssl.root", "internal"} {
+		assert.Contains(t, byName, n)
+	}
+
+	// 5.2 stamps `set vdom "root"` on every interface. It is an unmodelled field,
+	// and an unmodelled field must be ignored rather than swallow the ones after it.
+	assert.Equal(t, "physical", byName["wan1"].Type)
+	assert.Equal(t, "tunnel", byName["ssl.root"].Type)
+	assert.Equal(t, "SSL VPN interface", byName["ssl.root"].Description)
+
+	assert.Equal(t, "08:5b:0e:3f:49:79", byName["wan1"].MACAddress)
+	assert.Equal(t, "08:5b:0e:3f:49:78", byName["internal"].MACAddress)
+}
+
+// The headline bug, re-checked on a device that has never been used to develop
+// the fix: wan1 is `set mode dhcp` and states no address in the configuration,
+// yet the box answers on 10.0.50.105 — which is how it was scanned.
+func TestFortinetParser_FortiOS52_RecoversTheDHCPAddress(t *testing.T) {
+	_, byName := fgt60c(t)
+
+	assert.Equal(t, []string{"10.0.50.105/24"}, byName["wan1"].IPAddresses,
+		"the DHCP address must come from runtime state, as on 6.0")
+	assert.Equal(t, []string{"192.168.1.99/24"}, byName["internal"].IPAddresses,
+		"a statically configured address still comes from the config")
+	assert.Equal(t, []string{"10.10.10.1/24"}, byName["dmz"].IPAddresses)
+
+	// wan2 and modem are down with no address; the 0.0.0.0 placeholder in runtime
+	// state must not be taken literally.
+	assert.Empty(t, byName["wan2"].IPAddresses)
+	assert.Empty(t, byName["modem"].IPAddresses)
+	assert.False(t, byName["wan2"].Enabled)
+	assert.True(t, byName["wan1"].Enabled)
+}
+
+// 5.2 emits the same empty `config router ospf` placeholder as 6.0, but indented
+// twice as deep. A parser keying on indentation rather than block structure would
+// read one version correctly and the other as a configured protocol.
+func TestFortinetParser_FortiOS52_EmptySkeletonAcrossVersions(t *testing.T) {
+	cd, _ := fgt60c(t)
+
+	assert.Empty(t, cd.RoutingProtocols,
+		"neither OSPF nor BGP is configured on this device, at either indentation")
+}
+
+// This box's default route is installed by the DHCP client, not configured: the
+// RIB holds `S* 0.0.0.0/0 via 10.0.50.1, wan1` while `show router static` is
+// empty. Reporting no routes is therefore correct — the configuration genuinely
+// contains none — and the test pins that rather than the more tempting assertion
+// that a reachable device must have a default route.
+func TestFortinetParser_FortiOS52_NoConfiguredRoutes(t *testing.T) {
+	cd, _ := fgt60c(t)
+
+	assert.Empty(t, cd.Routes, "show router static is empty; the default route is DHCP-installed")
+	assert.Nil(t, cd.ControlPlane(),
+		"no configured routes and no dynamic protocol is an honest empty answer")
+}
+
+func TestFortinetParser_FortiOS52_Validates(t *testing.T) {
+	cd, _ := fgt60c(t)
 	assert.Empty(t, parsers.NewFortinetParser().ValidateConfig(cd))
 }
