@@ -216,6 +216,23 @@ func (r terseRecord) Get(key string) string { return r.Attrs[key] }
 // The flag letter is "X" in every menu that has one.
 func (r terseRecord) Disabled() bool { return strings.ContainsRune(r.Flags, 'X') }
 
+// ParseRouterOSTerse parses `print terse` output into one attribute map per
+// record, discarding the index and flags.
+//
+// It is exported for the topology collector, which reads `/ip/neighbor` off the
+// same CLI to discover adjacencies. The grammar is not obvious — values may
+// contain spaces, and a console-wrapped record continues on the next line, even
+// mid-token — so having two implementations of it would be two chances to get it
+// subtly wrong on a different menu.
+func ParseRouterOSTerse(block string) []map[string]string {
+	recs := parseTerseRecords(block)
+	out := make([]map[string]string, 0, len(recs))
+	for _, r := range recs {
+		out = append(out, r.Attrs)
+	}
+	return out
+}
+
 // splitRouterOSBlocks re-splits the blob Fetch assembled, keyed by the command
 // that produced each block.
 //

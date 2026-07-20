@@ -56,7 +56,12 @@ type Target struct {
 // LocalPort on ObservedHost, as reported by Source. Every field carries its
 // origin so discrepancies between sources can be surfaced.
 type NeighborEvidence struct {
-	Source           string `json:"source"`
+	Source string `json:"source"`
+	// Discovery is the protocol the device itself used to learn the neighbour
+	// ("lldp", "mndp", "cdp"), where it says so. Source records how we asked;
+	// this records how the device found out, and they are not the same question —
+	// RouterOS answers one query from a table fed by three protocols at once.
+	Discovery        string `json:"discovery,omitempty"`
 	ObservedHost     string `json:"observed_host"`
 	ObservedDevice   string `json:"observed_device,omitempty"`
 	LocalPort        string `json:"local_port"`

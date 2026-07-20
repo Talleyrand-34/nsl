@@ -42,7 +42,10 @@ func TestExportYANG(t *testing.T) {
 	// Catalogues.
 	require.NoError(t, service.AddBrand("Siemens"))
 	require.NoError(t, service.AddModelType("Switch"))
-	require.NoError(t, service.AddOsType("openwrt"))
+	// EnsureOsType, not AddOsType: NewNetService seeds the catalogue from the
+	// registered config parsers, so whether "openwrt" already exists depends on
+	// which packages this test binary links.
+	require.NoError(t, service.EnsureOsType("openwrt"))
 	require.NoError(t, service.AddOwner("IT"))
 	require.NoError(t, service.AddZoneType("Security"))
 	require.NoError(t, service.AddConnectionType("ethernet"))

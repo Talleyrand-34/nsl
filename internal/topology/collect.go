@@ -125,21 +125,70 @@ func collectSSHLLDP(t Target) ([]NeighborEvidence, string, string, error) {
 		return nil, "", "", err
 	}
 	defer c.Close()
-	out, err := c.Execute("lldpcli -f json0 show neighbors")
-	if err != nil {
-		return nil, "", "", fmt.Errorf("%v: %s", err, strings.TrimSpace(out))
+	// Probe each vendor's way of being asked, keeping the first that answers.
+	// A probe that the device does not understand is not an error — it just
+	// means this is a different vendor — so only the case where *nothing*
+	// answered is reported as a failure.
+	var (
+		ev       []NeighborEvidence
+		answered bool
+		attempts []string
+	)
+	note := func(cmd, out string, err error) {
+		msg := firstLine(out)
+		if msg == "" && err != nil {
+			msg = err.Error()
+		}
+		attempts = append(attempts, fmt.Sprintf("%s: %s", cmd, msg))
 	}
-	ev, err := parseLLDPCLI(out, SourceSSHLLDP, t.Host, t.DeviceLabel)
-	if err != nil {
-		return nil, "", "", err
+	for _, probe := range neighborProbes {
+		out, err := c.Execute(probe.command)
+		if !probeOutputIsUsable(out) {
+			note(probe.command, out, err)
+			continue
+		}
+		parsed, perr := probe.parse(out, t.Host, t.DeviceLabel)
+		if perr != nil {
+			note(probe.command, out, perr)
+			continue
+		}
+		// The device answered in a language we understand. An empty neighbour
+		// list is a legitimate answer and ends the probing: trying the next
+		// vendor's command against a box that already replied would at best
+		// waste a round trip and at worst misread an error string as data.
+		ev, answered = parsed, true
+		break
 	}
-	// Also record this host's own chassis MAC + sysName (to exclude it from
-	// intermediary detection and to identify it across observers).
-	var localMAC, localSysName string
-	if chOut, cErr := c.Execute("lldpcli show chassis"); cErr == nil {
-		localMAC, localSysName = parseLocalChassis(chOut)
+	if !answered {
+		return nil, "", "", noNeighborSourceError(attempts)
 	}
+
+	localMAC, localSysName := collectLocalChassis(c)
 	return ev, localMAC, localSysName, nil
+}
+
+// collectLocalChassis records the host's own chassis MAC and sysName, which the
+// correlator needs to recognise the observer in other hosts' evidence and to keep
+// it out of intermediary detection.
+//
+// Neither command is fatal: a host that cannot name itself still contributes
+// usable adjacencies, it just cannot be matched by name from the far side.
+func collectLocalChassis(c interface{ Execute(string) (string, error) }) (mac, sysName string) {
+	for _, cmd := range []string{"lldpcli show chassis", "/usr/sbin/lldpcli show chassis"} {
+		if out, err := c.Execute(cmd); err == nil && probeOutputIsUsable(out) {
+			if mac, sysName = parseLocalChassis(out); mac != "" || sysName != "" {
+				return mac, sysName
+			}
+		}
+	}
+	// RouterOS has no lldpd, so its own identity comes from the system menu.
+	// There is no chassis MAC to report — RouterOS does not expose one — and an
+	// empty MAC is correct here rather than a per-interface MAC standing in for
+	// a chassis identifier it is not.
+	if out, err := c.Execute("/system/identity/print"); err == nil && probeOutputIsUsable(out) {
+		return "", parseRouterOSIdentityLine(out)
+	}
+	return "", ""
 }
 
 // parseLocalChassis pulls the "ChassisID: mac .." and "SysName: .." values from
@@ -178,6 +227,19 @@ func collectSSHFDB(t Target) ([]FdbEvidence, error) {
 		`brctl showmacs "$b" 2>/dev/null; } | ` +
 		`awk '$1=="MAP"{n[$2]=$3;next} $3=="no"{print n[$1], $2}'; done`
 	out, err := c.Execute(cmd)
+	if probeOutputIsUsable(out) && err == nil {
+		return parseBridgeFDB(out, t), nil
+	}
+
+	// The shell pipeline above is meaningless on a vendor CLI. RouterOS keeps the
+	// same information in its own bridge host table, and rejecting the shell
+	// command is how it says so — not a fault worth reporting as one.
+	// An empty answer here is a real one -- a router with no bridge has no
+	// bridge hosts -- so only an outright rejection sends us on.
+	if rosOut, rosErr := c.Execute("/interface/bridge/host/print terse without-paging"); rosErr == nil && !probeRejected(rosOut) {
+		return parseRouterOSFDB(rosOut, t), nil
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("%v: %s", err, strings.TrimSpace(out))
 	}

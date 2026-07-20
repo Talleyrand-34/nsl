@@ -39,7 +39,11 @@ func twoWiredDevices(t *testing.T) (application.NetServiceInt, string, string) {
 
 	require.NoError(t, service.AddBrand("Siemens"))
 	require.NoError(t, service.AddModelType("Switch"))
-	require.NoError(t, service.AddOsType("openwrt"))
+	// EnsureOsType, not AddOsType: NewNetService seeds the catalogue from the
+	// registered config parsers, so whether "openwrt" already exists depends on
+	// which packages this test binary happens to link — an incidental fact that
+	// should not decide whether the fixture builds.
+	require.NoError(t, service.EnsureOsType("openwrt"))
 	require.NoError(t, service.AddConnectionType("ethernet"))
 	require.NoError(t, service.AddModel("XC206", "Siemens", "Switch", "openwrt"))
 	require.NoError(t, service.AddModelPort("P1", "0", "0", "XC206", false, "ethernet", ""))

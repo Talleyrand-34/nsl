@@ -1,0 +1,75 @@
+{
+  "lldp": [
+    {
+      "interface": [
+        {
+          "name": "eth0",
+          "via": "LLDP",
+          "rid": "1",
+          "age": "3 days, 21:40:24",
+          "chassis": [
+            {
+              "id": [
+                {
+                  "type": "mac",
+                  "value": "0c:12:86:f1:00:00"
+                }
+              ],
+              "name": [
+                {
+                  "value": "MikroTik"
+                }
+              ],
+              "descr": [
+                {
+                  "value": "MikroTik RouterOS 7.8 (stable) Feb/24/2023 09:03:00 CHR"
+                }
+              ],
+              "mgmt-ip": [
+                {
+                  "value": "10.0.50.12"
+                },
+                {
+                  "value": "fe80::e12:86ff:fef1:0"
+                }
+              ],
+              "mgmt-iface": [
+                {
+                  "value": "1"
+                },
+                {
+                  "value": "1"
+                }
+              ],
+              "capability": [
+                {
+                  "type": "Bridge",
+                  "enabled": false
+                },
+                {
+                  "type": "Router",
+                  "enabled": true
+                }
+              ]
+            }
+          ],
+          "port": [
+            {
+              "id": [
+                {
+                  "type": "ifname",
+                  "value": "ether1"
+                }
+              ],
+              "ttl": [
+                {
+                  "value": "120"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
