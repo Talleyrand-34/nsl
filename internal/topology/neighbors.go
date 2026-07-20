@@ -115,6 +115,9 @@ func probeRejected(out string) bool {
 		"expected end of command",
 		"unable to connect to socket", // lldpcli present, lldpd not running
 		"command not found",
+		"command parse error", // FortiOS
+		"command fail. return code",
+		"unknown action", // FortiOS, for a command it cannot even tokenise
 	} {
 		if strings.Contains(low, marker) {
 			return true
@@ -134,6 +137,20 @@ func probeRejected(out string) bool {
 // A record is kept only if it names the local interface, which is the one field
 // without which the observation cannot be placed on the graph.
 func parseRouterOSNeighbors(out, host, deviceLabel string) ([]NeighborEvidence, error) {
+	// Refuse output that is not RouterOS at all.
+	//
+	// Blocklisting each vendor's rejection wording is a losing game — FortiOS
+	// alone says "command parse error" for one command and "Unknown action 0"
+	// for another. Without this check, any prose the probe list has not seen
+	// before parses to zero records, which is indistinguishable from a device
+	// that genuinely has no neighbours: the last probe "succeeds" with an empty
+	// result and a box that rejected every question is reported as simply having
+	// no links. Recognising the grammar positively is the check that does not
+	// need updating for the next vendor.
+	if !looksLikeTerseOutput(out) {
+		return nil, fmt.Errorf("not RouterOS terse output")
+	}
+
 	var evidence []NeighborEvidence
 
 	for _, rec := range parsers.ParseRouterOSTerse(out) {
@@ -254,4 +271,43 @@ func firstLine(s string) string {
 		}
 	}
 	return ""
+}
+
+// looksLikeTerseOutput reports whether text has the shape of RouterOS
+// `print terse` output.
+//
+// Every meaningful line is either a record (an index, then key=value pairs), a
+// column/flag legend, or the continuation of a wrapped record. Anything else —
+// a shell error, another vendor's prose — is not this grammar.
+func looksLikeTerseOutput(out string) bool {
+	sawRecord := false
+	for _, line := range strings.Split(out, "\n") {
+		l := strings.TrimSpace(line)
+		if l == "" {
+			continue
+		}
+		if strings.HasPrefix(l, "Flags:") || strings.HasPrefix(l, "Columns:") {
+			continue
+		}
+		if startsWithIndex(l) {
+			sawRecord = true
+			continue
+		}
+		// A continuation only makes sense after a record has started, and it
+		// still has to carry the key=value grammar.
+		if sawRecord && strings.Contains(l, "=") {
+			continue
+		}
+		return false
+	}
+	return sawRecord
+}
+
+// startsWithIndex reports whether a line opens with a RouterOS record index.
+func startsWithIndex(l string) bool {
+	i := 0
+	for i < len(l) && l[i] >= '0' && l[i] <= '9' {
+		i++
+	}
+	return i > 0 && i < len(l) && (l[i] == ' ' || l[i] == '\t')
 }

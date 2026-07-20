@@ -113,6 +113,7 @@ func TestProbeOutputIsUsable(t *testing.T) {
 		"missing binary":      "ls: /usr/sbin/lldpcli: No such file or directory",
 		"vyos restricted cli": "\n  Invalid command: [lldpcli]\n",
 		"routeros rejection":  "syntax error (line 1 column 16)",
+		"fortios rejection":   "command parse error before 'lldp'\nCommand fail. Return code -61",
 		"lldpd not running":   "2026-07-20T00:46:51 [WARN/control] unable to connect to socket /run/lldpd.socket: No such file or directory",
 	}
 	for name, out := range unusable {
@@ -168,5 +169,42 @@ func TestNoNeighborSourceError_FallsBackToTheAttemptList(t *testing.T) {
 	}
 	if noNeighborSourceError(nil) == nil {
 		t.Error("an empty attempt list must still produce an error")
+	}
+}
+
+// A vendor that rejects every probe must be reported as such, not as a device
+// with no links.
+//
+// This is the failure the grammar check exists to prevent. FortiOS answers an
+// unknown command with prose — and its wording varies by command, "command parse
+// error" for one and "Unknown action 0" for another — which the RouterOS parser
+// happily reduced to zero records. The last probe then "succeeded" with an empty
+// result, and a box that had refused every question was reported as simply
+// having no neighbours.
+func TestParseRouterOSNeighbors_RejectsForeignOutput(t *testing.T) {
+	foreign := []string{
+		"FGT30D3X15012871 # Unknown action 0",
+		"FGT30D3X15012871 # \ncommand parse error before 'lldp'\nCommand fail. Return code -61",
+		`{"lldp":[{"interface":[]}]}`,
+		"-ash: /ip/neighbor/print: not found",
+	}
+	for _, out := range foreign {
+		if _, err := parseRouterOSNeighbors(out, "h", "d"); err == nil {
+			t.Errorf("should refuse non-RouterOS output, accepted: %.60q", out)
+		}
+	}
+}
+
+func TestLooksLikeTerseOutput(t *testing.T) {
+	if !looksLikeTerseOutput(readFixture(t, "routeros-ip-neighbor.txt")) {
+		t.Error("the real RouterOS fixture must be recognised")
+	}
+	// A legend with no records is RouterOS talking, but it carries no records —
+	// so it is not accepted as an answer either.
+	if looksLikeTerseOutput("Flags: X - disabled\n") {
+		t.Error("a bare legend has no records and must not count as an answer")
+	}
+	if looksLikeTerseOutput("Unknown action 0") {
+		t.Error("prose is not terse output")
 	}
 }
