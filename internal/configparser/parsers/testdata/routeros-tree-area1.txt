@@ -1,0 +1,8 @@
+# /routing/ospf/instance/print terse without-paging
+0 name=tree version=2 vrf=main router-id=10.255.2.1
+# /routing/ospf/area/print terse without-paging
+0 name=a1 instance=tree area-id=0.0.0.1 type=default
+# /routing/ospf/interface-template/print terse without-paging
+0 area=a1 instance-id=0 networks=10.30.1.0/30 type=broadcast retransmit-interval=5s transmit-delay=1s hello-interval=10s dead-interval=40s priority=128 cost=1
+1 area=a1 instance-id=0 networks=10.30.1.4/30 type=broadcast retransmit-interval=5s transmit-delay=1s hello-interval=10s dead-interval=40s priority=128 cost=1
+2 area=a1 instance-id=0 networks=10.10.10.0/24 type=broadcast retransmit-interval=5s transmit-delay=1s hello-interval=10s dead-interval=40s priority=128 cost=1
