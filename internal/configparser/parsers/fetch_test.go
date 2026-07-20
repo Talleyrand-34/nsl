@@ -201,8 +201,10 @@ func TestCiscoFetch_FailsWhenNeitherCommandWorks(t *testing.T) {
 // OpenWrt
 // -----------------------------------------------------------------------------
 
-// OpenWrt's config is spread across seven commands, and the output is re-split by
-// ParseConfig on the "# <command>" headers this writes.
+// OpenWrt's config is spread across eight commands, and the output is re-split by
+// ParseConfig on the "# <command>" headers this writes. The eighth is frr.conf:
+// UCI cannot express a dynamic routing protocol, so on a routed OpenWrt the whole
+// control plane lives in a file UCI knows nothing about.
 func TestOpenWrtFetch_RunsEveryCommandAndTagsEachBlock(t *testing.T) {
 	sess := newFakeSession()
 	sess.out["uci show network"] = "network.lan=interface\n"
@@ -212,14 +214,16 @@ func TestOpenWrtFetch_RunsEveryCommandAndTagsEachBlock(t *testing.T) {
 	sess.out["uci show dhcp"] = ""
 	sess.out["cat /etc/board.json"] = `{"model":{"id":"x"}}`
 	sess.out["swconfig dev switch0 show"] = "VLAN 1:\n"
+	sess.out["cat /etc/frr/frr.conf"] = "router ospf\n"
 
 	got, err := NewOpenWrtParser().Fetch(sess)
 
 	require.NoError(t, err)
-	assert.Len(t, sess.ran, 7)
+	assert.Len(t, sess.ran, 8)
 	assert.Contains(t, got, "# uci show network")
 	assert.Contains(t, got, "network.lan=interface")
 	assert.Contains(t, got, "# swconfig dev switch0 show")
+	assert.Contains(t, got, "# cat /etc/frr/frr.conf")
 }
 
 // swconfig is absent on DSA-based devices and /etc/board.json on older ones. A failing
