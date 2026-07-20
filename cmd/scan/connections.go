@@ -45,6 +45,7 @@ import (
 var (
 	connFromDB         bool
 	connSubnet         string
+	connHosts          string
 	connProfiles       bool
 	connSource         string
 	connCommunity      string
@@ -77,6 +78,7 @@ Targets (combine freely; default is --from-db):
   --from-db    every device with a management IP and a resolvable scan profile
   --subnet     SNMP-sweep a CIDR (or several, comma-separated), then collect from each responder
   --profiles   the host of every saved scan profile
+  --host       these hosts, named outright — no DB entry and no SNMP sweep needed
 
 Sources: by default every available source per host is used and merged, with
 discrepancies surfaced for review. Use --collector to restrict to exactly one of:
@@ -89,10 +91,17 @@ Prerequisite: this tool only collects — it never configures the targets. LLDP
 (lldpd) and/or SNMP must already be enabled on each host (set up out of band over
 SSH). Hosts without them simply yield no evidence (a non-fatal per-host error).
 
+Vendors: the SSH collector probes for whichever neighbour table the device
+actually offers -- lldpd's lldpcli (OpenWrt, Infix, OPNsense and any Linux
+host), the same binary by absolute path on VyOS, whose CLI shell will not
+resolve it on PATH, and /ip/neighbor on RouterOS, which has no lldpd but
+keeps a richer table fed by MNDP, LLDP and CDP together.
+
 Examples:
   nsl-graph scan connections --from-db
   nsl-graph scan connections --subnet 10.0.0.0/24 --community public
   nsl-graph scan connections --collector ssh-lldp --dry-run
+  nsl-graph scan connections --host 10.0.0.12 --ssh-user admin --ssh-password s3cret
   nsl-graph scan connections --from-db --yes --output gather.json`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if connSource != "" && !validSource(connSource) {
@@ -100,7 +109,7 @@ Examples:
 			os.Exit(1)
 		}
 		// Default target mode when none was selected.
-		if !connFromDB && connSubnet == "" && !connProfiles {
+		if !connFromDB && connSubnet == "" && !connProfiles && connHosts == "" {
 			connFromDB = true
 		}
 
@@ -116,7 +125,7 @@ Examples:
 			os.Exit(1)
 		}
 		if len(targets) == 0 {
-			fmt.Fprintln(os.Stderr, "No targets to scan. Use --from-db, --subnet or --profiles (and ensure devices have IPs/profiles).")
+			fmt.Fprintln(os.Stderr, "No targets to scan. Use --host, --from-db, --subnet or --profiles (and ensure devices have IPs/profiles).")
 			os.Exit(1)
 		}
 
@@ -157,6 +166,7 @@ func init() {
 	f := ConnectionsCmd.Flags()
 	f.BoolVar(&connFromDB, "from-db", false, "Target every DB device with a mgmt IP and a resolvable scan profile (default if no target flag)")
 	f.StringVar(&connSubnet, "subnet", "", "SNMP-sweep this CIDR (or several, comma-separated) and collect from responders")
+	f.StringVar(&connHosts, "host", "", "Collect from these hosts by name/IP (comma-separated), regardless of the DB or an SNMP sweep")
 	f.BoolVar(&connProfiles, "profiles", false, "Target the host of every saved scan profile")
 	f.StringVar(&connSource, "collector", "", "Restrict to a single source (snmp-lldp|snmp-cdp|snmp-fdb|ssh-lldp|local-lldp); default = all, merged")
 	f.StringVar(&connCommunity, "community", "public", "SNMP community for --subnet sweeps / fallback")
@@ -174,6 +184,17 @@ func init() {
 	f.IntVar(&connSSHPort, "ssh-port", 22, "SSH port for runtime SSH and subnet SSH-reachability probing")
 	f.StringVar(&connSSHConfig, "ssh-config", "", "OpenSSH config file: resolve per-host SSH user/key by HostName/alias (keys read from disk, never re-stored)")
 	f.StringVar(&connGenericProfile, "generic-profile", "", "Name of a saved generic profile to use as the SSH fallback for hosts without their own profile")
+}
+
+// splitList splits a comma-separated flag value, trimming blanks.
+func splitList(v string) []string {
+	var out []string
+	for _, part := range strings.Split(v, ",") {
+		if p := strings.TrimSpace(part); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // cleanIP strips a CIDR suffix and whitespace, and drops addresses unusable as
@@ -429,6 +450,30 @@ func buildTargets(service q.NetServiceInt) ([]topology.Target, error) {
 		}
 		if sshNoCreds > 0 {
 			fmt.Fprintf(os.Stderr, "warning: %d host(s) have SSH open but answer no SNMP — their LLDP/FDB can only be read over SSH. Pass --ssh-user/--ssh-key, --ssh-config or --generic-profile to collect them and form their edges.\n", sshNoCreds)
+		}
+	}
+
+	// --host: the targets the operator names, taken at their word.
+	//
+	// Every other target mode infers reachability — the DB must hold a device
+	// with a profile, or the segment must answer an SNMP sweep. Neither helps
+	// with the common case of a router that speaks only SSH and is not in the DB
+	// yet, which is exactly the position every device is in before its first
+	// scan. Naming a host skips the inference: SNMP is offered because it costs
+	// one timeout to find out, and SSH is attached whenever credentials were
+	// supplied.
+	for _, h := range splitList(connHosts) {
+		t := get(h)
+		if t.SNMP == nil {
+			t.SNMP = defaultSNMP()
+		}
+		if t.SSH == nil {
+			if creds := resolveRuntimeSSH(h); creds != nil {
+				t.SSH = creds
+			}
+		}
+		if label, ok := ipToLabel[h]; ok && t.DeviceLabel == "" {
+			t.DeviceLabel = label
 		}
 	}
 
