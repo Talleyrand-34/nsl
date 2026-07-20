@@ -41,6 +41,7 @@ func ConfigDataToSNMPDevice(cd *ConfigData, ip string) *s.SNMPDevice {
 		di := s.DeviceInterface{
 			Index:       i + 1,
 			Name:        ci.Name,
+			Description: ci.Description,
 			MAC:         ci.MACAddress,
 			IPAddresses: ci.IPAddresses,
 			IPNetmasks:  make(map[string]string),

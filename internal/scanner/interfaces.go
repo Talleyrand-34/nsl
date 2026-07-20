@@ -36,6 +36,7 @@ type DeviceInterface struct {
 	Index        int               `json:"index"`
 	IfType       int               `json:"if_type"`      // SNMP ifType value
 	Name         string            `json:"name"`         // ifDescr
+	Description  string            `json:"description,omitempty"` // ifAlias / the operator-assigned role ("RINGOWRTO (opt1)", "uplink")
 	MAC          string            `json:"mac"`          // ifPhysAddress
 	AdminStatus  int               `json:"admin_status"` // 1=up 2=down
 	OperStatus   int               `json:"oper_status"`
