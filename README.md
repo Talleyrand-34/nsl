@@ -15,7 +15,7 @@ NSL-Graph is a network specification management tool designed to help you docume
 - **Network Visualization**: Generate D2-based diagrams showing devices, connections, and VLANs
 - **VLAN Support**: Tagged and untagged VLAN configurations with color-coded visualization
 - **WiFi Support**: WiFi radio ports and SSID interface entities
-- **Device Configuration Integration**: SSH, file, and manual config parsing for OPNsense, OpenWrt, Fortinet, and Cisco devices
+- **Device Configuration Integration**: SSH, file, and manual config parsing for OPNsense, OpenWrt, Fortinet devices
 - **SNMP + Config Coordination**: Merge operational SNMP data with declarative configuration
 - **Clean Architecture**: Repository pattern with CloverDB backend
 - **Multiple Interfaces**: CLI, HTTP API, and PHP web frontend
@@ -234,7 +234,7 @@ nsl/
 │   │   ├── entities/      # Core data structures
 │   │   └── infra/        # CloverDB implementation
 │   ├── configparser/      # Configuration parsing framework
-│   │   └── parsers/       # Device-specific parsers (OPNsense, OpenWrt, Fortinet, Cisco)
+│   │   └── parsers/       # Device-specific parsers (OPNsense, OpenWrt, Fortinet)
 │   └── format/            # Diagram generation
 ├── frontend/php/          # Web interface
 │   ├── action/            # Entity management forms
@@ -268,7 +268,6 @@ When VLAN visualization is enabled (`--vlan true` or `vlan=true`):
 | **OPNsense** | XML (`/conf/config.xml`) | FreeBSD + "opnsense" in SysDescr/SysName |
 | **OpenWrt** | UCI (Unified Configuration Interface) | Linux + "openwrt" in SysDescr/SysName |
 | **Fortinet FortiGate** | CLI configuration | "fortinet", "fortigate", or "FG-" prefix |
-| **Cisco** | CLI configuration | "cisco" or "IOS" in SysDescr |
 
 ### Configuration Sources
 
@@ -291,7 +290,7 @@ When SNMP and configuration data conflict:
 |------|-------------|
 | `--config-source` | Configuration source (none, ssh, file, manual) |
 | `--config-file` | Path to configuration file (file source only) |
-| `--device-type` | Manual type override (opnsense, openwrt, fortinet, cisco) |
+| `--device-type` | Manual type override (opnsense, openwrt, fortinet) |
 | `--ssh-user` | SSH username |
 | `--ssh-password` | SSH password |
 | `--ssh-key` | Path to SSH private key |
