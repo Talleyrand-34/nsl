@@ -580,7 +580,6 @@ func (ss *SNMPScanner) queryLLDPNeighbors(client *gosnmp.GoSNMP, ifaces []Device
 	return neighbors
 }
 
-// queryCDPNeighbors retrieves CDP cache table entries (Cisco-specific).
 // --- helpers ---
 
 // NetmaskToCIDR converts an IP address and its dotted-decimal netmask into
@@ -793,9 +792,3 @@ func parseLLDPRemKey(oid, base string) lldpRemKey {
 	return lldpRemKey{tm, lp, ri}
 }
 
-// parseCDPKey extracts (ifIndex, deviceNum) from a CDP cache OID.
-// OID format: <base>.<ifIndex>.<deviceNum>
-type cdpKey struct{ ifIdx, devNum int }
-
-func parseCDPKey(oid, base string) cdpKey {
-	suffix := oidSuffix(oid, base)
