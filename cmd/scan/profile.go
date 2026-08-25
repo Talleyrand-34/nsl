@@ -304,7 +304,7 @@ func init() {
 	f.StringVar(&profScanSource, "scan-source", "snmp", "Primary scan source (snmp, ssh)")
 	f.StringVar(&profConfigSource, "config-source", "none", "Config source (none, ssh, file, manual)")
 	f.StringVar(&profConfigFile, "config-file", "", "Path to device configuration file")
-	f.StringVar(&profOsType, "os-type", "", "OS type (opnsense, openwrt, fortinet, cisco)")
+	f.StringVar(&profOsType, "os-type", "", "OS type (opnsense, openwrt, fortinet)")
 	f.StringVar(&profSSHUser, "ssh-user", "", "SSH username")
 	f.StringVar(&profSSHPassword, "ssh-password", "", "SSH password (encrypted at rest with a passphrase)")
 	f.StringVar(&profSSHKeyFile, "ssh-key", "", "Path to SSH private key file")
