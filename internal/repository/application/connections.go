@@ -1343,8 +1343,6 @@ func ouiVendor(mac string) string {
 		return "Ubiquiti"
 	case "50:c7:bf", "54:af:97", "ac:84:c6", "c4:e9:0a", "98:da:c4", "00:31:92":
 		return "TP-Link"
-	case "00:0c:29", "00:1b:0d", "00:1e:14", "00:24:14", "f4:cf:e2", "00:1a:a1":
-		return "Cisco"
 	case "4c:5e:0c", "48:8f:5a", "dc:2c:6e", "cc:2d:e0":
 		return "MikroTik"
 	}
