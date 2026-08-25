@@ -94,12 +94,12 @@ DELETE /brands
 ```bash
 curl -X POST http://localhost:8081/brands \
   -H "Content-Type: application/json" \
-  -d '{"brand": "Cisco"}'
+  -d '{"brand": "Juniper"}'
 ```
 
 **DELETE Example:**
 ```bash
-curl -X DELETE "http://localhost:8081/brands?brand=Cisco"
+curl -X DELETE "http://localhost:8081/brands?brand=Juniper"
 ```
 
 #### Model Types
@@ -161,7 +161,7 @@ curl -X POST http://localhost:8081/models \
   -H "Content-Type: application/json" \
   -d '{
     "model": "ISR4431",
-    "brand": "Cisco",
+    "brand": "Juniper",
     "class": "router"
   }'
 ```
@@ -439,7 +439,7 @@ Error response format:
 ```json
 {
   "id": 1,
-  "brand": "Cisco"
+  "brand": "Juniper"
 }
 ```
 
@@ -456,7 +456,7 @@ Error response format:
 {
   "id": 1,
   "model": "ISR4431",
-  "brand": "Cisco",
+  "brand": "Juniper",
   "class": "router"
 }
 ```

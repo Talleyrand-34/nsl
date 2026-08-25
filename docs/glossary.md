@@ -14,7 +14,7 @@ code, docs, and UI text.
 ## Core data model
 
 ### Brand
-A hardware **manufacturer** (e.g. Cisco, Netgear, OpenWrt).
+A hardware **manufacturer** (e.g. Netgear, OpenWrt).
 - Collection `brands`; API `/brands`; CLI `add/update/delete brand`; UI "Brand".
 
 ### Model Type
@@ -116,7 +116,7 @@ scan used. Scan-connections (from-db) requires every device to have one.
 
 ### OS type (`os_type`)
 The **operating system / firmware family** used to pick the right config parser
-over SSH — `openwrt`, `opnsense`, `fortinet`, `cisco`, … It is **not** the hardware
+over SSH — `openwrt`, `opnsense`, `fortinet`, `freebsd`, … It is **not** the hardware
 Model Type (router/switch/…). UI label: "OS / firmware type"; CLI flag `--os-type`;
 field `os_type`.
 - **Renamed from `device_type`** (which read like the hardware type). It is now its

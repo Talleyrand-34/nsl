@@ -44,7 +44,7 @@ Add a new equipment brand.
 
 **Example:**
 ```bash
-nsl-graph add brand --name "Cisco"
+nsl-graph add brand --name "Juniper"
 nsl-graph add brand --name "Juniper"
 ```
 
@@ -104,7 +104,7 @@ Add a device model.
 
 **Example:**
 ```bash
-nsl-graph add model --name "ISR4431" --brand "Cisco" --class "router"
+nsl-graph add model --name "EX4300" --brand "Juniper" --class "router"
 nsl-graph add model --name "EX4300" --brand "Juniper" --class "switch"
 ```
 
@@ -534,7 +534,7 @@ Here's a complete example of setting up a simple network:
 
 ```bash
 # Set up basic entities
-nsl-graph add brand --name "Cisco"
+nsl-graph add brand --name "Juniper"
 nsl-graph add modeltype --name "router"
 nsl-graph add owner --name "MyCompany"
 nsl-graph add zonetype --name "physical"
@@ -543,7 +543,7 @@ nsl-graph add zonetype --name "physical"
 nsl-graph add zone --name "datacenter" --zonetype "physical" --owner "MyCompany"
 
 # Create model and devices
-nsl-graph add model --name "ISR4431" --brand "Cisco" --class "router"
+nsl-graph add model --name "EX4300" --brand "Juniper" --class "router"
 nsl-graph add device --name "router01" --model "ISR4431" --zonename "datacenter" --owner "MyCompany"
 nsl-graph add device --name "router02" --model "ISR4431" --zonename "datacenter" --owner "MyCompany"
 

@@ -78,7 +78,7 @@ go run main.go --help
 ### Network Entities
 The tool manages the following network entities (see the [Glossary](glossary.md)
 for precise definitions):
-- **Brands**: Equipment manufacturers (Cisco, Netgear, etc.)
+- **Brands**: Equipment manufacturers (Netgear, etc.)
 - **Model Types**: Categories of network equipment (router, switch, firewall, AP)
 - **Models**: Specific products of a brand + model type
 - **Zones**: Logical or physical network segments (with a Zone Type and Owner)

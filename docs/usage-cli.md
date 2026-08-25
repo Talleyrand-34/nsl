@@ -69,7 +69,7 @@ Entities (see the [Glossary](glossary.md) for precise definitions):
 
 | Entity | What it is |
 |--------|------------|
-| `brand` | Equipment manufacturer (Cisco, Netgear…). |
+| `brand` | Equipment manufacturer (Netgear…). |
 | `modeltype` | Category of equipment: router, switch, firewall, AP… |
 | `ostype` | OS/firmware family that selects the config parser (openwrt, opnsense…). Seeded automatically. |
 | `model` | A product = brand + model type + (optional) os type. |
@@ -87,9 +87,9 @@ Most `add`/`update` commands take their fields as flags (use `--help` to see
 them). Names are generally accepted where IDs are; print first if unsure:
 
 ```bash
-nsl-graph add brand --name Cisco -s test-dbs/demo.db
+nsl-graph add brand --name Juniper -s test-dbs/demo.db
 nsl-graph print brand -s test-dbs/demo.db          # JSON list with ids
-nsl-graph delete brand Cisco -s test-dbs/demo.db
+nsl-graph delete brand Juniper -s test-dbs/demo.db
 ```
 
 ---
