@@ -13,8 +13,6 @@ func TestDeviceDiscoverer_ClassifyDevice(t *testing.T) {
 		expectedClass string
 	}{
 		{
-		},
-		{
 			name:          "Linux is Server",
 			device:        SNMPDevice{IP: "192.168.1.100", SysDescr: "Linux server1 5.15.0"},
 			expectedClass: "Server",

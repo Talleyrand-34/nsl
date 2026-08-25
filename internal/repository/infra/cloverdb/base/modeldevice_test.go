@@ -33,8 +33,8 @@ func TestModelDevice_AddAndGet(t *testing.T) {
 		t.Errorf("failed to get models: %v", err)
 	}
 
-	if !modelSliceContains(models, "Catalyst 9300") {
-		t.Errorf("expected model 'Catalyst 9300' in list, got %v", models)
+	if !modelSliceContains(models, "EX4300") {
+		t.Errorf("expected model 'EX4300' in list, got %v", models)
 	}
 }
 
@@ -46,9 +46,6 @@ func TestModelDevice_CreateAndUpdate(t *testing.T) {
 	defer cleanup()
 
 	// Setup prerequisites
-	if err := repo.AddBrand("Juniper"); err != nil {
-		t.Fatalf("failed to add brand: %v", err)
-	}
 	if err := repo.AddBrand("Juniper"); err != nil {
 		t.Fatalf("failed to add brand: %v", err)
 	}
@@ -72,7 +69,7 @@ func TestModelDevice_CreateAndUpdate(t *testing.T) {
 
 	var modelId string
 	for _, m := range models {
-		if m.Model == "Catalyst 9300" {
+		if m.Model == "EX4300" {
 			modelId = m.ID
 			break
 		}
@@ -145,7 +142,7 @@ func TestModelDevice_CreateAndDelete(t *testing.T) {
 
 	var modelId string
 	for _, m := range models {
-		if m.Model == "ISR 4000" {
+		if m.Model == "MX480" {
 			modelId = m.ID
 			break
 		}
@@ -166,8 +163,8 @@ func TestModelDevice_CreateAndDelete(t *testing.T) {
 		t.Errorf("failed to get models after deletion: %v", err)
 	}
 
-	if modelSliceContains(modelsAfterDelete, "ISR 4000") {
-		t.Errorf("model 'ISR 4000' should have been deleted, but got %v", modelsAfterDelete)
+	if modelSliceContains(modelsAfterDelete, "MX480") {
+		t.Errorf("model 'MX480' should have been deleted, but got %v", modelsAfterDelete)
 	}
 }
 

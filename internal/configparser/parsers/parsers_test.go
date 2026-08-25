@@ -216,30 +216,12 @@ func TestFortinetParser_SupportsDevice_NoMatch(t *testing.T) {
 	parser := parsers.NewFortinetParser()
 
 	// Test non-Fortinet device
+	device := createTestDevice("Juniper JUNOS", "juniper-device")
 	assert.False(t, parser.SupportsDevice(device))
 
 	// Test generic device
 	device = createTestDevice("Generic Router", "router")
 	assert.False(t, parser.SupportsDevice(device))
-}
-
-			"linux_generic":  false,
-		},
-	}
-
-	for parserName, p := range allParsers {
-		for deviceName, device := range devices {
-			expected := expectedMatches[parserName][deviceName]
-			actual := p.SupportsDevice(device)
-			assert.Equal(t, expected, actual,
-				"Parser %s should %s device %s (SysDescr: %s)",
-				parserName,
-				map[bool]string{true: "detect", false: "NOT detect"}[expected],
-				deviceName,
-				device.SysDescr,
-			)
-		}
-	}
 }
 
 func TestParserDetection_RealWorldCases(t *testing.T) {
