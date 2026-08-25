@@ -11,7 +11,7 @@ Project nsl_graph {
 // Base Entity Collections
 // ============================================
 
-// Equipment manufacturers (Cisco, Juniper, HP, etc.)
+// Equipment manufacturers (Juniper, HP, etc.)
 Table brands {
   _id string [pk]
   name string
@@ -24,7 +24,7 @@ Table modeltypes {
 }
 
 // OS / firmware families used to pick the config parser (openwrt, opnsense,
-// fortinet, cisco, freebsd, ...). Seeded from the config-parser registry.
+// fortinet, freebsd, ...). Seeded from the config-parser registry.
 Table ostypes {
   _id string [pk]
   name string
@@ -181,7 +181,7 @@ Table scanprofiles {
   scan_source string [note: 'snmp | ssh']
   config_source string [note: 'none | ssh | file | manual']
   config_file string [null]
-  os_type string [note: 'opnsense | openwrt | fortinet | cisco', null]
+  os_type string [note: 'opnsense | openwrt | fortinet', null]
   ssh_user string [null]
   ssh_password string [note: 'AES-256-GCM blob under the credential vault data key; never stored in clear', null]
   ssh_key_file string [note: 'path to a key file (CLI)', null]

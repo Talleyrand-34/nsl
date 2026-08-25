@@ -409,8 +409,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_upload'])) {
                     </select>
                 </label>
                 <label>OS / firmware type <small>(operating system for config parsing — not the hardware model; blank = use the profile's, required for generic profiles)</small>:
-                    <input type="text" name="ssh_os_type" list="ssh_devtypes" value="<?= htmlspecialchars($_POST['ssh_os_type'] ?? '') ?>" placeholder="openwrt / opnsense / fortinet / cisco">
-                    <datalist id="ssh_devtypes"><option value="openwrt"><option value="opnsense"><option value="fortinet"><option value="cisco"></datalist>
+                    <input type="text" name="ssh_os_type" list="ssh_devtypes" value="<?= htmlspecialchars($_POST['ssh_os_type'] ?? '') ?>" placeholder="openwrt / opnsense / fortinet">
+                    <datalist id="ssh_devtypes"><option value="openwrt"><option value="opnsense"><option value="fortinet"></datalist>
                 </label>
                 <p style="margin:4px 0; color:#777; font-size:0.85em;">The profile's stored SSH secret is decrypted by the credential vault — unlock it from the app bar before scanning.</p>
             </div>
@@ -466,7 +466,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_upload'])) {
             <!-- SSH config + credentials: SSH profiles only. -->
             <div class="cp-grp" data-show="device-ssh generic-ssh">
                 <label>OS / firmware type <small>(operating system for config parsing — not the hardware model; optional for generic)</small>:
-                    <input type="text" name="cp_os_type" placeholder="opnsense / openwrt / fortinet / cisco" size="20">
+                    <input type="text" name="cp_os_type" placeholder="opnsense / openwrt / fortinet" size="20">
                 </label><br>
                 <p style="margin:6px 0; color:#555;"><em>SSH credentials:</em></p>
                 <label>SSH user: <input type="text" name="cp_ssh_user"></label><br>
