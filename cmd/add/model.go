@@ -35,7 +35,7 @@ var modelDeviceModCmd = &cobra.Command{
 A model represents a specific network device template (like "ISR4431" or "Catalyst2960") 
 that defines the capabilities and characteristics of devices.
 
-Examples:
+Examples:\`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Get required model name
 		modelName, err := cmd.Flags().GetString("name")
