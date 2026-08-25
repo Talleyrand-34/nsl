@@ -13,14 +13,6 @@ func TestDeviceDiscoverer_ClassifyDevice(t *testing.T) {
 		expectedClass string
 	}{
 		{
-			name:          "Cisco IOS is Router",
-			device:        SNMPDevice{IP: "192.168.1.1", SysDescr: "Cisco IOS Software, Version 15.2"},
-			expectedClass: "Router",
-		},
-		{
-			name:          "Cisco NX-OS is Switch",
-			device:        SNMPDevice{IP: "192.168.1.2", SysDescr: "Cisco NX-OS n9000"},
-			expectedClass: "Switch",
 		},
 		{
 			name:          "Linux is Server",

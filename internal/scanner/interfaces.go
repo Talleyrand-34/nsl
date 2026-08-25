@@ -363,7 +363,7 @@ type ImportOptions struct {
 	// Configuration parsing options
 	ConfigSource       string `json:"config_source"`          // "none", "ssh", "file", "manual"
 	ConfigFile         string `json:"config_file,omitempty"`  // Path to config file when using file source
-	OsType             string `json:"os_type,omitempty"`      // Device OS type override (opnsense, openwrt, fortinet, cisco)
+	OsType             string `json:"os_type,omitempty"`      // Device OS type override (opnsense, openwrt, fortinet)
 	SSHUsername        string `json:"ssh_username,omitempty"` // SSH username for config retrieval
 	SSHPassword        string `json:"ssh_password,omitempty"` // SSH password for config retrieval
 	SSHKeyFile         string `json:"ssh_key_file,omitempty"` // SSH private key file path

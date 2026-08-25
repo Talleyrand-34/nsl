@@ -55,12 +55,10 @@ func TestNetService_ScanningMethods(t *testing.T) {
 				{
 					IP:        "192.168.1.1",
 					SysName:   "router",
-					SysDescr:  "Cisco IOS Software, Version 15.2",
 					Reachable: true,
 				},
 				{
 					IP:        "192.168.1.10",
-					SysDescr:  "Cisco NX-OS",
 					Reachable: true,
 					Interfaces: []s.DeviceInterface{
 						{Index: 1, Name: "GigabitEthernet0/1", MAC: "00:11:22:33:44:55"},

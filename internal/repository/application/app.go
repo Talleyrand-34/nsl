@@ -1108,7 +1108,7 @@ func (ns *NetService) ensureRequiredEntities(options s.ImportOptions) error {
 		return false
 	}
 
-	requiredBrands := []string{"Generic", "Discovered", "Linux", "Cisco", "Juniper", "Aruba", "Ubiquiti", "Fortinet", "Palo Alto", "MikroTik", "HP", "Microsoft", "BSD"}
+	requiredBrands := []string{"Generic", "Discovered", "Linux", "Juniper", "Aruba", "Ubiquiti", "Fortinet", "Palo Alto", "MikroTik", "HP", "Microsoft", "BSD"}
 	for _, brandName := range requiredBrands {
 		if !brandExists(brandName) {
 			ns.AddBrand(brandName)
@@ -1144,7 +1144,6 @@ func (ns *NetService) ensureRequiredEntities(options s.ImportOptions) error {
 	}
 
 	requiredModels := []string{
-		"IOS XE Device", "IOS XR Device", "NX-OS Device", "IOS Device", "Cisco Device",
 		"Juniper Device", "Aruba Device", "UniFi Device", "FortiGate", "PAN Device",
 		"RouterOS Device", "ProCurve Switch", "Linux Server", "Windows Server",
 		"BSD Server", "Network Printer", "Network Device",
@@ -1154,13 +1153,6 @@ func (ns *NetService) ensureRequiredEntities(options s.ImportOptions) error {
 			// Determine brand and device class for each model
 			var brandName, modelTypeName string
 			switch modelName {
-			case "IOS XE Device", "IOS XR Device", "NX-OS Device", "IOS Device", "Cisco Device":
-				brandName = "Cisco"
-				if modelName == "NX-OS Device" || modelName == "Cisco Device" {
-					modelTypeName = "Switch"
-				} else {
-					modelTypeName = "Router"
-				}
 			case "Juniper Device":
 				brandName, modelTypeName = "Juniper", "Router"
 			case "Aruba Device":

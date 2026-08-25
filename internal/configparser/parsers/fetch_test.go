@@ -177,26 +177,6 @@ func TestFortinetFetch_FailsWhenBothRoutesFail(t *testing.T) {
 }
 
 // -----------------------------------------------------------------------------
-// Cisco
-// -----------------------------------------------------------------------------
-
-func TestCiscoFetch_FallsBackToShowConfig(t *testing.T) {
-	sess := newFakeSession()
-	// `show running-config` needs enable mode on most devices.
-	sess.fail["show running-config"] = fmt.Errorf("%% Invalid input detected")
-	sess.out["show config"] = "interface GigabitEthernet0/1\n"
-
-	got, err := NewCiscoParser().Fetch(sess)
-
-	require.NoError(t, err)
-	assert.Contains(t, got, "GigabitEthernet0/1")
-}
-
-func TestCiscoFetch_FailsWhenNeitherCommandWorks(t *testing.T) {
-	_, err := NewCiscoParser().Fetch(newFakeSession())
-	require.Error(t, err)
-}
-
 // -----------------------------------------------------------------------------
 // OpenWrt
 // -----------------------------------------------------------------------------

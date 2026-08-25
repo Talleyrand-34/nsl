@@ -15,7 +15,7 @@ func TestBrand_AddAndGetIndustrialBrands(t *testing.T) {
 	}
 	defer cleanup()
 
-	brands := []string{"Fortinet", "Siemens", "Cisco"}
+	brands := []string{"Fortinet", "Siemens", "Juniper"}
 	for _, b := range brands {
 		if err := repo.AddBrand(b); err != nil {
 			t.Errorf("failed to add brand %q: %v", b, err)
@@ -75,7 +75,7 @@ func TestBrand_CreateOnly(t *testing.T) {
 	defer cleanup()
 
 	// Test CREATE operation
-	brandName := "Cisco Systems"
+	brandName := "Juniper Networks"
 	if err := repo.AddBrand(brandName); err != nil {
 		t.Errorf("failed to add brand %q: %v", brandName, err)
 	}

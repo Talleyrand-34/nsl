@@ -122,7 +122,7 @@ field `os_type`.
 - **Renamed from `device_type`** (which read like the hardware type). It is now its
   **own catalogue** (`ostypes`, CRUD via `add|update|delete|print ostype` and the
   dashboard), seeded from the config-parser registry (openwrt/opnsense/fortinet/
-  cisco/freebsd). A **Model** carries an `os_type` reference alongside its Model Type.
+  freebsd). A **Model** carries an `os_type` reference alongside its Model Type.
 - The stored `Model.os_type` is **authoritative**; a scan may **override** it when it
   detects an inconsistency. A scan profile still carries an `os_type` used as the
   first-time selector (you don't yet know the model), then reconciled on import.

@@ -16,7 +16,7 @@ func TestModelDevice_AddAndGet(t *testing.T) {
 	defer cleanup()
 
 	// Setup prerequisites
-	if err := repo.AddBrand("Cisco"); err != nil {
+	if err := repo.AddBrand("Juniper"); err != nil {
 		t.Fatalf("failed to add brand: %v", err)
 	}
 	if err := repo.AddModelType("Switch"); err != nil {
@@ -24,7 +24,7 @@ func TestModelDevice_AddAndGet(t *testing.T) {
 	}
 
 	// Add models
-	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch", ""); err != nil {
+	if err := repo.AddModel("EX4300", "Juniper", "Switch", ""); err != nil {
 		t.Errorf("failed to add model: %v", err)
 	}
 
@@ -46,7 +46,7 @@ func TestModelDevice_CreateAndUpdate(t *testing.T) {
 	defer cleanup()
 
 	// Setup prerequisites
-	if err := repo.AddBrand("Cisco"); err != nil {
+	if err := repo.AddBrand("Juniper"); err != nil {
 		t.Fatalf("failed to add brand: %v", err)
 	}
 	if err := repo.AddBrand("Juniper"); err != nil {
@@ -60,7 +60,7 @@ func TestModelDevice_CreateAndUpdate(t *testing.T) {
 	}
 
 	// Add model
-	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch", ""); err != nil {
+	if err := repo.AddModel("EX4300", "Juniper", "Switch", ""); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
 
@@ -125,7 +125,7 @@ func TestModelDevice_CreateAndDelete(t *testing.T) {
 	defer cleanup()
 
 	// Setup prerequisites
-	if err := repo.AddBrand("Cisco"); err != nil {
+	if err := repo.AddBrand("Juniper"); err != nil {
 		t.Fatalf("failed to add brand: %v", err)
 	}
 	if err := repo.AddModelType("Router"); err != nil {
@@ -133,7 +133,7 @@ func TestModelDevice_CreateAndDelete(t *testing.T) {
 	}
 
 	// Add model
-	if err := repo.AddModel("ISR 4000", "Cisco", "Router", ""); err != nil {
+	if err := repo.AddModel("MX480", "Juniper", "Router", ""); err != nil {
 		t.Errorf("failed to add model: %v", err)
 	}
 

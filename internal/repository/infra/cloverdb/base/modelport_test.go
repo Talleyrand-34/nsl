@@ -16,13 +16,13 @@ func TestModelPort_AddAndGet(t *testing.T) {
 	defer cleanup()
 
 	// Setup prerequisites
-	if err := repo.AddBrand("Cisco"); err != nil {
+	if err := repo.AddBrand("Juniper"); err != nil {
 		t.Fatalf("failed to add brand: %v", err)
 	}
 	if err := repo.AddModelType("Switch"); err != nil {
 		t.Fatalf("failed to add device class: %v", err)
 	}
-	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch", ""); err != nil {
+	if err := repo.AddModel("EX4300", "Juniper", "Switch", ""); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
 
@@ -49,13 +49,13 @@ func TestModelPort_CreateAndUpdate(t *testing.T) {
 	defer cleanup()
 
 	// Setup prerequisites
-	if err := repo.AddBrand("Cisco"); err != nil {
+	if err := repo.AddBrand("Juniper"); err != nil {
 		t.Fatalf("failed to add brand: %v", err)
 	}
 	if err := repo.AddModelType("Switch"); err != nil {
 		t.Fatalf("failed to add device class: %v", err)
 	}
-	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch", ""); err != nil {
+	if err := repo.AddModel("EX4300", "Juniper", "Switch", ""); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
 
@@ -116,13 +116,13 @@ func TestModelPort_CreateAndDelete(t *testing.T) {
 	defer cleanup()
 
 	// Setup prerequisites
-	if err := repo.AddBrand("Cisco"); err != nil {
+	if err := repo.AddBrand("Juniper"); err != nil {
 		t.Fatalf("failed to add brand: %v", err)
 	}
 	if err := repo.AddModelType("Switch"); err != nil {
 		t.Fatalf("failed to add device class: %v", err)
 	}
-	if err := repo.AddModel("Catalyst 9300", "Cisco", "Switch", ""); err != nil {
+	if err := repo.AddModel("EX4300", "Juniper", "Switch", ""); err != nil {
 		t.Fatalf("failed to add model: %v", err)
 	}
 
