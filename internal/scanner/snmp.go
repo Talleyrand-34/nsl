@@ -42,10 +42,6 @@ const (
 	// LLDP local port table (port number → ifDescr)
 	oidLLDPLocPortDesc = "1.0.8802.1.1.2.1.3.7.1.4"
 
-	// CDP cache table
-	oidCDPCacheDeviceID   = "1.3.6.1.4.1.9.9.23.1.2.1.1.6"
-	oidCDPCacheDevicePort = "1.3.6.1.4.1.9.9.23.1.2.1.1.7"
-	oidCDPCacheAddress    = "1.3.6.1.4.1.9.9.23.1.2.1.1.4"
 
 	// Bridge forwarding database (MAC address tables)
 	oidDot1qTpFdbPort = "1.3.6.1.2.1.17.7.1.2.2.1.2" // VLAN-aware FDB: index = fdbId.MAC, value = bridge port
@@ -135,7 +131,6 @@ func (ss *SNMPScanner) ScanDevice(ip string, options ScanOptions) (*SNMPDevice, 
 
 	neighbors := ss.queryLLDPNeighbors(client, ifaces)
 	if len(neighbors) == 0 {
-		neighbors = ss.queryCDPNeighbors(client, ifaces)
 	}
 	device.Neighbors = neighbors
 
@@ -586,59 +581,6 @@ func (ss *SNMPScanner) queryLLDPNeighbors(client *gosnmp.GoSNMP, ifaces []Device
 }
 
 // queryCDPNeighbors retrieves CDP cache table entries (Cisco-specific).
-func (ss *SNMPScanner) queryCDPNeighbors(client *gosnmp.GoSNMP, ifaces []DeviceInterface) []DirectNeighbor {
-	ifIdxToName := make(map[int]string)
-	for _, iface := range ifaces {
-		ifIdxToName[iface.Index] = iface.Name
-	}
-
-	cdpDeviceID := make(map[cdpKey]string)
-	cdpDevicePort := make(map[cdpKey]string)
-	cdpAddress := make(map[cdpKey]string)
-	zero := cdpKey{}
-
-	_ = client.BulkWalk(oidCDPCacheDeviceID, func(pdu gosnmp.SnmpPDU) error {
-		k := parseCDPKey(pdu.Name, oidCDPCacheDeviceID)
-		if k != zero {
-			cdpDeviceID[k] = snmpString(pdu)
-		}
-		return nil
-	})
-
-	_ = client.BulkWalk(oidCDPCacheDevicePort, func(pdu gosnmp.SnmpPDU) error {
-		k := parseCDPKey(pdu.Name, oidCDPCacheDevicePort)
-		if k != zero {
-			cdpDevicePort[k] = snmpString(pdu)
-		}
-		return nil
-	})
-
-	_ = client.BulkWalk(oidCDPCacheAddress, func(pdu gosnmp.SnmpPDU) error {
-		k := parseCDPKey(pdu.Name, oidCDPCacheAddress)
-		if k != zero {
-			cdpAddress[k] = parseCDPAddress(pdu)
-		}
-		return nil
-	})
-
-	var neighbors []DirectNeighbor
-	for k, deviceID := range cdpDeviceID {
-		localPort := ifIdxToName[k.ifIdx]
-		if localPort == "" {
-			localPort = fmt.Sprintf("ifIndex%d", k.ifIdx)
-		}
-		neighbors = append(neighbors, DirectNeighbor{
-			LocalPort:  localPort,
-			RemoteIP:   cdpAddress[k],
-			RemotePort: cdpDevicePort[k],
-			RemoteName: deviceID,
-			Protocol:   "cdp",
-		})
-	}
-
-	return neighbors
-}
-
 // --- helpers ---
 
 // NetmaskToCIDR converts an IP address and its dotted-decimal netmask into
@@ -857,33 +799,3 @@ type cdpKey struct{ ifIdx, devNum int }
 
 func parseCDPKey(oid, base string) cdpKey {
 	suffix := oidSuffix(oid, base)
-	if suffix == "" {
-		return cdpKey{}
-	}
-	parts := strings.Split(suffix, ".")
-	if len(parts) < 2 {
-		return cdpKey{}
-	}
-	var ifIdx, devNum int
-	fmt.Sscanf(parts[0], "%d", &ifIdx)
-	fmt.Sscanf(parts[1], "%d", &devNum)
-	return cdpKey{ifIdx, devNum}
-}
-
-// parseCDPAddress extracts an IP address from CDP cache address PDU.
-// CDP address format: 4 bytes of address type + address bytes.
-func parseCDPAddress(pdu gosnmp.SnmpPDU) string {
-	var data []byte
-	switch v := pdu.Value.(type) {
-	case []byte:
-		data = v
-	case string:
-		data = []byte(v)
-	}
-	// CDP NLPID-encoded address: first 4 bytes = length/type, then 4 bytes = IPv4
-	if len(data) >= 8 {
-		ipBytes := data[4:8]
-		return net.IP(ipBytes).String()
-	}
-	return ""
-}
