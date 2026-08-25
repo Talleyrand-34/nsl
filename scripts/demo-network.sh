@@ -98,7 +98,7 @@ link_interface_port() {
 # ── Infrastructure ────────────────────────────────────────────────────────────
 
 echo "--- Infrastructure ---"
-$NSL add brand        --name "Cisco"        -s "$DB"
+$NSL add brand        --name "Juniper"        -s "$DB"
 $NSL add brand        --name "Fortinet"     -s "$DB"
 $NSL add brand        --name "Generic"      -s "$DB"
 
@@ -131,7 +131,7 @@ $NSL add modelport --modelname "FW-Model" --name "LAN"      --posx 1 --posy 0 -s
 $NSL add modelport --modelname "FW-Model" --name "DMZ-port" --posx 2 --posy 0 -s "$DB"
 
 # Core switch: uplink-fw, uplink-f1, uplink-f2, srv-port, store-port
-$NSL add model --name "Core-SW-Model"   --brand "Cisco"    --class "CoreSwitch"  -s "$DB"
+$NSL add model --name "Core-SW-Model"   --brand "Juniper"    --class "CoreSwitch"  -s "$DB"
 $NSL add modelport --modelname "Core-SW-Model" --name "uplink-fw"  --posx 0 --posy 0 -s "$DB"
 $NSL add modelport --modelname "Core-SW-Model" --name "uplink-f1"  --posx 1 --posy 0 -s "$DB"
 $NSL add modelport --modelname "Core-SW-Model" --name "uplink-f2"  --posx 2 --posy 0 -s "$DB"
@@ -139,7 +139,7 @@ $NSL add modelport --modelname "Core-SW-Model" --name "srv-port"   --posx 3 --po
 $NSL add modelport --modelname "Core-SW-Model" --name "store-port" --posx 4 --posy 0 -s "$DB"
 
 # Access switch: uplink (trunk), access1 (users access), access2 (VoIP access)
-$NSL add model --name "Access-SW-Model" --brand "Cisco"    --class "AccessSwitch" -s "$DB"
+$NSL add model --name "Access-SW-Model" --brand "Juniper"    --class "AccessSwitch" -s "$DB"
 $NSL add modelport --modelname "Access-SW-Model" --name "uplink"  --posx 0 --posy 0 -s "$DB"
 $NSL add modelport --modelname "Access-SW-Model" --name "access1" --posx 1 --posy 0 -s "$DB"
 $NSL add modelport --modelname "Access-SW-Model" --name "access2" --posx 2 --posy 0 -s "$DB"
