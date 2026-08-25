@@ -35,7 +35,7 @@ var BrandUpdateCmd = &cobra.Command{
 You must specify both the brand ID and the new name for the brand.
 
 Example:
-  nsl-graph update brand --id 1 --name "Cisco Systems"`,
+  nsl-graph update brand --id 1 --name "Juniper Networks"`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Get the required flags
 		brandId, err := cmd.Flags().GetString("id")

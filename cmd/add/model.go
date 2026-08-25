@@ -36,8 +36,6 @@ A model represents a specific network device template (like "ISR4431" or "Cataly
 that defines the capabilities and characteristics of devices.
 
 Examples:
-  nsl-graph add model --name "ISR4431" --brand "Cisco" --class "Router"
-  nsl-graph add model --name "Catalyst2960" --brand "Cisco" --class "Switch"`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Get required model name
 		modelName, err := cmd.Flags().GetString("name")
