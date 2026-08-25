@@ -884,7 +884,7 @@ func init() {
 	hostScanCmd.Flags().
 		StringVar(&hostConfigFile, "config-file", "", "Path to device configuration file (when using file source)")
 	hostScanCmd.Flags().
-		StringVar(&hostOsType, "os-type", "", "Device OS type (opnsense, openwrt, fortinet, cisco) - auto-detected if not specified")
+		StringVar(&hostOsType, "os-type", "", "Device OS type (opnsense, openwrt, fortinet) - auto-detected if not specified")
 	hostScanCmd.Flags().
 		StringVar(&hostSSHUsername, "ssh-user", "", "SSH username for configuration retrieval")
 	hostScanCmd.Flags().
