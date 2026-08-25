@@ -229,7 +229,7 @@ type SwitchPortInfo struct {
 
 // ConfigData contains the parsed configuration data from a network device
 type ConfigData struct {
-	OsType        string            `json:"os_type"`      // "opnsense", "openwrt", "fortinet", "cisco", "freebsd"
+	OsType        string            `json:"os_type"`      // "opnsense", "openwrt", "fortinet", "freebsd"
 	DeviceModel   string            `json:"device_model"` // Specific model/version info
 	Hostname      string            `json:"hostname"`
 	Domain        string            `json:"domain,omitempty"`
@@ -340,7 +340,7 @@ type ConfigParser interface {
 type ConfigParserOptions struct {
 	Source            ConfigSource      `json:"source"`
 	FilePath          string            `json:"file_path,omitempty"`
-	OsType            string            `json:"os_type,omitempty"` // Manual OS override (opnsense, openwrt, fortinet, cisco)
+	OsType            string            `json:"os_type,omitempty"` // Manual OS override (opnsense, openwrt, fortinet)
 	SSHCredentials    *SSHCredentials   `json:"ssh_credentials,omitempty"`
 	DiscrepancyAction DiscrepancyAction `json:"discrepancy_action"`
 	MergeWithSNMP     bool              `json:"merge_with_snmp"`
@@ -379,7 +379,6 @@ var osTypeAliases = map[string]string{
 	"pfsense":   "opnsense", // same FreeBSD/ifconfig grammar
 	"freebsd":   "opnsense",
 	"vyatta":    "vyos",
-	"ios":       "cisco",
 	"fortios":   "fortinet",
 	"fortigate": "fortinet",
 }
