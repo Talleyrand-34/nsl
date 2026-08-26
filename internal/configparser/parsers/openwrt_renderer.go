@@ -36,6 +36,7 @@ func (r *OpenWrtRenderer) Diff(intended, observed *configparser.ConfigData) []co
 	out = append(out, diffNTP(intended, observed)...)
 	out = append(out, diffBanner(intended, observed)...)
 	out = append(out, diffLLDP(intended, observed)...)
+	out = append(out, diffSyslog(intended, observed)...)
 	return out
 }
 
@@ -44,7 +45,7 @@ func (r *OpenWrtRenderer) Render(safety configparser.SafetyLevel, intended *conf
 		return nil
 	}
 	diffs := r.Diff(intended, nil)
-	var ntpDiffs, bannerDiffs, lldpDiffs []configparser.ConfigChange
+	var ntpDiffs, bannerDiffs, lldpDiffs, syslogDiffs []configparser.ConfigChange
 	for _, d := range diffs {
 		switch d.Kind {
 		case "ntp-set":
@@ -53,6 +54,8 @@ func (r *OpenWrtRenderer) Render(safety configparser.SafetyLevel, intended *conf
 			bannerDiffs = append(bannerDiffs, d)
 		case "lldp-set":
 			lldpDiffs = append(lldpDiffs, d)
+		case "syslog-set":
+			syslogDiffs = append(syslogDiffs, d)
 		default:
 			cmds, err := r.renderChange(d)
 			if err != nil {
@@ -81,6 +84,13 @@ func (r *OpenWrtRenderer) Render(safety configparser.SafetyLevel, intended *conf
 	}
 	if len(lldpDiffs) > 0 && intended.LLDP != nil {
 		for _, cmd := range r.lldpCommands(intended.LLDP) {
+			if _, err := sess.Execute(cmd); err != nil {
+				return fmt.Errorf("openwrt-renderer: %s: %w", cmd, err)
+			}
+		}
+	}
+	if len(syslogDiffs) > 0 && intended.Syslog != nil {
+		for _, cmd := range r.syslogCommands(intended.Syslog) {
 			if _, err := sess.Execute(cmd); err != nil {
 				return fmt.Errorf("openwrt-renderer: %s: %w", cmd, err)
 			}
@@ -184,6 +194,46 @@ func (r *OpenWrtRenderer) lldpCommands(cfg *configparser.ConfigLLDPSettings) []s
 	cmds = append(cmds, "uci commit lldpd")
 	cmds = append(cmds, "/etc/init.d/lldpd reload")
 	return cmds
+}
+
+// syslogCommands returns UCI commands to configure remote syslog targets.
+func (r *OpenWrtRenderer) syslogCommands(cfg *configparser.ConfigSyslogConfig) []string {
+	if cfg == nil {
+		return nil
+	}
+	var cmds []string
+	cmds = append(cmds, "uci del system.log_remote")
+	cmds = append(cmds, "uci commit system")
+	enabled := "0"
+	if cfg.Enabled {
+		enabled = "1"
+	}
+	cmds = append(cmds, fmt.Sprintf("uci set system.cfg001=log_remote"))
+	cmds = append(cmds, fmt.Sprintf("uci set system.cfg001.enabled=%s", enabled))
+	cmds = append(cmds, fmt.Sprintf("uci set system.cfg001.preserve_fqdn=%d", boolToInt(cfg.PreserveFQDN)))
+	for i, t := range cfg.Targets {
+		idx := fmt.Sprintf("%03d", i+1)
+		cmds = append(cmds, fmt.Sprintf("uci add system log_remote"))
+		cmds = append(cmds, fmt.Sprintf("uci set system.cfg%s=log_remote", idx))
+		cmds = append(cmds, fmt.Sprintf("uci set system.cfg%s.enabled=1", idx))
+		cmds = append(cmds, fmt.Sprintf("uci set system.cfg%s.ip=%s", idx, t.Address))
+		if t.Port != 0 {
+			cmds = append(cmds, fmt.Sprintf("uci set system.cfg%s.port=%d", idx, t.Port))
+		}
+		if t.Protocol != "" {
+			cmds = append(cmds, fmt.Sprintf("uci set system.cfg%s.proto=%s", idx, t.Protocol))
+		}
+	}
+	cmds = append(cmds, "uci commit system")
+	cmds = append(cmds, "/etc/init.d/log reload")
+	return cmds
+}
+
+func boolToInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }
 
 func sanitizeUCIName(name string) string {

@@ -100,9 +100,10 @@ func BasicAuthHeader(key, secret string) string {
 }
 
 type Request struct {
-	Method string
-	Path   string
-	Body   io.Reader
+	Method      string
+	Path        string
+	Body        io.Reader
+	ContentType string
 }
 
 // Do sends an authenticated request to the OPNsense API and returns the parsed
@@ -118,7 +119,11 @@ func (c *Client) Do(ctx context.Context, req Request) (*GenericResponse, error) 
 		return nil, err
 	}
 	httpReq.Header.Set("Authorization", BasicAuthHeader(c.apiKey, c.apiSecret))
-	httpReq.Header.Set("Content-Type", "application/json")
+	contentType := req.ContentType
+	if contentType == "" {
+		contentType = "application/json"
+	}
+	httpReq.Header.Set("Content-Type", contentType)
 	httpReq.Header.Set("Accept", "application/json")
 
 	resp, err := c.httpClient.Do(httpReq)

@@ -1,9 +1,5 @@
 // SPDX-License-Identifier: MIT
 // opnsense_renderer.go: OPNsense renderer speaking the REST API.
-//
-// Replaces the stubOPNsense placeholder. The actual HTTP transport lives in
-// opnsense-api/opnsense (vendored Go module); this file is the diff/render
-// logic.
 package parsers
 
 import (
@@ -20,6 +16,7 @@ import (
 	"github.com/t34/opnsense-api/modules/ntp"
 	"github.com/t34/opnsense-api/modules/routes"
 	"github.com/t34/opnsense-api/modules/routing"
+	"github.com/t34/opnsense-api/modules/syslog"
 	"github.com/t34/opnsense-api/modules/system"
 	"github.com/t34/opnsense-api/opnsense"
 )
@@ -32,6 +29,7 @@ type opnsenseRenderer struct {
 	ntp      *ntp.Module
 	system   *system.Module
 	lldp     *lldp.Module
+	syslog   *syslog.Module
 }
 
 func init() { configparser.DefaultRendererRegistry.RegisterRenderer(newOpnsenseRenderer()) }
@@ -52,13 +50,14 @@ func NewOpnsenseRendererForURL(baseURL, key, secret string) configparser.ConfigR
 		ntp:      ntp.New(c),
 		system:   system.New(c),
 		lldp:     lldp.New(c),
+		syslog:   syslog.New(c),
 	}
 }
 
 // opnsenseLazyRenderer is the registry entry when no client is wired.
 type opnsenseLazyRenderer struct{}
 
-func (r *opnsenseLazyRenderer) GetOsType() string { return "opnsense" }
+func (r *opnsenseLazyRenderer) GetOsType() string                              { return "opnsense" }
 func (r *opnsenseLazyRenderer) SupportsDevice(d any) bool {
 	if dev, ok := d.(scanner.SNMPDevice); ok {
 		s := dev.SysDescr + " " + dev.SysName
@@ -91,6 +90,7 @@ func (r *opnsenseRenderer) Diff(intended *configparser.ConfigData, observed *con
 	out = append(out, diffNTP(intended, observed)...)
 	out = append(out, diffBanner(intended, observed)...)
 	out = append(out, diffLLDP(intended, observed)...)
+	out = append(out, diffSyslog(intended, observed)...)
 	return out
 }
 
@@ -105,7 +105,7 @@ func (r *opnsenseRenderer) Render(safety configparser.SafetyLevel, intended *con
 			return fmt.Errorf("opnsense-renderer: fetch observed: %w", err)
 		}
 		diffs := r.Diff(intended, observed)
-		var touchedIface, touchedRoutes, touchedNTP, touchedBanner, touchedLLDP bool
+		var touchedIface, touchedRoutes, touchedNTP, touchedBanner, touchedLLDP, touchedSyslog bool
 		for _, d := range diffs {
 			if err := r.applyChange(ctx, d); err != nil {
 				return fmt.Errorf("opnsense-renderer: %w", err)
@@ -121,10 +121,10 @@ func (r *opnsenseRenderer) Render(safety configparser.SafetyLevel, intended *con
 				touchedBanner = true
 			case "lldp-set":
 				touchedLLDP = true
+			case "syslog-set":
+				touchedSyslog = true
 			}
 		}
-		// OPNsense has separate reconfigure endpoints per area; commit only
-		// the ones we touched so a VLAN-only push doesn't reconfigure routing.
 		if touchedRoutes {
 			if err := r.routes.RouteApply(ctx); err != nil {
 				return fmt.Errorf("opnsense-renderer: routes reconfigure: %w", err)
@@ -148,6 +148,11 @@ func (r *opnsenseRenderer) Render(safety configparser.SafetyLevel, intended *con
 		if touchedLLDP {
 			if err := r.applyLLDP(ctx, intended.LLDP); err != nil {
 				return fmt.Errorf("opnsense-renderer: lldp: %w", err)
+			}
+		}
+		if touchedSyslog {
+			if err := r.applySyslog(ctx, intended.Syslog); err != nil {
+				return fmt.Errorf("opnsense-renderer: syslog: %w", err)
 			}
 		}
 		return nil
@@ -176,14 +181,7 @@ func (r *opnsenseRenderer) applyChange(ctx context.Context, change configparser.
 			Descr: "nsl-graph push",
 		})
 		return err
-	case "ntp-set":
-		// handled at Render level via applyNTP
-		return nil
-	case "banner-set":
-		// handled at Render level via applyBanner
-		return nil
-	case "lldp-set":
-		// handled at Render level via applyLLDP
+	case "ntp-set", "banner-set", "lldp-set", "syslog-set":
 		return nil
 	default:
 		return fmt.Errorf("opnsense-renderer: unhandled change kind %q", change.Kind)
@@ -215,7 +213,6 @@ func (r *opnsenseRenderer) applyBanner(ctx context.Context, cfg *configparser.Co
 	if cfg == nil {
 		return nil
 	}
-	// OPNsense only has one banner field (pre-auth). PostLogin is OpenWrt-only.
 	return r.system.GeneralSet(ctx, cfg.LoginBanner)
 }
 
@@ -234,8 +231,39 @@ func (r *opnsenseRenderer) applyLLDP(ctx context.Context, cfg *configparser.Conf
 	return r.lldp.ServiceReconfigure(ctx)
 }
 
-// fetchObserved pulls the live state from the device: interfaces (for VLANs)
-// and routes (for the diff engine).
+// applySyslog replaces the full syslog destination list.
+func (r *opnsenseRenderer) applySyslog(ctx context.Context, cfg *configparser.ConfigSyslogConfig) error {
+	if cfg == nil {
+		return nil
+	}
+	dests := make([]syslog.Destination, len(cfg.Targets))
+	for i, t := range cfg.Targets {
+		port := "514"
+		if t.Port != 0 {
+			port = fmt.Sprintf("%d", t.Port)
+		}
+		transport := "udp"
+		if t.Protocol != "" {
+			transport = t.Protocol
+		}
+		level := ""
+		if t.LogOnly {
+			level = "info"
+		}
+		dests[i] = syslog.Destination{
+			Address:   t.Address,
+			Port:      port,
+			Transport: transport,
+			Facility:  t.Facility,
+			Program:   t.Program,
+			Level:     level,
+			Enabled:   "1",
+		}
+	}
+	return r.syslog.SetDestination(ctx, cfg.Enabled, cfg.PreserveFQDN, dests)
+}
+
+// fetchObserved pulls the live state from the device.
 func (r *opnsenseRenderer) fetchObserved(ctx context.Context) (*configparser.ConfigData, error) {
 	out := &configparser.ConfigData{}
 	ifaceResp, err := r.ifaces.OverviewList(ctx)
@@ -255,8 +283,7 @@ func (r *opnsenseRenderer) fetchObserved(ctx context.Context) (*configparser.Con
 	return out, nil
 }
 
-// decodeInterfacesInto parses the JSON returned by /api/interfaces/overview/list
-// and writes interface + VLAN entries into out.Interfaces.
+// decodeInterfacesInto parses the JSON returned by /api/interfaces/overview/list.
 func decodeInterfacesInto(raw []byte, out *configparser.ConfigData) error {
 	if len(raw) == 0 {
 		return nil
@@ -326,8 +353,6 @@ func decodeRoutesInto(raw []byte, out *configparser.ConfigData) error {
 }
 
 // splitPathVLAN parses the Path field of a vlan-add ConfigChange.
-//
-// Format: "<iface> VLAN <tag> tagged=<bool>"
 func splitPathVLAN(path string) (string, int) {
 	parts := strings.Fields(path)
 	if len(parts) < 3 || parts[1] != "VLAN" {
@@ -348,9 +373,12 @@ func containsFold(haystack, needle string) bool {
 	if len(needle) > len(haystack) {
 		return false
 	}
-	for i := 0; i+len(needle) <= len(haystack); i++ {
+	for i := range haystack {
+		if i+len(needle) > len(haystack) {
+			break
+		}
 		match := true
-		for j := 0; j < len(needle); j++ {
+		for j := range needle {
 			h := haystack[i+j]
 			n := needle[j]
 			if h >= 'A' && h <= 'Z' {
