@@ -14,21 +14,20 @@ package push
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
 	"nsl-graph/internal/configparser"
 )
 
-// Service is the canonical push primitive. Construct once at API server
-// startup; share across all HTTP handlers. The cobra CLI gets its own
-// Service instance per process.
 type Service struct {
 	repo       PushRepository      // runs + snapshots + backups
 	engine     *Engine             // renderer registry; vendor-agnostic
 	floor      *SafetyFloor        // backup + snapshot + audit
 	creds      CredentialResolver  // SSH + API credentials, vault-backed
 	defaultOS  func(deviceID string) (string, error) // resolves a device's OS type
+	fetchers   map[string]Fetcher  // OS -> LiveConfig strategy
 	rendererName string             // "typed" or "lazy"; informational, audit row value
 
 	// perDevLocks serialises pushes to the same device. key = deviceID,
@@ -109,11 +108,28 @@ func NewService(
 	return &Service{
 		repo:         repo,
 		engine:       engine,
-		floor:        nil, // wired in phase 2 when SafetyFloor.NewSafetyFloorWithStore lands
+		floor:        nil, // wired when SafetyFloor.NewSafetyFloorWithStore lands
 		creds:        creds,
 		defaultOS:    defaultOS,
 		rendererName: "typed",
+		fetchers:     map[string]Fetcher{},
 	}
+}
+
+// SetFetchers registers the per-OS Fetcher strategies. Caller passes a
+// map keyed by OS type (e.g. {"openwrt": openwrtFetcher, "opnsense":
+// opnsenseFetcher}). Calling this multiple times replaces the map;
+// callers that want to add a single vendor can call SetFetcher.
+func (s *Service) SetFetchers(m map[string]Fetcher) {
+	s.fetchers = m
+}
+
+// SetFetcher registers a single Fetcher for one OS. Convenience for tests.
+func (s *Service) SetFetcher(osType string, f Fetcher) {
+	if s.fetchers == nil {
+		s.fetchers = map[string]Fetcher{}
+	}
+	s.fetchers[osType] = f
 }
 
 // deviceLock returns the per-device mutex, creating one on first use.
@@ -166,10 +182,18 @@ func (s *Service) Rollback(ctx context.Context, deviceID, snapshotID string) (Pu
 	panic("Service.Rollback not yet implemented; see webui-integration.md phase 8")
 }
 
-// LiveConfig fetches the device's current running config and returns
-// the parsed *ConfigData.
+// LiveConfig fetches the device's currently-running config and returns
+// the parsed *ConfigData. Routes through the OS-specific Fetcher.
 func (s *Service) LiveConfig(ctx context.Context, deviceID, os string) (*configparser.ConfigData, error) {
-	panic("Service.LiveConfig not yet implemented; see webui-integration.md phase 3")
+	f, ok := s.fetchers[os]
+	if !ok {
+		return nil, configparser.ErrUnsupported{OS: os, Reason: "no fetcher registered for OS"}
+	}
+	cd, err := f.Fetch(ctx, deviceID)
+	if err != nil {
+		return nil, fmt.Errorf("push: live config %s/%s: %w", deviceID, os, err)
+	}
+	return cd, nil
 }
 
 // FetchAndSnapshot is the unified fetch+parse+save entry point used by

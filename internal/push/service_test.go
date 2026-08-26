@@ -168,6 +168,91 @@ func TestService_Preview_NoDiff_ReturnsEmpty(t *testing.T) {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// Phase 3: LiveConfig
+// ---------------------------------------------------------------------------
+
+// fakeFetcher is a stand-in for the per-OS Fetcher strategy. It avoids the
+// SSH/REST plumbing in the Service test.
+type fakeFetcher struct {
+	got *configparser.ConfigData
+	err error
+}
+
+func (f *fakeFetcher) Fetch(ctx context.Context, deviceID string) (*configparser.ConfigData, error) {
+	return f.got, f.err
+}
+
+func TestService_LiveConfig_PicksFetcherByOS(t *testing.T) {
+	openwrtFetcher := &fakeFetcher{got: &configparser.ConfigData{OsType: "openwrt"}}
+	opnFetcher := &fakeFetcher{got: &configparser.ConfigData{OsType: "opnsense"}}
+
+	svc := NewService(
+		NewMemoryPushRepository(),
+		NewDefaultEngine(),
+		&fakeCredentialResolver{},
+		fakeDefaultOS,
+	)
+	// Override the fetcher lookup with a stub keyed by OS.
+	svc.fetchers = map[string]Fetcher{
+		"openwrt": openwrtFetcher,
+		"opnsense": opnFetcher,
+	}
+
+	got, err := svc.LiveConfig(context.Background(), "R1", "openwrt")
+	if err != nil {
+		t.Fatalf("LiveConfig openwrt: %v", err)
+	}
+	if got == nil || got.OsType != "openwrt" {
+		t.Errorf("openwrt fetcher not called; got %+v", got)
+	}
+
+	got, err = svc.LiveConfig(context.Background(), "R2", "opnsense")
+	if err != nil {
+		t.Fatalf("LiveConfig opnsense: %v", err)
+	}
+	if got == nil || got.OsType != "opnsense" {
+		t.Errorf("opnsense fetcher not called; got %+v", got)
+	}
+}
+
+func TestService_LiveConfig_UnknownOS_ReturnsErrUnsupported(t *testing.T) {
+	svc := NewService(
+		NewMemoryPushRepository(),
+		NewDefaultEngine(),
+		&fakeCredentialResolver{},
+		fakeDefaultOS,
+	)
+	svc.fetchers = map[string]Fetcher{}
+	_, err := svc.LiveConfig(context.Background(), "R1", "vyos")
+	if err == nil {
+		t.Fatal("LiveConfig on unregistered OS must error")
+	}
+	var unsup configparser.ErrUnsupported
+	if !errors.As(err, &unsup) {
+		t.Errorf("must return ErrUnsupported; got %v", err)
+	}
+}
+
+func TestService_LiveConfig_PropagatesError(t *testing.T) {
+	svc := NewService(
+		NewMemoryPushRepository(),
+		NewDefaultEngine(),
+		&fakeCredentialResolver{},
+		fakeDefaultOS,
+	)
+	svc.fetchers = map[string]Fetcher{
+		"openwrt": &fakeFetcher{err: errors.New("ssh unreachable")},
+	}
+	_, err := svc.LiveConfig(context.Background(), "R1", "openwrt")
+	if err == nil {
+		t.Fatal("LiveConfig must propagate fetcher errors")
+	}
+	if !strings.Contains(err.Error(), "ssh unreachable") {
+		t.Errorf("error must wrap fetcher error; got %v", err)
+	}
+}
+
 func TestService_Preview_UnknownOS_ReturnsErrUnsupported(t *testing.T) {
 	svc := NewService(
 		NewMemoryPushRepository(),

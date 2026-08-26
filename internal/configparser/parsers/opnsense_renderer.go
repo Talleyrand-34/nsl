@@ -292,8 +292,14 @@ func (r *opnsenseRenderer) applySNMP(ctx context.Context, cfg *configparser.Conf
 		BindTo:    cfg.ListenInterface,
 	})
 }
+// FetchLiveConfig returns the device's currently-running config as parsed
+// *ConfigData. Public surface for the push Service. Read-only; safe to
+// call from a goroutine but not concurrent with Render on the same
+// renderer (the underlying REST client has no per-call locking).
+func (r *opnsenseRenderer) FetchLiveConfig(ctx context.Context) (*configparser.ConfigData, error) {
+	return r.fetchObserved(ctx)
+}
 
-// fetchObserved pulls the live state from the device.
 func (r *opnsenseRenderer) fetchObserved(ctx context.Context) (*configparser.ConfigData, error) {
 	out := &configparser.ConfigData{}
 	ifaceResp, err := r.ifaces.OverviewList(ctx)
