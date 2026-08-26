@@ -319,6 +319,7 @@ type ConfigData struct {
 	DHCPScopes      []ConfigDHCPScope       `json:"dhcp_scopes,omitempty"`
 	DHCPReservations []ConfigDHCPREServation `json:"dhcp_reservations,omitempty"`
 	VIPs            []ConfigVIP             `json:"vips,omitempty"`
+	NTP             *ConfigNTPConfig        `json:"ntp,omitempty"`
 	SwitchPorts    []SwitchPortInfo        `json:"switch_ports,omitempty"`
 	Raw            string                  `json:"raw,omitempty"`
 	ParsedAt       time.Time               `json:"parsed_at"`

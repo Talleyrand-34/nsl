@@ -41,9 +41,9 @@ func TestOpenWrtRenderer_RouteAddCommands(t *testing.T) {
 			"interface=wan",
 		},
 	}
-	cmds, err := r.routeAddCommands(d)
-	if err != nil {
-		t.Fatalf("routeAddCommands: %v", err)
+	cmds := r.routeAddCommands(d)
+	if cmds == nil {
+		t.Fatal("routeAddCommands returned nil")
 	}
 	want := []string{
 		"uci set network.route_10_0_50_0_24=route",
@@ -64,9 +64,9 @@ func TestOpenWrtRenderer_RouteDelCommands(t *testing.T) {
 		Kind: "route-del",
 		Path: "10.0.50.0/24",
 	}
-	cmds, err := r.routeDelCommands(d)
-	if err != nil {
-		t.Fatalf("routeDelCommands: %v", err)
+	cmds := r.routeDelCommands(d)
+	if cmds == nil {
+		t.Fatal("routeDelCommands returned nil")
 	}
 	want := []string{
 		"uci del network.route_10_0_50_0_24",

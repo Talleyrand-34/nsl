@@ -33,6 +33,7 @@ func (r *OpenWrtRenderer) Diff(intended, observed *configparser.ConfigData) []co
 	var out []configparser.ConfigChange
 	out = append(out, diffVLANs(intended, observed)...)
 	out = append(out, diffRoutes(intended, observed)...)
+	out = append(out, diffNTP(intended, observed)...)
 	return out
 }
 
@@ -41,12 +42,25 @@ func (r *OpenWrtRenderer) Render(safety configparser.SafetyLevel, intended *conf
 		return nil
 	}
 	diffs := r.Diff(intended, nil)
+	var ntpDiffs []configparser.ConfigChange
 	for _, d := range diffs {
+		if d.Kind == "ntp-set" {
+			ntpDiffs = append(ntpDiffs, d)
+			continue
+		}
 		cmds, err := r.renderChange(d)
 		if err != nil {
 			return err
 		}
 		for _, cmd := range cmds {
+			if _, err := sess.Execute(cmd); err != nil {
+				return fmt.Errorf("openwrt-renderer: %s: %w", cmd, err)
+			}
+		}
+	}
+	// NTP uses full intended config.
+	if len(ntpDiffs) > 0 && intended.NTP != nil {
+		for _, cmd := range r.ntpCommands(intended.NTP) {
 			if _, err := sess.Execute(cmd); err != nil {
 				return fmt.Errorf("openwrt-renderer: %s: %w", cmd, err)
 			}
@@ -58,15 +72,15 @@ func (r *OpenWrtRenderer) Render(safety configparser.SafetyLevel, intended *conf
 func (r *OpenWrtRenderer) renderChange(d configparser.ConfigChange) ([]string, error) {
 	switch d.Kind {
 	case "route-add":
-		return r.routeAddCommands(d)
+		return r.routeAddCommands(d), nil
 	case "route-del":
-		return r.routeDelCommands(d)
+		return r.routeDelCommands(d), nil
 	default:
 		return nil, nil
 	}
 }
 
-func (r *OpenWrtRenderer) routeAddCommands(d configparser.ConfigChange) ([]string, error) {
+func (r *OpenWrtRenderer) routeAddCommands(d configparser.ConfigChange) []string {
 	name := "route_" + sanitizeUCIName(d.New)
 	gw := patchField(d.Patch, "gateway=")
 	iface := patchField(d.Patch, "interface=")
@@ -76,15 +90,42 @@ func (r *OpenWrtRenderer) routeAddCommands(d configparser.ConfigChange) ([]strin
 		fmt.Sprintf("uci set network.%s.gateway=%s", name, gw),
 		fmt.Sprintf("uci set network.%s.device=%s", name, iface),
 		"uci commit network",
-	}, nil
+	}
 }
 
-func (r *OpenWrtRenderer) routeDelCommands(d configparser.ConfigChange) ([]string, error) {
+func (r *OpenWrtRenderer) routeDelCommands(d configparser.ConfigChange) []string {
 	name := "route_" + sanitizeUCIName(d.Path)
 	return []string{
 		fmt.Sprintf("uci del network.%s", name),
 		"uci commit network",
-	}, nil
+	}
+}
+
+// ntpCommands returns UCI commands to set NTP servers and timezone.
+func (r *OpenWrtRenderer) ntpCommands(cfg *configparser.ConfigNTPConfig) []string {
+	if cfg == nil {
+		return nil
+	}
+	var cmds []string
+	enabled := "0"
+	if cfg.Enabled {
+		enabled = "1"
+	}
+	cmds = append(cmds, "uci set system.ntp=timeserver")
+	cmds = append(cmds, fmt.Sprintf("uci set system.ntp.enabled=%s", enabled))
+	cmds = append(cmds, "uci del system.ntp.server")
+	for _, srv := range cfg.Servers {
+		cmds = append(cmds, fmt.Sprintf("uci add_list system.ntp.server=%s", srv.Address))
+	}
+	if cfg.Timezone != "" {
+		cmds = append(cmds, fmt.Sprintf("uci set system.system.timezone=%s", cfg.Timezone))
+	}
+	if cfg.LocalClock {
+		cmds = append(cmds, "uci set system.ntp.use_local_clock=1")
+	}
+	cmds = append(cmds, "uci commit system")
+	cmds = append(cmds, "/etc/init.d/sysntpd reload")
+	return cmds
 }
 
 func sanitizeUCIName(name string) string {

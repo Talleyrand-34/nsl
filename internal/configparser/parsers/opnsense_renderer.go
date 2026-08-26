@@ -16,16 +16,17 @@ import (
 	"nsl-graph/internal/configparser"
 	"nsl-graph/internal/scanner"
 	"github.com/t34/opnsense-api/modules/interfaces"
+	"github.com/t34/opnsense-api/modules/ntp"
 	"github.com/t34/opnsense-api/modules/routes"
 	"github.com/t34/opnsense-api/modules/routing"
 	"github.com/t34/opnsense-api/opnsense"
 )
-
 type opnsenseRenderer struct {
 	c        *opnsense.Client
 	ifaces   *interfaces.Module
 	routes   *routes.Module
 	gateways *routing.Module
+	ntp      *ntp.Module
 }
 
 func init() { configparser.DefaultRendererRegistry.RegisterRenderer(newOpnsenseRenderer()) }
@@ -43,6 +44,7 @@ func NewOpnsenseRendererForURL(baseURL, key, secret string) configparser.ConfigR
 		ifaces:   interfaces.New(c),
 		routes:   routes.New(c),
 		gateways: routing.New(c),
+		ntp:      ntp.New(c),
 	}
 }
 
@@ -79,6 +81,7 @@ func (r *opnsenseRenderer) Diff(intended *configparser.ConfigData, observed *con
 	var out []configparser.ConfigChange
 	out = append(out, diffVLANs(intended, observed)...)
 	out = append(out, diffRoutes(intended, observed)...)
+	out = append(out, diffNTP(intended, observed)...)
 	return out
 }
 
@@ -93,7 +96,7 @@ func (r *opnsenseRenderer) Render(safety configparser.SafetyLevel, intended *con
 			return fmt.Errorf("opnsense-renderer: fetch observed: %w", err)
 		}
 		diffs := r.Diff(intended, observed)
-		var touchedIface, touchedRoutes bool
+		var touchedIface, touchedRoutes, touchedNTP bool
 		for _, d := range diffs {
 			if err := r.applyChange(ctx, d); err != nil {
 				return fmt.Errorf("opnsense-renderer: %w", err)
@@ -103,6 +106,8 @@ func (r *opnsenseRenderer) Render(safety configparser.SafetyLevel, intended *con
 				touchedRoutes = true
 			case "vlan-add", "vlan-del":
 				touchedIface = true
+			case "ntp-set":
+				touchedNTP = true
 			}
 		}
 		// OPNsense has separate reconfigure endpoints per area; commit only
@@ -116,6 +121,11 @@ func (r *opnsenseRenderer) Render(safety configparser.SafetyLevel, intended *con
 		if touchedIface {
 			if err := r.ifaces.OverviewCommit(ctx); err != nil {
 				return fmt.Errorf("opnsense-renderer: interfaces commit: %w", err)
+			}
+		}
+		if touchedNTP {
+			if err := r.applyNTP(ctx, intended.NTP); err != nil {
+				return fmt.Errorf("opnsense-renderer: ntp: %w", err)
 			}
 		}
 		return nil
@@ -144,9 +154,33 @@ func (r *opnsenseRenderer) applyChange(ctx context.Context, change configparser.
 			Descr: "nsl-graph push",
 		})
 		return err
+	case "ntp-set":
+		// ntp-set is handled at the Render level via applyNTP.
+		// applyChange just marks touched; no per-change call needed.
+		return nil
 	default:
 		return fmt.Errorf("opnsense-renderer: unhandled change kind %q", change.Kind)
 	}
+}
+
+// applyNTP pushes the full NTP config via POST /api/ntp/settings/set.
+func (r *opnsenseRenderer) applyNTP(ctx context.Context, cfg *configparser.ConfigNTPConfig) error {
+	if cfg == nil {
+		return nil
+	}
+	enabled := "0"
+	if cfg.Enabled {
+		enabled = "1"
+	}
+	servers := make([]string, len(cfg.Servers))
+	for i, s := range cfg.Servers {
+		servers[i] = s.Address
+	}
+	return r.ntp.NTPSet(ctx, ntp.NTPSettings{
+		Enable:      enabled,
+		Timeservers: servers,
+		Timezone:   cfg.Timezone,
+	})
 }
 
 // fetchObserved pulls the live state from the device: interfaces (for VLANs)
