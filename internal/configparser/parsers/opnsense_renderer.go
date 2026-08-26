@@ -16,12 +16,14 @@ import (
 	"nsl-graph/internal/configparser"
 	"nsl-graph/internal/scanner"
 	"github.com/t34/opnsense-api/modules/interfaces"
+	"github.com/t34/opnsense-api/modules/lldp"
 	"github.com/t34/opnsense-api/modules/ntp"
 	"github.com/t34/opnsense-api/modules/routes"
 	"github.com/t34/opnsense-api/modules/routing"
 	"github.com/t34/opnsense-api/modules/system"
 	"github.com/t34/opnsense-api/opnsense"
 )
+
 type opnsenseRenderer struct {
 	c        *opnsense.Client
 	ifaces   *interfaces.Module
@@ -29,6 +31,7 @@ type opnsenseRenderer struct {
 	gateways *routing.Module
 	ntp      *ntp.Module
 	system   *system.Module
+	lldp     *lldp.Module
 }
 
 func init() { configparser.DefaultRendererRegistry.RegisterRenderer(newOpnsenseRenderer()) }
@@ -48,6 +51,7 @@ func NewOpnsenseRendererForURL(baseURL, key, secret string) configparser.ConfigR
 		gateways: routing.New(c),
 		ntp:      ntp.New(c),
 		system:   system.New(c),
+		lldp:     lldp.New(c),
 	}
 }
 
@@ -79,12 +83,14 @@ func (r *opnsenseRenderer) SupportsDevice(d any) bool {
 	}
 	return false
 }
+
 func (r *opnsenseRenderer) Diff(intended *configparser.ConfigData, observed *configparser.ConfigData) []configparser.ConfigChange {
 	var out []configparser.ConfigChange
 	out = append(out, diffVLANs(intended, observed)...)
 	out = append(out, diffRoutes(intended, observed)...)
 	out = append(out, diffNTP(intended, observed)...)
 	out = append(out, diffBanner(intended, observed)...)
+	out = append(out, diffLLDP(intended, observed)...)
 	return out
 }
 
@@ -99,7 +105,7 @@ func (r *opnsenseRenderer) Render(safety configparser.SafetyLevel, intended *con
 			return fmt.Errorf("opnsense-renderer: fetch observed: %w", err)
 		}
 		diffs := r.Diff(intended, observed)
-		var touchedIface, touchedRoutes, touchedNTP, touchedBanner bool
+		var touchedIface, touchedRoutes, touchedNTP, touchedBanner, touchedLLDP bool
 		for _, d := range diffs {
 			if err := r.applyChange(ctx, d); err != nil {
 				return fmt.Errorf("opnsense-renderer: %w", err)
@@ -113,11 +119,12 @@ func (r *opnsenseRenderer) Render(safety configparser.SafetyLevel, intended *con
 				touchedNTP = true
 			case "banner-set":
 				touchedBanner = true
+			case "lldp-set":
+				touchedLLDP = true
 			}
 		}
 		// OPNsense has separate reconfigure endpoints per area; commit only
-		// the ones we touched so a VLAN-only push doesn't reconfigure routing
-		// and vice versa.
+		// the ones we touched so a VLAN-only push doesn't reconfigure routing.
 		if touchedRoutes {
 			if err := r.routes.RouteApply(ctx); err != nil {
 				return fmt.Errorf("opnsense-renderer: routes reconfigure: %w", err)
@@ -136,6 +143,11 @@ func (r *opnsenseRenderer) Render(safety configparser.SafetyLevel, intended *con
 		if touchedBanner {
 			if err := r.applyBanner(ctx, intended.Banner); err != nil {
 				return fmt.Errorf("opnsense-renderer: banner: %w", err)
+			}
+		}
+		if touchedLLDP {
+			if err := r.applyLLDP(ctx, intended.LLDP); err != nil {
+				return fmt.Errorf("opnsense-renderer: lldp: %w", err)
 			}
 		}
 		return nil
@@ -165,11 +177,13 @@ func (r *opnsenseRenderer) applyChange(ctx context.Context, change configparser.
 		})
 		return err
 	case "ntp-set":
-		// ntp-set is handled at the Render level via applyNTP.
-		// applyChange just marks touched; no per-change call needed.
+		// handled at Render level via applyNTP
 		return nil
 	case "banner-set":
-		// banner-set is handled at the Render level via applyBanner.
+		// handled at Render level via applyBanner
+		return nil
+	case "lldp-set":
+		// handled at Render level via applyLLDP
 		return nil
 	default:
 		return fmt.Errorf("opnsense-renderer: unhandled change kind %q", change.Kind)
@@ -201,9 +215,23 @@ func (r *opnsenseRenderer) applyBanner(ctx context.Context, cfg *configparser.Co
 	if cfg == nil {
 		return nil
 	}
-	// OPNsense only has one banner field (login / pre-auth).
-	// Use LoginBanner; PostLogin is stored separately in OpenWrt.
+	// OPNsense only has one banner field (pre-auth). PostLogin is OpenWrt-only.
 	return r.system.GeneralSet(ctx, cfg.LoginBanner)
+}
+
+// applyLLDP enables/disables LLDP tx and reconfigures.
+func (r *opnsenseRenderer) applyLLDP(ctx context.Context, cfg *configparser.ConfigLLDPSettings) error {
+	if cfg == nil {
+		return nil
+	}
+	enabled := false
+	if cfg.Enabled {
+		enabled = true
+	}
+	if err := r.lldp.ServiceSet(ctx, lldp.LLDPServiceSettings{Enabled: enabled}); err != nil {
+		return err
+	}
+	return r.lldp.ServiceReconfigure(ctx)
 }
 
 // fetchObserved pulls the live state from the device: interfaces (for VLANs)

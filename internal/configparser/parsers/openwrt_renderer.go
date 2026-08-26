@@ -35,6 +35,7 @@ func (r *OpenWrtRenderer) Diff(intended, observed *configparser.ConfigData) []co
 	out = append(out, diffRoutes(intended, observed)...)
 	out = append(out, diffNTP(intended, observed)...)
 	out = append(out, diffBanner(intended, observed)...)
+	out = append(out, diffLLDP(intended, observed)...)
 	return out
 }
 
@@ -43,13 +44,15 @@ func (r *OpenWrtRenderer) Render(safety configparser.SafetyLevel, intended *conf
 		return nil
 	}
 	diffs := r.Diff(intended, nil)
-	var ntpDiffs, bannerDiffs []configparser.ConfigChange
+	var ntpDiffs, bannerDiffs, lldpDiffs []configparser.ConfigChange
 	for _, d := range diffs {
 		switch d.Kind {
 		case "ntp-set":
 			ntpDiffs = append(ntpDiffs, d)
 		case "banner-set":
 			bannerDiffs = append(bannerDiffs, d)
+		case "lldp-set":
+			lldpDiffs = append(lldpDiffs, d)
 		default:
 			cmds, err := r.renderChange(d)
 			if err != nil {
@@ -71,6 +74,13 @@ func (r *OpenWrtRenderer) Render(safety configparser.SafetyLevel, intended *conf
 	}
 	if len(bannerDiffs) > 0 && intended.Banner != nil {
 		for _, cmd := range r.bannerCommands(intended.Banner) {
+			if _, err := sess.Execute(cmd); err != nil {
+				return fmt.Errorf("openwrt-renderer: %s: %w", cmd, err)
+			}
+		}
+	}
+	if len(lldpDiffs) > 0 && intended.LLDP != nil {
+		for _, cmd := range r.lldpCommands(intended.LLDP) {
 			if _, err := sess.Execute(cmd); err != nil {
 				return fmt.Errorf("openwrt-renderer: %s: %w", cmd, err)
 			}
@@ -150,6 +160,29 @@ func (r *OpenWrtRenderer) bannerCommands(cfg *configparser.ConfigBanner) []strin
 	if cfg.PostLogin != "" {
 		cmds = append(cmds, fmt.Sprintf("cat > /etc/motd << 'NSLBANNER'\n%s\nNSLBANNER", cfg.PostLogin))
 	}
+	return cmds
+}
+
+// lldpCommands returns UCI commands to configure LLDP tx.
+func (r *OpenWrtRenderer) lldpCommands(cfg *configparser.ConfigLLDPSettings) []string {
+	if cfg == nil {
+		return nil
+	}
+	var cmds []string
+	cmds = append(cmds, "uci set lldpd.config=lldpd")
+	enabled := "0"
+	if cfg.Enabled {
+		enabled = "1"
+	}
+	cmds = append(cmds, fmt.Sprintf("uci set lldpd.config.enabled=%s", enabled))
+	if cfg.SystemName != "" {
+		cmds = append(cmds, fmt.Sprintf("uci set lldpd.config.lldp_neigh=%s", cfg.SystemName))
+	}
+	if cfg.InterfacePattern != "" {
+		cmds = append(cmds, fmt.Sprintf("uci set lldpd.config.interface=%s", cfg.InterfacePattern))
+	}
+	cmds = append(cmds, "uci commit lldpd")
+	cmds = append(cmds, "/etc/init.d/lldpd reload")
 	return cmds
 }
 

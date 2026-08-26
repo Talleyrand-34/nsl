@@ -321,6 +321,7 @@ type ConfigData struct {
 	VIPs            []ConfigVIP             `json:"vips,omitempty"`
 	NTP             *ConfigNTPConfig        `json:"ntp,omitempty"`
 	Banner          *ConfigBanner          `json:"banner,omitempty"`
+	LLDP           *ConfigLLDPSettings  `json:"lldp,omitempty"`
 	SwitchPorts    []SwitchPortInfo        `json:"switch_ports,omitempty"`
 	Raw            string                  `json:"raw,omitempty"`
 	ParsedAt       time.Time               `json:"parsed_at"`
