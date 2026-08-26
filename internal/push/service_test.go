@@ -1,22 +1,18 @@
 // SPDX-License-Identifier: MIT
 // service_test.go: TDD for the canonical Service.
-//
-// Phase 1 lands just the Service skeleton (methods panic). These tests
-// pin the wiring — they exercise NewService + deviceLock + MemoryPushRepository,
-// which are the parts that exist today. The Preview / Push / History /
-// Rollback tests live alongside their respective phase implementations.
 package push
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"sync"
 	"testing"
 
 	"nsl-graph/internal/configparser"
 )
 
-// fakeCredentialResolver returns fixed creds for any device. Phase 2
-// will use it to drive LiveConfig; today it just proves the wiring.
+// fakeCredentialResolver returns fixed creds for any device.
 type fakeCredentialResolver struct {
 	ssh  configparser.SSHCredentials
 	api  string
@@ -40,6 +36,10 @@ func (f *fakeCredentialResolver) API(deviceID, os string) (string, string, strin
 func fakeDefaultOS(deviceID string) (string, error) {
 	return "openwrt", nil
 }
+
+// ---------------------------------------------------------------------------
+// Phase 1 wiring
+// ---------------------------------------------------------------------------
 
 func TestNewService_WiresFields(t *testing.T) {
 	repo := NewMemoryPushRepository()
@@ -115,15 +115,72 @@ func TestMemoryPushRepository_RoundTrip(t *testing.T) {
 	}
 }
 
-func TestService_Preview_PanicsUntilPhase2(t *testing.T) {
-	// Phase 1 contract: Preview is a stub. Calling it panics with a
-	// pointer to the plan. Phase 2 replaces the body and removes this
-	// test.
-	svc := NewService(NewMemoryPushRepository(), NewDefaultEngine(), &fakeCredentialResolver{}, fakeDefaultOS)
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("Preview must panic in phase 1")
-		}
-	}()
-	_, _ = svc.Preview(context.Background(), "R1", "openwrt")
+// ---------------------------------------------------------------------------
+// Phase 2: Preview
+// ---------------------------------------------------------------------------
+
+func TestService_Preview_DelegatesToEngine(t *testing.T) {
+	svc := NewService(
+		NewMemoryPushRepository(),
+		NewDefaultEngine(),
+		&fakeCredentialResolver{},
+		fakeDefaultOS,
+	)
+	intent := &configparser.ConfigData{
+		Hostname: "openwrt-1",
+		Interfaces: []configparser.ConfigInterface{
+			{Name: "br-lan", Type: "bridge", Enabled: true,
+				VLANs: []configparser.ConfigVLAN{{ID: "30", Tagged: true}}},
+		},
+	}
+	observed := &configparser.ConfigData{
+		Hostname: "openwrt-1",
+		Interfaces: []configparser.ConfigInterface{
+			{Name: "br-lan", Type: "bridge", Enabled: true},
+		},
+	}
+	got, err := svc.PreviewDiff(context.Background(), "R1", "openwrt", intent, observed)
+	if err != nil {
+		t.Fatalf("Preview: %v", err)
+	}
+	if !strings.Contains(got, "br-lan VLAN 30") {
+		t.Errorf("Preview output missing expected VLAN path; got: %q", got)
+	}
+	if !strings.Contains(got, "openwrt") {
+		t.Errorf("Preview output missing OS header; got: %q", got)
+	}
+}
+
+func TestService_Preview_NoDiff_ReturnsEmpty(t *testing.T) {
+	svc := NewService(
+		NewMemoryPushRepository(),
+		NewDefaultEngine(),
+		&fakeCredentialResolver{},
+		fakeDefaultOS,
+	)
+	empty := &configparser.ConfigData{Hostname: "R1"}
+	got, err := svc.PreviewDiff(context.Background(), "R1", "openwrt", empty, empty)
+	if err != nil {
+		t.Fatalf("Preview: %v", err)
+	}
+	if got != "" {
+		t.Errorf("Preview with no diff must return empty string; got: %q", got)
+	}
+}
+
+func TestService_Preview_UnknownOS_ReturnsErrUnsupported(t *testing.T) {
+	svc := NewService(
+		NewMemoryPushRepository(),
+		NewDefaultEngine(),
+		&fakeCredentialResolver{},
+		fakeDefaultOS,
+	)
+	_, err := svc.PreviewDiff(context.Background(), "R1", "netscaler", &configparser.ConfigData{}, &configparser.ConfigData{})
+	if err == nil {
+		t.Fatal("Preview on unknown OS must error")
+	}
+	var unsup configparser.ErrUnsupported
+	if !errors.As(err, &unsup) {
+		t.Errorf("Preview on unknown OS must return ErrUnsupported; got %v", err)
+	}
 }

@@ -137,8 +137,22 @@ func (s *Service) Push(ctx context.Context, req PushRequest) (PushResult, error)
 
 // Preview returns the rendered patch text without snapshotting or
 // applying. Always read-only.
+//
+// Two overloads:
+//   - Preview(ctx, deviceID, os)             — convenience; loads observed
+//     from the latest snapshot, requires an intent to be supplied via
+//     PreviewIntent. Phase 3 wires this.
+//   - PreviewDiff(ctx, deviceID, os, intent, observed) — explicit; uses
+//     caller-supplied configs. The HTTP layer composes these.
 func (s *Service) Preview(ctx context.Context, deviceID, os string) (string, error) {
-	panic("Service.Preview not yet implemented; see webui-integration.md phase 2")
+	panic("Service.Preview (no-args) not yet implemented; see webui-integration.md phase 3")
+}
+
+// PreviewDiff returns the rendered patch for an explicit
+// (intent, observed) pair. Used by HTTP handlers that have both in
+// hand. Read-only.
+func (s *Service) PreviewDiff(ctx context.Context, deviceID, os string, intent, observed *configparser.ConfigData) (string, error) {
+	return s.engine.Preview(os, intent, observed)
 }
 
 // History lists the most recent `limit` snapshots for a device, newest
