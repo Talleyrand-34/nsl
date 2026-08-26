@@ -19,6 +19,7 @@ import (
 	"github.com/t34/opnsense-api/modules/ntp"
 	"github.com/t34/opnsense-api/modules/routes"
 	"github.com/t34/opnsense-api/modules/routing"
+	"github.com/t34/opnsense-api/modules/system"
 	"github.com/t34/opnsense-api/opnsense"
 )
 type opnsenseRenderer struct {
@@ -27,6 +28,7 @@ type opnsenseRenderer struct {
 	routes   *routes.Module
 	gateways *routing.Module
 	ntp      *ntp.Module
+	system   *system.Module
 }
 
 func init() { configparser.DefaultRendererRegistry.RegisterRenderer(newOpnsenseRenderer()) }
@@ -45,6 +47,7 @@ func NewOpnsenseRendererForURL(baseURL, key, secret string) configparser.ConfigR
 		routes:   routes.New(c),
 		gateways: routing.New(c),
 		ntp:      ntp.New(c),
+		system:   system.New(c),
 	}
 }
 
@@ -76,12 +79,12 @@ func (r *opnsenseRenderer) SupportsDevice(d any) bool {
 	}
 	return false
 }
-
 func (r *opnsenseRenderer) Diff(intended *configparser.ConfigData, observed *configparser.ConfigData) []configparser.ConfigChange {
 	var out []configparser.ConfigChange
 	out = append(out, diffVLANs(intended, observed)...)
 	out = append(out, diffRoutes(intended, observed)...)
 	out = append(out, diffNTP(intended, observed)...)
+	out = append(out, diffBanner(intended, observed)...)
 	return out
 }
 
@@ -96,7 +99,7 @@ func (r *opnsenseRenderer) Render(safety configparser.SafetyLevel, intended *con
 			return fmt.Errorf("opnsense-renderer: fetch observed: %w", err)
 		}
 		diffs := r.Diff(intended, observed)
-		var touchedIface, touchedRoutes, touchedNTP bool
+		var touchedIface, touchedRoutes, touchedNTP, touchedBanner bool
 		for _, d := range diffs {
 			if err := r.applyChange(ctx, d); err != nil {
 				return fmt.Errorf("opnsense-renderer: %w", err)
@@ -108,6 +111,8 @@ func (r *opnsenseRenderer) Render(safety configparser.SafetyLevel, intended *con
 				touchedIface = true
 			case "ntp-set":
 				touchedNTP = true
+			case "banner-set":
+				touchedBanner = true
 			}
 		}
 		// OPNsense has separate reconfigure endpoints per area; commit only
@@ -126,6 +131,11 @@ func (r *opnsenseRenderer) Render(safety configparser.SafetyLevel, intended *con
 		if touchedNTP {
 			if err := r.applyNTP(ctx, intended.NTP); err != nil {
 				return fmt.Errorf("opnsense-renderer: ntp: %w", err)
+			}
+		}
+		if touchedBanner {
+			if err := r.applyBanner(ctx, intended.Banner); err != nil {
+				return fmt.Errorf("opnsense-renderer: banner: %w", err)
 			}
 		}
 		return nil
@@ -158,6 +168,9 @@ func (r *opnsenseRenderer) applyChange(ctx context.Context, change configparser.
 		// ntp-set is handled at the Render level via applyNTP.
 		// applyChange just marks touched; no per-change call needed.
 		return nil
+	case "banner-set":
+		// banner-set is handled at the Render level via applyBanner.
+		return nil
 	default:
 		return fmt.Errorf("opnsense-renderer: unhandled change kind %q", change.Kind)
 	}
@@ -181,6 +194,16 @@ func (r *opnsenseRenderer) applyNTP(ctx context.Context, cfg *configparser.Confi
 		Timeservers: servers,
 		Timezone:   cfg.Timezone,
 	})
+}
+
+// applyBanner pushes the login banner via POST /api/system/general/set.
+func (r *opnsenseRenderer) applyBanner(ctx context.Context, cfg *configparser.ConfigBanner) error {
+	if cfg == nil {
+		return nil
+	}
+	// OPNsense only has one banner field (login / pre-auth).
+	// Use LoginBanner; PostLogin is stored separately in OpenWrt.
+	return r.system.GeneralSet(ctx, cfg.LoginBanner)
 }
 
 // fetchObserved pulls the live state from the device: interfaces (for VLANs)

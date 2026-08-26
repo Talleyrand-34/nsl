@@ -34,6 +34,7 @@ func (r *OpenWrtRenderer) Diff(intended, observed *configparser.ConfigData) []co
 	out = append(out, diffVLANs(intended, observed)...)
 	out = append(out, diffRoutes(intended, observed)...)
 	out = append(out, diffNTP(intended, observed)...)
+	out = append(out, diffBanner(intended, observed)...)
 	return out
 }
 
@@ -42,25 +43,34 @@ func (r *OpenWrtRenderer) Render(safety configparser.SafetyLevel, intended *conf
 		return nil
 	}
 	diffs := r.Diff(intended, nil)
-	var ntpDiffs []configparser.ConfigChange
+	var ntpDiffs, bannerDiffs []configparser.ConfigChange
 	for _, d := range diffs {
-		if d.Kind == "ntp-set" {
+		switch d.Kind {
+		case "ntp-set":
 			ntpDiffs = append(ntpDiffs, d)
-			continue
+		case "banner-set":
+			bannerDiffs = append(bannerDiffs, d)
+		default:
+			cmds, err := r.renderChange(d)
+			if err != nil {
+				return err
+			}
+			for _, cmd := range cmds {
+				if _, err := sess.Execute(cmd); err != nil {
+					return fmt.Errorf("openwrt-renderer: %s: %w", cmd, err)
+				}
+			}
 		}
-		cmds, err := r.renderChange(d)
-		if err != nil {
-			return err
-		}
-		for _, cmd := range cmds {
+	}
+	if len(ntpDiffs) > 0 && intended.NTP != nil {
+		for _, cmd := range r.ntpCommands(intended.NTP) {
 			if _, err := sess.Execute(cmd); err != nil {
 				return fmt.Errorf("openwrt-renderer: %s: %w", cmd, err)
 			}
 		}
 	}
-	// NTP uses full intended config.
-	if len(ntpDiffs) > 0 && intended.NTP != nil {
-		for _, cmd := range r.ntpCommands(intended.NTP) {
+	if len(bannerDiffs) > 0 && intended.Banner != nil {
+		for _, cmd := range r.bannerCommands(intended.Banner) {
 			if _, err := sess.Execute(cmd); err != nil {
 				return fmt.Errorf("openwrt-renderer: %s: %w", cmd, err)
 			}
@@ -125,6 +135,21 @@ func (r *OpenWrtRenderer) ntpCommands(cfg *configparser.ConfigNTPConfig) []strin
 	}
 	cmds = append(cmds, "uci commit system")
 	cmds = append(cmds, "/etc/init.d/sysntpd reload")
+	return cmds
+}
+
+// bannerCommands returns shell commands to write the login and post-login banners.
+func (r *OpenWrtRenderer) bannerCommands(cfg *configparser.ConfigBanner) []string {
+	if cfg == nil {
+		return nil
+	}
+	var cmds []string
+	if cfg.LoginBanner != "" {
+		cmds = append(cmds, fmt.Sprintf("cat > /etc/issue.net << 'NSLBANNER'\n%s\nNSLBANNER", cfg.LoginBanner))
+	}
+	if cfg.PostLogin != "" {
+		cmds = append(cmds, fmt.Sprintf("cat > /etc/motd << 'NSLBANNER'\n%s\nNSLBANNER", cfg.PostLogin))
+	}
 	return cmds
 }
 
