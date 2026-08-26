@@ -119,7 +119,7 @@ func diffVLANs(intended, observed *configparser.ConfigData) []configparser.Confi
 		for _, v := range ci.VLANs {
 			if !obsSet[v.ID] {
 				out = append(out, configparser.ConfigChange{
-					Kind:  "add",
+					Kind:  "vlan-add",
 					Path:  fmt.Sprintf("%s VLAN %s tagged=%v", ci.Name, v.ID, v.Tagged),
 					New:   v.ID,
 					Patch: uciSetLine(ci.Name, v.ID, v.Tagged),

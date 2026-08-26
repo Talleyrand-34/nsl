@@ -5,8 +5,8 @@ package interfaces
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
-
 	"github.com/t34/opnsense-api/opnsense"
 )
 
@@ -48,14 +48,20 @@ func (m *Module) VLANDel(ctx context.Context, uuid string) error {
 	})
 	return err
 }
-
 // OverviewCommit calls POST /api/interfaces/overview/commit, applying pending
-// interface changes. Equivalent to OpenWrt `uci commit`.
+// interface changes. Equivalent to OpenWrt `uci commit`. Surfaces a non-2xx
+// response as an error so a 500 from the device doesn't look like success.
 func (m *Module) OverviewCommit(ctx context.Context) error {
-	_, err := m.c.Do(ctx, opnsense.Request{
+	resp, err := m.c.Do(ctx, opnsense.Request{
 		Method: "POST", Path: "/api/interfaces/overview/commit",
 	})
-	return err
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode/100 != 2 {
+		return fmt.Errorf("opnsense: /api/interfaces/overview/commit: HTTP %d: %s", resp.StatusCode, string(resp.RawBody))
+	}
+	return nil
 }
 
 // OverviewList calls GET /api/interfaces/overview/list and returns the raw

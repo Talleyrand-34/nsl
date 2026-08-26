@@ -1,0 +1,50 @@
+{
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "infix-routing:ospfv2",
+          "name": "default",
+          "ietf-ospf:ospf": {
+            "areas": {
+              "area": [
+                {
+                  "area-id": "0.0.0.3",
+                  "interfaces": {
+                    "interface": [
+                      {
+                        "name": "eth0"
+                      },
+                      {
+                        "name": "eth1"
+                      },
+                      {
+                        "name": "eth2"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "type": "infix-routing:static",
+          "name": "default",
+          "static-routes": {
+            "ietf-ipv4-unicast-routing:ipv4": {
+              "route": [
+                {
+                  "destination-prefix": "0.0.0.0/0",
+                  "next-hop": {
+                    "next-hop-address": "10.0.50.1"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

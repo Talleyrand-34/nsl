@@ -1,0 +1,40 @@
+{
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "infix-routing:ospfv2",
+          "name": "default",
+          "ietf-ospf:ospf": {
+            "areas": {
+              "area": [
+                {
+                  "area-id": "0.0.0.0",
+                  "interfaces": {
+                    "interface": [
+                      {
+                        "name": "eth0"
+                      },
+                      {
+                        "name": "eth1"
+                      },
+                      {
+                        "name": "eth2"
+                      },
+                      {
+                        "name": "eth3"
+                      },
+                      {
+                        "name": "eth4"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

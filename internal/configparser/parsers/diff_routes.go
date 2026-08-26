@@ -41,7 +41,10 @@ func diffRoutes(intended, observed *configparser.ConfigData) []configparser.Conf
 }
 
 func routeKey(r configparser.ConfigRoute) string {
-	return r.Network + "|" + r.Gateway + "|" + r.Interface
+	// Network + gateway uniquely identifies a route. Interface is metadata
+	// for the apply step (OpenWrt UCI needs it; OPNsense ignores it) and
+	// varies across vendor models, so we don't include it in the key.
+	return r.Network + "|" + r.Gateway
 }
 
 func routeMap(routes []configparser.ConfigRoute) map[string]configparser.ConfigRoute {
@@ -57,8 +60,12 @@ func routeAddChange(r configparser.ConfigRoute) configparser.ConfigChange {
 		Kind:   "route-add",
 		Path:   r.Network,
 		New:    r.Network,
-		Old:    r.Gateway, // current next-hop; empty on add
-		Patch:  []string{fmt.Sprintf("network=%s gateway=%s interface=%s", r.Network, r.Gateway, r.Interface)},
+		Old:    r.Gateway,
+		Patch: []string{
+			"network=" + r.Network,
+			"gateway=" + r.Gateway,
+			"interface=" + r.Interface,
+		},
 	}
 }
 

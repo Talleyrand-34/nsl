@@ -1,29 +1,294 @@
 // SPDX-License-Identifier: MIT
-// opnsense_renderer.go: OPNsense ConfigRenderer stub — registers itself in the
-// global renderer registry on init so the push engine has a fallback entry.
+// opnsense_renderer.go: OPNsense renderer speaking the REST API.
+//
+// Replaces the stubOPNsense placeholder. The actual HTTP transport lives in
+// opnsense-api/opnsense (vendored Go module); this file is the diff/render
+// logic.
 package parsers
 
-import "nsl-graph/internal/configparser"
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"strings"
 
-func init() {
-	configparser.DefaultRendererRegistry.RegisterRenderer(newOpnsenseRenderer())
+	"nsl-graph/internal/configparser"
+	"nsl-graph/internal/scanner"
+	"github.com/t34/opnsense-api/modules/interfaces"
+	"github.com/t34/opnsense-api/modules/routes"
+	"github.com/t34/opnsense-api/modules/routing"
+	"github.com/t34/opnsense-api/opnsense"
+)
+
+type opnsenseRenderer struct {
+	c        *opnsense.Client
+	ifaces   *interfaces.Module
+	routes   *routes.Module
+	gateways *routing.Module
 }
+
+func init() { configparser.DefaultRendererRegistry.RegisterRenderer(newOpnsenseRenderer()) }
 
 func newOpnsenseRenderer() configparser.ConfigRenderer {
-	return &opnsenseRenderer{}
+	return &opnsenseLazyRenderer{}
 }
 
+// NewOpnsenseRendererForURL is the engine-facing constructor.
 func NewOpnsenseRendererForURL(baseURL, key, secret string) configparser.ConfigRenderer {
-	return &opnsenseRenderer{}
+	opts := []opnsense.Option{opnsense.WithInsecureTLS()}
+	c := opnsense.NewClient(baseURL, key, secret, opts...)
+	return &opnsenseRenderer{
+		c:        c,
+		ifaces:   interfaces.New(c),
+		routes:   routes.New(c),
+		gateways: routing.New(c),
+	}
 }
 
-type opnsenseRenderer struct{}
+// opnsenseLazyRenderer is the registry entry when no client is wired.
+type opnsenseLazyRenderer struct{}
 
-func (r *opnsenseRenderer) GetOsType() string                            { return "opnsense" }
-func (r *opnsenseRenderer) SupportsDevice(d any) bool                  { return true }
-func (r *opnsenseRenderer) Diff(intended, observed *configparser.ConfigData) []configparser.ConfigChange {
+func (r *opnsenseLazyRenderer) GetOsType() string { return "opnsense" }
+func (r *opnsenseLazyRenderer) SupportsDevice(d any) bool {
+	if dev, ok := d.(scanner.SNMPDevice); ok {
+		s := dev.SysDescr + " " + dev.SysName
+		return containsFold(s, "opnsense") || containsFold(s, "freebsd")
+	}
+	return false
+}
+func (r *opnsenseLazyRenderer) Diff(intended *configparser.ConfigData, observed *configparser.ConfigData) []configparser.ConfigChange {
+	return diffRoutes(intended, observed)
+}
+func (r *opnsenseLazyRenderer) Render(_ configparser.SafetyLevel, _ *configparser.ConfigData, _ configparser.Session, _ configparser.SSHCredentials) error {
+	return configparser.ErrUnsupported{OS: "opnsense", Reason: "render requires typed session; engine must call opnsenseRenderer directly"}
+}
+
+// --- real renderer ---
+
+func (r *opnsenseRenderer) GetOsType() string { return "opnsense" }
+func (r *opnsenseRenderer) SupportsDevice(d any) bool {
+	if dev, ok := d.(scanner.SNMPDevice); ok {
+		s := dev.SysDescr + " " + dev.SysName
+		return containsFold(s, "opnsense") || containsFold(s, "freebsd")
+	}
+	return false
+}
+
+func (r *opnsenseRenderer) Diff(intended *configparser.ConfigData, observed *configparser.ConfigData) []configparser.ConfigChange {
+	var out []configparser.ConfigChange
+	out = append(out, diffVLANs(intended, observed)...)
+	out = append(out, diffRoutes(intended, observed)...)
+	return out
+}
+
+func (r *opnsenseRenderer) Render(safety configparser.SafetyLevel, intended *configparser.ConfigData, _ configparser.Session, _ configparser.SSHCredentials) error {
+	ctx := context.Background()
+	switch safety {
+	case configparser.SafetyDryRun:
+		return nil
+	case configparser.SafetyStaged, configparser.SafetyApply:
+		observed, err := r.fetchObserved(ctx)
+		if err != nil {
+			return fmt.Errorf("opnsense-renderer: fetch observed: %w", err)
+		}
+		diffs := r.Diff(intended, observed)
+		var touchedIface, touchedRoutes bool
+		for _, d := range diffs {
+			if err := r.applyChange(ctx, d); err != nil {
+				return fmt.Errorf("opnsense-renderer: %w", err)
+			}
+			switch d.Kind {
+			case "route-add", "route-del":
+				touchedRoutes = true
+			case "vlan-add", "vlan-del":
+				touchedIface = true
+			}
+		}
+		// OPNsense has separate reconfigure endpoints per area; commit only
+		// the ones we touched so a VLAN-only push doesn't reconfigure routing
+		// and vice versa.
+		if touchedRoutes {
+			if err := r.routes.RouteApply(ctx); err != nil {
+				return fmt.Errorf("opnsense-renderer: routes reconfigure: %w", err)
+			}
+		}
+		if touchedIface {
+			if err := r.ifaces.OverviewCommit(ctx); err != nil {
+				return fmt.Errorf("opnsense-renderer: interfaces commit: %w", err)
+			}
+		}
+		return nil
+	default:
+		return fmt.Errorf("opnsense-renderer: unknown safety %d", int(safety))
+	}
+}
+
+// applyChange dispatches one ConfigChange to the right OPNsense API call.
+func (r *opnsenseRenderer) applyChange(ctx context.Context, change configparser.ConfigChange) error {
+	switch change.Kind {
+	case "route-add":
+		return r.routes.RouteAdd(ctx, routes.RouteAdd{
+			Network: change.New,
+			Gateway: change.Old,
+			Descr:   "nsl-graph push",
+		})
+	case "vlan-add":
+		iface, tag := splitPathVLAN(change.Path)
+		if iface == "" {
+			return fmt.Errorf("opnsense-renderer: vlan-add path must include interface: %q", change.Path)
+		}
+		_, err := r.ifaces.VLANAdd(ctx, interfaces.VLANAdd{
+			If:    iface,
+			Tag:   tag,
+			Descr: "nsl-graph push",
+		})
+		return err
+	default:
+		return fmt.Errorf("opnsense-renderer: unhandled change kind %q", change.Kind)
+	}
+}
+
+// fetchObserved pulls the live state from the device: interfaces (for VLANs)
+// and routes (for the diff engine).
+func (r *opnsenseRenderer) fetchObserved(ctx context.Context) (*configparser.ConfigData, error) {
+	out := &configparser.ConfigData{}
+	ifaceResp, err := r.ifaces.OverviewList(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := decodeInterfacesInto(ifaceResp.RawBody, out); err != nil {
+		return nil, fmt.Errorf("decode interfaces: %w", err)
+	}
+	routeResp, err := r.routes.SearchRoute(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := decodeRoutesInto(routeResp.RawBody, out); err != nil {
+		return nil, fmt.Errorf("decode routes: %w", err)
+	}
+	return out, nil
+}
+
+// decodeInterfacesInto parses the JSON returned by /api/interfaces/overview/list
+// and writes interface + VLAN entries into out.Interfaces.
+func decodeInterfacesInto(raw []byte, out *configparser.ConfigData) error {
+	if len(raw) == 0 {
+		return nil
+	}
+	var env struct {
+		Rows []struct {
+			Device     string `json:"device"`
+			Identifier string `json:"identifier"`
+			VlanTag    string `json:"vlan_tag"`
+			Vlan       *struct {
+				Tag    string `json:"tag"`
+				Parent string `json:"parent"`
+			} `json:"vlan"`
+		} `json:"rows"`
+	}
+	if err := json.Unmarshal(raw, &env); err != nil {
+		return err
+	}
+	for _, row := range env.Rows {
+		if row.Device == "" {
+			continue
+		}
+		ci := configparser.ConfigInterface{
+			Name:    row.Device,
+			Type:    "physical",
+			Enabled: true,
+		}
+		tag := row.VlanTag
+		if tag == "" && row.Vlan != nil {
+			tag = row.Vlan.Tag
+		}
+		if tag != "" {
+			ci.VLANs = []configparser.ConfigVLAN{{ID: tag, Tagged: true}}
+		}
+		out.Interfaces = append(out.Interfaces, ci)
+	}
 	return nil
 }
-func (r *opnsenseRenderer) Render(safety configparser.SafetyLevel, intended *configparser.ConfigData, sess configparser.Session, creds configparser.SSHCredentials) error {
-	return configparser.ErrUnsupported{}
+
+// decodeRoutesInto parses the JSON returned by /api/routes/routes/searchroute.
+func decodeRoutesInto(raw []byte, out *configparser.ConfigData) error {
+	if len(raw) == 0 {
+		return nil
+	}
+	var env struct {
+		Rows []struct {
+			UUID    string `json:"uuid"`
+			Network string `json:"network"`
+			Gateway string `json:"gateway"`
+			Descr   string `json:"descr"`
+		} `json:"rows"`
+	}
+	if err := json.Unmarshal(raw, &env); err != nil {
+		return err
+	}
+	for _, row := range env.Rows {
+		if row.Network == "" {
+			continue
+		}
+		out.Routes = append(out.Routes, configparser.ConfigRoute{
+			Network:     row.Network,
+			Gateway:     row.Gateway,
+			Description: row.Descr,
+		})
+	}
+	return nil
 }
+
+// splitPathVLAN parses the Path field of a vlan-add ConfigChange.
+//
+// Format: "<iface> VLAN <tag> tagged=<bool>"
+func splitPathVLAN(path string) (string, int) {
+	parts := strings.Fields(path)
+	if len(parts) < 3 || parts[1] != "VLAN" {
+		return "", 0
+	}
+	tag := 0
+	for _, c := range parts[2] {
+		if c < '0' || c > '9' {
+			return parts[0], 0
+		}
+		tag = tag*10 + int(c-'0')
+	}
+	return parts[0], tag
+}
+
+// containsFold is a tiny case-insensitive substring test.
+func containsFold(haystack, needle string) bool {
+	if len(needle) > len(haystack) {
+		return false
+	}
+	for i := 0; i+len(needle) <= len(haystack); i++ {
+		match := true
+		for j := 0; j < len(needle); j++ {
+			h := haystack[i+j]
+			n := needle[j]
+			if h >= 'A' && h <= 'Z' {
+				h += 'a' - 'A'
+			}
+			if n >= 'A' && n <= 'Z' {
+				n += 'a' - 'A'
+			}
+			if h != n {
+				match = false
+				break
+			}
+		}
+		if match {
+			return true
+		}
+	}
+	return false
+}
+
+// pin imports
+var (
+	_ = http.MethodGet
+	_ = context.Background
+	_ = fmt.Sprintf
+)

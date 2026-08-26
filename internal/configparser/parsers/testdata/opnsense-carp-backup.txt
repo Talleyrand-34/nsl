@@ -1,0 +1,71 @@
+HOSTNAME:OPNsense.internal
+vtnet0: flags=1008843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST,LOWER_UP> metric 0 mtu 1500
+	description: RINGOWRTO (opt1)
+	options=880028<VLAN_MTU,JUMBO_MTU,LINKSTATE,HWSTATS>
+	ether 0c:0f:61:cb:00:00
+	inet 10.10.45.2/30 broadcast 10.10.45.3
+	media: Ethernet autoselect (10Gbase-T <full-duplex>)
+	status: active
+	nd6 options=29<PERFORMNUD,IFDISABLED,AUTO_LINKLOCAL>
+vtnet1: flags=1008943<UP,BROADCAST,RUNNING,PROMISC,SIMPLEX,MULTICAST,LOWER_UP> metric 0 mtu 1500
+	description: INSIDE (opt2)
+	options=880028<VLAN_MTU,JUMBO_MTU,LINKSTATE,HWSTATS>
+	ether 0c:0f:61:cb:00:01
+	inet 10.20.1.3/24 broadcast 10.20.1.255
+	inet 10.20.1.1/24 broadcast 10.20.1.255 vhid 1
+	carp: BACKUP vhid 1 advbase 1 advskew 100
+	      peer 224.0.0.18 peer6 ff02::12
+	media: Ethernet autoselect (10Gbase-T <full-duplex>)
+	status: active
+	nd6 options=29<PERFORMNUD,IFDISABLED,AUTO_LINKLOCAL>
+vtnet2: flags=1008843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST,LOWER_UP> metric 0 mtu 1500
+	description: SYNC (opt3)
+	options=880028<VLAN_MTU,JUMBO_MTU,LINKSTATE,HWSTATS>
+	ether 0c:0f:61:cb:00:02
+	inet 10.20.255.2/30 broadcast 10.20.255.3
+	media: Ethernet autoselect (10Gbase-T <full-duplex>)
+	status: active
+	nd6 options=29<PERFORMNUD,IFDISABLED,AUTO_LINKLOCAL>
+vtnet3: flags=8843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST> metric 0 mtu 1500
+	description: RINGVYOSI (opt4)
+	options=880028<VLAN_MTU,JUMBO_MTU,LINKSTATE,HWSTATS>
+	ether 0c:0f:61:cb:00:03
+	inet 10.20.51.1/30 broadcast 10.20.51.3
+	media: Ethernet autoselect (none)
+	status: no carrier
+	nd6 options=29<PERFORMNUD,IFDISABLED,AUTO_LINKLOCAL>
+vtnet4: flags=8843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST> metric 0 mtu 1500
+	description: LAN (lan)
+	options=880028<VLAN_MTU,JUMBO_MTU,LINKSTATE,HWSTATS>
+	ether 0c:0f:61:cb:00:04
+	inet 10.1.5.254/24 broadcast 10.1.5.255
+	media: Ethernet autoselect (none)
+	status: no carrier
+	nd6 options=29<PERFORMNUD,IFDISABLED,AUTO_LINKLOCAL>
+vtnet5: flags=1008843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST,LOWER_UP> metric 0 mtu 1500
+	description: WANMGMT (wan)
+	options=880028<VLAN_MTU,JUMBO_MTU,LINKSTATE,HWSTATS>
+	ether 0c:0f:61:cb:00:05
+	inet 10.0.50.102/24 broadcast 10.0.50.255
+	media: Ethernet autoselect (10Gbase-T <full-duplex>)
+	status: active
+	nd6 options=29<PERFORMNUD,IFDISABLED,AUTO_LINKLOCAL>
+lo0: flags=1008049<UP,LOOPBACK,RUNNING,MULTICAST,LOWER_UP> metric 0 mtu 16384
+	options=680003<RXCSUM,TXCSUM,LINKSTATE,RXCSUM_IPV6,TXCSUM_IPV6>
+	inet 127.0.0.1/8
+	inet6 ::1/128
+	inet6 fe80::1%lo0/64 scopeid 0x7
+	groups: lo
+	nd6 options=21<PERFORMNUD,AUTO_LINKLOCAL>
+enc0: flags=0 metric 0 mtu 1536
+	options=0
+	groups: enc
+	nd6 options=29<PERFORMNUD,IFDISABLED,AUTO_LINKLOCAL>
+pflog0: flags=0 metric 0 mtu 33152
+	options=0
+	groups: pflog
+pfsync0: flags=1000041<UP,RUNNING,LOWER_UP> metric 0 mtu 1500
+	options=0
+	syncdev: vtnet2 syncpeer: 10.20.255.1 maxupd: 128 defer: off version: 1400
+	syncok: 1
+	groups: pfsync

@@ -1,0 +1,14 @@
+# /routing/ospf/instance/print terse without-paging
+0 name=default version=2 vrf=main router-id=2.2.2.2
+1 name=os version=2 vrf=main router-id=2.2.2.2
+
+# /routing/ospf/area/print terse without-paging
+0 name=backbone instance=default area-id=0.0.0.0 type=default
+1 name=bb instance=os area-id=0.0.0.0 type=default
+
+# /routing/ospf/interface-template/print terse without-paging
+0 area=bb instance-id=0 networks=10.10.12.0/30 type=broadcast retransmit-interval=5s transmit-delay=1s hello-interval=10s dead-interval=40s priority=128 cost=1
+1 area=bb instance-id=0 networks=10.20.12.0/30 type=broadcast retransmit-interval=5s transmit-delay=1s hello-interval=10s dead-interval=40s priority=128 cost=1
+2 area=bb instance-id=0 networks=10.10.23.0/30 type=broadcast retransmit-interval=5s transmit-delay=1s hello-interval=10s dead-interval=40s priority=128 cost=1
+3 area=bb instance-id=0 networks=10.20.23.0/30 type=broadcast retransmit-interval=5s transmit-delay=1s hello-interval=10s dead-interval=40s priority=128 cost=1
+4 area=bb instance-id=0 networks=10.1.2.0/24 type=broadcast retransmit-interval=5s transmit-delay=1s hello-interval=10s dead-interval=40s priority=128 cost=1

@@ -71,17 +71,22 @@ func (h *opnsenseLabHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case r.URL.Path == "/api/interfaces/overview/list" && r.Method == http.MethodGet:
 		w.WriteHeader(200)
 		_, _ = w.Write([]byte(h.rows))
-	case r.URL.Path == "/api/interfaces/vlan/add" && r.Method == http.MethodPost:
+	case r.URL.Path == "/api/routes/routes/searchroute" && r.Method == http.MethodGet:
 		w.WriteHeader(200)
-		_, _ = w.Write([]byte(`{"status":"ok","uuid":"v-new"}`))
+		_, _ = w.Write([]byte(`{"rows":[]}`))
+	case r.URL.Path == "/api/routing/settings/searchGateway" && r.Method == http.MethodGet:
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"rows":[]}`))
 	case r.URL.Path == "/api/interfaces/overview/commit" && r.Method == http.MethodPost:
 		if !h.commitOK {
 			w.WriteHeader(500)
 			_, _ = w.Write([]byte(`{"status":"failed","msg":"commit rejected"}`))
 			return
 		}
-		w.WriteHeader(200)
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
+	case r.URL.Path == "/api/interfaces/vlan/add" && r.Method == http.MethodPost:
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"status":"ok","uuid":"v-new"}`))
 	default:
 		w.WriteHeader(404)
 	}
