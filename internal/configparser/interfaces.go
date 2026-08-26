@@ -208,7 +208,76 @@ type ConfigFirewallRule struct {
 	Source      []string `json:"source"`      // IP addresses/networks
 	Destination []string `json:"destination"` // IP addresses/networks
 	Ports       []string `json:"ports"`       // Port numbers/ranges
-	Protocol    string   `json:"protocol"`    // "tcp", "udp", "icmp", etc.
+	Protocol    string      `json:"protocol"`    // "tcp", "udp", "icmp", etc.
+}
+
+// ConfigAlias is a firewall alias
+type ConfigAlias struct {
+	Name        string   `json:"name"`
+	Type        string   `json:"type"`         // "host", "network", "port", "url", "urltable"
+	Content     []string `json:"content"`    // OPNsense table values; OpenWrt list items
+	Enabled     bool     `json:"enabled"`
+	Description string   `json:"description,omitempty"`
+}
+
+// ConfigNAT is a NAT rule: 1:1, source, destination, or NPTv6.
+type ConfigNAT struct {
+	Type        string `json:"type"`              // "1:1", "source", "dest", "nptv6"
+	PublicIP    string `json:"public_ip,omitempty"`
+	PrivateIP   string `json:"private_ip,omitempty"`
+	PublicPort  string `json:"public_port,omitempty"`
+	PrivatePort string `json:"private_port,omitempty"`
+	Interface   string `json:"interface,omitempty"`
+	Description string `json:"description,omitempty"`
+}
+
+// ConfigDNSForwarder is dnsmasq / DNS forwarder settings.
+type ConfigDNSForwarder struct {
+	Enabled  bool     `json:"enabled"`
+	Listen   []string `json:"listen"`
+	Upstream []string `json:"upstream"`
+	Domains  []string `json:"domains,omitempty"`
+}
+
+// ConfigDNSResolver is Unbound DNS resolver configuration.
+type ConfigDNSResolver struct {
+	Enabled  bool     `json:"enabled"`
+	DNSSEC   bool     `json:"dnssec"`
+	Listen   []string `json:"listen"`
+	Upstream []string `json:"upstream,omitempty"`
+	RPZZones []string `json:"rpz_zones,omitempty"`
+}
+
+// ConfigDHCPScope is one DHCP scope (range) on an interface.
+type ConfigDHCPScope struct {
+	Interface  string   `json:"interface"`
+	RangeStart string   `json:"range_start"`
+	RangeEnd   string   `json:"range_end"`
+	Gateway    string   `json:"gateway,omitempty"`
+	DNS        []string `json:"dns,omitempty"`
+	Domain     string   `json:"domain,omitempty"`
+	LeaseTime  string   `json:"lease_time,omitempty"`
+	Enabled    bool     `json:"enabled"`
+}
+
+// ConfigDHCPREServation is a DHCP static reservation (MAC → IP).
+type ConfigDHCPREServation struct {
+	MACAddress string `json:"mac"`
+	IPAddress  string `json:"ip"`
+	Hostname   string `json:"hostname,omitempty"`
+	Description string `json:"description,omitempty"`
+}
+
+// ConfigVIP is a Virtual IP — OPNsense "Virtual IPs", VyOS "virtual-address".
+type ConfigVIP struct {
+	Address    string `json:"address"`
+	Mode       string `json:"mode"`        // "carp", "ipalias", "proxyarp", "single"
+	Interface  string `json:"interface"`
+	VHID       uint8  `json:"vhid,omitempty"`
+	Password   string `json:"password,omitempty"`
+	AdvBase    int    `json:"adv_base,omitempty"`
+	AdvSkew    int    `json:"adv_skew,omitempty"`
+	Description string `json:"description,omitempty"`
 }
 
 // PortVLANInfo represents VLAN membership for a switch port
@@ -242,10 +311,17 @@ type ConfigData struct {
 	// protocols are configured, and how. Empty means the device routes
 	// statically (or not at all) — see ControlPlane.
 	RoutingProtocols []ConfigRoutingProtocol `json:"routing_protocols,omitempty"`
-	FirewallRules    []ConfigFirewallRule    `json:"firewall_rules"`
-	SwitchPorts      []SwitchPortInfo        `json:"switch_ports,omitempty"` // Physical switch ports (OpenWrt)
-	Raw              string                  `json:"raw,omitempty"`          // Raw configuration content
-	ParsedAt         time.Time               `json:"parsed_at"`
+	FirewallRules    []ConfigFirewallRule     `json:"firewall_rules"`
+	Aliases         []ConfigAlias           `json:"aliases,omitempty"`
+	NATs            []ConfigNAT             `json:"nats,omitempty"`
+	DNSForwarder    *ConfigDNSForwarder     `json:"dns_forwarder,omitempty"`
+	DNSResolver     *ConfigDNSResolver      `json:"dns_resolver,omitempty"`
+	DHCPScopes      []ConfigDHCPScope       `json:"dhcp_scopes,omitempty"`
+	DHCPReservations []ConfigDHCPREServation `json:"dhcp_reservations,omitempty"`
+	VIPs            []ConfigVIP             `json:"vips,omitempty"`
+	SwitchPorts    []SwitchPortInfo        `json:"switch_ports,omitempty"`
+	Raw            string                  `json:"raw,omitempty"`
+	ParsedAt       time.Time               `json:"parsed_at"`
 }
 
 // ControlPlane summarises how this device learns routes, as a stable, sorted
