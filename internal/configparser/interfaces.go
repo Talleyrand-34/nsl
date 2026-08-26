@@ -323,11 +323,11 @@ type ConfigData struct {
 	Banner          *ConfigBanner          `json:"banner,omitempty"`
 	LLDP           *ConfigLLDPSettings  `json:"lldp,omitempty"`
 	Syslog          *ConfigSyslogConfig     `json:"syslog,omitempty"`
+	SNMP           *ConfigSNMPConfig     `json:"snmp,omitempty"`
 	SwitchPorts    []SwitchPortInfo        `json:"switch_ports,omitempty"`
 	Raw            string                  `json:"raw,omitempty"`
 	ParsedAt       time.Time               `json:"parsed_at"`
 }
-
 // ControlPlane summarises how this device learns routes, as a stable, sorted
 // list of protocol identifiers.
 //

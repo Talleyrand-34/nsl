@@ -16,6 +16,7 @@ import (
 	"github.com/t34/opnsense-api/modules/ntp"
 	"github.com/t34/opnsense-api/modules/routes"
 	"github.com/t34/opnsense-api/modules/routing"
+	"github.com/t34/opnsense-api/modules/snmp"
 	"github.com/t34/opnsense-api/modules/syslog"
 	"github.com/t34/opnsense-api/modules/system"
 	"github.com/t34/opnsense-api/opnsense"
@@ -30,6 +31,7 @@ type opnsenseRenderer struct {
 	system   *system.Module
 	lldp     *lldp.Module
 	syslog   *syslog.Module
+	snmp     *snmp.Module
 }
 
 func init() { configparser.DefaultRendererRegistry.RegisterRenderer(newOpnsenseRenderer()) }
@@ -51,6 +53,7 @@ func NewOpnsenseRendererForURL(baseURL, key, secret string) configparser.ConfigR
 		system:   system.New(c),
 		lldp:     lldp.New(c),
 		syslog:   syslog.New(c),
+		snmp:     snmp.New(c),
 	}
 }
 
@@ -91,6 +94,7 @@ func (r *opnsenseRenderer) Diff(intended *configparser.ConfigData, observed *con
 	out = append(out, diffBanner(intended, observed)...)
 	out = append(out, diffLLDP(intended, observed)...)
 	out = append(out, diffSyslog(intended, observed)...)
+	out = append(out, diffSNMP(intended, observed)...)
 	return out
 }
 
@@ -105,7 +109,7 @@ func (r *opnsenseRenderer) Render(safety configparser.SafetyLevel, intended *con
 			return fmt.Errorf("opnsense-renderer: fetch observed: %w", err)
 		}
 		diffs := r.Diff(intended, observed)
-		var touchedIface, touchedRoutes, touchedNTP, touchedBanner, touchedLLDP, touchedSyslog bool
+		var touchedIface, touchedRoutes, touchedNTP, touchedBanner, touchedLLDP, touchedSyslog, touchedSNMP bool
 		for _, d := range diffs {
 			if err := r.applyChange(ctx, d); err != nil {
 				return fmt.Errorf("opnsense-renderer: %w", err)
@@ -123,6 +127,8 @@ func (r *opnsenseRenderer) Render(safety configparser.SafetyLevel, intended *con
 				touchedLLDP = true
 			case "syslog-set":
 				touchedSyslog = true
+			case "snmp-set":
+				touchedSNMP = true
 			}
 		}
 		if touchedRoutes {
@@ -155,6 +161,11 @@ func (r *opnsenseRenderer) Render(safety configparser.SafetyLevel, intended *con
 				return fmt.Errorf("opnsense-renderer: syslog: %w", err)
 			}
 		}
+		if touchedSNMP {
+			if err := r.applySNMP(ctx, intended.SNMP); err != nil {
+				return fmt.Errorf("opnsense-renderer: snmp: %w", err)
+			}
+		}
 		return nil
 	default:
 		return fmt.Errorf("opnsense-renderer: unknown safety %d", int(safety))
@@ -181,7 +192,7 @@ func (r *opnsenseRenderer) applyChange(ctx context.Context, change configparser.
 			Descr: "nsl-graph push",
 		})
 		return err
-	case "ntp-set", "banner-set", "lldp-set", "syslog-set":
+	case "ntp-set", "banner-set", "lldp-set", "syslog-set", "snmp-set":
 		return nil
 	default:
 		return fmt.Errorf("opnsense-renderer: unhandled change kind %q", change.Kind)
@@ -261,6 +272,25 @@ func (r *opnsenseRenderer) applySyslog(ctx context.Context, cfg *configparser.Co
 		}
 	}
 	return r.syslog.SetDestination(ctx, cfg.Enabled, cfg.PreserveFQDN, dests)
+}
+
+// applySNMP configures SNMP via POST /api/snmp/general/set.
+// OPNsense basic SNMP only exposes one community; uses the first community.
+func (r *opnsenseRenderer) applySNMP(ctx context.Context, cfg *configparser.ConfigSNMPConfig) error {
+	if cfg == nil {
+		return nil
+	}
+	community := ""
+	if len(cfg.Communities) > 0 {
+		community = cfg.Communities[0].Name
+	}
+	return r.snmp.GeneralSet(ctx, snmp.GeneralSettings{
+		Enabled:   cfg.Enabled,
+		Location:  cfg.Location,
+		Contact:   cfg.Contact,
+		Community: community,
+		BindTo:    cfg.ListenInterface,
+	})
 }
 
 // fetchObserved pulls the live state from the device.

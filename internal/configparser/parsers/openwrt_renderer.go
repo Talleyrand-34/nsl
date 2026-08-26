@@ -37,6 +37,7 @@ func (r *OpenWrtRenderer) Diff(intended, observed *configparser.ConfigData) []co
 	out = append(out, diffBanner(intended, observed)...)
 	out = append(out, diffLLDP(intended, observed)...)
 	out = append(out, diffSyslog(intended, observed)...)
+	out = append(out, diffSNMP(intended, observed)...)
 	return out
 }
 
@@ -45,7 +46,7 @@ func (r *OpenWrtRenderer) Render(safety configparser.SafetyLevel, intended *conf
 		return nil
 	}
 	diffs := r.Diff(intended, nil)
-	var ntpDiffs, bannerDiffs, lldpDiffs, syslogDiffs []configparser.ConfigChange
+	var ntpDiffs, bannerDiffs, lldpDiffs, syslogDiffs, snmpDiffs []configparser.ConfigChange
 	for _, d := range diffs {
 		switch d.Kind {
 		case "ntp-set":
@@ -56,6 +57,8 @@ func (r *OpenWrtRenderer) Render(safety configparser.SafetyLevel, intended *conf
 			lldpDiffs = append(lldpDiffs, d)
 		case "syslog-set":
 			syslogDiffs = append(syslogDiffs, d)
+		case "snmp-set":
+			snmpDiffs = append(snmpDiffs, d)
 		default:
 			cmds, err := r.renderChange(d)
 			if err != nil {
@@ -91,6 +94,13 @@ func (r *OpenWrtRenderer) Render(safety configparser.SafetyLevel, intended *conf
 	}
 	if len(syslogDiffs) > 0 && intended.Syslog != nil {
 		for _, cmd := range r.syslogCommands(intended.Syslog) {
+			if _, err := sess.Execute(cmd); err != nil {
+				return fmt.Errorf("openwrt-renderer: %s: %w", cmd, err)
+			}
+		}
+	}
+	if len(snmpDiffs) > 0 && intended.SNMP != nil {
+		for _, cmd := range r.snmpCommands(intended.SNMP) {
 			if _, err := sess.Execute(cmd); err != nil {
 				return fmt.Errorf("openwrt-renderer: %s: %w", cmd, err)
 			}
@@ -202,30 +212,56 @@ func (r *OpenWrtRenderer) syslogCommands(cfg *configparser.ConfigSyslogConfig) [
 		return nil
 	}
 	var cmds []string
-	cmds = append(cmds, "uci del system.log_remote")
+	cmds = append(cmds, "uci del system.cfg001")
 	cmds = append(cmds, "uci commit system")
 	enabled := "0"
 	if cfg.Enabled {
 		enabled = "1"
 	}
-	cmds = append(cmds, fmt.Sprintf("uci set system.cfg001=log_remote"))
+	cmds = append(cmds, fmt.Sprintf("uci add system log_remote"))
 	cmds = append(cmds, fmt.Sprintf("uci set system.cfg001.enabled=%s", enabled))
 	cmds = append(cmds, fmt.Sprintf("uci set system.cfg001.preserve_fqdn=%d", boolToInt(cfg.PreserveFQDN)))
 	for i, t := range cfg.Targets {
-		idx := fmt.Sprintf("%03d", i+1)
 		cmds = append(cmds, fmt.Sprintf("uci add system log_remote"))
-		cmds = append(cmds, fmt.Sprintf("uci set system.cfg%s=log_remote", idx))
-		cmds = append(cmds, fmt.Sprintf("uci set system.cfg%s.enabled=1", idx))
-		cmds = append(cmds, fmt.Sprintf("uci set system.cfg%s.ip=%s", idx, t.Address))
+		cmds = append(cmds, fmt.Sprintf("uci set system.@log_remote[-1].enabled=1"))
+		cmds = append(cmds, fmt.Sprintf("uci set system.@log_remote[-1].ip=%s", t.Address))
 		if t.Port != 0 {
-			cmds = append(cmds, fmt.Sprintf("uci set system.cfg%s.port=%d", idx, t.Port))
+			cmds = append(cmds, fmt.Sprintf("uci set system.@log_remote[-1].port=%d", t.Port))
 		}
 		if t.Protocol != "" {
-			cmds = append(cmds, fmt.Sprintf("uci set system.cfg%s.proto=%s", idx, t.Protocol))
+			cmds = append(cmds, fmt.Sprintf("uci set system.@log_remote[-1].proto=%s", t.Protocol))
 		}
+		_ = i // index unused, UCI add_list appends
 	}
 	cmds = append(cmds, "uci commit system")
 	cmds = append(cmds, "/etc/init.d/log reload")
+	return cmds
+}
+
+// snmpCommands returns UCI commands to configure SNMP daemon.
+func (r *OpenWrtRenderer) snmpCommands(cfg *configparser.ConfigSNMPConfig) []string {
+	if cfg == nil {
+		return nil
+	}
+	var cmds []string
+	cmds = append(cmds, "uci set snmpd.config=snmpd")
+	enabled := "0"
+	if cfg.Enabled {
+		enabled = "1"
+	}
+	cmds = append(cmds, fmt.Sprintf("uci set snmpd.config.enabled=%s", enabled))
+	if cfg.Location != "" {
+		cmds = append(cmds, fmt.Sprintf("uci set snmpd.config.syslocation=%s", cfg.Location))
+	}
+	if cfg.Contact != "" {
+		cmds = append(cmds, fmt.Sprintf("uci set snmpd.config.syscontact=%s", cfg.Contact))
+	}
+	cmds = append(cmds, "uci del snmpd.config.community")
+	for _, c := range cfg.Communities {
+		cmds = append(cmds, fmt.Sprintf("uci add_list snmpd.config.community=%s", c.Name))
+	}
+	cmds = append(cmds, "uci commit snmpd")
+	cmds = append(cmds, "/etc/init.d/snmpd reload")
 	return cmds
 }
 
