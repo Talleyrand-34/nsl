@@ -1,23 +1,5 @@
 // SPDX-License-Identifier: MIT
-// opnsense_e2e_test.go: end-to-end test for the OPNsense push path.
-//
-// This is the httptest-driven analog of lab_e2e_test.go (which targets a
-// live OpenWrt on the GNS3 lab). The OPNsense path is REST-based and the
-// typed client (internal/opnsenseapi + vendored opnsense-api) takes a base
-// URL, so a single httptest.NewTLSServer exercises the same code that would
-// hit a real device — no live clone required.
-//
-// What it proves:
-//   1. NewDefaultEngine() resolves "opnsense" to the typed renderer when
-//      WithOpnsenseFactory is supplied.
-//   2. DryRun sends zero API calls.
-//   3. Apply with a real diff: OverviewList (fetch observed) → VLANAdd
-//      (per change) → OverviewCommit (apply).
-//   4. Apply commit failure: the renderer returns the error and the
-//      SafetyFloor records a failed audit row.
-//   5. Apply success: SafetyFloor records a success audit row.
-//
-// Run with: go test ./cmd/push/ -count=1 -v
+// opnsense_e2e_test.go: end-to-end tests for the OPNsense push path.
 package cmd_push_test
 
 import (
@@ -46,8 +28,7 @@ type opnsenseLabHandler struct {
 func newOpnsenseLab() *opnsenseLabHandler {
 	return &opnsenseLabHandler{
 		commitOK: true,
-		// observed has no VLAN on vtnet0 → an intended VLAN 30 will be diff.
-		rows: `{"rows":[{"device":"vtnet0","identifier":"wan"}]}`,
+		rows:     `{"rows":[{"device":"vtnet0","identifier":"wan"}]}`,
 	}
 }
 
@@ -103,8 +84,6 @@ func engineFor(srv *httptest.Server) *push.Engine {
 }
 
 // intentWithVLAN30 is the canonical "I want VLAN 30 on vtnet0" intent.
-// Combined with the lab handler's observed (no VLANs on vtnet0) this
-// produces a one-element diff: add VLAN 30.
 func intentWithVLAN30() *configparser.ConfigData {
 	return &configparser.ConfigData{
 		Hostname: "opnsense-1",
@@ -133,10 +112,6 @@ func TestOPNsenseE2E_EngineResolvesTypedRenderer(t *testing.T) {
 	if r.GetOsType() != "opnsense" {
 		t.Errorf("renderer GetOsType = %q; want opnsense", r.GetOsType())
 	}
-	// Sanity-check that this is the typed renderer (not the lazy one):
-	// the lazy renderer returns ErrUnsupported from Render; the typed one
-	// hits the network. We just observe that DryRun succeeds without the
-	// ErrUnsupported refusal.
 	if err := r.Render(configparser.SafetyDryRun,
 		&configparser.ConfigData{Hostname: "opnsense-1"},
 		nil, configparser.SSHCredentials{}); err != nil {
@@ -145,7 +120,7 @@ func TestOPNsenseE2E_EngineResolvesTypedRenderer(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Render end-to-end (renderer alone, no audit row)
+// Render end-to-end
 // ---------------------------------------------------------------------------
 
 func TestOPNsenseE2E_Apply_ReachesVLANAddAndCommit(t *testing.T) {
@@ -192,8 +167,6 @@ func TestOPNsenseE2E_Apply_CommitFailureSurfacesError(t *testing.T) {
 	if err == nil {
 		t.Fatal("commit failure must surface as a Render error")
 	}
-	// A real HTTP 500 is not an ErrUnsupported — that error is the renderer's
-	// own refusal for missing support, not a server-side failure.
 	var unsup configparser.ErrUnsupported
 	if errors.As(err, &unsup) {
 		t.Errorf("server-side 500 must NOT be classified as ErrUnsupported; got %v", err)
@@ -201,7 +174,7 @@ func TestOPNsenseE2E_Apply_CommitFailureSurfacesError(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Audit-trail integration: floor + memory store + typed renderer
+// Audit-trail integration
 // ---------------------------------------------------------------------------
 
 func TestOPNsenseE2E_AuditRow_Success(t *testing.T) {
