@@ -1,13 +1,16 @@
 /*
 Copyright © 2025 Talleyrand-34 (t34@t34.dev)
+
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as published
 by the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
+
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU Affero General Public License for more details.
+
 You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
@@ -31,22 +34,23 @@ const (
 	zonesCollection           = "zones"
 	modelsCollection          = "models"
 	modelportsCollection      = "modelports"
-	devicesCollection         = "devices"
+	devicesCollection        = "devices"
 	deviceportsCollection     = "deviceports"
 	connectionsCollection     = "connections"
 	connectiontypesCollection = "connectiontypes"
-	vlansCollection           = "vlans"
+	vlansCollection          = "vlans"
 	scanProfilesCollection    = "scanprofiles"
 	vaultCollection           = "vault"
+	pushRunsCollection        = "push_runs"
+	configSnapshotsCollection = "config_snapshots"
 )
 
 type BasicOpsCloverRepository struct {
 	db *c.DB
 }
 
-// NewCloverRepositoryFromDB creates a repository from an existing CloverDB instance
+// NewCloverRepositoryFromDB creates a repository from an existing CloverDB instance.
 func NewCloverRepositoryFromDB(db *c.DB) (BasicOpsCloverRepository, error) {
-	// List of all collections to create
 	collections := []string{
 		brandsCollection,
 		modeltypesCollection,
@@ -65,9 +69,10 @@ func NewCloverRepositoryFromDB(db *c.DB) (BasicOpsCloverRepository, error) {
 		interfacePortsCollection,
 		scanProfilesCollection,
 		vaultCollection,
+		pushRunsCollection,
+		configSnapshotsCollection,
 	}
 
-	// Create each collection if it doesn't exist
 	for _, collectionName := range collections {
 		if exists, err := db.HasCollection(collectionName); err != nil {
 			return BasicOpsCloverRepository{}, err
@@ -107,7 +112,7 @@ func NewCloverRepository(dirPath string) (BasicOpsCloverRepository, error) {
 	return NewCloverRepositoryFromDB(db)
 }
 
-// Close closes the database connection
+// Close closes the database connection.
 func (r BasicOpsCloverRepository) Close() error {
 	return r.db.Close()
 }
