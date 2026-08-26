@@ -197,9 +197,60 @@ func (s *Service) LiveConfig(ctx context.Context, deviceID, os string) (*configp
 }
 
 // FetchAndSnapshot is the unified fetch+parse+save entry point used by
-// both the snapshot-on-push path and the device-detail page.
+// both the snapshot-on-push path and the device-detail page. It:
+//  1. Fetches the parsed *ConfigData via the per-OS Fetcher.
+//  2. If the Fetcher also implements RawFetcher, writes the raw bytes
+//     to PushRepository.SaveBackup.
+//  3. Writes the parsed snapshot via PushRepository.SaveSnapshot.
+//
+// Returns the snapshot ID assigned by the repo. runID is supplied by
+// the caller (Service.Push for Apply, or a one-shot caller for the
+// device-detail page) and stored in CapturedByRun.
 func (s *Service) FetchAndSnapshot(ctx context.Context, deviceID, os, runID string) (string, error) {
-	panic("Service.FetchAndSnapshot not yet implemented; see webui-integration.md phase 4")
+	f, ok := s.fetchers[os]
+	if !ok {
+		return "", configparser.ErrUnsupported{OS: os, Reason: "no fetcher registered for OS"}
+	}
+	cd, err := f.Fetch(ctx, deviceID)
+	if err != nil {
+		return "", fmt.Errorf("push: fetch %s/%s: %w", deviceID, os, err)
+	}
+
+	snap := ConfigSnapshot{
+		DeviceID:      deviceID,
+		OS:            os,
+		CapturedAt:    time.Now(),
+		CapturedByRun: runID,
+		ParserVersion: "v1",
+		Config:        cd,
+	}
+
+	// Raw bytes (when the fetcher supports it). ponytail: best-effort.
+	// If the raw fetch fails after the parsed fetch succeeded, we still
+	// persist the parsed snapshot — the operator can diff/render against
+	// the parsed view even when the backup file is missing.
+	if rf, ok := f.(RawFetcher); ok {
+		raw, ext, rawErr := rf.FetchRaw(ctx, deviceID)
+		if rawErr == nil && len(raw) > 0 {
+			snap.RawExt = ext
+			relpath, err := s.repo.SaveBackup(deviceID, runID, ext, raw)
+			if err != nil {
+				return "", fmt.Errorf("push: save backup %s/%s: %w", deviceID, runID, err)
+			}
+			snap.BackupRelpath = relpath
+			snap.Sha256Raw = Sha256(raw)
+		}
+	}
+
+	if cd != nil {
+		snap.Interfaces = len(cd.Interfaces)
+	}
+
+	id, err := s.repo.SaveSnapshot(snap)
+	if err != nil {
+		return "", fmt.Errorf("push: save snapshot %s/%s: %w", deviceID, runID, err)
+	}
+	return id, nil
 }
 
 // Status returns the most recent push result for a device. Lightweight

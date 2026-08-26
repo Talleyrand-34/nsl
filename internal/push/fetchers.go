@@ -1,10 +1,17 @@
 // SPDX-License-Identifier: MIT
 // fetchers.go: per-OS strategies for fetching the device's currently-running
-// config (LiveConfig).
+// config (LiveConfig) and its native raw bytes (RawFetcher).
 //
 // One Fetcher impl per supported OS. The Service picks the right one
 // from a map keyed by OS type. New vendors add a new map entry and a new
 // fetcher type — the Service body stays unchanged.
+//
+// Note on raw bytes: OpenWrt implements both Fetcher and RawFetcher
+// (UCI is already a parser pipeline). OPNsense only implements Fetcher
+// because parsing /api/core/backup/download's config.xml would require
+// a brand-new XML parser we haven't written. The snapshot pipeline
+// tolerates a missing RawFetcher; the parsed snapshot is still
+// persisted and the BackupRelpath is left empty.
 package push
 
 import (
@@ -28,6 +35,24 @@ type Fetcher interface {
 	Fetch(ctx context.Context, deviceID string) (*configparser.ConfigData, error)
 }
 
+// RawFetcher is the optional companion to Fetcher. Vendors that can
+// produce the device's native-format raw bytes (UCI for OpenWrt, etc.)
+// implement this so the snapshot pipeline can write a backup file
+// alongside the parsed snapshot. Vendors that can't yet (OPNsense's
+// config.xml, VyOS, RouterOS, Infix, Fortinet) just implement Fetcher;
+// the Service tolerates a missing RawFetcher and writes an empty
+// BackupRelpath in the snapshot row.
+type RawFetcher interface {
+	// FetchRaw returns the device's native raw bytes plus the OS-specific
+	// file extension ("conf", "xml", "boot", "rsc"). ext is used to name
+	// the backup file on disk.
+	FetchRaw(ctx context.Context, deviceID string) (raw []byte, ext string, err error)
+}
+
+// ---------------------------------------------------------------------------
+// OpenWrt
+// ---------------------------------------------------------------------------
+
 // OpenWrtFetcher fetches via SSH using the read-side parser pipeline
 // (OpenWrtParser.Fetch + OpenWrtParser.ParseConfig). Credentials come
 // from the Service's CredentialResolver.SSH.
@@ -46,30 +71,50 @@ func NewOpenWrtFetcher(creds CredentialResolver, transport configparser.Transpor
 }
 
 func (f *OpenWrtFetcher) Fetch(ctx context.Context, deviceID string) (*configparser.ConfigData, error) {
+	cd, _, err := f.fetchAll(ctx, deviceID)
+	return cd, err
+}
+
+// FetchRaw implements RawFetcher. OpenWrt's native format is the
+// concatenated UCI block returned by OpenWrtParser.Fetch.
+func (f *OpenWrtFetcher) FetchRaw(ctx context.Context, deviceID string) ([]byte, string, error) {
+	_, raw, err := f.fetchAll(ctx, deviceID)
+	return raw, "conf", err
+}
+
+// fetchAll is the shared SSH pipeline: open a session, run the parser
+// fetch (returns raw UCI), parse the raw into *ConfigData. Both Fetch
+// and FetchRaw share this so the session is opened exactly once per
+// snapshot capture.
+func (f *OpenWrtFetcher) fetchAll(ctx context.Context, deviceID string) (*configparser.ConfigData, []byte, error) {
 	host, err := f.hostFor(deviceID)
 	if err != nil {
-		return nil, fmt.Errorf("openwrt-fetcher: resolve host for %s: %w", deviceID, err)
+		return nil, nil, fmt.Errorf("openwrt-fetcher: resolve host for %s: %w", deviceID, err)
 	}
 	ssh, err := f.creds.SSH(deviceID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	sess, err := f.transport.Open(host, ssh)
 	if err != nil {
-		return nil, fmt.Errorf("openwrt-fetcher: ssh to %s: %w", host, err)
+		return nil, nil, fmt.Errorf("openwrt-fetcher: ssh to %s: %w", host, err)
 	}
 	defer sess.Close()
 
 	raw, err := parsers.NewOpenWrtParser().Fetch(sess)
 	if err != nil {
-		return nil, fmt.Errorf("openwrt-fetcher: openwrt fetch: %w", err)
+		return nil, nil, fmt.Errorf("openwrt-fetcher: openwrt fetch: %w", err)
 	}
 	cd, err := parsers.NewOpenWrtParser().ParseConfig(raw, s.SNMPDevice{})
 	if err != nil {
-		return nil, fmt.Errorf("openwrt-fetcher: openwrt parse: %w", err)
+		return nil, nil, fmt.Errorf("openwrt-fetcher: openwrt parse: %w", err)
 	}
-	return cd, nil
+	return cd, []byte(raw), nil
 }
+
+// ---------------------------------------------------------------------------
+// OPNsense
+// ---------------------------------------------------------------------------
 
 // OpnSenseFetcher fetches via the typed REST client (no SSH, no parser).
 // ponytail: the renderer is built per-call from the API credentials so a
@@ -89,9 +134,6 @@ func (f *OpnSenseFetcher) Fetch(ctx context.Context, deviceID string) (*configpa
 		return nil, err
 	}
 	r := parsers.NewOpnsenseRendererForURL(base, key, secret)
-	// The typed renderer is an interface under the hood; reach the
-	// public FetchLiveConfig via a type assertion so we don't widen the
-	// ConfigRenderer surface.
 	if fl, ok := r.(interface {
 		FetchLiveConfig(ctx context.Context) (*configparser.ConfigData, error)
 	}); ok {

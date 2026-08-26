@@ -269,3 +269,110 @@ func TestService_Preview_UnknownOS_ReturnsErrUnsupported(t *testing.T) {
 		t.Errorf("Preview on unknown OS must return ErrUnsupported; got %v", err)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Phase 4: FetchAndSnapshot
+// ---------------------------------------------------------------------------
+
+// stubFetcherAndRaw is a stand-in for an OS that supports both Fetcher
+// and RawFetcher (e.g. OpenWrt).
+type stubFetcherAndRaw struct {
+	cd     *configparser.ConfigData
+	raw    []byte
+	ext    string
+	err    error
+	rawErr error
+}
+
+func (s *stubFetcherAndRaw) Fetch(ctx context.Context, deviceID string) (*configparser.ConfigData, error) {
+	return s.cd, s.err
+}
+
+func (s *stubFetcherAndRaw) FetchRaw(ctx context.Context, deviceID string) ([]byte, string, error) {
+	return s.raw, s.ext, s.rawErr
+}
+
+func TestService_FetchAndSnapshot_WritesParsedAndBackup(t *testing.T) {
+	repo := NewMemoryPushRepository()
+	svc := NewService(repo, NewDefaultEngine(), &fakeCredentialResolver{}, fakeDefaultOS)
+	fetcher := &stubFetcherAndRaw{
+		cd:  &configparser.ConfigData{Hostname: "openwrt-1", OsType: "openwrt"},
+		raw: []byte("config system 'foo'\n\toption bar 'baz'\n"),
+		ext: "conf",
+	}
+	svc.SetFetcher("openwrt", fetcher)
+
+	id, err := svc.FetchAndSnapshot(context.Background(), "R1", "openwrt", "run-1")
+	if err != nil {
+		t.Fatalf("FetchAndSnapshot: %v", err)
+	}
+	if id == "" {
+		t.Fatal("FetchAndSnapshot returned empty snapshot ID")
+	}
+
+	got, err := repo.GetSnapshot(id)
+	if err != nil {
+		t.Fatalf("GetSnapshot(%q): %v", id, err)
+	}
+	if got.OS != "openwrt" {
+		t.Errorf("snapshot.OsType = %q; want openwrt", got.OS)
+	}
+	if got.CapturedByRun != "run-1" {
+		t.Errorf("snapshot.CapturedByRun = %q; want run-1", got.CapturedByRun)
+	}
+	if got.Config == nil {
+		t.Error("snapshot.Config is nil; expected parsed *ConfigData")
+	}
+	if got.BackupRelpath == "" {
+		t.Error("snapshot.BackupRelpath is empty; expected a backup file path")
+	}
+
+	r, err := repo.OpenBackup("R1", "run-1")
+	if err != nil {
+		t.Fatalf("OpenBackup: %v", err)
+	}
+	defer r.Close()
+	buf := make([]byte, 256)
+	n, _ := r.Read(buf)
+	if string(buf[:n]) != string(fetcher.raw) {
+		t.Errorf("backup contents = %q; want %q", buf[:n], fetcher.raw)
+	}
+}
+
+func TestService_FetchAndSnapshot_NoRawFetcher_StillWritesSnapshot(t *testing.T) {
+	repo := NewMemoryPushRepository()
+	svc := NewService(repo, NewDefaultEngine(), &fakeCredentialResolver{}, fakeDefaultOS)
+	svc.SetFetcher("opnsense", &fakeFetcher{got: &configparser.ConfigData{OsType: "opnsense"}})
+
+	id, err := svc.FetchAndSnapshot(context.Background(), "R1", "opnsense", "run-2")
+	if err != nil {
+		t.Fatalf("FetchAndSnapshot: %v", err)
+	}
+	got, err := repo.GetSnapshot(id)
+	if err != nil {
+		t.Fatalf("GetSnapshot: %v", err)
+	}
+	if got.BackupRelpath != "" {
+		t.Errorf("BackupRelpath = %q; want empty when no RawFetcher", got.BackupRelpath)
+	}
+	if got.Config == nil {
+		t.Error("Config is nil; parsed snapshot should still be saved")
+	}
+}
+
+func TestService_FetchAndSnapshot_PropagatesFetchError(t *testing.T) {
+	repo := NewMemoryPushRepository()
+	svc := NewService(repo, NewDefaultEngine(), &fakeCredentialResolver{}, fakeDefaultOS)
+	svc.SetFetcher("openwrt", &fakeFetcher{err: errors.New("ssh down")})
+
+	_, err := svc.FetchAndSnapshot(context.Background(), "R1", "openwrt", "run-3")
+	if err == nil {
+		t.Fatal("Fetch error must propagate")
+	}
+	if !strings.Contains(err.Error(), "ssh down") {
+		t.Errorf("error must wrap fetcher error; got %v", err)
+	}
+	if all, _ := repo.ListSnapshots("R1", 10); len(all) != 0 {
+		t.Errorf("snapshot must not be written on fetcher error; got %d", len(all))
+	}
+}
