@@ -309,18 +309,19 @@ function scan_live_panel_html($profiles, $scanMessage) {
                 </div>
             </fieldset>
 
-            <fieldset id="scan-method" style="border:1px solid #ddd; padding:6px 10px; margin:0 0 10px 0;
+            <fieldset id="scan-creds" style="border:1px solid #ddd; padding:6px 10px; margin:0 0 10px 0;
                                           <?= $curSource==='target'?'':'display:none;' ?>">
-                <legend>Method</legend>
-                <label>
+                <legend>Credentials <span style="color:#777; font-weight:normal; font-size:0.85em;">
+                    (only shown for free-form target)</span></legend>
+                <label style="margin-right:14px;">
                     <input type="radio" name="scan_method" value="snmp" <?= $curMethod==='snmp'?'checked':'' ?>>
                     SNMP only
                 </label>
-                <label style="margin-left:14px;">
+                <label>
                     <input type="radio" name="scan_method" value="ssh" <?= $curMethod==='ssh'?'checked':'' ?>>
                     SSH only
                 </label>
-                <div id="scan-snmp-fields" style="margin-top:6px; <?= $curMethod==='snmp'?'':'display:none;' ?>">
+                <div id="scan-cred-snmp" style="margin-top:6px; <?= $curMethod==='snmp'?'':'display:none;' ?>">
                     <label>SNMP community: <input type="text" name="community" value="<?= htmlspecialchars($f['community']) ?>"></label>
                     <label>Version:
                         <select name="snmp_version">
@@ -330,7 +331,7 @@ function scan_live_panel_html($profiles, $scanMessage) {
                     </label>
                     <label>Port: <input type="number" name="snmp_port" value="<?= htmlspecialchars($f['snmp_port']) ?>" style="width:80px;"></label>
                 </div>
-                <div id="scan-ssh-fields" style="margin-top:6px; <?= $curMethod==='ssh'?'':'display:none;' ?>">
+                <div id="scan-cred-ssh" style="margin-top:6px; <?= $curMethod==='ssh'?'':'display:none;' ?>">
                     <label>SSH profile (device or generic):
                         <select name="ssh_profile">
                             <option value="">&mdash; none — ad-hoc creds below &mdash;</option>
@@ -346,39 +347,32 @@ function scan_live_panel_html($profiles, $scanMessage) {
                         <input type="text" name="ssh_os_type" value="<?= htmlspecialchars($_POST['ssh_os_type'] ?? '') ?>"
                                placeholder="openwrt / opnsense / fortinet">
                     </label>
+                    <label>SSH user:
+                        <input type="text" name="ssh_user" id="scan-ssh-user" value="<?= htmlspecialchars($f['ssh_user']) ?>">
+                    </label><br>
+                    <label>SSH password:
+                        <input type="password" name="ssh_password" id="scan-ssh-password"
+                               value="<?= htmlspecialchars($f['ssh_password']) ?>">
+                    </label><br>
+                    <label>SSH private key file:
+                        <input type="text" name="ssh_key_file" id="scan-ssh-key-file"
+                               value="<?= htmlspecialchars($f['ssh_key_file']) ?>"
+                               placeholder="/home/.../.ssh/id_ed25519">
+                    </label><br>
+                    <label>OpenSSH config (upload):
+                        <input type="file" name="ssh_config">
+                    </label><br>
+                    <label>SSH key files referenced by the config (multiple):
+                        <input type="file" name="ssh_keys[]" multiple>
+                    </label>
                 </div>
-            </fieldset>
-
-            <fieldset id="scan-creds" style="border:1px solid #ddd; padding:6px 10px; margin:0 0 10px 0;
-                                          <?= $curSource==='target'?'':'display:none;' ?>">
-                <legend>Credentials <span style="color:#777; font-weight:normal; font-size:0.85em;">
-                    (only shown for free-form target)</span></legend>
-                <label>SSH user:
-                    <input type="text" name="ssh_user" id="scan-ssh-user" value="<?= htmlspecialchars($f['ssh_user']) ?>">
-                </label><br>
-                <label>SSH password:
-                    <input type="password" name="ssh_password" id="scan-ssh-password"
-                           value="<?= htmlspecialchars($f['ssh_password']) ?>">
-                </label><br>
-                <label>SSH private key file:
-                    <input type="text" name="ssh_key_file" id="scan-ssh-key-file"
-                           value="<?= htmlspecialchars($f['ssh_key_file']) ?>"
-                           placeholder="/home/.../.ssh/id_ed25519">
-                </label><br>
-                <label>OpenSSH config (upload):
-                    <input type="file" name="ssh_config">
-                </label><br>
-                <label>SSH key files referenced by the config (multiple):
-                    <input type="file" name="ssh_keys[]" multiple>
-                </label>
                 <p style="color:#777; font-size:0.85em;">
-                    Free-form target lets you supply ad-hoc creds or upload keys; Profile
-                    and DB-only modes read creds from the store.
+                    SNMP fields appear for &ldquo;SNMP only&rdquo;; SSH fields appear for &ldquo;SSH only&rdquo;.
+                    Profile and DB-only modes read creds from the store and skip this block.
                 </p>
             </fieldset>
 
             <fieldset style="border:1px solid #ddd; padding:6px 10px; margin:0 0 10px 0;">
-                <legend>Connection discovery</legend>
                 <label>
                     <input type="checkbox" name="also_connections" value="1" <?= $f['also_connections']?'checked':'' ?>>
                     Also discover connections (LLDP/CDP/FDB) after the device scan finishes
@@ -419,17 +413,17 @@ function scan_live_panel_html($profiles, $scanMessage) {
                 if (sp) sp.style.display = (source === 'profile') ? '' : 'none';
                 if (st) st.style.display = (source === 'target')  ? '' : 'none';
                 if (sd) sd.style.display = (source === 'db')     ? '' : 'none';
-                // Method + credentials blocks only appear for free-form target.
-                var method = document.getElementById('scan-method');
-                var creds  = document.getElementById('scan-creds');
+                // Credentials block only appears for free-form target.
+                var creds = document.getElementById('scan-creds');
                 var showTargetFields = (source === 'target');
-                if (method) method.style.display = showTargetFields ? '' : 'none';
-                if (creds)  creds.style.display  = showTargetFields ? '' : 'none';
-                // Inside method: which sub-fields depending on the chosen method.
-                var snmp = document.getElementById('scan-snmp-fields');
-                var ssh  = document.getElementById('scan-ssh-fields');
-                if (snmp) snmp.style.display = (method === 'snmp') ? '' : 'none';
-                if (ssh)  ssh.style.display  = (method === 'ssh')  ? '' : 'none';
+                if (creds) creds.style.display = showTargetFields ? '' : 'none';
+                // Inside credentials: swap SNMP vs SSH sub-block based on the
+                // chosen method. Both radios live inside the credentials
+                // fieldset, so picking one swaps the inner content.
+                var snmpFields = document.getElementById('scan-cred-snmp');
+                var sshFields  = document.getElementById('scan-cred-ssh');
+                if (snmpFields) snmpFields.style.display = (method === 'snmp') ? '' : 'none';
+                if (sshFields)  sshFields.style.display  = (method === 'ssh')  ? '' : 'none';
             }
             window.scanSourceToggle = function () {
                 var src = 'target';
