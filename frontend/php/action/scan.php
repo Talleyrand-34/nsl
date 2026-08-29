@@ -176,6 +176,7 @@ function do_scan(&$scanMessage, &$scanRunId, &$autoReload) {
         'ssh_password' => $sshPass,
         'ssh_key'      => $sshKey,
     ];
+    list($code, $body, $err) = api_post_json(SCAN_RUN_ENDPOINT, json_encode($payload));
     $j = json_decode($body, true);
     if (($code === 202 || $code === 200) && !empty($j['scan_id'])) {
         $scanRunId  = $j['scan_id'];
