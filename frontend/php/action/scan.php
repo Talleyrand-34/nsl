@@ -169,9 +169,13 @@ function do_scan(&$scanMessage, &$scanRunId, &$autoReload) {
         'target'       => $target,
         'community'    => $f['community'],
         'snmp_version' => $f['snmp_version'],
+        'snmp_port'    => intval($f['snmp_port']),
+        'profile'      => $profileName,
+        'os_type'      => $osType,
+        'ssh_user'     => $sshUser,
+        'ssh_password' => $sshPass,
         'ssh_key'      => $sshKey,
     ];
-    list($code, $body, $err) = api_post_json(SCAN_RUN_ENDPOINT, json_encode($payload));
     $j = json_decode($body, true);
     if (($code === 202 || $code === 200) && !empty($j['scan_id'])) {
         $scanRunId  = $j['scan_id'];
