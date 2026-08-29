@@ -40,6 +40,7 @@ const (
 	connectiontypesCollection = "connectiontypes"
 	vlansCollection          = "vlans"
 	scanProfilesCollection    = "scanprofiles"
+	scanProfileDevicesCollection = "scanprofile_devices"
 	vaultCollection           = "vault"
 	pushRunsCollection        = "push_runs"
 	configSnapshotsCollection = "config_snapshots"
@@ -68,6 +69,7 @@ func NewCloverRepositoryFromDB(db *c.DB) (BasicOpsCloverRepository, error) {
 		deviceInterfacesCollection,
 		interfacePortsCollection,
 		scanProfilesCollection,
+		scanProfileDevicesCollection,
 		vaultCollection,
 		pushRunsCollection,
 		configSnapshotsCollection,

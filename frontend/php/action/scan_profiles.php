@@ -24,10 +24,29 @@ function do_create_profile(&$profileMessage, &$profiles) {
     // scan_source is the trailing "ssh" or "snmp"; strip the leading prefix.
     // substr(..., -3) was wrong: "device-snmp" → "smp" (off-by-one).
     $cpSource = preg_replace('/^(device|generic)-/', '', $cpType);
+    // Multi-row device list: prefer cp_device_hosts[] over the legacy cp_host.
+    // The profile-level "host" field stays set to the first row's host for
+    // backwards compatibility with code paths that auto-match by host.
+    $deviceHosts = $_POST['cp_device_hosts'] ?? [];
+    $deviceProfiles = $_POST['cp_device_ssh_profiles'] ?? [];
+    if (!is_array($deviceHosts)) $deviceHosts = [];
+    if (!is_array($deviceProfiles)) $deviceProfiles = [];
+    $legacyHost = trim($_POST['cp_host'] ?? '');
+    $firstHost = '';
+    if ($cpKind === 'device') {
+        foreach ($deviceHosts as $h) {
+            $h = trim((string) $h);
+            if ($h !== '') {
+                $firstHost = $h;
+                break;
+            }
+        }
+        if ($firstHost === '') $firstHost = $legacyHost;
+    }
     $payload = json_encode([
         'name'           => $name,
         'kind'           => $cpKind,
-        'host'           => trim($_POST['cp_host'] ?? ''),
+        'host'           => $firstHost,
         'snmp_community' => trim($_POST['cp_community'] ?? 'public'),
         'snmp_version'   => trim($_POST['cp_version'] ?? '2c'),
         'snmp_port'      => intval($_POST['cp_port'] ?? 161),
@@ -49,13 +68,48 @@ function do_create_profile(&$profileMessage, &$profiles) {
             }
             $profileMessage .= ' Overlaps: ' . implode('; ', $items) . '.';
         }
+        // Attach each device row to the profile via the per-row endpoint.
+        // Best-effort: report partial failures in the message but don't unwind
+        // the profile (it's already created).
+        if ($cpKind === 'device') {
+            $deviceErrors = [];
+            $attached = 0;
+            foreach ($deviceHosts as $i => $h) {
+                $h = trim((string) $h);
+                if ($h === '') continue;
+                $sshProfile = '';
+                if (isset($deviceProfiles[$i]) && $deviceProfiles[$i] !== '__inline__') {
+                    $sshProfile = trim((string) $deviceProfiles[$i]);
+                }
+                $devPayload = json_encode([
+                    'host'             => $h,
+                    'ssh_profile_name' => $sshProfile,
+                ]);
+                list($dcode, $dbody) = api_method(
+                    'POST',
+                    SCAN_PROFILES_ENDPOINT . '/' . urlencode($name) . '/devices',
+                    $devPayload
+                );
+                if ($dcode === 201) {
+                    $attached++;
+                } else {
+                    $err = json_decode($dbody, true);
+                    $deviceErrors[] = $h . ': ' . htmlspecialchars($err['message'] ?? $dbody);
+                }
+            }
+            if ($attached > 0) {
+                $profileMessage .= " Attached {$attached} device" . ($attached === 1 ? '' : 's') . '.';
+            }
+            if (count($deviceErrors) > 0) {
+                $profileMessage .= ' Device errors: ' . implode('; ', $deviceErrors) . '.';
+            }
+        }
     } else {
         $profileMessage = 'Create failed: ' . htmlspecialchars($body);
     }
     // Refresh the in-memory $profiles list so the saved-profiles table shows the new row.
     $profiles = json_decode(@file_get_contents(SCAN_PROFILES_ENDPOINT), true) ?: [];
 }
-
 function do_delete_profile(&$profileMessage, &$profiles) {
     $name = $_POST['profile_name'] ?? '';
     list($code, $body) = api_method('DELETE', SCAN_PROFILES_ENDPOINT . '?name=' . urlencode($name));
@@ -118,7 +172,7 @@ function scan_profiles_saved_panel_html($profiles) {
     return ob_get_clean();
 }
 
-function scan_profiles_create_panel_html() {
+function scan_profiles_create_panel_html($profiles = []) {
     ob_start();
     ?>
     <!-- Create-profile box -->
@@ -135,9 +189,43 @@ function scan_profiles_create_panel_html() {
             <input type="hidden" name="cp_type" id="cp_type" value="generic-ssh">
             <p id="cp_type_hint" style="margin:4px 0; color:#555; font-size:0.85em;"></p>
 
-            <!-- Host: device profiles only (bound to a host). -->
-            <div class="cp-grp" data-show="device-snmp device-ssh">
-                <label>Host / subnet: <input type="text" name="cp_host" placeholder="10.0.0.1"></label><br>
+            <!-- Devices: device profiles only. The single-host input is replaced
+                 with a multi-row device list; each row has its own host + SSH
+                 override. Generic profiles (no host) skip this block. -->
+            <div class="cp-grp" data-show="device-snmp device-ssh" id="cp_devices_block">
+                <p style="margin:6px 0; color:#555;"><em>Devices in this profile</em> &mdash;
+                    one row per device. Leave the SSH override on a row blank to use the profile's
+                    shared credentials; pick a saved profile to override per device; pick
+                    &quot;(inline custom)&quot; to fill per-device credentials that only live here.</p>
+                <table id="cp_devices_table" border="0" cellpadding="3" cellspacing="0" style="border-collapse:collapse;">
+                    <thead>
+                        <tr style="font-size:0.85em; color:#555;">
+                            <th align="left">Host</th>
+                            <th align="left" class="cp-ssh-col">SSH override</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="cp_devices_tbody">
+                        <tr class="cp-device-row">
+                            <td><input type="text" name="cp_device_hosts[]" placeholder="10.0.0.10" required></td>
+                            <td class="cp-ssh-col"><select name="cp_device_ssh_profiles[]">
+                                <option value="">&mdash; (use shared) &mdash;</option>
+                                <?php foreach ($profiles as $p):
+                                    $src = ($p['scan_source'] ?? '') === 'ssh' ? '' : ' (not SSH)';
+                                    if ($src !== '') continue;
+                                    $pk = ($p['kind'] ?? '') !== '' ? $p['kind'] : 'device';
+                                    $label = ($p['name'] ?? '') . ' (' . $pk . (($p['host'] ?? '') !== '' ? ', ' . $p['host'] : '') . ')';
+                                ?>
+                                    <option value="<?= htmlspecialchars($p['name'] ?? '') ?>"><?= htmlspecialchars($label) ?></option>
+                                <?php endforeach; ?>
+                                <option value="__inline__">&mdash; (inline custom) &mdash;</option>
+                            </select></td>
+                            <td><button type="button" class="cp-device-remove">Remove</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <button type="button" id="cp_device_add" style="margin-top:6px;">+ Add device</button>
+                <p style="color:#777; font-size:0.85em; margin-top:6px;">Tip: for a single-device profile, fill one row. For a sweep, add a row per target.</p>
             </div>
             <!-- SNMP parameters: SNMP profiles only. -->
             <div class="cp-grp" data-show="device-snmp generic-snmp">
@@ -175,11 +263,47 @@ function scan_profiles_create_panel_html() {
                 document.querySelectorAll('.cp-grp').forEach(function (g) {
                     g.style.display = g.dataset.show.split(' ').indexOf(type) >= 0 ? '' : 'none';
                 });
+                // Hide the SSH override column entirely for SNMP profiles.
+                var sshVisible = (type === 'device-ssh');
+                document.querySelectorAll('.cp-ssh-col').forEach(function (th) {
+                    th.style.display = sshVisible ? '' : 'none';
+                });
             }
-            document.querySelectorAll('.cp-type-btn').forEach(function (b) {
-                b.addEventListener('click', function () { cpApplyType(b.dataset.type); });
-            });
-            cpApplyType('generic-ssh'); // default
+            function cpMakeRow() {
+                var first = document.querySelector('#cp_devices_tbody .cp-device-row');
+                if (!first) return null;
+                var row = first.cloneNode(true);
+                var hostInput = row.querySelector('input[name="cp_device_hosts[]"]');
+                if (hostInput) hostInput.value = '';
+                var sel = row.querySelector('select[name="cp_device_ssh_profiles[]"]');
+                if (sel) sel.selectedIndex = 0;
+                return row;
+            }
+            function cpWireRowRemove(row) {
+                var btn = row.querySelector('.cp-device-remove');
+                if (!btn) return;
+                btn.addEventListener('click', function () {
+                    var tbody = document.getElementById('cp_devices_tbody');
+                    if (tbody.children.length <= 1) {
+                        var host = row.querySelector('input[name="cp_device_hosts[]"]');
+                        if (host) host.value = '';
+                        var sel = row.querySelector('select[name="cp_device_ssh_profiles[]"]');
+                        if (sel) sel.selectedIndex = 0;
+                        return;
+                    }
+                    row.parentNode.removeChild(row);
+                });
+            }
+            document.querySelectorAll('.cp-device-row').forEach(cpWireRowRemove);
+            var addBtn = document.getElementById('cp_device_add');
+            if (addBtn) {
+                addBtn.addEventListener('click', function () {
+                    var row = cpMakeRow();
+                    if (!row) return;
+                    cpWireRowRemove(row);
+                    document.getElementById('cp_devices_tbody').appendChild(row);
+                });
+            }
         })();
         </script>
     </div>

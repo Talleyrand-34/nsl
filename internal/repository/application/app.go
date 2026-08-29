@@ -284,6 +284,13 @@ type NetServiceInt interface {
 	GetScanProfileByName(name string) (*e.ScanProfile, error)      // raw (with blob) — in-process use
 	ResolveScanProfile(target, name string) (*e.ScanProfile, bool) // by name, else auto-match by host
 	DeleteScanProfile(name string) error
+
+	// ProfileDevice rows bind a profile to N hosts. The API and scan
+	// dispatch use these to drive per-host SSH credentials.
+	AddProfileDevice(d e.ProfileDevice) error
+	GetProfileDevices(profileName string) ([]e.ProfileDevice, error)
+	DeleteProfileDevice(profileName, host string) error
+	DeleteAllProfileDevices(profileName string) error
 }
 
 func NewNetService(netRepository d.NetRepository) NetServiceInt {
@@ -363,6 +370,41 @@ func (ns *NetService) GetScanProfileByName(name string) (*e.ScanProfile, error) 
 
 func (ns *NetService) DeleteScanProfile(name string) error {
 	return ns.netRepo.DeleteScanProfile(name)
+}
+
+// --- ProfileDevice rows -----------------------------------------------------
+
+// AddProfileDevice attaches a host to a profile. Validates that the profile
+// exists (returning an error if not) and that the host string is non-empty;
+// uniqueness on (profile_name, host) is enforced by the storage layer.
+func (ns *NetService) AddProfileDevice(d e.ProfileDevice) error {
+	if d.ProfileName == "" {
+		return fmt.Errorf("profile_name is required")
+	}
+	if d.Host == "" {
+		return fmt.Errorf("host is required")
+	}
+	if _, err := ns.GetScanProfileByName(d.ProfileName); err != nil {
+		return err
+	}
+	if d.SSHProfileName != "" {
+		if _, err := ns.GetScanProfileByName(d.SSHProfileName); err != nil {
+			return fmt.Errorf("ssh_profile_name: %w", err)
+		}
+	}
+	return ns.netRepo.AddProfileDevice(d)
+}
+
+func (ns *NetService) GetProfileDevices(profileName string) ([]e.ProfileDevice, error) {
+	return ns.netRepo.GetProfileDevices(profileName)
+}
+
+func (ns *NetService) DeleteProfileDevice(profileName, host string) error {
+	return ns.netRepo.DeleteProfileDevice(profileName, host)
+}
+
+func (ns *NetService) DeleteAllProfileDevices(profileName string) error {
+	return ns.netRepo.DeleteAllProfileDevices(profileName)
 }
 
 // ResolveScanProfile loads a profile by explicit name, or — when name is empty —

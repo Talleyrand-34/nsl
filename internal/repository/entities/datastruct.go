@@ -223,6 +223,25 @@ type ScanProfile struct {
 	HasSSHKey      bool `json:"has_ssh_key"`
 }
 
+// ProfileDevice binds one host to a ScanProfile. A profile can describe
+// many devices; each row stores its host and optional SSH credentials
+// override (either a reference to another profile or inline custom
+// credentials — see the per-row fields below).
+//
+// The primary key in storage is (profile_name, host): the same host can
+// appear under multiple profiles (cross-profile overlap detection lives
+// upstream of this entity).
+type ProfileDevice struct {
+	ID             string `json:"id"`
+	ProfileName    string `json:"profile_name"`              // FK -> ScanProfile.Name
+	Host           string `json:"host"`                      // IP or hostname; required
+	SSHProfileName string `json:"ssh_profile_name,omitempty"` // override: another profile (generic or device)
+	SSHConfigText  string `json:"ssh_config_text,omitempty"`  // custom inline OpenSSH config (transient)
+	SSHKeyFilename string `json:"ssh_key_filename,omitempty"` // optional uploaded basename
+	SSHKey         string `json:"-"`                          // uploaded key content; never serialized
+	Port           int    `json:"port,omitempty"`             // optional SSH port override
+}
+
 // ModelType represents the class of a device
 type ModelType struct {
 	ID   string `json:"id"`

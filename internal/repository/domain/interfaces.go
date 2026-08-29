@@ -220,6 +220,12 @@ type repository interface {
 	UpdateScanProfile(p e.ScanProfile) error
 	DeleteScanProfile(name string) error
 
+	// ProfileDevice rows bind a profile to N hosts.
+	AddProfileDevice(d e.ProfileDevice) error
+	GetProfileDevices(profileName string) ([]e.ProfileDevice, error)
+	DeleteProfileDevice(profileName, host string) error
+	DeleteAllProfileDevices(profileName string) error
+
 	// Credential vault metadata (wrapped data key + salt); "" if uninitialized.
 	GetVaultMeta() (string, error)
 	SetVaultMeta(meta string) error

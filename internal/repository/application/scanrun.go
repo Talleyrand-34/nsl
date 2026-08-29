@@ -23,7 +23,9 @@ import (
 	"sync"
 	"time"
 
+	"nsl-graph/internal/configparser"
 	"nsl-graph/internal/observ"
+	e "nsl-graph/internal/repository/entities"
 	s "nsl-graph/internal/scanner"
 )
 
@@ -198,8 +200,18 @@ func (ns *NetService) runSSHScan(opts RunScanOptions, tokens []string, batch boo
 	em.Emit("info", "ssh scan", "profile", profile.Name, "os_type", osType)
 
 	var ips []string
-	if batch {
-		// Only attempt SSH on hosts whose SSH port is actually open.
+	var perHostCreds []configparser.SSHCredentials // parallel to ips; empty entry = use the profile default
+	devRows, rowsErr := ns.GetProfileDevices(profile.Name)
+	if rowsErr != nil {
+		return nil, rowsErr
+	}
+	if len(devRows) > 0 {
+		em.Emit("info", "multi-device profile: iterating attached devices", "rows", len(devRows))
+		for _, r := range devRows {
+			ips = append(ips, r.Host)
+			perHostCreds = append(perHostCreds, perRowOverrideCreds(r, profile, ns, em))
+		}
+	} else if batch {
 		em.Emit("info", "sweeping subnet for open SSH ports")
 		for _, h := range SweepSubnet(opts.Target, opts.Community, opts.SNMPVersion, timeout, sshPort, em) {
 			if h.SSH {
@@ -210,7 +222,6 @@ func (ns *NetService) runSSHScan(opts RunScanOptions, tokens []string, batch boo
 	} else {
 		ips = []string{tokens[0]}
 	}
-
 	// Read each host's config over SSH concurrently (bounded) — the hosts are
 	// independent, so one slow box no longer blocks the rest.
 	var (
@@ -223,15 +234,21 @@ func (ns *NetService) runSSHScan(opts RunScanOptions, tokens []string, batch boo
 	total := len(ips)
 	sem := make(chan struct{}, 16)
 	em.Progress(0, total)
-	for _, ip := range ips {
+	for i, ip := range ips {
 		wg.Add(1)
-		go func(ip string) {
+		go func(i int, ip string) {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
 
+			// Per-host SSH override wins over the profile-wide default.
+			effective := *creds
+			if i < len(perHostCreds) && perHostCreds[i].Username != "" {
+				effective = perHostCreds[i]
+			}
+
 			em.Emit("info", "reading config over SSH", "ip", ip)
-			dev, err := ns.ScanDeviceViaSSH(ip, osType, *creds)
+			dev, err := ns.ScanDeviceViaSSH(ip, osType, effective)
 
 			mu.Lock()
 			done++
@@ -253,7 +270,7 @@ func (ns *NetService) runSSHScan(opts RunScanOptions, tokens []string, batch boo
 			} else {
 				em.Emit("info", "device read over SSH", "ip", ip, "sysname", dev.SysName)
 			}
-		}(ip)
+		}(i, ip)
 	}
 	wg.Wait()
 
@@ -267,4 +284,24 @@ func (ns *NetService) runSSHScan(opts RunScanOptions, tokens []string, batch boo
 	}
 	devs, err := ns.DiscoverDevices(&s.ScanResult{Devices: devices})
 	return tagProfile(devs, profile.Name, osType), err
+}
+
+// perRowOverrideCreds resolves the effective SSH credentials for a single
+// ProfileDevice row. When the row names another profile (via SSHProfileName),
+// that profile's credentials win; otherwise the zero value is returned and
+// the caller falls back to the row's parent profile's credentials.
+func perRowOverrideCreds(row e.ProfileDevice, parent *e.ScanProfile, ns *NetService, em observ.Emitter) configparser.SSHCredentials {
+	if row.SSHProfileName == "" {
+		return configparser.SSHCredentials{}
+	}
+	override, err := ns.GetScanProfileByName(row.SSHProfileName)
+	if err != nil || override == nil {
+		em.Emit("warn", "row SSH override profile not found; falling back to parent", "row_host", row.Host, "missing_profile", row.SSHProfileName)
+		return configparser.SSHCredentials{}
+	}
+	if creds := profileSSHCreds(override, ns.vault); creds != nil {
+		em.Emit("info", "row SSH override applied", "row_host", row.Host, "override_profile", override.Name)
+		return *creds
+	}
+	return configparser.SSHCredentials{}
 }

@@ -7,6 +7,9 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/gorilla/mux"
+
 	"time"
 
 	configparser "nsl-graph/internal/configparser"
@@ -664,14 +667,154 @@ func ScanProfilesHandler(service q.NetServiceInt) http.HandlerFunc {
 				json.NewEncoder(w).Encode(ErrorResponse{Error: "missing_name", Message: "name is required"})
 				return
 			}
-			if err := service.DeleteScanProfile(name); err != nil {
+		// Cascade: drop every ProfileDevice row attached to this profile.
+		// Errors here are non-fatal: the profile is gone; orphan rows
+		// would be invisible anyway because nothing else references them.
+		_ = service.DeleteAllProfileDevices(name)
+		if err := service.DeleteScanProfile(name); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(ErrorResponse{Error: "delete_failed", Message: err.Error()})
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{"message": "deleted", "name": name})
+
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			json.NewEncoder(w).Encode(ErrorResponse{Error: "method_not_allowed"})
+		}
+	}
+}
+
+// profileDeviceRequest is the POST body for /scan/profiles/{name}/devices.
+// ssh_key is accepted in clear on input only and is immediately encrypted by
+// the server vault (which must be unlocked); the clear value is never stored
+// or returned.
+type profileDeviceRequest struct {
+	Host           string `json:"host"`
+	SSHProfileName string `json:"ssh_profile_name,omitempty"`
+	SSHConfigText  string `json:"ssh_config_text,omitempty"`
+	SSHKeyFilename string `json:"ssh_key_filename,omitempty"`
+	SSHKey         string `json:"ssh_key,omitempty"` // clear PEM content (uploaded)
+	Port           int    `json:"port,omitempty"`
+}
+
+// applyEncryption encrypts the inline SSH key content via the vault so the
+// blob stored in the ProfileDevice row is safe at rest. Empty input is a no-op.
+func (req *profileDeviceRequest) applyEncryption(v *secret.Vault) (string, error) {
+	if req.SSHKey == "" {
+		return "", nil
+	}
+	blob, err := v.Encrypt(req.SSHKey)
+	if err != nil {
+		return "", fmt.Errorf("store SSH private key: %w (unlock the vault first)", err)
+	}
+	return blob, nil
+}
+
+func ProfileDevicesHandler(service q.NetServiceInt) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		name := mux.Vars(r)["name"]
+		if name == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(ErrorResponse{Error: "missing_name", Message: "profile name is required"})
+			return
+		}
+		switch r.Method {
+		case http.MethodGet:
+			devs, err := service.GetProfileDevices(name)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				json.NewEncoder(w).Encode(ErrorResponse{Error: "list_failed", Message: err.Error()})
+				return
+			}
+			// SSHPassword / SSHKey blobs are masked on the wire: the row
+			// exposes only has_ssh_key for UI feedback. Inline ssh_config_text
+			// is *not* encrypted (it's not a secret — just an OpenSSH config
+			// snippet) so it round-trips verbatim.
+			out := make([]map[string]any, 0, len(devs))
+			for _, d := range devs {
+				out = append(out, map[string]any{
+					"id":               d.ID,
+					"profile_name":     d.ProfileName,
+					"host":             d.Host,
+					"ssh_profile_name": d.SSHProfileName,
+					"ssh_config_text":  d.SSHConfigText,
+					"ssh_key_filename": d.SSHKeyFilename,
+					"has_ssh_key":      d.SSHKey != "",
+					"port":             d.Port,
+				})
+			}
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(out)
+		case http.MethodPost:
+			var req profileDeviceRequest
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid_json", Message: err.Error()})
+				return
+			}
+			blob := ""
+			if req.SSHKey != "" {
+				var err error
+				blob, err = req.applyEncryption(service.Vault())
+				if err != nil {
+					w.WriteHeader(http.StatusBadRequest)
+					json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid_key", Message: err.Error()})
+					return
+				}
+			}
+			d := e.ProfileDevice{
+				ProfileName:    name,
+				Host:           strings.TrimSpace(req.Host),
+				SSHProfileName: strings.TrimSpace(req.SSHProfileName),
+				SSHConfigText:  req.SSHConfigText,
+				SSHKeyFilename: strings.TrimSpace(req.SSHKeyFilename),
+				SSHKey:         blob,
+				Port:           req.Port,
+			}
+			if err := service.AddProfileDevice(d); err != nil {
+				// Distinguish duplicate-host (409) from validation (400).
+				if strings.Contains(err.Error(), "already in profile") {
+					w.WriteHeader(http.StatusConflict)
+					json.NewEncoder(w).Encode(ErrorResponse{Error: "duplicate_host", Message: err.Error()})
+					return
+				}
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(ErrorResponse{Error: "save_failed", Message: err.Error()})
+				return
+			}
+			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"message": "created",
+				"host":    d.Host,
+			})
+		case http.MethodDelete:
+			host := r.URL.Query().Get("host")
+			if host == "" {
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(ErrorResponse{Error: "missing_host", Message: "host query parameter is required"})
+				return
+			}
+			if err := service.DeleteProfileDevice(name, host); err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
 				json.NewEncoder(w).Encode(ErrorResponse{Error: "delete_failed", Message: err.Error()})
 				return
 			}
 			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(map[string]string{"message": "deleted", "name": name})
-
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"message": "deleted",
+				"profile": name,
+				"host":    host,
+			})
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			json.NewEncoder(w).Encode(ErrorResponse{Error: "method_not_allowed"})
