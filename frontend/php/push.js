@@ -130,6 +130,90 @@
     });
   }
 
+  // Phase 6: scoped topology. On device change, fetch /push/topology and
+  // render a hand-built SVG (center node + N neighbor nodes + edge labels
+  // for ports/VLANs) plus the neighbors table. No D2 dependency — keeps
+  // the JS testable without a server-side D2 install.
+  function renderTopology(topo) {
+    var svg = el("push-topology");
+    if (!svg) return;
+    var neighbors = topo.neighbors || topo.Neighbor || [];
+    var center = topo.device_id || topo.DeviceID || "";
+    svg.innerHTML = "";
+    if (neighbors.length === 0) {
+      svg.innerHTML = '<em style="color:#777;">No connections for ' +
+        escapeHTML(center) + '.</em>';
+      return;
+    }
+    var w = 360, h = 60 + neighbors.length * 50;
+    var s = '<svg viewBox="0 0 ' + w + ' ' + h + '" ' +
+      'xmlns="http://www.w3.org/2000/svg" style="width:100%; height:auto;">';
+    s += '<defs><style>' +
+      '.push-node{fill:#eef;font-family:sans-serif;font-size:12px;stroke:#888;}' +
+      '.push-center{fill:#ffd;font-weight:bold;stroke:#a80;}' +
+      '.push-edge{stroke:#888;stroke-width:1.5;fill:none;}' +
+      '.push-label{font-family:sans-serif;font-size:10px;fill:#444;}' +
+      '</style></defs>';
+    var cy = 30, cx = w / 2;
+    s += '<rect class="push-node push-center" x="' + (cx - 60) + '" y="' + (cy - 15) +
+      '" width="120" height="30" rx="4"/>';
+    s += '<text class="push-label" x="' + cx + '" y="' + (cy + 5) +
+      '" text-anchor="middle">' + escapeHTML(center) + '</text>';
+    var r = 90;
+    neighbors.forEach(function (n, i) {
+      var angle = (Math.PI * 2 * i) / neighbors.length - Math.PI / 2;
+      var nx = cx + r * Math.cos(angle);
+      var ny = cy + 50 + r * 0.6 * Math.sin(angle);
+      s += '<line class="push-edge" x1="' + cx + '" y1="' + (cy + 15) +
+        '" x2="' + nx + '" y2="' + ny + '"/>';
+      s += '<rect class="push-node" x="' + (nx - 50) + '" y="' + (ny - 12) +
+        '" width="100" height="24" rx="3"/>';
+      s += '<text class="push-label" x="' + nx + '" y="' + (ny + 4) +
+        '" text-anchor="middle">' + escapeHTML(n.neighbor || n.Neighbor || "?") + '</text>';
+    });
+    s += '</svg>';
+    svg.innerHTML = s;
+  }
+
+  function renderNeighborsTable(topo) {
+    var tbody = el("push-neighbors-body");
+    if (!tbody) return;
+    var neighbors = topo.neighbors || topo.Neighbor || [];
+    if (neighbors.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" style="color:#777; font-style:italic;">&mdash;</td></tr>';
+      return;
+    }
+    var rows = [];
+    neighbors.forEach(function (n) {
+      var name = n.neighbor || n.Neighbor || "";
+      var os = n.neighbor_os || n.NeighborOS || "?";
+      var ports = (n.this_port || n.ThisPort || "?") + " → " + (n.neighbor_port || n.NeighborPort || "?");
+      var vlans = (n.vlans || n.Vlans || []).join(", ");
+      rows.push('<tr>' +
+        '<td>' + escapeHTML(name) + '</td>' +
+        '<td>' + escapeHTML(os) + '</td>' +
+        '<td>' + escapeHTML(ports) + '</td>' +
+        '<td>' + escapeHTML(vlans) + '</td>' +
+        '</tr>');
+    });
+    tbody.innerHTML = rows.join("");
+  }
+
+  function refreshTopology() {
+    var dev = selectedDevice();
+    if (!dev) return Promise.resolve();
+    return getJSON("/push/topology?device_id=" + encodeURIComponent(dev))
+      .then(function (topo) {
+        renderTopology(topo);
+        renderNeighborsTable(topo);
+      })
+      .catch(function (err) {
+        var svg = el("push-topology");
+        if (svg) svg.innerHTML = '<em style="color:#a00;">topology error: ' +
+          escapeHTML(err.message) + '</em>';
+      });
+  }
+
   function refreshHistory() {
     var dev = selectedDevice();
     if (!dev) return Promise.resolve();
@@ -199,6 +283,7 @@
       if (ta) ta.value = JSON.stringify({ hostname: sel.value, intent_note: "(stub) edit and Apply to push" }, null, 2);
     }
     refreshHistory();
+    refreshTopology();
     // Phase 6 hook: fire a custom event the topology panel listens for.
     document.dispatchEvent(new CustomEvent("nsl:push-device-selected", {
       detail: { device_id: selectedDevice(), os: os },
