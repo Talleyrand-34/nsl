@@ -220,7 +220,7 @@ function do_scan_completed(&$discovered, &$scanMessage, &$plan, &$importedIPs, &
                 'timeout_sec'    => 10,
                 'ssh_user'       => $follow['ssh_user'] ?? '',
                 'generic_profile' => $follow['profile'],
-            ]));
+            ]), 5);
             $cJson = json_decode($cBody, true);
             if (($cCode === 202 || $cCode === 200) && !empty($cJson['scan_id'])) {
                 $_SESSION['connection_scan_id'] = $cJson['scan_id'];
