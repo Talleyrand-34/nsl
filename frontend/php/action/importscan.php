@@ -177,11 +177,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
       <p class="flash flash-info"><?= htmlspecialchars($profileMessage) ?></p>
     <?php endif; ?>
 
-    <?= scan_devices_discovered_panel_html($discovered, $importedIPs) ?>
-
-    <?= scan_devices_plan_panel_html($plan) ?>
-
-    <?= scan_connections_results_panel_html($result, $scanMessage) ?>
+    <?= scan_results_panel_html($discovered, $importedIPs, $plan, $result, $scanMessage) ?>
 
     <!-- Inline upload form lives here per the user's request: it feeds
          directly into the same results column. -->

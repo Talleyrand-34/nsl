@@ -189,7 +189,7 @@ function do_scan_completed(&$discovered, &$scanMessage, &$plan, &$importedIPs, &
     if ($scanRunId === '') {
         return false;
     }
-    list($code, $body) = api_get_json(SCAN_STATUS_ENDPOINT . '?scan_id=' . urlencode($scanRunId));
+    list($code, $body) = api_method('GET', SCAN_STATUS_ENDPOINT . '?scan_id=' . urlencode($scanRunId));
     if ($code !== 200) {
         return false;
     }
@@ -198,7 +198,7 @@ function do_scan_completed(&$discovered, &$scanMessage, &$plan, &$importedIPs, &
     if ($state === 'running' || $state === 'pending') {
         return true;
     }
-    if ($state === 'finished' || $state === 'complete') {
+    if ($state === 'finished' || $state === 'complete' || $state === 'completed') {
         $res = $status['result'] ?? [];
         $discovered = $res['devices'] ?? [];
         // Optional chained connection scan.
@@ -457,3 +457,247 @@ function scan_live_panel_html($profiles, $scanMessage) {
 function scan_devices_live_panel_html($pf, $profiles, $scanMessage) {
     return scan_live_panel_html($profiles, $scanMessage);
 }
+
+
+
+// dev_ip resolves the IP of a discovered device. Used by the discovered-
+// devices table and the JS pending-devices module.
+function dev_ip($d) {
+    return $d['device']['ip'] ?? '';
+}
+
+function scan_devices_discovered_panel_html($discovered, $importedIPs) {
+    $pending = 0;
+    if (!empty($discovered)) {
+        foreach ($discovered as $d) {
+            if (!in_array(dev_ip($d), $importedIPs, true)) $pending++;
+        }
+    }
+    $initialJson = json_encode(array_values($discovered ?: []));
+    $importedJson = json_encode($importedIPs);
+    ob_start();
+    ?>
+    <h4>Discovered devices (<span class="discovered-total"><?= count($discovered) ?></span> total, <span class="discovered-pending"><?= $pending ?></span> pending)</h4>
+    <table border="1" cellpadding="4" cellspacing="0" class="discovered-devices">
+        <thead><tr><th>Status</th><th>Name</th><th>IP</th><th>Brand</th><th>Model</th><th>Class</th><th></th></tr></thead>
+        <tbody>
+            <?php if (empty($discovered)): ?>
+                <tr><td colspan="7" style="color:#777; text-align:center;">No pending devices. Run a scan from the Live scan panel to populate the queue.</td></tr>
+            <?php else: ?>
+                <?php foreach ($discovered as $d): $ip = dev_ip($d); $done = in_array($ip, $importedIPs, true); ?>
+                    <tr<?= $done ? ' style="color:#888; background:#f3f3f3;"' : '' ?>>
+                        <td><?= $done ? '✓ imported' : 'pending' ?></td>
+                        <td><?= htmlspecialchars($d['suggested_name'] ?? '') ?></td>
+                        <td><?= htmlspecialchars($ip) ?></td>
+                        <td><?= htmlspecialchars($d['brand'] ?? '') ?></td>
+                        <td><?= htmlspecialchars($d['model'] ?? '') ?></td>
+                        <td><?= htmlspecialchars($d['model_type'] ?? '') ?></td>
+                        <td>
+                            <?php if (!$done): ?>
+                                <form method="post" action="import.php" style="margin:0; display:inline;">
+                                    <input type="hidden" name="device_json" value="<?= htmlspecialchars(json_encode($d)) ?>">
+                                    <button type="submit" name="do_analyze" value="1">Configure &amp; import &rarr;</button>
+                                </form>
+                            <?php else: ?>&mdash;<?php endif; ?>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </tbody>
+    </table>
+    <script>
+    window.NSL_PENDING_INITIAL = <?= $initialJson ?>;
+    window.NSL_PENDING_IMPORTED_IPS = <?= $importedJson ?>;
+    (function () {
+        var init = function () {
+            if (window.nslPD && Array.isArray(window.NSL_PENDING_INITIAL)) {
+                window.nslPD.addAll(window.NSL_PENDING_INITIAL);
+                var body = document.querySelector('table.discovered-devices tbody');
+                if (body) window.nslPD.render(body, window.NSL_PENDING_IMPORTED_IPS || []);
+                var total = 0, pending = 0;
+                document.querySelectorAll('table.discovered-devices tbody tr').forEach(function (tr) {
+                    var cells = tr.children;
+                    if (cells.length === 1) return;
+                    total++;
+                    var status = (cells[0].textContent || '').trim();
+                    if (status === 'pending') pending++;
+                });
+                var tEl = document.querySelector('.discovered-total');
+                var pEl = document.querySelector('.discovered-pending');
+                if (tEl) tEl.textContent = total;
+                if (pEl) pEl.textContent = pending;
+            }
+        };
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    })();
+    </script>
+    <?php
+    return ob_get_clean();
+}
+
+function scan_devices_plan_panel_html($plan) {
+    if ($plan === null) {
+        return '';
+    }
+    $dev = $plan['device'] ?? [];
+    ob_start();
+    ?>
+    <h4>Review &amp; import: <?= htmlspecialchars($dev['suggested_name'] ?? '') ?>
+        <span style="font-weight:normal; color:#555;">
+            (<?= htmlspecialchars($dev['device']['ip'] ?? '') ?> — <?= htmlspecialchars($dev['brand'] ?? '') ?> <?= htmlspecialchars($dev['model'] ?? '') ?>,
+            <?= htmlspecialchars($dev['model_type'] ?? '') ?>)
+        </span>
+    </h4>
+    <p style="color:#555;"><?= htmlspecialchars($plan['summary'] ?? '') ?></p>
+    <form method="post" action="import.php">
+        <input type="hidden" name="plan_json" value="<?= htmlspecialchars(json_encode($plan)) ?>">
+        <?php foreach (($plan['interface_plans'] ?? []) as $i => $ipl):
+            $iface = $ipl['interface'] ?? [];
+            $memberships = [];
+            foreach (($iface['vlans'] ?? []) as $vm) {
+                $memberships[] = $vm['vlan_number'] . ($vm['tagged'] ? 'T' : 'U');
+            }
+        ?>
+            <fieldset style="margin-top:8px;">
+                <legend><strong><?= htmlspecialchars($iface['name'] ?? '') ?></strong>
+                    <?php if (!empty($iface['mac'])): ?> · <?= htmlspecialchars($iface['mac']) ?><?php endif; ?>
+                    <?php if (!empty($iface['parent'])): ?> · parent <?= htmlspecialchars($iface['parent']) ?><?php endif; ?>
+                    <?php if ($memberships): ?> · SNMP VLANs: <?= htmlspecialchars(implode(', ', $memberships)) ?><?php endif; ?>
+                </legend>
+                <?php if (empty($ipl['ip_mappings'])): ?>
+                    <em>No IP addresses on this interface.</em>
+                <?php else: ?>
+                    <table border="1" cellpadding="3" cellspacing="0">
+                        <tr><th>IP</th><th>IP segment (subnet)</th><th>VLAN id</th><th>Confidence / reason</th></tr>
+                        <?php foreach ($ipl['ip_mappings'] as $j => $m): ?>
+                            <tr>
+                                <td><?= htmlspecialchars($m['ip'] ?? '') ?></td>
+                                <td><input type="text" name="subnet[<?= $i ?>][<?= $j ?>]" value="<?= htmlspecialchars($m['subnet'] ?? '') ?>" size="18"></td>
+                                <td><input type="text" name="vlan[<?= $i ?>][<?= $j ?>]" value="<?= htmlspecialchars($m['vlan_number'] ?? '') ?>" style="width:70px;"></td>
+                                <td style="color:#555;"><?= htmlspecialchars(($m['confidence'] ?? '') . ' — ' . ($m['reason'] ?? '')) ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </table>
+                <?php endif; ?>
+            </fieldset>
+        <?php endforeach; ?>
+        <button type="submit" name="do_execute" value="1" style="margin-top:10px;">Import device</button>
+    </form>
+    <?php
+    return ob_get_clean();
+}
+
+function scan_connections_results_panel_html($result, $scanMessage) {
+    if (!is_array($result) || empty($result)) {
+        return '';
+    }
+    $hosts    = $result['hosts'] ?? [];
+    $edges    = $result['edges'] ?? [];
+    $inter    = $result['intermediaries'] ?? [];
+    $dgSvg = '';
+    list($dgCode, $dgBody) = api_post_json(SCAN_CONNECTIONS_DIAGRAM_ENDPOINT, json_encode($result), 30);
+    if ($dgCode === 200 && $dgBody !== '') {
+        $dgSvg = $dgBody;
+    }
+    ob_start();
+    ?>
+    <section class="connections-results">
+      <p style="color:#555; font-size:0.9em;">
+        Hosts discovered: <strong><?= count($hosts) ?></strong>.
+        Edges: <strong><?= count($edges) ?></strong><?php if ($inter): ?>.
+        Intermediary links: <strong><?= count($inter) ?></strong><?php endif; ?>.
+      </p>
+      <?php if ($dgSvg !== ''): ?>
+        <details open>
+          <summary>Topology diagram</summary>
+          <div class="resizable-img-container" style="height:480px; border:1px solid #ddd; overflow:auto; margin:8px 0;">
+            <?= $dgSvg ?>
+          </div>
+        </details>
+      <?php endif; ?>
+      <?php if (!empty($edges)): ?>
+        <details open>
+          <summary>Discovered edges (<?= count($edges) ?>)</summary>
+          <table border="1" cellpadding="3" cellspacing="0">
+            <thead><tr><th>Mark</th><th>From</th><th>To</th><th>Via</th></tr></thead>
+            <tbody>
+              <?php foreach ($edges as $e):
+                $mark = $e['confidence'] ?? ($e['remote_resolved'] ? 'confirmed' : 'unresolved');
+                $via  = implode(', ', $e['provenance'] ?? []);
+              ?>
+                <tr>
+                  <td><?= htmlspecialchars($mark) ?></td>
+                  <td><?= htmlspecialchars($e['from'] ?? '') ?></td>
+                  <td><?= htmlspecialchars($e['to'] ?? '') ?></td>
+                  <td style="color:#555; font-size:0.85em;"><?= htmlspecialchars($via) ?></td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </details>
+      <?php endif; ?>
+      <?php if (!empty($inter)): ?>
+        <details>
+          <summary>Intermediary links (<?= count($inter) ?>)</summary>
+          <table border="1" cellpadding="3" cellspacing="0">
+            <thead><tr><th>Placeholder</th><th>Seen by</th></tr></thead>
+            <tbody>
+              <?php foreach ($inter as $in): ?>
+                <tr>
+                  <td><?= htmlspecialchars($in['device'] ?? '') ?></td>
+                  <td><?= htmlspecialchars(implode(', ', $in['seen_by'] ?? [])) ?></td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </details>
+      <?php endif; ?>
+      <?php if ($scanMessage): ?>
+        <p><em><?= $scanMessage ?></em></p>
+      <?php endif; ?>
+    </section>
+    <?php
+    return ob_get_clean();
+}
+
+// Phase 5: combined results panel — wraps both discovered devices + connection
+// edges in one card with two collapsible sections. Falls back gracefully when
+// either side has no data.
+function scan_results_panel_html($discovered, $importedIPs, $plan, $connResult, $scanMessage) {
+    $hasDevices = !empty($discovered) || $plan !== null;
+    $hasConn    = is_array($connResult) && !empty($connResult);
+    if (!$hasDevices && !$hasConn) {
+        return '';
+    }
+    ob_start();
+    ?>
+    <section class="accordion-card" data-accordion="results">
+      <h3 class="accordion-header"><button type="button" class="accordion-toggle" aria-expanded="true">Scan results</button></h3>
+      <div class="accordion-body">
+        <details open class="result-section">
+          <summary><strong>Discovered devices</strong></summary>
+          <?php if ($hasDevices): ?>
+            <?= scan_devices_discovered_panel_html($discovered, $importedIPs) ?>
+            <?= scan_devices_plan_panel_html($plan) ?>
+          <?php else: ?>
+            <p style="color:#777; font-style:italic;">No device scan results yet.</p>
+          <?php endif; ?>
+        </details>
+        <details open class="result-section">
+          <summary><strong>Connection edges</strong></summary>
+          <?php if ($hasConn): ?>
+            <?= scan_connections_results_panel_html($connResult, $scanMessage) ?>
+          <?php else: ?>
+            <p style="color:#777; font-style:italic;">No connection scan results yet. Tick &ldquo;Also discover connections&rdquo; in the Live scan panel to chain a connection scan.</p>
+          <?php endif; ?>
+        </details>
+      </div>
+    </section>
+    <?php
+    return ob_get_clean();
+}
+
