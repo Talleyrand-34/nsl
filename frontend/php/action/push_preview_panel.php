@@ -20,11 +20,11 @@ function push_preview_panel_html(array $devices = []): string
                 <?php foreach ($devices as $d):
                     $id = htmlspecialchars((string)($d['id'] ?? $d['name'] ?? ''));
                     $label = htmlspecialchars(($d['name'] ?? '(unnamed)') . ' [' . ($d['os'] ?? '?') . ']');
+                    $os = htmlspecialchars((string)($d['os'] ?? ''));
                     if ($id === '') continue;
                 ?>
-                    <option value="<?= $id ?>"><?= $label ?></option>
+                    <option value="<?= $id ?>" data-os="<?= $os ?>"><?= $label ?></option>
                 <?php endforeach; ?>
-            </select>
         </label>
 
         <p style="margin:8px 0 4px 0;"><strong>OS:</strong> <span id="push-device-os">&mdash;</span></p>
