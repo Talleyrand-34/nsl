@@ -376,6 +376,8 @@ body.page-import .flash {
 }
 body.page-import .flash-success { background: #e8f5e9; border-color: #a5d6a7; }
 body.page-import .flash-info    { background: #eef;    border-color: #99c;     }
+body.page-import .flash-error   { background: #fdecea; border-color: #e57373; color: #b71c1c; }
+
 
 body.page-import .results-upload {
     padding: 16px;

@@ -172,9 +172,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
     <?php endif; ?>
 
     <?= scan_status_panel_html($scanRunId, json_encode($autoReload)) ?>
-
     <?php if ($profileMessage): ?>
       <p class="flash flash-info"><?= htmlspecialchars($profileMessage) ?></p>
+    <?php endif; ?>
+
+    <?php if ($scanMessage): ?>
+      <p class="flash flash-error"><?= htmlspecialchars($scanMessage) ?></p>
     <?php endif; ?>
 
     <?= scan_results_panel_html($discovered, $importedIPs, $plan, $result, $scanMessage) ?>
