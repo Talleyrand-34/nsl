@@ -149,7 +149,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
     </section>
 
     <section class="accordion-card" data-accordion="import-actions">
-      <h3 class="accordion-header"><button type="button" class="accordion-toggle" aria-expanded="false">Create profile</button></h3>
+      <h3 class="accordion-header"><button type="button" class="accordion-toggle" aria-expanded="false">+ Create a new profile</button></h3>
       <div class="accordion-body">
         <?= scan_profiles_create_panel_html($profiles) ?>
       </div>

@@ -204,7 +204,7 @@ function scan_profiles_create_panel_html($profiles = []) {
     <!-- Create-profile box -->
     <div class="box">
         <h3>Create profile</h3>
-        <form method="post" action="import.php" enctype="multipart/form-data">
+        <form id="cp-form" method="post" action="import.php" enctype="multipart/form-data">
             <label>Name: <input type="text" name="cp_name" required></label><br>
             <div class="cp-type-buttons">Type:
                 <button type="button" class="cp-type-btn" data-type="device-snmp">Device · SNMP</button>
@@ -234,7 +234,7 @@ function scan_profiles_create_panel_html($profiles = []) {
                     </thead>
                     <tbody id="cp_devices_tbody">
                         <tr class="cp-device-row" data-inline="0">
-                            <td><input type="text" name="cp_device_hosts[]" placeholder="10.0.0.10" required></td>
+                            <td><input type="text" name="cp_device_hosts[]" placeholder="10.0.0.10"></td>
                             <td class="cp-ssh-col">
                                 <select name="cp_device_ssh_profiles[]" class="cp-row-override">
                                     <option value="">&mdash; (use shared) &mdash;</option>
@@ -374,6 +374,34 @@ function scan_profiles_create_panel_html($profiles = []) {
                 b.addEventListener('click', function () { cpApplyType(b.dataset.type); });
             });
             cpApplyType('generic-ssh'); // default
+            // Form-level guard: device-* types require at least one host row.
+            // Generic types are host-less by design — don't let the browser's
+            // hidden-required validation block the submit.
+            var form = document.getElementById('cp-form');
+            if (form) {
+                form.addEventListener('submit', function (ev) {
+                    var type = document.getElementById('cp_type').value || '';
+                    if (type.indexOf('device-') === 0) {
+                        var hosts = form.querySelectorAll('input[name=\"cp_device_hosts[]\"]');
+                        var anyFilled = Array.from(hosts).some(function (h) { return (h.value || '').trim() !== ''; });
+                        if (!anyFilled) {
+                            var errBox = document.getElementById('cp-error');
+                            if (!errBox) {
+                                errBox = document.createElement('p');
+                                errBox.id = 'cp-error';
+                                errBox.style.cssText = 'color:#a00; font-size:0.85em; margin:8px 0;';
+                                var btn = document.querySelector('button[name=\"do_create_profile\"]');
+                                if (btn && btn.parentNode) btn.parentNode.insertBefore(errBox, btn);
+                            }
+                            errBox.textContent = 'Device profiles need at least one host. Add one or pick a Generic profile.';
+                            ev.preventDefault();
+                            return false;
+                        }
+                    }
+                });
+            }
+
+
         })();
         </script>
     </div>
