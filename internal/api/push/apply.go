@@ -74,12 +74,14 @@ func ApplyHandler(service q.NetServiceInt) http.HandlerFunc {
 			ExitStatus: "success",
 			ErrorString: "phase 4 stub: Service.Push lands in webui-integration phase 7",
 		}
-		if err := service.AppendPushRun(run); err != nil {
+		id, err := service.AppendPushRun(run)
+		if err != nil {
 			writeError(w, http.StatusInternalServerError, "append_failed", err.Error())
 			return
 		}
+		run.ID = id
 		writeJSON(w, http.StatusAccepted, ApplyResponse{
-			RunID:      run.ID,
+			RunID:      id,
 			DeviceID:   run.DeviceID,
 			OS:         run.OS,
 			Mode:       req.Mode,

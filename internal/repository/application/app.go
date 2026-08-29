@@ -294,10 +294,9 @@ type NetServiceInt interface {
 	GetProfileDevices(profileName string) ([]e.ProfileDevice, error)
 	DeleteProfileDevice(profileName, host string) error
 	DeleteAllProfileDevices(profileName string) error
-
-	// PushRun audit trail (push-config-tab plan phase 3).
-	AppendPushRun(run p.PushRun) error
+	AppendPushRun(run p.PushRun) (string, error)
 	AllPushRuns() ([]p.PushRun, error)
+	// PushRun audit trail (push-config-tab plan phase 3).
 }
 
 func NewNetService(netRepository d.NetRepository) NetServiceInt {
@@ -423,17 +422,17 @@ func (ns *NetService) DeleteAllProfileDevices(profileName string) error {
 // invocation goes through the engine, which records one row per run via
 // AppendPushRun. The HTTP handler at GET /api/v1/push/history reads back
 // via AllPushRuns to render the audit log on the Push config tab.
-func (ns *NetService) AppendPushRun(run p.PushRun) error {
+func (ns *NetService) AppendPushRun(run p.PushRun) (string, error) {
 	if run.DeviceID == "" {
-		return fmt.Errorf("device_id is required")
+		return "", fmt.Errorf("device_id is required")
 	}
 	if run.StartedAt.IsZero() {
-		return fmt.Errorf("started_at is required")
+		return "", fmt.Errorf("started_at is required")
 	}
 	if run.ID == "" {
 		run.ID = uuid.NewString()
 	}
-	return ns.netRepo.AppendPushRun(run)
+	return run.ID, ns.netRepo.AppendPushRun(run)
 }
 
 func (ns *NetService) AllPushRuns() ([]p.PushRun, error) {

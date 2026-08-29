@@ -69,12 +69,14 @@ func RollbackHandler(service q.NetServiceInt) http.HandlerFunc {
 			ExitStatus:  "success",
 			ErrorString: "phase 4 stub: Service.Rollback lands in webui-integration phase 8",
 		}
-		if err := service.AppendPushRun(run); err != nil {
+		id, err := service.AppendPushRun(run)
+		if err != nil {
 			writeError(w, http.StatusInternalServerError, "append_failed", err.Error())
 			return
 		}
+		run.ID = id
 		writeJSON(w, http.StatusAccepted, RollbackResponse{
-			RunID:      run.ID,
+			RunID:      id,
 			DeviceID:   run.DeviceID,
 			SnapshotID: req.RunID,
 			ExitStatus: run.ExitStatus,
