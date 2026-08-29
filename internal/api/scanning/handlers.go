@@ -488,6 +488,12 @@ type scanProfileRequest struct {
 	MergeConfigs      bool   `json:"merge_configs"`
 	ConfigTimeout     int    `json:"config_timeout"`
 	VLANAccuracy      int    `json:"vlan_accuracy"`
+
+	// Hosts is the list of devices attached to this profile (multi-device
+	// form). Empty for a generic profile. The overlap-detection pass scans
+	// this list against existing profiles so the operator sees "10.0.0.245 is
+	// already in profile 'lab-prod'" before persisting.
+	Hosts []string `json:"hosts,omitempty"`
 }
 
 func (req scanProfileRequest) toEntity(v *secret.Vault) (e.ScanProfile, error) {
@@ -528,6 +534,46 @@ func (req scanProfileRequest) toEntity(v *secret.Vault) (e.ScanProfile, error) {
 	return p, nil
 }
 
+// profileHostOverlap flags a host that's already attached to a different
+// profile. Surfaced in the POST response so the multi-device form can warn
+// the operator before persisting.
+type profileHostOverlap struct {
+	Host        string `json:"host"`
+	OtherProfile string `json:"other_profile"`
+}
+
+// detectProfileOverlaps walks every saved profile and reports any host
+// in hosts that's already attached to a profile other than thisProfile.
+// Same profile is excluded (the operator is editing their own profile).
+func detectProfileOverlaps(service q.NetServiceInt, thisProfile string, hosts []string) []profileHostOverlap {
+	if len(hosts) == 0 {
+		return nil
+	}
+	want := make(map[string]bool, len(hosts))
+	for _, h := range hosts {
+		want[h] = true
+	}
+	all, err := service.GetScanProfiles()
+	if err != nil {
+		return nil
+	}
+	seen := make(map[string]bool)
+	var out []profileHostOverlap
+	for _, p := range all {
+		if p.Name == thisProfile {
+			continue
+		}
+		if want[p.Host] {
+			key := p.Host + "\x00" + p.Name
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			out = append(out, profileHostOverlap{Host: p.Host, OtherProfile: p.Name})
+		}
+	}
+	return out
+}
 // ScanProfilesHandler exposes CRUD over saved scan profiles. GET never returns
 // the SSH password (only `has_ssh_password`).
 func ScanProfilesHandler(service q.NetServiceInt) http.HandlerFunc {
@@ -595,8 +641,13 @@ func ScanProfilesHandler(service q.NetServiceInt) http.HandlerFunc {
 				json.NewEncoder(w).Encode(ErrorResponse{Error: "save_failed", Message: err.Error()})
 				return
 			}
+			overlaps := detectProfileOverlaps(service, p.Name, req.Hosts)
 			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(map[string]string{"message": "created", "name": p.Name})
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"message":  "created",
+				"name":     p.Name,
+				"overlaps": overlaps,
+			})
 
 		case http.MethodDelete:
 			name := r.URL.Query().Get("name")

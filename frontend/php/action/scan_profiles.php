@@ -38,9 +38,20 @@ function do_create_profile(&$profileMessage, &$profiles) {
         'ssh_key'        => $sshKey,
     ]);
     list($code, $body) = api_method('POST', SCAN_PROFILES_ENDPOINT, $payload);
-    $profileMessage = ($code === 201)
-        ? "Profile \"$name\" created."
-        : 'Create failed: ' . htmlspecialchars($body);
+    if ($code === 201) {
+        $resp = json_decode($body, true) ?: [];
+        $overlaps = $resp['overlaps'] ?? [];
+        $profileMessage = "Profile \"$name\" created.";
+        if (is_array($overlaps) && count($overlaps) > 0) {
+            $items = [];
+            foreach ($overlaps as $o) {
+                $items[] = htmlspecialchars($o['host'] ?? '?') . ' is also in profile "' . htmlspecialchars($o['other_profile'] ?? '?') . '"';
+            }
+            $profileMessage .= ' Overlaps: ' . implode('; ', $items) . '.';
+        }
+    } else {
+        $profileMessage = 'Create failed: ' . htmlspecialchars($body);
+    }
     // Refresh the in-memory $profiles list so the saved-profiles table shows the new row.
     $profiles = json_decode(@file_get_contents(SCAN_PROFILES_ENDPOINT), true) ?: [];
 }
