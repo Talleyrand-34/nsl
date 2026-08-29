@@ -18,7 +18,10 @@ package domain
   along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
-import e "nsl-graph/internal/repository/entities"
+import (
+	e "nsl-graph/internal/repository/entities"
+	p "nsl-graph/internal/push"
+)
 
 // Type repository is an interface for interaction with all the db logic needed from application
 type repository interface {
@@ -225,6 +228,11 @@ type repository interface {
 	GetProfileDevices(profileName string) ([]e.ProfileDevice, error)
 	DeleteProfileDevice(profileName, host string) error
 	DeleteAllProfileDevices(profileName string) error
+
+	// PushRun audit trail. Phase 3 of push-config-tab plan: every Preview,
+	// Dry-run, Apply, and Rollback invocation appends a row.
+	AppendPushRun(run p.PushRun) error
+	AllPushRuns() ([]p.PushRun, error)
 
 	// Credential vault metadata (wrapped data key + salt); "" if uninitialized.
 	GetVaultMeta() (string, error)

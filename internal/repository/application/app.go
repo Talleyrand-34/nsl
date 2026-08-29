@@ -25,18 +25,22 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+
 	configparser "nsl-graph/internal/configparser"
 	"nsl-graph/internal/datastore"
 	fmtd2 "nsl-graph/internal/format"
 	"nsl-graph/internal/observ"
 	d "nsl-graph/internal/repository/domain"
 	e "nsl-graph/internal/repository/entities"
+	p "nsl-graph/internal/push"
 	s "nsl-graph/internal/scanner"
 	"nsl-graph/internal/secret"
 	"nsl-graph/internal/topology"
 	"nsl-graph/internal/yang/canon"
 )
 
+// vaultIdleTimeout auto-locks the credential vault after this much inactivity.
 // vaultIdleTimeout auto-locks the credential vault after this much inactivity.
 const vaultIdleTimeout = 15 * time.Minute
 
@@ -285,12 +289,15 @@ type NetServiceInt interface {
 	ResolveScanProfile(target, name string) (*e.ScanProfile, bool) // by name, else auto-match by host
 	DeleteScanProfile(name string) error
 
-	// ProfileDevice rows bind a profile to N hosts. The API and scan
-	// dispatch use these to drive per-host SSH credentials.
+	// ProfileDevice rows bind a profile to N hosts.
 	AddProfileDevice(d e.ProfileDevice) error
 	GetProfileDevices(profileName string) ([]e.ProfileDevice, error)
 	DeleteProfileDevice(profileName, host string) error
 	DeleteAllProfileDevices(profileName string) error
+
+	// PushRun audit trail (push-config-tab plan phase 3).
+	AppendPushRun(run p.PushRun) error
+	AllPushRuns() ([]p.PushRun, error)
 }
 
 func NewNetService(netRepository d.NetRepository) NetServiceInt {
@@ -410,6 +417,27 @@ func (ns *NetService) DeleteProfileDevice(profileName, host string) error {
 
 func (ns *NetService) DeleteAllProfileDevices(profileName string) error {
 	return ns.netRepo.DeleteAllProfileDevices(profileName)
+}
+
+// PushRun audit-trail methods. Phase 3 of push-config-tab plan: every push
+// invocation goes through the engine, which records one row per run via
+// AppendPushRun. The HTTP handler at GET /api/v1/push/history reads back
+// via AllPushRuns to render the audit log on the Push config tab.
+func (ns *NetService) AppendPushRun(run p.PushRun) error {
+	if run.DeviceID == "" {
+		return fmt.Errorf("device_id is required")
+	}
+	if run.StartedAt.IsZero() {
+		return fmt.Errorf("started_at is required")
+	}
+	if run.ID == "" {
+		run.ID = uuid.NewString()
+	}
+	return ns.netRepo.AppendPushRun(run)
+}
+
+func (ns *NetService) AllPushRuns() ([]p.PushRun, error) {
+	return ns.netRepo.AllPushRuns()
 }
 
 // ResolveScanProfile loads a profile by explicit name, or — when name is empty —
