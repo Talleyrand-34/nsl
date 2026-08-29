@@ -17,6 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['api_base_url'])) {
 // current script name, so pages need no manual flag.
 $navItems = [
     'main.php'        => 'Dashboard',
+    'push.php'        => 'Push config',
     'import.php'      => 'Import devices',
 ];
 $currentPage = basename($_SERVER['PHP_SELF']);
