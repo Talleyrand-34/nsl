@@ -4,7 +4,7 @@
 // its backward-compat redirect from the old connections.php URL).
 //
 // The dispatcher in importscan.php plus the per-concern action modules
-// (scan_devices, scan_connections, scan_profiles, scan_upload, scan_bulk)
+// (scan_devices, scan_connections, scan_profiles, scan_upload)
 // all share this file. Function definitions are wrapped in
 // `function_exists` guards so multiple includes are no-ops.
 //

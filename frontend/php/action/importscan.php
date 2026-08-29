@@ -18,7 +18,7 @@ require_once __DIR__ . '/scan_profiles.php';
 require_once __DIR__ . '/scan_devices.php';
 require_once __DIR__ . '/scan_connections.php';
 require_once __DIR__ . '/scan_upload.php';
-require_once __DIR__ . '/scan_bulk.php';
+
 
 // ---------------------------------------------------------------------------
 // State vars. Handlers mutate these in place via PHP's pass-by-ref.
@@ -98,12 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['do_upload'])) {
         do_upload($importMessage);
     }
-    if (isset($_POST['do_bulk_scan'])) {
-        do_bulk_scan($scanMessage, $scanRunId);
-    }
-    if (isset($_POST['do_bulk_import'])) {
-        do_bulk_import($importMessage);
-    }
+
     if (isset($_POST['do_scan_connections'])) {
         do_scan_connections($scanMessage, $scanRunId);
     }
@@ -144,12 +139,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
       </div>
     </section>
 
-    <section class="accordion-card" data-accordion="import-actions">
-      <h3 class="accordion-header"><button type="button" class="accordion-toggle" aria-expanded="false">Bulk scan &amp; bulk import</button></h3>
-      <div class="accordion-body">
-        <?= scan_bulk_panel_html($scanMessage) ?>
-      </div>
-    </section>
+
 
     <section class="accordion-card" data-accordion="import-actions">
       <h3 class="accordion-header"><button type="button" class="accordion-toggle" aria-expanded="false">Saved scan profiles (<?= count($profiles) ?>)</button></h3>

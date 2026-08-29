@@ -2,23 +2,27 @@
 // pending-devices.js — browser-side queue of discovered-but-not-yet-imported
 // devices.
 //
-// Storage: localStorage["nsl.pendingDevices"] = JSON array of
-// discovered-device objects. Each entry matches what the server returns
-// from /scan/run / /scan/status ({"device":{"ip":...}, "brand":...,
-// "model":..., "model_type":..., "suggested_name":...}).
+// Storage: two localStorage keys:
+//   "nsl.pendingDevices"  = JSON array of discovered-device objects.
+//   "nsl.pendingDeleted"  = JSON array of IPs the operator explicitly
+//                            deleted. NSL_PENDING_INITIAL on the next page
+//                            load must skip these IPs (otherwise Delete
+//                            gets undone by the very next reload).
 //
 // Lifecycle:
-//   - A scan completes → dispatcher emits NSL_PENDING_INITIAL = the array
-//     → JS init merges into localStorage (de-duped by IP).
+//   - A scan completes → dispatcher emits NSL_PENDING_INITIAL → JS init
+//     merges into localStorage (de-duped by IP, tombstones skipped).
 //   - The operator clicks "Configure & import" → existing flow.
 //   - The operator clicks "Import device" → server returns success →
 //     page reloads → JS init drops the imported IP from localStorage.
-//   - The operator clicks "Delete" → JS removes the device from localStorage.
-//     Gone is gone; the device can come back only via a fresh scan + the
-//     operator's fresh decision.
+//   - The operator clicks "Delete" → JS adds the IP to tombstones +
+//     removes from queue. Tombstone survives page reloads so the
+//     server's fresh discovery (NSL_PENDING_INITIAL) is filtered to
+//     exclude that IP.
 
 (function () {
   var KEY_QUEUE = 'nsl.pendingDevices';
+  var KEY_TOMBSTONES = 'nsl.pendingDeleted';
 
   function readJSON(key) {
     try {
@@ -44,22 +48,45 @@
   function readQueue() { return readJSON(KEY_QUEUE); }
   function writeQueue(list) { writeJSON(KEY_QUEUE, list); }
 
+  function readTombstones() {
+    var raw = readJSON(KEY_TOMBSTONES);
+    var set = {};
+    raw.forEach(function (ip) { if (ip) set[ip] = true; });
+    return set;
+  }
+
+  function addTombstone(ip) {
+    if (!ip) return;
+    var raw = readJSON(KEY_TOMBSTONES);
+    if (raw.indexOf(ip) === -1) raw.push(ip);
+    writeJSON(KEY_TOMBSTONES, raw);
+  }
+
+  function clearTombstones() {
+    writeJSON(KEY_TOMBSTONES, []);
+  }
+
   // Public surface — exposed on window so the page can wire per-row
   // buttons without an extra round-trip through inline handlers.
   var nslPD = {
     KEY_QUEUE: KEY_QUEUE,
+    KEY_TOMBSTONES: KEY_TOMBSTONES,
     list: readQueue,
+    tombstones: readTombstones,
 
-    // Merge fresh discovery into the queue. Skips IPs already in the
-    // queue (dedupe vs. existing local state).
+    // Merge fresh discovery into the queue. Skips:
+    //   - IPs already in the queue (dedupe vs. existing local state)
+    //   - IPs in the tombstone set (operator explicitly deleted; respect it)
     addAll: function (devices) {
       var existing = readQueue();
+      var tombstones = readTombstones();
       var seen = {};
       existing.forEach(function (d) { var ip = ipOf(d); if (ip) seen[ip] = true; });
       devices.forEach(function (d) {
         var ip = ipOf(d);
         if (!ip) return;
         if (seen[ip]) return;
+        if (tombstones[ip]) return;
         existing.push(d);
         seen[ip] = true;
       });
@@ -69,15 +96,27 @@
 
     add: function (device) { return nslPD.addAll([device]); },
 
-    // Delete = remove from queue. No tombstone, no resurrection: the next
-    // scan starts fresh.
+    // Mark device deleted: remove from queue AND tombstone the IP so
+    // future server-side discoveries don't re-add it on page reload.
     remove: function (device) {
       var ip = ipOf(device);
       if (!ip) return readQueue();
+      nslPD._tombstone(ip);
       var list = readQueue().filter(function (d) { return ipOf(d) !== ip; });
       writeQueue(list);
       return list;
     },
+
+    // Drop a tombstone (re-allows the device to come back on next scan).
+    _untombstone: function (ip) {
+      if (!ip) return;
+      var raw = readJSON(KEY_TOMBSTONES).filter(function (x) { return x !== ip; });
+      writeJSON(KEY_TOMBSTONES, raw);
+    },
+
+    // Record a tombstone for an IP. Exposed so Delete handlers can call it
+    // directly; nslPD.remove also tombstones for convenience.
+    _tombstone: addTombstone,
 
     removeByIp: function (ip) {
       if (!ip) return readQueue();
@@ -87,6 +126,7 @@
     },
 
     clear: function () { writeQueue([]); return []; },
+    clearTombstones: clearTombstones,
 
     render: function (tableBody, importedIps) {
       var list = readQueue();
@@ -165,9 +205,11 @@
 
   // Auto-init: when the page loads:
   //   1. Drop imported devices from the queue.
-  //   2. Merge fresh discovery (de-duped by IP).
-  //   3. Re-render the table from localStorage.
-  //   4. Update the heading counts.
+  //   2. Filter NSL_PENDING_INITIAL against tombstones (so a Delete
+  //      survives page reloads).
+  //   3. Merge fresh discovery (de-duped by IP, tombstones skipped).
+  //   4. Re-render the table from localStorage.
+  //   5. Update the heading counts.
   document.addEventListener('DOMContentLoaded', function () {
     var body = document.querySelector('table.discovered-devices tbody');
     if (!body) return;
@@ -175,8 +217,17 @@
     var imported = Array.isArray(window.NSL_PENDING_IMPORTED_IPS) ? window.NSL_PENDING_IMPORTED_IPS : [];
     imported.forEach(function (ip) { if (ip) nslPD.removeByIp(ip); });
 
-    if (Array.isArray(window.NSL_PENDING_INITIAL)) {
-      nslPD.addAll(window.NSL_PENDING_INITIAL);
+    // Filter the server's fresh discovery against tombstones BEFORE adding.
+    // Without this, every page load re-adds devices the operator already
+    // deleted.
+    var tombstones = readTombstones();
+    var initial = Array.isArray(window.NSL_PENDING_INITIAL) ? window.NSL_PENDING_INITIAL : [];
+    var filtered = initial.filter(function (d) {
+      var ip = (d && d.device && d.device.ip) || (d && d.ip) || '';
+      return ip && !tombstones[ip];
+    });
+    if (filtered.length) {
+      nslPD.addAll(filtered);
     }
 
     nslPD.render(body, imported);
