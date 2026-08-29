@@ -137,7 +137,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
 <h2>Import devices</h2>
 
 <div class="grid import-grid">
-  <!-- Left column: scan options. The accordion JS handles one-open-at-a-time. -->
+  <!-- Left column: scan options + saved profiles + create profile. The accordion
+       JS handles one-open-at-a-time within this column. -->
+  <div class="actions import-actions">
     <section class="accordion-card" data-accordion="import-actions">
       <h3 class="accordion-header"><button type="button" class="accordion-toggle" aria-expanded="true">Live scan</button></h3>
       <div class="accordion-body">
@@ -162,7 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
       </div>
     </section>
 
-  </div>
+  </div><!-- /.actions.import-actions -->
 
   <!-- Right column: scan status + results + upload. -->
   <div class="results import-results">
