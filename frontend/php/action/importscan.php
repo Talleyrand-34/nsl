@@ -15,8 +15,7 @@
 
 require_once __DIR__ . '/import_common.php';
 require_once __DIR__ . '/scan_profiles.php';
-require_once __DIR__ . '/scan_devices.php';
-require_once __DIR__ . '/scan_connections.php';
+require_once __DIR__ . '/scan.php';
 require_once __DIR__ . '/scan_upload.php';
 
 
@@ -113,19 +112,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['do_upload'])) {
         do_upload($importMessage);
     }
-
     if (isset($_POST['do_scan_connections'])) {
-        do_scan_connections($scanMessage, $scanRunId);
+        // Phase 1 of SCAN-REFACTOR: the unified Live scan panel chains the
+        // connection scan internally. The legacy standalone button is
+        // gone; this branch is a no-op kept for back-compat with any
+        // unsaved form state.
     }
 }
 
-// GET ?scan_id= — pull scan status. do_scan_completed returns true ONLY
-// when the scan is still running; otherwise we clear $scanRunId so the
-// page renders the static results panel without re-arming nslWatchScan.
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
     $deviceRunning = do_scan_completed($discovered, $scanMessage, $plan, $importedIPs, $importMessage);
     $scanRunId = $deviceRunning ? $_GET['scan_id'] : '';
-    do_scan_connections_completed($scanMessage, $scanRunId, $result);
+    // Connection follow-up (when also_connections was set) is handled inside
+    // scan.php's do_scan_completed. The legacy do_scan_connections_completed
+    // hook is preserved as a no-op for back-compat.
 }
 
 // ---------------------------------------------------------------------------
@@ -138,21 +138,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
 
 <div class="grid import-grid">
   <!-- Left column: scan options. The accordion JS handles one-open-at-a-time. -->
-  <div class="actions import-actions">
-
     <section class="accordion-card" data-accordion="import-actions">
-      <h3 class="accordion-header"><button type="button" class="accordion-toggle" aria-expanded="true">Live device scan</button></h3>
+      <h3 class="accordion-header"><button type="button" class="accordion-toggle" aria-expanded="true">Live scan</button></h3>
       <div class="accordion-body">
-        <?= scan_devices_live_panel_html($pf, $profiles, $scanMessage) ?>
+        <?= scan_live_panel_html($profiles, $scanMessage) ?>
       </div>
     </section>
 
-    <section class="accordion-card" data-accordion="import-actions">
-      <h3 class="accordion-header"><button type="button" class="accordion-toggle" aria-expanded="false">Live connection scan</button></h3>
-      <div class="accordion-body">
-        <?= scan_connections_live_panel_html($genericProfiles, $scanMessage) ?>
-      </div>
-    </section>
 
 
 
