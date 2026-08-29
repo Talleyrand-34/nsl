@@ -236,6 +236,12 @@ type ProfileDevice struct {
 	ProfileName    string `json:"profile_name"`              // FK -> ScanProfile.Name
 	Host           string `json:"host"`                      // IP or hostname; required
 	SSHProfileName string `json:"ssh_profile_name,omitempty"` // override: another profile (generic or device)
+	// Inline SSH credentials: populated only when the row's SSH override is
+	// "inline custom" (no saved-profile reference). When SSHProfileName is
+	// set, the inline fields are ignored and the named profile supplies the
+	// credentials.
+	SSHUser        string `json:"ssh_user,omitempty"`        // inline-only
+	SSHPassword    string `json:"-"`                          // encrypted blob; inline-only; never serialized
 	SSHConfigText  string `json:"ssh_config_text,omitempty"`  // custom inline OpenSSH config (transient)
 	SSHKeyFilename string `json:"ssh_key_filename,omitempty"` // optional uploaded basename
 	SSHKey         string `json:"-"`                          // uploaded key content; never serialized

@@ -392,6 +392,11 @@ func (ns *NetService) AddProfileDevice(d e.ProfileDevice) error {
 			return fmt.Errorf("ssh_profile_name: %w", err)
 		}
 	}
+	// Inline custom: when SSHUser is set without an override profile, the row
+	// must carry either a password or a private-key blob — never just the user.
+	if d.SSHProfileName == "" && d.SSHUser != "" && d.SSHPassword == "" && d.SSHKey == "" {
+		return fmt.Errorf("inline SSH credentials on row %q require a password or private key", d.Host)
+	}
 	return ns.netRepo.AddProfileDevice(d)
 }
 

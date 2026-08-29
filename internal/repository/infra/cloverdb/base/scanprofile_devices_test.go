@@ -169,6 +169,47 @@ func TestProfileDevice_MissingFields(t *testing.T) {
 	}
 }
 
+// Inline-custom rows carry their own encrypted credentials (no SSHProfileName
+// reference). The storage layer must persist and return them verbatim.
+func TestProfileDevice_InlineCredsPersisted(t *testing.T) {
+	repo, cleanup, err := setupTestCloverRepository(t)
+	if err != nil {
+		t.Fatalf("setup: %v", err)
+	}
+	defer cleanup()
+	if err := repo.AddScanProfile(e.ScanProfile{Name: "lab", Kind: "device", Host: "10.0.0.1"}); err != nil {
+		t.Fatalf("AddScanProfile: %v", err)
+	}
+	d := e.ProfileDevice{
+		ProfileName:    "lab",
+		Host:           "10.0.0.10",
+		SSHUser:        "root",
+		SSHPassword:    "blob:encrypted-pw",
+		SSHKey:         "blob:encrypted-key",
+		SSHKeyFilename: "id_ed25519",
+		SSHConfigText:  "Host *\n  User admin\n  Port 2222",
+	}
+	if err := repo.AddProfileDevice(d); err != nil {
+		t.Fatalf("AddProfileDevice: %v", err)
+	}
+	got, err := repo.GetProfileDevices("lab")
+	if err != nil {
+		t.Fatalf("GetProfileDevices: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("expected 1 row, got %d", len(got))
+	}
+	if got[0].SSHUser != "root" || got[0].SSHPassword != "blob:encrypted-pw" {
+		t.Errorf("inline creds lost: user=%q pw=%q", got[0].SSHUser, got[0].SSHPassword)
+	}
+	if got[0].SSHKey != "blob:encrypted-key" || got[0].SSHKeyFilename != "id_ed25519" {
+		t.Errorf("inline key lost: key=%q file=%q", got[0].SSHKey, got[0].SSHKeyFilename)
+	}
+	if got[0].SSHConfigText != "Host *\n  User admin\n  Port 2222" {
+		t.Errorf("inline config_text lost: %q", got[0].SSHConfigText)
+	}
+}
+
 func TestProfileDevice_GetEmptyProfile(t *testing.T) {
 	repo, cleanup, err := setupTestCloverRepository(t)
 	if err != nil {

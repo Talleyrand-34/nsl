@@ -74,30 +74,56 @@ function do_create_profile(&$profileMessage, &$profiles) {
         if ($cpKind === 'device') {
             $deviceErrors = [];
             $attached = 0;
-            foreach ($deviceHosts as $i => $h) {
-                $h = trim((string) $h);
-                if ($h === '') continue;
-                $sshProfile = '';
-                if (isset($deviceProfiles[$i]) && $deviceProfiles[$i] !== '__inline__') {
-                    $sshProfile = trim((string) $deviceProfiles[$i]);
+        // carry their own credentials / config text / SSH key file. Empty rows
+        // are skipped silently.
+        $inlineUser        = $_POST['cp_device_inline_user']         ?? [];
+        $inlinePassword    = $_POST['cp_device_inline_password']     ?? [];
+        $inlineKeyFilename = $_POST['cp_device_inline_key_filename'] ?? [];
+        $inlineConfigText  = $_POST['cp_device_inline_config_text']  ?? [];
+        foreach ($deviceHosts as $i => $h) {
+            $h = trim((string) $h);
+            if ($h === '') continue;
+            $sshProfile = '';
+            $devPayload = ['host' => $h];
+            $override = isset($deviceProfiles[$i]) ? (string) $deviceProfiles[$i] : '';
+            if ($override === '__inline__') {
+                // Inline custom: read per-row fields, encrypt the uploaded key.
+                $inlineKey = '';
+                $inlineKeyName = trim((string) ($inlineKeyFilename[$i] ?? ''));
+                if (isset($_FILES['cp_device_inline_key']['error'][$i])
+                    && $_FILES['cp_device_inline_key']['error'][$i] === UPLOAD_ERR_OK) {
+                    $tmp = $_FILES['cp_device_inline_key']['tmp_name'][$i];
+                    $inlineKey = (string) file_get_contents($tmp);
+                    if ($inlineKeyName === '') {
+                        $inlineKeyName = (string) ($_FILES['cp_device_inline_key']['name'][$i] ?? '');
+                    }
                 }
-                $devPayload = json_encode([
+                $devPayload = [
                     'host'             => $h,
-                    'ssh_profile_name' => $sshProfile,
-                ]);
-                list($dcode, $dbody) = api_method(
-                    'POST',
-                    SCAN_PROFILES_ENDPOINT . '/' . urlencode($name) . '/devices',
-                    $devPayload
-                );
-                if ($dcode === 201) {
-                    $attached++;
-                } else {
-                    $err = json_decode($dbody, true);
-                    $deviceErrors[] = $h . ': ' . htmlspecialchars($err['message'] ?? $dbody);
-                }
+                    'ssh_profile_name' => '', // explicit: no override profile
+                    'ssh_user'         => trim((string) ($inlineUser[$i] ?? '')),
+                    'ssh_password'     => (string) ($inlinePassword[$i] ?? ''),
+                    'ssh_key'          => $inlineKey,
+                    'ssh_key_filename' => $inlineKeyName,
+                    'ssh_config_text'  => (string) ($inlineConfigText[$i] ?? ''),
+                ];
+            } elseif ($override !== '') {
+                // Saved generic profile: reference by name.
+                $sshProfile = trim($override);
+                $devPayload['ssh_profile_name'] = $sshProfile;
             }
-            if ($attached > 0) {
+            $payloadJson = json_encode($devPayload);
+            list($dcode, $dbody) = api_method(
+                'POST',
+                SCAN_PROFILES_ENDPOINT . '/' . urlencode($name) . '/devices',
+                $payloadJson
+            );
+            if ($dcode === 201) {
+                $attached++;
+            } else {
+                $err = json_decode($dbody, true);
+                $deviceErrors[] = $h . ': ' . htmlspecialchars($err['message'] ?? $dbody);
+            }
                 $profileMessage .= " Attached {$attached} device" . ($attached === 1 ? '' : 's') . '.';
             }
             if (count($deviceErrors) > 0) {
@@ -194,10 +220,11 @@ function scan_profiles_create_panel_html($profiles = []) {
                  override. Generic profiles (no host) skip this block. -->
             <div class="cp-grp" data-show="device-snmp device-ssh" id="cp_devices_block">
                 <p style="margin:6px 0; color:#555;"><em>Devices in this profile</em> &mdash;
-                    one row per device. Leave the SSH override on a row blank to use the profile's
-                    shared credentials; pick a saved profile to override per device; pick
-                    &quot;(inline custom)&quot; to fill per-device credentials that only live here.</p>
-                <table id="cp_devices_table" border="0" cellpadding="3" cellspacing="0" style="border-collapse:collapse;">
+                    one row per device. Per-row SSH override options:
+                    <strong>(use shared)</strong> = the profile's credentials,
+                    <strong>(inline custom)</strong> = write custom SSH credentials on this row only,
+                    or pick a saved <em>generic</em> profile from the dropdown.</p>
+                <table id="cp_devices_table" border="0" cellpadding="3" cellspacing="0" style="border-collapse:collapse; width:100%;">
                     <thead>
                         <tr style="font-size:0.85em; color:#555;">
                             <th align="left">Host</th>
@@ -206,20 +233,34 @@ function scan_profiles_create_panel_html($profiles = []) {
                         </tr>
                     </thead>
                     <tbody id="cp_devices_tbody">
-                        <tr class="cp-device-row">
+                        <tr class="cp-device-row" data-inline="0">
                             <td><input type="text" name="cp_device_hosts[]" placeholder="10.0.0.10" required></td>
-                            <td class="cp-ssh-col"><select name="cp_device_ssh_profiles[]">
-                                <option value="">&mdash; (use shared) &mdash;</option>
-                                <?php foreach ($profiles as $p):
-                                    $src = ($p['scan_source'] ?? '') === 'ssh' ? '' : ' (not SSH)';
-                                    if ($src !== '') continue;
-                                    $pk = ($p['kind'] ?? '') !== '' ? $p['kind'] : 'device';
-                                    $label = ($p['name'] ?? '') . ' (' . $pk . (($p['host'] ?? '') !== '' ? ', ' . $p['host'] : '') . ')';
-                                ?>
-                                    <option value="<?= htmlspecialchars($p['name'] ?? '') ?>"><?= htmlspecialchars($label) ?></option>
-                                <?php endforeach; ?>
-                                <option value="__inline__">&mdash; (inline custom) &mdash;</option>
-                            </select></td>
+                            <td class="cp-ssh-col">
+                                <select name="cp_device_ssh_profiles[]" class="cp-row-override">
+                                    <option value="">&mdash; (use shared) &mdash;</option>
+                                    <?php foreach ($profiles as $p):
+                                        // Only GENERIC profiles appear in the SSH override dropdown.
+                                        // Device profiles are not credentials-by-design — a generic
+                                        // profile is the credential-only one meant for reuse.
+                                        $pk = ($p['kind'] ?? '') !== '' ? $p['kind'] : 'device';
+                                        $src = ($p['scan_source'] ?? '');
+                                        if ($pk !== 'generic' || $src !== 'ssh') continue;
+                                        $label = ($p['name'] ?? '');
+                                    ?>
+                                        <option value="<?= htmlspecialchars($p['name'] ?? '') ?>"><?= htmlspecialchars($label) ?> (generic)</option>
+                                    <?php endforeach; ?>
+                                    <option value="__inline__">&mdash; (inline custom) &mdash;</option>
+                                </select>
+                                <div class="cp-inline-fields" style="display:none; margin-top:6px; padding:6px; background:#f6f8fa; border:1px solid #ddd;">
+                                    <label>SSH user: <input type="text" name="cp_device_inline_user[]"></label><br>
+                                    <label>SSH password: <input type="password" name="cp_device_inline_password[]"></label><br>
+                                    <label>SSH private key file: <input type="file" name="cp_device_inline_key[]"></label><br>
+                                    <label>SSH key filename (basename for display): <input type="text" name="cp_device_inline_key_filename[]" placeholder="id_ed25519"></label><br>
+                                    <label>Inline OpenSSH config <small>(free-form, overrides the profile's; not a secret)</small>:
+                                        <textarea name="cp_device_inline_config_text[]" rows="2" style="width:100%;"></textarea>
+                                    </label>
+                                </div>
+                            </td>
                             <td><button type="button" class="cp-device-remove">Remove</button></td>
                         </tr>
                     </tbody>
@@ -238,7 +279,7 @@ function scan_profiles_create_panel_html($profiles = []) {
                 <label>OS / firmware type <small>(operating system for config parsing — not the hardware model; optional for generic)</small>:
                     <input type="text" name="cp_os_type" placeholder="opnsense / openwrt / fortinet" size="20">
                 </label><br>
-                <p style="margin:6px 0; color:#555;"><em>SSH credentials:</em></p>
+                <p style="margin:6px 0; color:#555;"><em>Profile-wide SSH credentials (used by any row whose SSH override is &quot;(use shared)&quot;):</em></p>
                 <label>SSH user: <input type="text" name="cp_ssh_user"></label><br>
                 <label>SSH password: <input type="password" name="cp_ssh_password"></label><br>
                 <label>SSH private key file: <input type="file" name="cp_ssh_key_file"></label><br>
@@ -269,6 +310,17 @@ function scan_profiles_create_panel_html($profiles = []) {
                     th.style.display = sshVisible ? '' : 'none';
                 });
             }
+            function cpUpdateRowOverride(row) {
+                var sel = row.querySelector('.cp-row-override');
+                var inline = row.querySelector('.cp-inline-fields');
+                if (!sel || !inline) return;
+                inline.style.display = (sel.value === '__inline__') ? '' : 'none';
+            }
+            function cpWireRowOverride(row) {
+                var sel = row.querySelector('.cp-row-override');
+                if (sel) sel.addEventListener('change', function () { cpUpdateRowOverride(row); });
+                cpUpdateRowOverride(row);
+            }
             function cpMakeRow() {
                 var first = document.querySelector('#cp_devices_tbody .cp-device-row');
                 if (!first) return null;
@@ -277,6 +329,13 @@ function scan_profiles_create_panel_html($profiles = []) {
                 if (hostInput) hostInput.value = '';
                 var sel = row.querySelector('select[name="cp_device_ssh_profiles[]"]');
                 if (sel) sel.selectedIndex = 0;
+                // Clear inline fields on the cloned row.
+                row.querySelectorAll('input[type="text"], input[type="password"], textarea').forEach(function (inp) {
+                    inp.value = '';
+                });
+                row.querySelectorAll('input[type="file"]').forEach(function (inp) {
+                    inp.value = '';
+                });
                 return row;
             }
             function cpWireRowRemove(row) {
@@ -288,22 +347,32 @@ function scan_profiles_create_panel_html($profiles = []) {
                         var host = row.querySelector('input[name="cp_device_hosts[]"]');
                         if (host) host.value = '';
                         var sel = row.querySelector('select[name="cp_device_ssh_profiles[]"]');
-                        if (sel) sel.selectedIndex = 0;
+                        if (sel) {
+                            sel.selectedIndex = 0;
+                            cpUpdateRowOverride(row);
+                        }
                         return;
                     }
                     row.parentNode.removeChild(row);
                 });
             }
-            document.querySelectorAll('.cp-device-row').forEach(cpWireRowRemove);
+            document.querySelectorAll('.cp-device-row').forEach(function (row) {
+                cpWireRowRemove(row);
+                cpWireRowOverride(row);
+            });
             var addBtn = document.getElementById('cp_device_add');
             if (addBtn) {
                 addBtn.addEventListener('click', function () {
                     var row = cpMakeRow();
                     if (!row) return;
                     cpWireRowRemove(row);
+                    cpWireRowOverride(row);
                     document.getElementById('cp_devices_tbody').appendChild(row);
                 });
             }
+            document.querySelectorAll('.cp-type-btn').forEach(function (b) {
+                b.addEventListener('click', function () { cpApplyType(b.dataset.type); });
+            cpApplyType('generic-ssh'); // default
         })();
         </script>
     </div>

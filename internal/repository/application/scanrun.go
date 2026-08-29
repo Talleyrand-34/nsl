@@ -287,10 +287,43 @@ func (ns *NetService) runSSHScan(opts RunScanOptions, tokens []string, batch boo
 }
 
 // perRowOverrideCreds resolves the effective SSH credentials for a single
-// ProfileDevice row. When the row names another profile (via SSHProfileName),
-// that profile's credentials win; otherwise the zero value is returned and
-// the caller falls back to the row's parent profile's credentials.
+// ProfileDevice row. Three sources, in priority order:
+//   1. Inline credentials on the row itself (row.SSHUser set) — the row
+//      carries encrypted blobs for the password / key that the vault
+//      decrypts at scan time. These were written via the "inline custom"
+//      path on the create-profile form.
+//   2. A reference to another saved profile (row.SSHProfileName set) — that
+//      profile's credentials win.
+//   3. Otherwise: zero value, and the caller falls back to the row's parent
+//      profile's credentials.
 func perRowOverrideCreds(row e.ProfileDevice, parent *e.ScanProfile, ns *NetService, em observ.Emitter) configparser.SSHCredentials {
+	if row.SSHUser != "" {
+		creds := configparser.SSHCredentials{
+			Username: row.SSHUser,
+			Port:     parent.SSHPort,
+		}
+		switch {
+		case row.SSHKey != "":
+			pk, err := ns.vault.Decrypt(row.SSHKey)
+			if err != nil {
+				em.Emit("warn", "row inline SSH key could not be decrypted; falling back to parent", "row_host", row.Host, "error", err.Error())
+				return configparser.SSHCredentials{}
+			}
+			creds.PrivateKey = pk
+		case row.SSHPassword != "":
+			pw, err := ns.vault.Decrypt(row.SSHPassword)
+			if err != nil {
+				em.Emit("warn", "row inline SSH password could not be decrypted; falling back to parent", "row_host", row.Host, "error", err.Error())
+				return configparser.SSHCredentials{}
+			}
+			creds.Password = pw
+		default:
+			em.Emit("warn", "row inline SSH user set but no key/password; falling back to parent", "row_host", row.Host)
+			return configparser.SSHCredentials{}
+		}
+		em.Emit("info", "row inline SSH credentials applied", "row_host", row.Host)
+		return creds
+	}
 	if row.SSHProfileName == "" {
 		return configparser.SSHCredentials{}
 	}

@@ -693,24 +693,33 @@ func ScanProfilesHandler(service q.NetServiceInt) http.HandlerFunc {
 type profileDeviceRequest struct {
 	Host           string `json:"host"`
 	SSHProfileName string `json:"ssh_profile_name,omitempty"`
+	SSHUser        string `json:"ssh_user,omitempty"`
+	SSHPassword    string `json:"ssh_password,omitempty"` // clear on input; encrypted before persist
 	SSHConfigText  string `json:"ssh_config_text,omitempty"`
 	SSHKeyFilename string `json:"ssh_key_filename,omitempty"`
-	SSHKey         string `json:"ssh_key,omitempty"` // clear PEM content (uploaded)
+	SSHKey         string `json:"ssh_key,omitempty"` // clear PEM content (uploaded); encrypted before persist
 	Port           int    `json:"port,omitempty"`
 }
 
-// applyEncryption encrypts the inline SSH key content via the vault so the
-// blob stored in the ProfileDevice row is safe at rest. Empty input is a no-op.
-func (req *profileDeviceRequest) applyEncryption(v *secret.Vault) (string, error) {
-	if req.SSHKey == "" {
-		return "", nil
+// encryptSecrets encrypts any inline SSH password / private key via the vault
+// and returns the resulting blobs. Empty inputs are a no-op; nil blobs mean
+// "leave the field untouched on persist".
+func (req *profileDeviceRequest) encryptSecrets(v *secret.Vault) (pwBlob, keyBlob string, err error) {
+	if req.SSHPassword != "" {
+		pwBlob, err = v.Encrypt(req.SSHPassword)
+		if err != nil {
+			return "", "", fmt.Errorf("store SSH password: %w (unlock the vault first)", err)
+		}
 	}
-	blob, err := v.Encrypt(req.SSHKey)
-	if err != nil {
-		return "", fmt.Errorf("store SSH private key: %w (unlock the vault first)", err)
+	if req.SSHKey != "" {
+		keyBlob, err = v.Encrypt(req.SSHKey)
+		if err != nil {
+			return "", "", fmt.Errorf("store SSH private key: %w (unlock the vault first)", err)
+		}
 	}
-	return blob, nil
+	return pwBlob, keyBlob, nil
 }
+
 
 func ProfileDevicesHandler(service q.NetServiceInt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -743,17 +752,18 @@ func ProfileDevicesHandler(service q.NetServiceInt) http.HandlerFunc {
 			out := make([]map[string]any, 0, len(devs))
 			for _, d := range devs {
 				out = append(out, map[string]any{
-					"id":               d.ID,
-					"profile_name":     d.ProfileName,
-					"host":             d.Host,
-					"ssh_profile_name": d.SSHProfileName,
-					"ssh_config_text":  d.SSHConfigText,
-					"ssh_key_filename": d.SSHKeyFilename,
-					"has_ssh_key":      d.SSHKey != "",
-					"port":             d.Port,
+					"id":                d.ID,
+					"profile_name":      d.ProfileName,
+					"host":              d.Host,
+					"ssh_profile_name":  d.SSHProfileName,
+					"ssh_user":          d.SSHUser,
+					"has_ssh_password":  d.SSHPassword != "",
+					"ssh_config_text":   d.SSHConfigText,
+					"ssh_key_filename":  d.SSHKeyFilename,
+					"has_ssh_key":       d.SSHKey != "",
+					"port":              d.Port,
 				})
 			}
-			w.WriteHeader(http.StatusOK)
 			_ = json.NewEncoder(w).Encode(out)
 		case http.MethodPost:
 			var req profileDeviceRequest
@@ -762,13 +772,13 @@ func ProfileDevicesHandler(service q.NetServiceInt) http.HandlerFunc {
 				json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid_json", Message: err.Error()})
 				return
 			}
-			blob := ""
-			if req.SSHKey != "" {
-				var err error
-				blob, err = req.applyEncryption(service.Vault())
-				if err != nil {
+			// Lazily touch the vault: only when an inline secret was supplied.
+			pwBlob, keyBlob, encErr := "", "", error(nil)
+			if req.SSHPassword != "" || req.SSHKey != "" {
+				pwBlob, keyBlob, encErr = req.encryptSecrets(service.Vault())
+				if encErr != nil {
 					w.WriteHeader(http.StatusBadRequest)
-					json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid_key", Message: err.Error()})
+					json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid_secret", Message: encErr.Error()})
 					return
 				}
 			}
@@ -776,9 +786,11 @@ func ProfileDevicesHandler(service q.NetServiceInt) http.HandlerFunc {
 				ProfileName:    name,
 				Host:           strings.TrimSpace(req.Host),
 				SSHProfileName: strings.TrimSpace(req.SSHProfileName),
+				SSHUser:        strings.TrimSpace(req.SSHUser),
+				SSHPassword:    pwBlob,
 				SSHConfigText:  req.SSHConfigText,
 				SSHKeyFilename: strings.TrimSpace(req.SSHKeyFilename),
-				SSHKey:         blob,
+				SSHKey:         keyBlob,
 				Port:           req.Port,
 			}
 			if err := service.AddProfileDevice(d); err != nil {

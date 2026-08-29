@@ -32,9 +32,11 @@ func scanprofileDeviceToDoc(d_ e.ProfileDevice) *d.Document {
 	doc.Set("profile_name", d_.ProfileName)
 	doc.Set("host", d_.Host)
 	doc.Set("ssh_profile_name", d_.SSHProfileName)
+	doc.Set("ssh_user", d_.SSHUser)
+	doc.Set("ssh_password", d_.SSHPassword) // already an encrypted blob (or "") when inline-custom is used
 	doc.Set("ssh_config_text", d_.SSHConfigText)
 	doc.Set("ssh_key_filename", d_.SSHKeyFilename)
-	doc.Set("ssh_key", d_.SSHKey) // server-side uploaded content (no encryption here; transient)
+	doc.Set("ssh_key", d_.SSHKey) // already an encrypted blob (or "") when inline-custom is used
 	doc.Set("port", d_.Port)
 	return doc
 }
@@ -62,6 +64,8 @@ func docToScanprofileDevice(doc *d.Document) e.ProfileDevice {
 		ProfileName:    getStr("profile_name"),
 		Host:           getStr("host"),
 		SSHProfileName: getStr("ssh_profile_name"),
+		SSHUser:        getStr("ssh_user"),
+		SSHPassword:    getStr("ssh_password"),
 		SSHConfigText:  getStr("ssh_config_text"),
 		SSHKeyFilename: getStr("ssh_key_filename"),
 		SSHKey:         getStr("ssh_key"),
