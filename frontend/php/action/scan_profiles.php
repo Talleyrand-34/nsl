@@ -16,21 +16,29 @@ function do_create_profile(&$profileMessage, &$profiles) {
         return;
     }
     // Profile-level SSH mode:
-    //   empty / unset → (use shared) — no creds at the profile level
-    //   '__inline__'  → read cp_ssh_user / cp_ssh_password / cp_ssh_key_file
-    //   any other non-empty string is reserved for a future generic-profile
-    //   reference (the ScanProfile entity doesn't carry an ssh_profile_name
-    //   field today, so the reference is currently ignored).
-    $cpSshMode = trim((string) ($_POST['cp_ssh_profile'] ?? ''));
+    //   '__inline__'   → read cp_ssh_user / cp_ssh_password / cp_ssh_key_file
+    //                    and send them as the profile's own credentials.
+    //   any other non-empty value → treated as the name of an existing
+    //                    generic SSH profile whose credentials the backend
+    //                    will copy at create time. The inline fields are
+    //                    ignored. The backend resolves the reference and
+    //                    persists the resolved (encrypted) credentials, so
+    //                    the saved profile carries its own copy and the
+    //                    source generic can be deleted later without
+    //                    breaking this profile.
+    $cpSshMode = trim((string) ($_POST['cp_ssh_profile'] ?? '__inline__'));
+    $sshProfileRef = '';
     $sshKey = '';
     $sshUser = '';
     $sshPassword = '';
-    if ($cpSshMode === '__inline__') {
+    if ($cpSshMode === '__inline__' || $cpSshMode === '') {
         if (isset($_FILES['cp_ssh_key_file']) && $_FILES['cp_ssh_key_file']['error'] === UPLOAD_ERR_OK) {
             $sshKey = (string) file_get_contents($_FILES['cp_ssh_key_file']['tmp_name']);
         }
         $sshUser = trim((string) ($_POST['cp_ssh_user'] ?? ''));
         $sshPassword = (string) ($_POST['cp_ssh_password'] ?? '');
+    } else {
+        $sshProfileRef = $cpSshMode;
     }
     $cpType   = $_POST['cp_type'] ?? 'generic-ssh';
     $cpKind   = strpos($cpType, 'generic') === 0 ? 'generic' : 'device';
@@ -70,7 +78,7 @@ function do_create_profile(&$profileMessage, &$profiles) {
         'ssh_user'       => $sshUser,
         'ssh_password'   => $sshPassword,
         'ssh_key'        => $sshKey,
-    ]);
+    ] + ($sshProfileRef !== '' ? ['ssh_profile_name' => $sshProfileRef] : []));
     list($code, $body) = api_method('POST', SCAN_PROFILES_ENDPOINT, $payload);
     if ($code === 201) {
         $resp = json_decode($body, true) ?: [];
@@ -317,15 +325,23 @@ function scan_profiles_create_panel_html($profiles = [], $osTypes = []) {
                     </select>
                 </label><br>
                 <p style="margin:6px 0; color:#555;"><em>Profile-wide SSH credentials</em> &mdash;
-                    two options:
-                    <strong>(use shared)</strong> = no credentials at the profile level
-                    (set them later, or rely on per-row inline / generic references),
-                    <strong>(inline custom)</strong> = write the profile's credentials here.</p>
+                    pick a saved <em>generic</em> profile from the dropdown to reuse its
+                    credentials, or stay on <strong>(inline custom)</strong> to write the
+                    profile's credentials here.</p>
                 <select name="cp_ssh_profile" id="cp-ssh-profile" style="min-width:240px;">
-                    <option value="">&mdash; (use shared) &mdash;</option>
-                    <option value="__inline__">&mdash; (inline custom) &mdash;</option>
+                    <option value="__inline__" selected>&mdash; (inline custom) &mdash;</option>
+                    <?php foreach ($profiles as $p):
+                        $pk = ($p['kind'] ?? '') !== '' ? $p['kind'] : 'device';
+                        $src = ($p['scan_source'] ?? '');
+                        // Reference must point at a generic SSH profile.
+                        if ($pk !== 'generic' || $src !== 'ssh') continue;
+                        $pName = (string) ($p['name'] ?? '');
+                        if ($pName === '') continue;
+                    ?>
+                        <option value="<?= htmlspecialchars($pName) ?>"><?= htmlspecialchars($pName) ?> (generic)</option>
+                    <?php endforeach; ?>
                 </select>
-                <div id="cp-ssh-inline" style="display:none; margin-top:6px; padding:6px; background:#f6f8fa; border:1px solid #ddd;">
+                <div id="cp-ssh-inline" style="margin-top:6px; padding:6px; background:#f6f8fa; border:1px solid #ddd;">
                     <label>SSH user: <input type="text" name="cp_ssh_user"></label><br>
                     <label>SSH password: <input type="password" name="cp_ssh_password"></label><br>
                     <label>SSH private key file: <input type="file" name="cp_ssh_key_file"></label><br>

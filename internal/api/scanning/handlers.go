@@ -487,8 +487,17 @@ type scanProfileRequest struct {
 	SSHKeyFile        string `json:"ssh_key_file"`
 	SSHKey            string `json:"ssh_key"` // PEM private-key content (uploaded)
 	SSHPort           int    `json:"ssh_port"`
+	// SSHProfileName — when set, the handler copies the SSH creds (user +
+	// encrypted password + encrypted key) from the named generic profile
+	// into this profile. The ScanProfile entity doesn't store the reference
+	// itself; it's resolved at write time and the resolved creds are
+	// persisted. Reuses the same semantics as the per-row
+	// ProfileDevice.SSHProfileName.
+	SSHProfileName    string `json:"ssh_profile_name,omitempty"`
 	DiscrepancyAction string `json:"discrepancy_action"`
+
 	MergeConfigs      bool   `json:"merge_configs"`
+
 	ConfigTimeout     int    `json:"config_timeout"`
 	VLANAccuracy      int    `json:"vlan_accuracy"`
 
@@ -617,6 +626,35 @@ func ScanProfilesHandler(service q.NetServiceInt) http.HandlerFunc {
 				w.WriteHeader(http.StatusBadRequest)
 				json.NewEncoder(w).Encode(ErrorResponse{Error: "invalid_profile", Message: err.Error()})
 				return
+			}
+			// When the request names a generic SSH profile, copy the SSH creds
+			// (user + encrypted password + encrypted key + key file) from
+			// that profile into this one. Reuses the same name as the per-row
+			// ProfileDevice.SSHProfileName so the UI pattern stays consistent.
+			if req.SSHProfileName != "" {
+				ref, err := service.GetScanProfileByName(req.SSHProfileName)
+				if err != nil || ref == nil {
+					w.WriteHeader(http.StatusBadRequest)
+					json.NewEncoder(w).Encode(ErrorResponse{Error: "ssh_profile_not_found", Message: fmt.Sprintf("no SSH profile named %q", req.SSHProfileName)})
+					return
+				}
+				if ref.Kind != "generic" {
+					w.WriteHeader(http.StatusBadRequest)
+					json.NewEncoder(w).Encode(ErrorResponse{Error: "ssh_profile_not_generic", Message: fmt.Sprintf("profile %q is not a generic profile", req.SSHProfileName)})
+					return
+				}
+				if p.SSHUser == "" {
+					p.SSHUser = ref.SSHUser
+				}
+				if p.SSHPassword == "" {
+					p.SSHPassword = ref.SSHPassword
+				}
+				if p.SSHKey == "" {
+					p.SSHKey = ref.SSHKey
+				}
+				if p.SSHKeyFile == "" {
+					p.SSHKeyFile = ref.SSHKeyFile
+				}
 			}
 			if r.Method == http.MethodPut {
 				// Preserve existing encrypted secrets on metadata-only updates.
