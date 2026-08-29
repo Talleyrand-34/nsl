@@ -44,18 +44,16 @@ $pf = [
     'snmp_port'    => '161',
 ];
 
-// Saved profiles for the dropdowns — loaded lazily on form-related posts.
+// Saved profiles for the dropdowns — fetched on every request so the
+// Profile picker in the Live scan panel is populated on a fresh POST.
 $profiles = [];
-if ($_SERVER['REQUEST_METHOD'] === 'GET'
-    || isset($_POST['do_create_profile'])
-    || isset($_POST['do_delete_profile'])
-    || isset($_POST['do_load_profile'])) {
-    $raw = @file_get_contents(SCAN_PROFILES_ENDPOINT);
-    $profiles = json_decode($raw, true) ?: [];
-}
+$raw = @file_get_contents(SCAN_PROFILES_ENDPOINT);
+$profiles = json_decode($raw, true) ?: [];
 if (!is_array($profiles)) {
     $profiles = [];
 }
+
+
 $genericProfiles = array_values(array_filter(
     $profiles,
     fn($p) => ($p['kind'] ?? '') === 'generic',
