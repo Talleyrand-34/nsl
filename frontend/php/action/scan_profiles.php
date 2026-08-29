@@ -15,9 +15,22 @@ function do_create_profile(&$profileMessage, &$profiles) {
         $profileMessage = 'Enter a profile name.';
         return;
     }
+    // Profile-level SSH mode:
+    //   empty / unset → (use shared) — no creds at the profile level
+    //   '__inline__'  → read cp_ssh_user / cp_ssh_password / cp_ssh_key_file
+    //   any other non-empty string is reserved for a future generic-profile
+    //   reference (the ScanProfile entity doesn't carry an ssh_profile_name
+    //   field today, so the reference is currently ignored).
+    $cpSshMode = trim((string) ($_POST['cp_ssh_profile'] ?? ''));
     $sshKey = '';
-    if (isset($_FILES['cp_ssh_key_file']) && $_FILES['cp_ssh_key_file']['error'] === UPLOAD_ERR_OK) {
-        $sshKey = (string) file_get_contents($_FILES['cp_ssh_key_file']['tmp_name']);
+    $sshUser = '';
+    $sshPassword = '';
+    if ($cpSshMode === '__inline__') {
+        if (isset($_FILES['cp_ssh_key_file']) && $_FILES['cp_ssh_key_file']['error'] === UPLOAD_ERR_OK) {
+            $sshKey = (string) file_get_contents($_FILES['cp_ssh_key_file']['tmp_name']);
+        }
+        $sshUser = trim((string) ($_POST['cp_ssh_user'] ?? ''));
+        $sshPassword = (string) ($_POST['cp_ssh_password'] ?? '');
     }
     $cpType   = $_POST['cp_type'] ?? 'generic-ssh';
     $cpKind   = strpos($cpType, 'generic') === 0 ? 'generic' : 'device';
@@ -54,8 +67,8 @@ function do_create_profile(&$profileMessage, &$profiles) {
         'snmp_port'      => intval($_POST['cp_port'] ?? 161),
         'scan_source'    => $cpSource,
         'os_type'        => trim($_POST['cp_os_type'] ?? ''),
-        'ssh_user'       => trim($_POST['cp_ssh_user'] ?? ''),
-        'ssh_password'   => $_POST['cp_ssh_password'] ?? '',
+        'ssh_user'       => $sshUser,
+        'ssh_password'   => $sshPassword,
         'ssh_key'        => $sshKey,
     ]);
     list($code, $body) = api_method('POST', SCAN_PROFILES_ENDPOINT, $payload);
@@ -303,11 +316,20 @@ function scan_profiles_create_panel_html($profiles = [], $osTypes = []) {
                         <?php endforeach; ?>
                     </select>
                 </label><br>
-                <p style="margin:6px 0; color:#555;"><em>Profile-wide SSH credentials (used by any row whose SSH override is &quot;(use shared)&quot;):</em></p>
-                <label>SSH user: <input type="text" name="cp_ssh_user"></label><br>
-                <label>SSH password: <input type="password" name="cp_ssh_password"></label><br>
-                <label>SSH private key file: <input type="file" name="cp_ssh_key_file"></label><br>
-            </div>
+                <p style="margin:6px 0; color:#555;"><em>Profile-wide SSH credentials</em> &mdash;
+                    two options:
+                    <strong>(use shared)</strong> = no credentials at the profile level
+                    (set them later, or rely on per-row inline / generic references),
+                    <strong>(inline custom)</strong> = write the profile's credentials here.</p>
+                <select name="cp_ssh_profile" id="cp-ssh-profile" style="min-width:240px;">
+                    <option value="">&mdash; (use shared) &mdash;</option>
+                    <option value="__inline__">&mdash; (inline custom) &mdash;</option>
+                </select>
+                <div id="cp-ssh-inline" style="display:none; margin-top:6px; padding:6px; background:#f6f8fa; border:1px solid #ddd;">
+                    <label>SSH user: <input type="text" name="cp_ssh_user"></label><br>
+                    <label>SSH password: <input type="password" name="cp_ssh_password"></label><br>
+                    <label>SSH private key file: <input type="file" name="cp_ssh_key_file"></label><br>
+                </div>
             <button type="submit" name="do_create_profile" value="1" style="margin-top:8px;">Create profile</button>
         </form>
         <p style="color:#777; font-size:0.85em;">SSH password and uploaded private key are encrypted by the credential vault (AES-256-GCM); unlock the vault from the app bar before creating an SSH profile, and again whenever an SSH scan uses it.</p>
@@ -400,6 +422,17 @@ function scan_profiles_create_panel_html($profiles = [], $osTypes = []) {
             document.querySelectorAll('.cp-type-btn').forEach(function (b) {
                 b.addEventListener('click', function () { cpApplyType(b.dataset.type); });
             });
+            // Profile-level SSH override (mirrors per-row). Inline block only
+            // shows when the operator picks (inline custom). When the profile
+            // points at a saved generic profile, the row-side creds win.
+            var profileSshSel = document.getElementById('cp-ssh-profile');
+            var profileSshInline = document.getElementById('cp-ssh-inline');
+            function cpUpdateProfileSsh() {
+                if (!profileSshSel || !profileSshInline) return;
+                profileSshInline.style.display = (profileSshSel.value === '__inline__') ? '' : 'none';
+            }
+            if (profileSshSel) profileSshSel.addEventListener('change', cpUpdateProfileSsh);
+            cpUpdateProfileSsh();
             cpApplyType('generic-ssh'); // default
             // Form-level guard: device-* types require at least one host row.
             // Generic types are host-less by design — don't let the browser's
