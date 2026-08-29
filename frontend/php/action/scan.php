@@ -169,11 +169,6 @@ function do_scan(&$scanMessage, &$scanRunId, &$autoReload) {
         'target'       => $target,
         'community'    => $f['community'],
         'snmp_version' => $f['snmp_version'],
-        'snmp_port'    => intval($f['snmp_port']),
-        'profile'      => $profileName,
-        'os_type'      => $osType,
-        'ssh_user'     => $sshUser,
-        'ssh_password' => $sshPass,
         'ssh_key'      => $sshKey,
     ];
     list($code, $body, $err) = api_post_json(SCAN_RUN_ENDPOINT, json_encode($payload));
@@ -240,9 +235,80 @@ function do_scan_completed(&$discovered, &$scanMessage, &$plan, &$importedIPs, &
     return false;
 }
 
+// --- analyze / execute handlers --------------------------------------------
+// Phase 5 follow-up: do_analyze + do_execute were lost when scan_devices.php
+// was deleted during the Phase 1 refactor. Restored here so the discovered-
+// devices table's "Configure & import" button and the plan-review "Import
+// device" button work again.
+
+// analyze_device POSTs a discovered device to /scan/analyze and returns the
+// resulting import plan. Used by do_analyze below.
+function analyze_device($device, &$err) {
+    list($code, $body) = api_post_json(SCAN_ANALYZE_ENDPOINT, json_encode(['device' => $device]));
+    if ($code === 200) {
+        return json_decode($body, true);
+    }
+    $err = 'Analyze failed (HTTP ' . intval($code) . '): ' . $body;
+    return null;
+}
+
+function do_analyze(&$plan, &$scanMessage) {
+    $device = json_decode($_POST['device_json'] ?? 'null', true);
+    if ($device) {
+        $plan = analyze_device($device, $scanMessage);
+    } else {
+        $scanMessage = 'Invalid device payload.';
+    }
+}
+
+function do_execute(&$plan, &$importMessage, &$importedIPs) {
+    $editedPlan = json_decode($_POST['plan_json'] ?? 'null', true);
+    if (!$editedPlan) {
+        $importMessage = 'Invalid plan.';
+        return;
+    }
+    $vl = $_POST['vlan'] ?? [];
+    $sn = $_POST['subnet'] ?? [];
+    if (isset($editedPlan['interface_plans']) && is_array($editedPlan['interface_plans'])) {
+        foreach ($editedPlan['interface_plans'] as $i => &$ipl) {
+            if (!isset($ipl['ip_mappings']) || !is_array($ipl['ip_mappings'])) {
+                continue;
+            }
+            foreach ($ipl['ip_mappings'] as $j => &$m) {
+                if (isset($vl[$i][$j]) && $vl[$i][$j] !== '') {
+                    $m['vlan_number'] = $vl[$i][$j];
+                }
+                if (isset($sn[$i][$j])) {
+                    $m['subnet'] = $sn[$i][$j];
+                }
+            }
+            unset($m);
+        }
+        unset($ipl);
+    }
+    $payload = json_encode(['plan' => $editedPlan, 'options' => ['default_zone' => 'Discovered']]);
+    list($code, $body, $err) = api_post_json(SCAN_EXECUTE_ENDPOINT, $payload);
+    if ($code === 200) {
+        $importMessage = json_decode($body, true)['message'] ?? 'Import completed.';
+        $ip = $editedPlan['device']['device']['ip'] ?? '';
+        if ($ip !== '') {
+            $importedIPs[] = $ip;
+            if (!isset($_SESSION['scan_imported'])) {
+                $_SESSION['scan_imported'] = [];
+            }
+            $_SESSION['scan_imported'] = array_values(array_unique(
+                array_merge($_SESSION['scan_imported'], $importedIPs)
+            ));
+        }
+    } else {
+        $detail = json_decode($body, true)['message'] ?? ($body ?: $err);
+        $importMessage = 'Import failed (HTTP ' . intval($code) . '): ' . htmlspecialchars($detail);
+    }
+}
+
 // --- panels -----------------------------------------------------------------
 
-function scan_live_panel_html($profiles, $scanMessage) {
+ function scan_live_panel_html($profiles, $scanMessage) {
     $f = scan_form_state();
     $curSource = $f['source'];
     $curMethod = $f['method'];
