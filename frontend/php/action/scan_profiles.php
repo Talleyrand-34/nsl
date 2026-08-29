@@ -372,6 +372,7 @@ function scan_profiles_create_panel_html($profiles = []) {
             }
             document.querySelectorAll('.cp-type-btn').forEach(function (b) {
                 b.addEventListener('click', function () { cpApplyType(b.dataset.type); });
+            });
             cpApplyType('generic-ssh'); // default
         })();
         </script>
