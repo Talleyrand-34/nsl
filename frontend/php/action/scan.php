@@ -550,9 +550,11 @@ function scan_devices_discovered_panel_html($discovered, $importedIPs) {
     ob_start();
     ?>
     <h4>Discovered devices (<span class="discovered-total"><?= count($discovered) ?></span> total, <span class="discovered-pending"><?= $pending ?></span> pending)</h4>
+    <p style="margin:4px 0; color:#777; font-size:0.85em;">
+        <button type="button" id="cp-clear-queue" style="font-size:0.85em;">Reset queue + tombstones</button>
+        <span>Clears the browser-side pending queue and the per-IP delete tombstones so a fresh scan repopulates the table.</span>
     <table border="1" cellpadding="4" cellspacing="0" class="discovered-devices">
         <thead><tr><th>Status</th><th>Name</th><th>IP</th><th>Brand</th><th>Model</th><th>Class</th><th></th></tr></thead>
-        <tbody>
             <?php if (empty($discovered)): ?>
                 <tr><td colspan="7" style="color:#777; text-align:center;">No pending devices. Run a scan from the Live scan panel to populate the queue.</td></tr>
             <?php else: ?>
@@ -605,11 +607,17 @@ function scan_devices_discovered_panel_html($discovered, $importedIPs) {
         } else {
             init();
         }
-    })();
-    </script>
-    <?php
-    return ob_get_clean();
-}
+        // Reset button: clears the browser-side queue + tombstones and
+        // re-runs the init so a fresh scan repopulates the table.
+        var resetBtn = document.getElementById('cp-clear-queue');
+        if (resetBtn) resetBtn.addEventListener('click', function () {
+            if (window.nslPD) {
+                if (window.nslPD.clearTombstones) window.nslPD.clearTombstones();
+                try { localStorage.removeItem(window.nslPD.KEY_QUEUE); } catch (e) {}
+            }
+            init();
+        });
+     })();
 
 function scan_devices_plan_panel_html($plan) {
     if ($plan === null) {
