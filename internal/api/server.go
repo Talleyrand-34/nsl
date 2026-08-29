@@ -36,6 +36,7 @@ import (
 	"nsl-graph/internal/api/devices"
 	"nsl-graph/internal/api/scanning"
 	"nsl-graph/internal/api/vlans"
+	pushapi "nsl-graph/internal/api/push"
 	"nsl-graph/internal/observ"
 )
 
@@ -104,11 +105,14 @@ func registerAllRoutes(r *mux.Router, service q.NetServiceInt) {
 	// Connection-related routes
 	connections.RegisterRoutes(r, service)
 
-	// VLAN-related routes
-	vlans.RegisterRoutes(r, service)
+// VLAN-related routes
+vlans.RegisterRoutes(r, service)
 
-	// Network scanning routes
-	registerScanningRoutes(r, service)
+// Network scanning routes
+registerScanningRoutes(r, service)
+
+	// Push config routes (preview, apply, rollback, history, topology).
+	pushapi.Register(r, service)
 }
 
 // registerScanningRoutes registers network scanning endpoints
