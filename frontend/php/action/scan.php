@@ -47,7 +47,17 @@ function scan_form_state() {
 function do_scan(&$scanMessage, &$scanRunId, &$autoReload) {
     $f = scan_form_state();
     $source = $f['source'];
-    $method = $f['method'];
+
+    // Method + credentials are only meaningful for free-form target. For
+    // profile + db the backend reads creds from the store; ignore any
+    // method / cred fields the form might still post.
+    if ($source === 'profile') {
+        $method = 'ssh';
+    } elseif ($source === 'db') {
+        $method = 'snmp';
+    } else {
+        $method = $f['method'];
+    }
 
     // Resolve the target list + profile-supplied credentials.
     $target = '';
@@ -98,11 +108,8 @@ function do_scan(&$scanMessage, &$scanRunId, &$autoReload) {
         }
         // Per-row OS overrides: each attached device may carry its own os_type.
         // The backend honours them via perRowOverrideCreds; we just send the
-        // comma-list and the profile name.
-        if ($method !== 'ssh') {
-            $scanMessage = 'Profile-based scans only support SSH (per-row credentials).';
-            return;
-        }
+        // comma-list and the profile name. (Method is forced to ssh above when
+        // source === 'profile'; the backend's runSSHScan iterates per-row.)
     } elseif ($source === 'db') {
         // Connection-only path: every device in the store. The connection
         // scan picks up each device's stored profile for creds.
@@ -302,7 +309,8 @@ function scan_live_panel_html($profiles, $scanMessage) {
                 </div>
             </fieldset>
 
-            <fieldset style="border:1px solid #ddd; padding:6px 10px; margin:0 0 10px 0;">
+            <fieldset id="scan-method" style="border:1px solid #ddd; padding:6px 10px; margin:0 0 10px 0;
+                                          <?= $curSource==='target'?'':'display:none;' ?>">
                 <legend>Method</legend>
                 <label>
                     <input type="radio" name="scan_method" value="snmp" <?= $curMethod==='snmp'?'checked':'' ?>>
@@ -341,33 +349,31 @@ function scan_live_panel_html($profiles, $scanMessage) {
                 </div>
             </fieldset>
 
-            <fieldset id="scan-creds" style="border:1px solid #ddd; padding:6px 10px; margin:0 0 10px 0;">
+            <fieldset id="scan-creds" style="border:1px solid #ddd; padding:6px 10px; margin:0 0 10px 0;
+                                          <?= $curSource==='target'?'':'display:none;' ?>">
                 <legend>Credentials <span style="color:#777; font-weight:normal; font-size:0.85em;">
-                    (read-only when source = Profile)</span></legend>
+                    (only shown for free-form target)</span></legend>
                 <label>SSH user:
-                    <input type="text" name="ssh_user" id="scan-ssh-user" value="<?= htmlspecialchars($f['ssh_user']) ?>"
-                           <?= $curSource==='profile'?'disabled':'' ?>>
+                    <input type="text" name="ssh_user" id="scan-ssh-user" value="<?= htmlspecialchars($f['ssh_user']) ?>">
                 </label><br>
                 <label>SSH password:
                     <input type="password" name="ssh_password" id="scan-ssh-password"
-                           value="<?= htmlspecialchars($f['ssh_password']) ?>"
-                           <?= $curSource==='profile'?'disabled':'' ?>>
+                           value="<?= htmlspecialchars($f['ssh_password']) ?>">
                 </label><br>
                 <label>SSH private key file:
                     <input type="text" name="ssh_key_file" id="scan-ssh-key-file"
                            value="<?= htmlspecialchars($f['ssh_key_file']) ?>"
-                           placeholder="/home/.../.ssh/id_ed25519"
-                           <?= $curSource==='profile'?'disabled':'' ?>>
+                           placeholder="/home/.../.ssh/id_ed25519">
                 </label><br>
                 <label>OpenSSH config (upload):
-                    <input type="file" name="ssh_config" <?= $curSource==='profile'?'disabled':'' ?>>
+                    <input type="file" name="ssh_config">
                 </label><br>
                 <label>SSH key files referenced by the config (multiple):
-                    <input type="file" name="ssh_keys[]" multiple <?= $curSource==='profile'?'disabled':'' ?>>
+                    <input type="file" name="ssh_keys[]" multiple>
                 </label>
                 <p style="color:#777; font-size:0.85em;">
-                    Profile source pulls encrypted creds from the vault; free-form /
-                    DB-only source lets you supply ad-hoc creds or upload keys.
+                    Free-form target lets you supply ad-hoc creds or upload keys; Profile
+                    and DB-only modes read creds from the store.
                 </p>
             </fieldset>
 
@@ -406,23 +412,24 @@ function scan_live_panel_html($profiles, $scanMessage) {
         <script>
         (function () {
             function toggle(method, source) {
-                var snmp = document.getElementById('scan-snmp-fields');
-                var ssh  = document.getElementById('scan-ssh-fields');
-                if (snmp) snmp.style.display = (method === 'snmp') ? '' : 'none';
-                if (ssh)  ssh.style.display  = (method === 'ssh')  ? '' : 'none';
+                // Source-specific blocks.
                 var sp = document.getElementById('scan-source-profile');
                 var st = document.getElementById('scan-source-target');
                 var sd = document.getElementById('scan-source-db');
                 if (sp) sp.style.display = (source === 'profile') ? '' : 'none';
                 if (st) st.style.display = (source === 'target')  ? '' : 'none';
                 if (sd) sd.style.display = (source === 'db')     ? '' : 'none';
-                var creds = document.getElementById('scan-creds');
-                if (creds) {
-                    var disable = (source === 'profile');
-                    creds.querySelectorAll('input').forEach(function (inp) {
-                        inp.disabled = disable;
-                    });
-                }
+                // Method + credentials blocks only appear for free-form target.
+                var method = document.getElementById('scan-method');
+                var creds  = document.getElementById('scan-creds');
+                var showTargetFields = (source === 'target');
+                if (method) method.style.display = showTargetFields ? '' : 'none';
+                if (creds)  creds.style.display  = showTargetFields ? '' : 'none';
+                // Inside method: which sub-fields depending on the chosen method.
+                var snmp = document.getElementById('scan-snmp-fields');
+                var ssh  = document.getElementById('scan-ssh-fields');
+                if (snmp) snmp.style.display = (method === 'snmp') ? '' : 'none';
+                if (ssh)  ssh.style.display  = (method === 'ssh')  ? '' : 'none';
             }
             window.scanSourceToggle = function () {
                 var src = 'target';
