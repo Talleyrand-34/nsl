@@ -62,6 +62,21 @@ $genericProfiles = array_values(array_filter(
     fn($p) => ($p['kind'] ?? '') === 'generic',
 ));
 
+
+// Available OS / firmware types for the profile-level OS dropdown and the
+// per-device OS override dropdown. Loaded alongside $profiles because the
+// panel renders both. The catalogue is small (~6 entries) so the request is
+// cheap; if it ever grows, move to a lazy fetch on accordion open.
+$osTypes = [];
+if ($_SERVER['REQUEST_METHOD'] === 'GET'
+    || isset($_POST['do_create_profile'])) {
+    $raw = @file_get_contents(OSTYPES_ENDPOINT);
+    $osTypes = json_decode($raw, true) ?: [];
+}
+if (!is_array($osTypes)) {
+    $osTypes = [];
+}
+
 // Profile-loader overwrites $pf when the operator clicks Load.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_load_profile'])) {
     do_load_profile($profileMessage, $profiles, $pf);
@@ -151,7 +166,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
     <section class="accordion-card" data-accordion="import-actions">
       <h3 class="accordion-header"><button type="button" class="accordion-toggle" aria-expanded="false">+ Create a new profile</button></h3>
       <div class="accordion-body">
-        <?= scan_profiles_create_panel_html($profiles) ?>
+        <?= scan_profiles_create_panel_html($profiles, $osTypes) ?>
       </div>
     </section>
 

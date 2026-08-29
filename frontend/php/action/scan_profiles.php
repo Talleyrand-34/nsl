@@ -29,8 +29,10 @@ function do_create_profile(&$profileMessage, &$profiles) {
     // backwards compatibility with code paths that auto-match by host.
     $deviceHosts = $_POST['cp_device_hosts'] ?? [];
     $deviceProfiles = $_POST['cp_device_ssh_profiles'] ?? [];
-    if (!is_array($deviceHosts)) $deviceHosts = [];
-    if (!is_array($deviceProfiles)) $deviceProfiles = [];
+    $deviceOsTypes = $_POST['cp_device_os_types'] ?? [];
+    if (!is_array($deviceHosts))      $deviceHosts      = [];
+    if (!is_array($deviceProfiles))  $deviceProfiles   = [];
+    if (!is_array($deviceOsTypes))   $deviceOsTypes    = [];
     $legacyHost = trim($_POST['cp_host'] ?? '');
     $firstHost = '';
     if ($cpKind === 'device') {
@@ -74,58 +76,60 @@ function do_create_profile(&$profileMessage, &$profiles) {
         if ($cpKind === 'device') {
             $deviceErrors = [];
             $attached = 0;
-        // carry their own credentials / config text / SSH key file. Empty rows
-        // are skipped silently.
-        $inlineUser        = $_POST['cp_device_inline_user']         ?? [];
-        $inlinePassword    = $_POST['cp_device_inline_password']     ?? [];
-        $inlineKeyFilename = $_POST['cp_device_inline_key_filename'] ?? [];
-        $inlineConfigText  = $_POST['cp_device_inline_config_text']  ?? [];
-        foreach ($deviceHosts as $i => $h) {
-            $h = trim((string) $h);
-            if ($h === '') continue;
-            $sshProfile = '';
-            $devPayload = ['host' => $h];
-            $override = isset($deviceProfiles[$i]) ? (string) $deviceProfiles[$i] : '';
-            if ($override === '__inline__') {
-                // Inline custom: read per-row fields, encrypt the uploaded key.
-                $inlineKey = '';
-                $inlineKeyName = trim((string) ($inlineKeyFilename[$i] ?? ''));
-                if (isset($_FILES['cp_device_inline_key']['error'][$i])
-                    && $_FILES['cp_device_inline_key']['error'][$i] === UPLOAD_ERR_OK) {
-                    $tmp = $_FILES['cp_device_inline_key']['tmp_name'][$i];
-                    $inlineKey = (string) file_get_contents($tmp);
-                    if ($inlineKeyName === '') {
-                        $inlineKeyName = (string) ($_FILES['cp_device_inline_key']['name'][$i] ?? '');
-                    }
+            // Per-row fields. Empty rows are skipped silently.
+            $inlineUser        = $_POST['cp_device_inline_user']         ?? [];
+            $inlinePassword    = $_POST['cp_device_inline_password']     ?? [];
+            $inlineKeyFilename = $_POST['cp_device_inline_key_filename'] ?? [];
+            $inlineConfigText  = $_POST['cp_device_inline_config_text']  ?? [];
+            foreach ($deviceHosts as $i => $h) {
+                $h = trim((string) $h);
+                if ($h === '') continue;
+                $override = isset($deviceProfiles[$i]) ? (string) $deviceProfiles[$i] : '';
+                // Per-row OS override wins over the profile's os_type when set.
+                $rowOs = trim((string) ($deviceOsTypes[$i] ?? ''));
+                $devPayload = ['host' => $h];
+                if ($rowOs !== '') {
+                    $devPayload['os_type'] = $rowOs;
                 }
-                $devPayload = [
-                    'host'             => $h,
-                    'ssh_profile_name' => '', // explicit: no override profile
-                    'ssh_user'         => trim((string) ($inlineUser[$i] ?? '')),
-                    'ssh_password'     => (string) ($inlinePassword[$i] ?? ''),
-                    'ssh_key'          => $inlineKey,
-                    'ssh_key_filename' => $inlineKeyName,
-                    'ssh_config_text'  => (string) ($inlineConfigText[$i] ?? ''),
-                ];
-            } elseif ($override !== '') {
-                // Saved generic profile: reference by name.
-                $sshProfile = trim($override);
-                $devPayload['ssh_profile_name'] = $sshProfile;
+                if ($override === '__inline__') {
+                    // Inline custom: read per-row fields, encrypt the uploaded key.
+                    $inlineKey = '';
+                    $inlineKeyName = trim((string) ($inlineKeyFilename[$i] ?? ''));
+                    if (isset($_FILES['cp_device_inline_key']['error'][$i])
+                        && $_FILES['cp_device_inline_key']['error'][$i] === UPLOAD_ERR_OK) {
+                        $tmp = $_FILES['cp_device_inline_key']['tmp_name'][$i];
+                        $inlineKey = (string) file_get_contents($tmp);
+                        if ($inlineKeyName === '') {
+                            $inlineKeyName = (string) ($_FILES['cp_device_inline_key']['name'][$i] ?? '');
+                        }
+                    }
+                    $devPayload = [
+                        'host'             => $h,
+                        'ssh_profile_name' => '', // explicit: no override profile
+                        'ssh_user'         => trim((string) ($inlineUser[$i] ?? '')),
+                        'ssh_password'     => (string) ($inlinePassword[$i] ?? ''),
+                        'ssh_key'          => $inlineKey,
+                        'ssh_key_filename' => $inlineKeyName,
+                        'ssh_config_text'  => (string) ($inlineConfigText[$i] ?? ''),
+                    ];
+                } elseif ($override !== '') {
+                    // Saved generic profile: reference by name.
+                    $devPayload['ssh_profile_name'] = trim($override);
+                }
+                $payloadJson = json_encode($devPayload);
+                list($dcode, $dbody) = api_method(
+                    'POST',
+                    SCAN_PROFILES_ENDPOINT . '/' . urlencode($name) . '/devices',
+                    $payloadJson
+                );
+                if ($dcode === 201) {
+                    $attached++;
+                } else {
+                    $err = json_decode($dbody, true);
+                    $deviceErrors[] = $h . ': ' . htmlspecialchars($err['message'] ?? $dbody);
+                }
             }
-            $payloadJson = json_encode($devPayload);
-            list($dcode, $dbody) = api_method(
-                'POST',
-                SCAN_PROFILES_ENDPOINT . '/' . urlencode($name) . '/devices',
-                $payloadJson
-            );
-            if ($dcode === 201) {
-                $attached++;
-            } else {
-                $err = json_decode($dbody, true);
-                $deviceErrors[] = $h . ': ' . htmlspecialchars($err['message'] ?? $dbody);
-            }
-                $profileMessage .= " Attached {$attached} device" . ($attached === 1 ? '' : 's') . '.';
-            }
+            $profileMessage .= " Attached {$attached} device" . ($attached === 1 ? '' : 's') . '.';
             if (count($deviceErrors) > 0) {
                 $profileMessage .= ' Device errors: ' . implode('; ', $deviceErrors) . '.';
             }
@@ -198,7 +202,7 @@ function scan_profiles_saved_panel_html($profiles) {
     return ob_get_clean();
 }
 
-function scan_profiles_create_panel_html($profiles = []) {
+function scan_profiles_create_panel_html($profiles = [], $osTypes = []) {
     ob_start();
     ?>
     <!-- Create-profile box -->
@@ -228,6 +232,7 @@ function scan_profiles_create_panel_html($profiles = []) {
                     <thead>
                         <tr style="font-size:0.85em; color:#555;">
                             <th align="left">Host</th>
+                            <th align="left">OS</th>
                             <th align="left" class="cp-ssh-col">SSH override</th>
                             <th></th>
                         </tr>
@@ -235,6 +240,17 @@ function scan_profiles_create_panel_html($profiles = []) {
                     <tbody id="cp_devices_tbody">
                         <tr class="cp-device-row" data-inline="0">
                             <td><input type="text" name="cp_device_hosts[]" placeholder="10.0.0.10"></td>
+                            <td>
+                                <select name="cp_device_os_types[]" class="cp-row-os">
+                                    <option value="">&mdash; (default) &mdash;</option>
+                                    <?php foreach ($osTypes as $ot):
+                                        $otName = htmlspecialchars((string) ($ot['name'] ?? ''));
+                                        if ($otName === '') continue;
+                                    ?>
+                                        <option value="<?= $otName ?>"><?= $otName ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </td>
                             <td class="cp-ssh-col">
                                 <select name="cp_device_ssh_profiles[]" class="cp-row-override">
                                     <option value="">&mdash; (use shared) &mdash;</option>
@@ -277,7 +293,15 @@ function scan_profiles_create_panel_html($profiles = []) {
             <!-- SSH config + credentials: SSH profiles only. -->
             <div class="cp-grp" data-show="device-ssh generic-ssh">
                 <label>OS / firmware type <small>(operating system for config parsing — not the hardware model; optional for generic)</small>:
-                    <input type="text" name="cp_os_type" placeholder="opnsense / openwrt / fortinet" size="20">
+                    <select name="cp_os_type">
+                        <option value="">&mdash; (use profile default) &mdash;</option>
+                        <?php foreach ($osTypes as $ot):
+                            $otName = htmlspecialchars((string) ($ot['name'] ?? ''));
+                            if ($otName === '') continue;
+                        ?>
+                            <option value="<?= $otName ?>"><?= $otName ?></option>
+                        <?php endforeach; ?>
+                    </select>
                 </label><br>
                 <p style="margin:6px 0; color:#555;"><em>Profile-wide SSH credentials (used by any row whose SSH override is &quot;(use shared)&quot;):</em></p>
                 <label>SSH user: <input type="text" name="cp_ssh_user"></label><br>
@@ -329,6 +353,9 @@ function scan_profiles_create_panel_html($profiles = []) {
                 if (hostInput) hostInput.value = '';
                 var sel = row.querySelector('select[name="cp_device_ssh_profiles[]"]');
                 if (sel) sel.selectedIndex = 0;
+                // Per-row OS override also resets to "(default)".
+                var osSel = row.querySelector('select[name="cp_device_os_types[]"]');
+                if (osSel) osSel.selectedIndex = 0;
                 // Clear inline fields on the cloned row.
                 row.querySelectorAll('input[type="text"], input[type="password"], textarea').forEach(function (inp) {
                     inp.value = '';
