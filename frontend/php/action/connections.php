@@ -4,38 +4,7 @@ require_once __DIR__ . '/../config.php';
 // Connection discovery can scan many hosts; don't let PHP kill the request.
 @set_time_limit(300);
 
-/** api_post_json POSTs a JSON string; returns [httpCode, body, curlError]. */
-if (!function_exists('api_post_json_conn')) {
-    function api_post_json_conn($url, $jsonBody, $timeoutSec = 280) {
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonBody);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, $timeoutSec);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Content-Type: application/json',
-            'Content-Length: ' . strlen($jsonBody),
-        ]);
-        $body = curl_exec($ch);
-        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $err  = curl_error($ch);
-        curl_close($ch);
-        return [$code, $body, $err];
-    }
-}
-
-/** api_get_conn GETs a URL; returns [httpCode, body]. */
-if (!function_exists('api_get_conn')) {
-    function api_get_conn($url, $timeoutSec = 15) {
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, $timeoutSec);
-        $body = curl_exec($ch);
-        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-        return [$code, $body];
-    }
-}
+require_once __DIR__ . '/import_common.php';
 
 /** edge_mark mirrors the CLI: confirmed/candidate/weak, else possible/unresolved. */
 function edge_mark($e) {
@@ -346,7 +315,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_scan'])) {
         ];
         // The scan runs async now: this returns a scan_id immediately and the
         // live panel polls /scan/status, reloading with ?scan_id= when complete.
-        list($code, $body, $err) = api_post_json_conn(SCAN_CONNECTIONS_ENDPOINT, json_encode($opts), 30);
+        list($code, $body, $err) = api_post_json(SCAN_CONNECTIONS_ENDPOINT, json_encode($opts), 30);
         $j = json_decode($body, true);
         if (($code === 202 || $code === 200) && !empty($j['scan_id'])) {
             $scanRunId = $j['scan_id'];
@@ -391,7 +360,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_import'])) {
         if (edge_importable($edge)) $toImport[] = $edge;
     }
     if ($toImport) {
-        list($code, $body) = api_post_json_conn(SCAN_CONNECTIONS_IMPORT_ENDPOINT, json_encode(['edges' => $toImport]));
+        list($code, $body) = api_post_json(SCAN_CONNECTIONS_IMPORT_ENDPOINT, json_encode(['edges' => $toImport]));
         $resp = json_decode($body, true);
         $importMessage = 'Imported ' . intval($resp['imported'] ?? 0) . ' connection(s).'
             . (!empty($resp['message']) ? ' Note: ' . htmlspecialchars($resp['message']) : '');
@@ -415,7 +384,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_import'])) {
             $im['seen_by'] = array_values(array_unique($endpoints));
             $interPayload[] = $im;
         }
-        list($pc, $pb) = api_post_json_conn(SCAN_CONNECTIONS_PLACEHOLDERS_ENDPOINT, json_encode(['intermediaries' => $interPayload]));
+        list($pc, $pb) = api_post_json(SCAN_CONNECTIONS_PLACEHOLDERS_ENDPOINT, json_encode(['intermediaries' => $interPayload]));
         $presp = json_decode($pb, true);
         $importMessage .= ($importMessage ? ' ' : '') . 'Placeholder "' . htmlspecialchars($presp['device'] ?? '?') . '": '
             . intval($presp['connections'] ?? 0) . ' connection(s).'
@@ -438,7 +407,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_placeholders'])) {
         if (isset($inter[$i])) $toCreate[] = $inter[$i];
     }
     if ($toCreate) {
-        list($code, $body) = api_post_json_conn(SCAN_CONNECTIONS_PLACEHOLDERS_ENDPOINT, json_encode(['intermediaries' => $toCreate]));
+        list($code, $body) = api_post_json(SCAN_CONNECTIONS_PLACEHOLDERS_ENDPOINT, json_encode(['intermediaries' => $toCreate]));
         $resp = json_decode($body, true);
         $importMessage = 'Created placeholder device "' . htmlspecialchars($resp['device'] ?? '?')
             . '" in zone "' . htmlspecialchars($resp['zone'] ?? '?') . '" with '
@@ -473,7 +442,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_assign_profile']))
 
 // --- A started scan finished — fetch its result by id and render -------------
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
-    list($code, $body) = api_get_conn(SCAN_STATUS_ENDPOINT . '?scan_id=' . urlencode($_GET['scan_id']));
+    list($code, $body) = api_get(SCAN_STATUS_ENDPOINT . '?scan_id=' . urlencode($_GET['scan_id']));
     $st = json_decode($body, true);
     $state = is_array($st) ? ($st['state'] ?? '') : '';
     if ($code === 200 && $state === 'completed') {
@@ -563,15 +532,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
     <p style="color:#070; font-weight:bold;"><?= $importMessage ?></p>
 <?php endif; ?>
 
-<?php if ($scanRunId): ?>
-    <div id="scan-status" class="scan-status">
-        <h4><span class="spinner"></span>Discovering connections…</h4>
-        <div class="scan-state" id="scan-state">starting…</div>
-        <div class="scan-bar" id="scan-bar" style="display:none;"><div class="scan-bar-fill" id="scan-bar-fill"></div></div>
-        <div class="scan-events" id="scan-events"></div>
-    </div>
-    <script>nslWatchScan(<?= json_encode($scanRunId) ?>, {});</script>
-<?php endif; ?>
+<?= scan_status_panel_html($scanRunId, '{}', 'Discovering connections…') ?>
 
 <?php if (is_array($result)): ?>
     <?php
@@ -674,7 +635,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
         <?php
             // Render the discovered topology as a D2 diagram by posting the scan
             // result to the diagram endpoint (reuses the standard diagram generator).
-            list($dgCode, $dgSvg) = api_post_json_conn(SCAN_CONNECTIONS_DIAGRAM_ENDPOINT, json_encode($result), 30);
+            list($dgCode, $dgSvg) = api_post_json(SCAN_CONNECTIONS_DIAGRAM_ENDPOINT, json_encode($result), 30);
         ?>
         <?php if ($dgCode === 200 && $dgSvg !== ''): ?>
             <div class="resizable-img-container" style="height:480px; border:1px solid #ddd; overflow:auto;"><?= $dgSvg ?></div>

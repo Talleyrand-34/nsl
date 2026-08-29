@@ -305,3 +305,89 @@ input[type="range"] { width: 100%; }
     display: block;
     object-fit: contain;
 }
+
+/* ---- import.php two-column layout (phase 3) ------------------------------ */
+body.page-import .import-grid {
+    grid-template-columns: minmax(320px, 38%) 1fr;
+    align-items: start;
+    gap: 24px;
+}
+body.page-import .import-actions {
+    padding: 16px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background: #f9f9f9;
+    resize: horizontal;
+    overflow: auto;
+    min-width: 280px;
+    max-width: 80vw;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+body.page-import .import-results {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+}
+
+/* Accordion (phase 3). Click the header to expand a card; the others
+   collapse. Only one card in an `accordion-card` group is open at a time. */
+body.page-import .accordion-card {
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background: #fff;
+}
+body.page-import .accordion-header {
+    margin: 0;
+}
+body.page-import .accordion-toggle {
+    width: 100%;
+    text-align: left;
+    background: #eef;
+    border: 0;
+    padding: 8px 12px;
+    font-size: 1em;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 6px 6px 0 0;
+}
+body.page-import .accordion-toggle:hover {
+    background: #dde;
+}
+body.page-import .accordion-card:not(.is-open) .accordion-toggle {
+    border-radius: 6px;
+}
+body.page-import .accordion-body {
+    padding: 12px;
+}
+body.page-import .accordion-card:not(.is-open) .accordion-body {
+    display: none;
+}
+
+/* Inline form-message flash (phase 3). Replaces the inline style attributes
+   the old code used. */
+body.page-import .flash {
+    margin: 0;
+    padding: 8px 12px;
+    border: 1px solid;
+    border-radius: 4px;
+}
+body.page-import .flash-success { background: #e8f5e9; border-color: #a5d6a7; }
+body.page-import .flash-info    { background: #eef;    border-color: #99c;     }
+
+body.page-import .results-upload {
+    padding: 16px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background: #fafafa;
+}
+body.page-import .results-upload h3 { margin-top: 0; }
+body.page-import .results-upload .hint {
+    margin: 4px 0 8px;
+    color: #666;
+    font-size: 0.9em;
+
+
+}

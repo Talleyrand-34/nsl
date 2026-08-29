@@ -18,7 +18,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['api_base_url'])) {
 $navItems = [
     'main.php'        => 'Dashboard',
     'import.php'      => 'Import devices',
-    'connections.php' => 'Scan connections',
 ];
 $currentPage = basename($_SERVER['PHP_SELF']);
 ?>
