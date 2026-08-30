@@ -85,6 +85,18 @@
     writeJSON(KEY_TOMBSTONES, []);
   }
 
+  // emptyMessage distinguishes "the scan found nothing" from "you deleted
+  // everything it found" — the two look identical otherwise, and the second
+  // reads as a broken page when the activity log says N devices were
+  // discovered. discoveredCount is what the server sent for this run.
+  function emptyMessage(discoveredCount) {
+    if (!discoveredCount) {
+      return 'No pending devices. Run a scan from the Live scan panel to populate the queue.';
+    }
+    return 'All ' + discoveredCount + ' discovered device(s) were deleted from the queue. ' +
+      'Run a new scan to bring them back.';
+  }
+
   // Public surface — exposed on window so the page can wire per-row
   // buttons without an extra round-trip through inline handlers.
   var nslPD = {
@@ -148,6 +160,29 @@
     clear: function () { writeQueue([]); return []; },
     clearTombstones: clearTombstones,
 
+    // removeAllPending drops every not-yet-imported device from the queue at
+    // once — the same thing as clicking Delete on each row, tombstones and
+    // all, so the rows stay gone across reloads of this run but come back on
+    // the next scan. Imported rows are left alone: they are a record of what
+    // was already written to the store, not work still queued.
+    removeAllPending: function (importedIps) {
+      var imported = {};
+      (importedIps || []).forEach(function (ip) { if (ip) imported[ip] = true; });
+      var victims = readQueue().filter(function (d) { return !imported[ipOf(d)]; });
+      if (victims.length === 0) return 0;
+      if (!confirm('Delete all ' + victims.length + ' pending device(s) from the queue?')) {
+        return 0;
+      }
+      victims.forEach(function (d) { nslPD.remove(d); });
+      var body = document.querySelector('table.discovered-devices tbody');
+      if (body) {
+        var served = Array.isArray(window.NSL_PENDING_INITIAL) ? window.NSL_PENDING_INITIAL.length : 0;
+        nslPD.render(body, importedIps || [], emptyMessage(served));
+        nslPD.updateCounts(body);
+      }
+      return victims.length;
+    },
+
     // syncFromServer merges one server-rendered discovery payload into the
     // queue and repaints the table + heading counts. The auto-init below and
     // the "Reset queue + tombstones" button both go through this, so the
@@ -179,15 +214,7 @@
       });
       if (filtered.length) nslPD.addAll(filtered);
 
-      // Distinguish "the scan found nothing" from "you deleted everything it
-      // found" — the two look identical otherwise, and the second one reads as
-      // a broken page when the activity log says N devices were discovered.
-      var empty = list.length
-        ? 'All ' + list.length + ' discovered device(s) are hidden by a Delete. ' +
-          'Use "Reset queue + tombstones" above to bring them back.'
-        : 'No pending devices. Run a scan from the Live scan panel to populate the queue.';
-
-      nslPD.render(body, imported, empty);
+      nslPD.render(body, imported, emptyMessage(list.length));
       nslPD.updateCounts(body);
       return readQueue().length;
     },
@@ -208,7 +235,7 @@
       if (pEl) pEl.textContent = pending;
     },
 
-    render: function (tableBody, importedIps, emptyMessage) {
+    render: function (tableBody, importedIps, emptyText) {
       var list = readQueue();
       var imported = {};
       (importedIps || []).forEach(function (ip) { if (ip) imported[ip] = true; });
@@ -219,8 +246,7 @@
         cell.colSpan = 7;
         cell.style.color = '#777';
         cell.style.textAlign = 'center';
-        cell.textContent = emptyMessage ||
-          'No pending devices. Run a scan from the Live scan panel to populate the queue.';
+        cell.textContent = emptyText || emptyMessage(0);
         row.appendChild(cell);
         tableBody.appendChild(row);
         return list.length;

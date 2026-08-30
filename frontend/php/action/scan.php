@@ -653,8 +653,7 @@ function scan_devices_discovered_panel_html($discovered, $importedIPs) {
     ?>
     <h4>Discovered devices (<span class="discovered-total"><?= count($discovered) ?></span> total, <span class="discovered-pending"><?= $pending ?></span> pending)</h4>
     <p style="margin:4px 0; color:#777; font-size:0.85em;">
-        <button type="button" id="cp-clear-queue" style="font-size:0.85em;">Reset queue + tombstones</button>
-        <span>Clears the browser-side pending queue and the per-IP delete tombstones so a fresh scan repopulates the table.</span>
+        <button type="button" id="cp-delete-all" style="font-size:0.85em;">Delete all pending</button>
     </p>
     <table border="1" cellpadding="4" cellspacing="0" class="discovered-devices">
         <thead><tr><th>Status</th><th>Name</th><th>IP</th><th>Brand</th><th>Model</th><th>Class</th><th></th></tr></thead>
@@ -695,16 +694,10 @@ function scan_devices_discovered_panel_html($discovered, $importedIPs) {
     window.NSL_PENDING_RUN_ID = <?= $runJson ?>;
     (function () {
         function wire() {
-            var resetBtn = document.getElementById('cp-clear-queue');
-            if (!resetBtn || !window.nslPD) return;
-            resetBtn.addEventListener('click', function () {
-                window.nslPD.clearTombstones();
-                window.nslPD.clear();
-                window.nslPD.syncFromServer(
-                    window.NSL_PENDING_INITIAL,
-                    window.NSL_PENDING_IMPORTED_IPS,
-                    window.NSL_PENDING_RUN_ID
-                );
+            var btn = document.getElementById('cp-delete-all');
+            if (!btn || !window.nslPD) return;
+            btn.addEventListener('click', function () {
+                window.nslPD.removeAllPending(window.NSL_PENDING_IMPORTED_IPS);
             });
         }
         if (document.readyState === 'loading') {
