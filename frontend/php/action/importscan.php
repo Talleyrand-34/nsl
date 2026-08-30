@@ -201,3 +201,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
 </div>
 
 <script src="import-accordion.js"></script>
+<script src="pending-devices.js"></script>

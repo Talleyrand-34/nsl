@@ -612,7 +612,6 @@ function scan_devices_discovered_panel_html($discovered, $importedIPs) {
                                 <form method="post" action="import.php" style="margin:0; display:inline;">
                                     <input type="hidden" name="device_json" value="<?= htmlspecialchars(json_encode($d)) ?>">
                                     <button type="submit" name="do_analyze" value="1">Configure &amp; import &rarr;</button>
-                                </form>
                             <?php else: ?>&mdash;<?php endif; ?>
                         </td>
                     </tr>
@@ -658,8 +657,7 @@ function scan_devices_discovered_panel_html($discovered, $importedIPs) {
             }
             init();
         });
-     })();
-    </script>
+
 
     <?php
     return ob_get_clean();
