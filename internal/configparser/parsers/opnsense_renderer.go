@@ -316,6 +316,32 @@ func (r *opnsenseRenderer) fetchObserved(ctx context.Context) (*configparser.Con
 	if err := decodeRoutesInto(routeResp.RawBody, out); err != nil {
 		return nil, fmt.Errorf("decode routes: %w", err)
 	}
+	if ntpResp, err := r.ntp.NTPGet(ctx); err == nil {
+		if err := decodeNTPInto(ntpResp.RawBody, out); err != nil {
+			return nil, fmt.Errorf("decode ntp: %w", err)
+		}
+	}
+	if sysResp, err := r.system.GeneralGet(ctx); err == nil {
+		if err := decodeBannerInto(sysResp.RawBody, out); err != nil {
+			return nil, fmt.Errorf("decode banner: %w", err)
+		}
+	}
+	if lldpResp, err := r.lldp.ServiceGet(ctx); err == nil {
+		if err := decodeLLDPInto(lldpResp.RawBody, out); err != nil {
+			return nil, fmt.Errorf("decode lldp: %w", err)
+		}
+	}
+	if syslogResp, err := r.syslog.GeneralGet(ctx); err == nil && syslogResp != nil {
+		out.Syslog = &configparser.ConfigSyslogConfig{
+			Enabled:      syslogResp.Enabled == "1",
+			PreserveFQDN: syslogResp.PreserveFQDN == "1",
+		}
+	}
+	if snmpResp, err := r.snmp.GeneralGet(ctx); err == nil {
+		if err := decodeSNMPInto(snmpResp.RawBody, out); err != nil {
+			return nil, fmt.Errorf("decode snmp: %w", err)
+		}
+	}
 	return out, nil
 }
 
@@ -385,6 +411,91 @@ func decodeRoutesInto(raw []byte, out *configparser.ConfigData) error {
 			Description: row.Descr,
 		})
 	}
+	return nil
+}
+
+// decodeNTPInto fills ConfigData.NTP from /api/ntp/settings/get.
+// OPNsense nests fields under "general" and stringifies booleans as "0"/"1".
+func decodeNTPInto(raw []byte, out *configparser.ConfigData) error {
+	if len(raw) == 0 {
+		return nil
+	}
+	var env struct {
+		General struct {
+			Enable      string   `json:"enable"`
+			Timeservers []string `json:"timeservers"`
+			Timezone    string   `json:"timezone"`
+		} `json:"general"`
+	}
+	if err := json.Unmarshal(raw, &env); err != nil {
+		return err
+	}
+	cfg := &configparser.ConfigNTPConfig{
+		Enabled:  env.General.Enable == "1",
+		Timezone: env.General.Timezone,
+	}
+	for _, s := range env.General.Timeservers {
+		cfg.Servers = append(cfg.Servers, configparser.ConfigNTPServer{Address: s, Enabled: true})
+	}
+	out.NTP = cfg
+	return nil
+}
+
+// decodeBannerInto fills ConfigData.Banner.LoginBanner from /api/system/general/get.
+func decodeBannerInto(raw []byte, out *configparser.ConfigData) error {
+	if len(raw) == 0 {
+		return nil
+	}
+	var env struct {
+		Banner string `json:"banner"`
+	}
+	if err := json.Unmarshal(raw, &env); err != nil {
+		return err
+	}
+	out.Banner = &configparser.ConfigBanner{LoginBanner: env.Banner}
+	return nil
+}
+
+// decodeLLDPInto fills ConfigData.LLDP from /api/lldp/service/get.
+func decodeLLDPInto(raw []byte, out *configparser.ConfigData) error {
+	if len(raw) == 0 {
+		return nil
+	}
+	var env struct {
+		Enabled string `json:"enabled"`
+	}
+	if err := json.Unmarshal(raw, &env); err != nil {
+		return err
+	}
+	out.LLDP = &configparser.ConfigLLDPSettings{Enabled: env.Enabled == "1"}
+	return nil
+}
+
+// decodeSNMPInto fills ConfigData.SNMP from /api/snmp/general/get.
+func decodeSNMPInto(raw []byte, out *configparser.ConfigData) error {
+	if len(raw) == 0 {
+		return nil
+	}
+	var env struct {
+		General struct {
+			Enabled   string `json:"enabled"`
+			Location  string `json:"location"`
+			Contact   string `json:"contact"`
+			Community string `json:"community"`
+		} `json:"general"`
+	}
+	if err := json.Unmarshal(raw, &env); err != nil {
+		return err
+	}
+	cfg := &configparser.ConfigSNMPConfig{
+		Enabled:  env.General.Enabled == "1",
+		Location: env.General.Location,
+		Contact:  env.General.Contact,
+	}
+	if env.General.Community != "" {
+		cfg.Communities = []configparser.ConfigSNMPCommunity{{Name: env.General.Community, Access: "ro"}}
+	}
+	out.SNMP = cfg
 	return nil
 }
 

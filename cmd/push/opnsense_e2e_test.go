@@ -3,6 +3,7 @@
 package cmd_push_test
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -58,6 +59,21 @@ func (h *opnsenseLabHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case r.URL.Path == "/api/routing/settings/searchGateway" && r.Method == http.MethodGet:
 		w.WriteHeader(200)
 		_, _ = w.Write([]byte(`{"rows":[]}`))
+	case r.URL.Path == "/api/ntp/settings/get" && r.Method == http.MethodGet:
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"general":{"enable":"1","timeservers":["0.pool.ntp.org"],"timezone":"Europe/Madrid"}}`))
+	case r.URL.Path == "/api/system/general/get" && r.Method == http.MethodGet:
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"hostname":"opnsense-lab","banner":"lab-banner"}`))
+	case r.URL.Path == "/api/lldp/service/get" && r.Method == http.MethodGet:
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"enabled":"1"}`))
+	case r.URL.Path == "/api/syslog/settings/get" && r.Method == http.MethodGet:
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"general":{"enabled":"1","preservefqdn":"0"},"destinations":{"destination":[]}}`))
+	case r.URL.Path == "/api/snmp/general/get" && r.Method == http.MethodGet:
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"general":{"enabled":"1","location":"Lab","contact":"ops@lab","community":"public","bind_to_interface":"lan"}}`))
 	case r.URL.Path == "/api/interfaces/overview/commit" && r.Method == http.MethodPost:
 		if !h.commitOK {
 			w.WriteHeader(500)
@@ -68,6 +84,24 @@ func (h *opnsenseLabHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case r.URL.Path == "/api/interfaces/vlan/add" && r.Method == http.MethodPost:
 		w.WriteHeader(200)
 		_, _ = w.Write([]byte(`{"status":"ok","uuid":"v-new"}`))
+	case r.URL.Path == "/api/ntp/settings/set" && r.Method == http.MethodPost:
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
+	case r.URL.Path == "/api/system/general/set" && r.Method == http.MethodPost:
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
+	case r.URL.Path == "/api/lldp/service/set" && r.Method == http.MethodPost:
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
+	case r.URL.Path == "/api/lldp/service/reconfigure" && r.Method == http.MethodPost:
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
+	case r.URL.Path == "/api/syslog/settings/set" && r.Method == http.MethodPost:
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
+	case r.URL.Path == "/api/snmp/general/set" && r.Method == http.MethodPost:
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	default:
 		w.WriteHeader(404)
 	}
@@ -95,6 +129,30 @@ func intentWithVLAN30() *configparser.ConfigData {
 		},
 	}
 }
+
+// fullIntent mirrors the lab handler's observed state on every field push
+// touches (Interfaces, Routes, NTP, Banner, LLDP, Syslog, SNMP). When
+// intended equals observed, Diff() must be empty — otherwise every push
+// would no-op against an already-converged device.
+func fullIntent() *configparser.ConfigData {
+	return &configparser.ConfigData{
+		Hostname: "opnsense-lab",
+		Interfaces: []configparser.ConfigInterface{
+			{Name: "vtnet0", Type: "physical", Enabled: true},
+		},
+		NTP: &configparser.ConfigNTPConfig{
+			Enabled: true,
+			Servers: []configparser.ConfigNTPServer{{Address: "0.pool.ntp.org", Enabled: true}},
+			Timezone: "Europe/Madrid",
+		},
+		Banner: &configparser.ConfigBanner{LoginBanner: "lab-banner"},
+		LLDP:   &configparser.ConfigLLDPSettings{Enabled: true},
+		Syslog: &configparser.ConfigSyslogConfig{Enabled: true, PreserveFQDN: false},
+		SNMP:   &configparser.ConfigSNMPConfig{Enabled: true, Location: "Lab", Contact: "ops@lab",
+			Communities: []configparser.ConfigSNMPCommunity{{Name: "public", Access: "ro"}}},
+	}
+}
+
 
 // ---------------------------------------------------------------------------
 // Engine wire-up
@@ -246,5 +304,69 @@ func TestOPNsenseE2E_AuditRow_CommitFailure(t *testing.T) {
 	}
 	if got.ErrorString == "" {
 		t.Error("failed audit row must carry ErrorString")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Scan completeness — every field push reads must be populated on the
+// observed side. Without this, the diff reports spurious changes whenever
+// the operator's intent carries NTP/Banner/LLDP/Syslog/SNMP even when the
+// device already matches.
+// ---------------------------------------------------------------------------
+
+// TestOPNsenseE2E_ScanCompleteness_AllFieldsObserved is the contract: a scan
+// that fills every field push consumes (Interfaces, Routes, NTP, Banner,
+// LLDP, Syslog, SNMP) produces a *ConfigData that round-trips cleanly
+// through Diff against the same intended state — zero changes.
+func TestOPNsenseE2E_ScanCompleteness_AllFieldsObserved(t *testing.T) {
+	srv := httptest.NewTLSServer(newOpnsenseLab())
+	defer srv.Close()
+
+	r := engineFor(srv).Renderers()["opnsense"]
+	intent := fullIntent()
+
+	observed, err := r.(interface {
+		FetchLiveConfig(context.Context) (*configparser.ConfigData, error)
+	}).FetchLiveConfig(context.Background())
+	if err != nil {
+		t.Fatalf("FetchLiveConfig: %v", err)
+	}
+
+	// The lab handler populates every section the operator's intent uses,
+	// so the diff against itself must be empty.
+	changes := r.Diff(intent, observed)
+	if len(changes) != 0 {
+		t.Fatalf("Diff(intent, observed) must be empty when device matches intent; got %d changes: %+v", len(changes), changes)
+	}
+}
+
+// TestOPNsenseE2E_ScanCompleteness_MutateOneField reports exactly one change
+// when the operator flips a single field. This catches both "all fields
+// observed" (zero baseline) and "every change is wired" (single mutation
+// produces exactly one diff entry that the apply step reaches the API).
+func TestOPNsenseE2E_ScanCompleteness_MutateOneField(t *testing.T) {
+	srv := httptest.NewTLSServer(newOpnsenseLab())
+	defer srv.Close()
+
+	r := engineFor(srv).Renderers()["opnsense"]
+	intent := fullIntent()
+	intent.LLDP.SystemName = "renamed-host"
+
+	observed, err := r.(interface {
+		FetchLiveConfig(context.Context) (*configparser.ConfigData, error)
+	}).FetchLiveConfig(context.Background())
+	if err != nil {
+		t.Fatalf("FetchLiveConfig: %v", err)
+	}
+	changes := r.Diff(intent, observed)
+	if len(changes) != 1 {
+		t.Fatalf("single LLDP.SystemName mutation must produce exactly 1 change; got %d: %+v", len(changes), changes)
+	}
+	if changes[0].Kind != "lldp-set" {
+		t.Errorf("change.Kind = %q; want lldp-set", changes[0].Kind)
+	}
+
+	if err := r.Render(configparser.SafetyApply, intent, nil, configparser.SSHCredentials{}); err != nil {
+		t.Fatalf("Apply: %v", err)
 	}
 }
