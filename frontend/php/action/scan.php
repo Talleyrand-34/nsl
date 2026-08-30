@@ -48,17 +48,6 @@ function do_scan(&$scanMessage, &$scanRunId, &$autoReload) {
     $f = scan_form_state();
     $source = $f['source'];
 
-    // Method + credentials are only meaningful for free-form target. For
-    // profile + db the backend reads creds from the store; ignore any
-    // method / cred fields the form might still post.
-    if ($source === 'profile') {
-        $method = 'ssh';
-    } elseif ($source === 'db') {
-        $method = 'snmp';
-    } else {
-        $method = $f['method'];
-    }
-
     // Resolve the target list + profile-supplied credentials.
     $target = '';
     $profileName = '';
@@ -91,7 +80,12 @@ function do_scan(&$scanMessage, &$scanRunId, &$autoReload) {
             return;
         }
         $target = implode(',', $hosts);
-        // Pull profile metadata for OS type + creds (read-only block).
+        // Pull profile metadata: the scan method follows the profile's own
+        // scan_source (snmp profiles sweep over SNMP; ssh profiles read each
+        // attached device over SSH with per-row overrides). Encrypted blobs
+        // (ssh_password, ssh_key) aren't returned by /scan/profiles — the
+        // backend re-reads them from the store, so no cleartext flows here.
+        $method = 'ssh';
         $profiles = json_decode(@file_get_contents(SCAN_PROFILES_ENDPOINT), true) ?: [];
         foreach ($profiles as $p) {
             if (($p['name'] ?? '') === $f['profile']) {
@@ -99,31 +93,30 @@ function do_scan(&$scanMessage, &$scanRunId, &$autoReload) {
                 $osType = (string) ($p['os_type'] ?? '');
                 $sshUser = (string) ($p['ssh_user'] ?? '');
                 $sshKeyFile = (string) ($p['ssh_key_file'] ?? '');
-                // Note: encrypted blobs (ssh_password, ssh_key) aren't returned
-                // by /scan/profiles. For SSH method, the backend re-reads them
-                // from the store via service.GetScanProfileByName; the PHP
-                // layer doesn't need to forward cleartext creds.
+                if ((string) ($p['scan_source'] ?? '') === 'snmp') {
+                    $method = 'snmp';
+                }
                 break;
             }
         }
-        // Per-row OS overrides: each attached device may carry its own os_type.
-        // The backend honours them via perRowOverrideCreds; we just send the
-        // comma-list and the profile name. (Method is forced to ssh above when
-        // source === 'profile'; the backend's runSSHScan iterates per-row.)
     } elseif ($source === 'db') {
         // Connection-only path: every device in the store. The connection
         // scan picks up each device's stored profile for creds.
+        $method = 'snmp'; // force — device scan not the focus here
         $raw = @file_get_contents(DEVICES_ENDPOINT);
         $decoded = json_decode($raw, true);
         $hosts = [];
         if (is_array($decoded)) {
             foreach ($decoded as $d) {
-                    $ip = trim((string) ($d['ips'][0]));
-                if ($ip === '' && !empty($d['ips']) && is_array($d['ips'])) {
-
+                $ips = $d['ips'] ?? [];
+                if (is_string($ips)) {
+                    $ips = $ips === '' ? [] : [$ips];
                 }
-                if ($ip !== '') {
-                    $hosts[] = $ip;
+                if (is_array($ips) && count($ips) > 0) {
+                    $ip = trim((string) $ips[0]);
+                    if ($ip !== '') {
+                        $hosts[] = $ip;
+                    }
                 }
             }
         }
@@ -132,10 +125,10 @@ function do_scan(&$scanMessage, &$scanRunId, &$autoReload) {
             return;
         }
         $target = implode(',', $hosts);
-        $method = 'snmp'; // force — device scan not the focus here
         $profileName = '';
     } else {
         // 'target' — free-form.
+        $method = $f['method'];
         $target = trim($f['target']);
         if ($target === '') {
             $scanMessage = 'Please enter a target IP or CIDR.';
@@ -170,6 +163,7 @@ function do_scan(&$scanMessage, &$scanRunId, &$autoReload) {
         'community'    => $f['community'],
         'snmp_version' => $f['snmp_version'],
         'snmp_port'    => intval($f['snmp_port']),
+        'timeout_sec'  => intval($f['timeout']) ?: 10,
         'profile'      => $profileName,
         'os_type'      => $osType,
         'ssh_user'     => $sshUser,
@@ -181,63 +175,88 @@ function do_scan(&$scanMessage, &$scanRunId, &$autoReload) {
     if (($code === 202 || $code === 200) && !empty($j['scan_id'])) {
         $scanRunId  = $j['scan_id'];
         $autoReload = $f['auto_import'] ? 'auto_import=1' : '';
+        $_SESSION['device_scan_id'] = $j['scan_id'];
         // Stash follow-up info on the session for do_scan_completed.
         $_SESSION['scan_followup'] = $f['also_connections']
-            ? ['mode' => 'profile', 'profile' => $profileName, 'ssh_user' => $sshUser]
+            ? [
+                'mode'      => $source,
+                'profile'   => $profileName,
+                'ssh_user'  => $sshUser,
+                'collector' => $f['collector'],
+                'timeout'   => $f['timeout'],
+            ]
             : null;
     } else {
         $scanMessage = 'Could not start scan (HTTP ' . intval($code) . '): ' . htmlspecialchars($body ?: $err);
     }
 }
 
+// do_scan_completed advances any in-flight async scans and folds their results
+// into the session. Returns the scan_id of a scan that is still running (so
+// the status panel keeps watching it), or '' when everything has settled.
 function do_scan_completed(&$discovered, &$scanMessage, &$plan, &$importedIPs, &$importMessage) {
-    // Returns true if the scan is still running.
-    $scanRunId = $_SESSION['scan_id'] ?? ($_GET['scan_id'] ?? '');
-    if ($scanRunId === '') {
-        return false;
-    }
-    list($code, $body) = api_method('GET', SCAN_STATUS_ENDPOINT . '?scan_id=' . urlencode($scanRunId));
-    if ($code !== 200) {
-        return false;
-    }
-    $status = json_decode($body, true) ?: [];
-    $state  = $status['state'] ?? '';
-    if ($state === 'running' || $state === 'pending') {
-        return true;
-    }
-    if ($state === 'finished' || $state === 'complete' || $state === 'completed') {
-        $res = $status['result'] ?? [];
-        $discovered = $res['devices'] ?? [];
-        // Optional chained connection scan.
-        $follow = $_SESSION['scan_followup'] ?? null;
-        if (is_array($follow) && !empty($follow['profile'])) {
-            $_SESSION['scan_followup'] = null;
-            // Kick off a connection scan on the discovered devices.
-            list($cCode, $cBody) = api_post_json(SCAN_CONNECTIONS_ENDPOINT, json_encode([
-                'mode'           => 'profiles',
-                'community'      => 'public',
-                'collector'      => '',
-                'timeout_sec'    => 10,
-                'ssh_user'       => $follow['ssh_user'] ?? '',
-                'generic_profile' => $follow['profile'],
-            ]), 5);
-            $cJson = json_decode($cBody, true);
-            if (($cCode === 202 || $cCode === 200) && !empty($cJson['scan_id'])) {
-                $_SESSION['connection_scan_id'] = $cJson['scan_id'];
+    // 1. Device scan.
+    $devId = $_SESSION['device_scan_id'] ?? '';
+    if ($devId !== '') {
+        list($code, $body) = api_method('GET', SCAN_STATUS_ENDPOINT . '?scan_id=' . urlencode($devId));
+        $status = ($code === 200) ? (json_decode($body, true) ?: []) : [];
+        $state  = $status['state'] ?? '';
+        if ($state === 'running' || $state === 'pending') {
+            return $devId;
+        }
+        $_SESSION['device_scan_id'] = '';
+        if ($state === 'completed') {
+            $res = $status['result'] ?? [];
+            $discovered = $res['devices'] ?? [];
+            $_SESSION['scan_discovered'] = $discovered;
+            // Optional chained connection scan, kicked off exactly once.
+            $follow = $_SESSION['scan_followup'] ?? null;
+            if (is_array($follow)) {
+                $_SESSION['scan_followup'] = null;
+                $cpayload = [
+                    'community'   => 'public',
+                    'collector'   => (string) ($follow['collector'] ?? ''),
+                    'timeout_sec' => intval($follow['timeout'] ?? 0) ?: 10,
+                    'ssh_user'    => (string) ($follow['ssh_user'] ?? ''),
+                ];
+                if (($follow['mode'] ?? '') === 'db') {
+                    $cpayload['from_db'] = true;
+                } else {
+                    $cpayload['profiles'] = true;
+                    // Only generic profiles are honoured as an SSH fallback;
+                    // device profiles are ignored by the backend here.
+                    $cpayload['generic_profile'] = (string) ($follow['profile'] ?? '');
+                }
+                list($cCode, $cBody) = api_post_json(SCAN_CONNECTIONS_ENDPOINT, json_encode($cpayload), 15);
+                $cJson = json_decode($cBody, true);
+                if (($cCode === 202 || $cCode === 200) && !empty($cJson['scan_id'])) {
+                    $_SESSION['connection_scan_id'] = $cJson['scan_id'];
+                } else {
+                    $scanMessage = 'Connection scan failed to start (HTTP ' . intval($cCode) . '): ' . htmlspecialchars($cBody ?: 'unknown error');
+                }
             }
+        } elseif ($state === 'failed') {
+            $scanMessage = 'Scan failed: ' . htmlspecialchars($status['error'] ?? 'unknown error');
         }
-        // Auto-import path.
-        if (!empty($_GET['auto_import']) && count($discovered) > 0) {
-            // TODO: existing auto-import path. Kept identical to the old
-            // scan_devices flow (the existing inline-import endpoint).
+    }
+
+    // 2. Chained connection scan.
+    $connId = $_SESSION['connection_scan_id'] ?? '';
+    if ($connId !== '') {
+        list($code, $body) = api_method('GET', SCAN_STATUS_ENDPOINT . '?scan_id=' . urlencode($connId));
+        $status = ($code === 200) ? (json_decode($body, true) ?: []) : [];
+        $state  = $status['state'] ?? '';
+        if ($state === 'running' || $state === 'pending') {
+            return $connId;
         }
-        return false;
+        $_SESSION['connection_scan_id'] = '';
+        if ($state === 'completed') {
+            $_SESSION['connections_result'] = $status['result'] ?? [];
+        } elseif ($state === 'failed') {
+            $scanMessage = trim($scanMessage . ' Connection scan failed: ' . htmlspecialchars($status['error'] ?? 'unknown error'));
+        }
     }
-    if ($state === 'failed') {
-        $scanMessage = 'Scan failed: ' . htmlspecialchars($status['error'] ?? 'unknown error');
-        return false;
-    }
-    return false;
+    return '';
 }
 
 // --- analyze / execute handlers --------------------------------------------
@@ -313,7 +332,7 @@ function do_execute(&$plan, &$importMessage, &$importedIPs) {
 
 // --- panels -----------------------------------------------------------------
 
- function scan_live_panel_html($profiles, $scanMessage) {
+ function scan_live_panel_html($profiles, $scanMessage, $osTypes = []) {
     $f = scan_form_state();
     $curSource = $f['source'];
     $curMethod = $f['method'];
@@ -415,8 +434,15 @@ function do_execute(&$plan, &$importMessage, &$importedIPs) {
                         </select>
                     </label>
                     <label>OS / firmware type (required for generic profiles):
-                        <input type="text" name="ssh_os_type" value="<?= htmlspecialchars($_POST['ssh_os_type'] ?? '') ?>"
-                               placeholder="openwrt / opnsense / fortinet">
+                        <select name="ssh_os_type">
+                            <option value="">&mdash; none &mdash;</option>
+                            <?php foreach ($osTypes as $ot):
+                                $otName = (string) ($ot['name'] ?? '');
+                                if ($otName === '') continue;
+                            ?>
+                                <option value="<?= htmlspecialchars($otName) ?>" <?= ($_POST['ssh_os_type'] ?? '') === $otName ? 'selected' : '' ?>><?= htmlspecialchars($otName) ?></option>
+                            <?php endforeach; ?>
+                        </select>
                     </label>
                     <label>SSH user:
                         <input type="text" name="ssh_user" id="scan-ssh-user" value="<?= htmlspecialchars($f['ssh_user']) ?>">
@@ -524,12 +550,6 @@ function do_execute(&$plan, &$importMessage, &$importedIPs) {
     <?php
     return ob_get_clean();
 }
-
-// Keep old name available so other call sites don't break.
-function scan_devices_live_panel_html($pf, $profiles, $scanMessage) {
-    return scan_live_panel_html($profiles, $scanMessage);
-}
-
 
 
 // dev_ip resolves the IP of a discovered device. Used by the discovered-

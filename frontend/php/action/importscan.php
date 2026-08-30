@@ -60,16 +60,12 @@ $genericProfiles = array_values(array_filter(
 ));
 
 
-// Available OS / firmware types for the profile-level OS dropdown and the
-// per-device OS override dropdown. Loaded alongside $profiles because the
-// panel renders both. The catalogue is small (~6 entries) so the request is
-// cheap; if it ever grows, move to a lazy fetch on accordion open.
+// Available OS / firmware types for the profile-level OS dropdown, the
+// per-device OS override dropdown and the Live scan SSH OS selector. The
+// catalogue is small (~6 entries) so fetching it on every request is cheap.
 $osTypes = [];
-if ($_SERVER['REQUEST_METHOD'] === 'GET'
-    || isset($_POST['do_create_profile'])) {
-    $raw = @file_get_contents(OSTYPES_ENDPOINT);
-    $osTypes = json_decode($raw, true) ?: [];
-}
+$raw = @file_get_contents(OSTYPES_ENDPOINT);
+$osTypes = json_decode($raw, true) ?: [];
 if (!is_array($osTypes)) {
     $osTypes = [];
 }
@@ -81,7 +77,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_load_profile'])) {
 
 // Clean-scan: drop discovered + imported and redirect.
 if (isset($_GET['clear'])) {
-    unset($_SESSION['scan_discovered'], $_SESSION['scan_imported'], $_SESSION['connections_result']);
+    unset(
+        $_SESSION['scan_discovered'],
+        $_SESSION['scan_imported'],
+        $_SESSION['connections_result'],
+        $_SESSION['device_scan_id'],
+        $_SESSION['connection_scan_id'],
+        $_SESSION['scan_followup']
+    );
     $discovered = [];
     $importedIPs = [];
     $result = null;
@@ -119,11 +122,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
-    $deviceRunning = do_scan_completed($discovered, $scanMessage, $plan, $importedIPs, $importMessage);
-    $scanRunId = $deviceRunning ? $_GET['scan_id'] : '';
+    $scanRunId = do_scan_completed($discovered, $scanMessage, $plan, $importedIPs, $importMessage);
     // Connection follow-up (when also_connections was set) is handled inside
-    // scan.php's do_scan_completed. The legacy do_scan_connections_completed
-    // hook is preserved as a no-op for back-compat.
+    // do_scan_completed; it returns whichever scan is still running so the
+    // status panel keeps watching it.
 }
 
 // ---------------------------------------------------------------------------
@@ -146,7 +148,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
     <section class="accordion-card" data-accordion="import-actions">
       <h3 class="accordion-header"><button type="button" class="accordion-toggle" aria-expanded="true">Live scan</button></h3>
       <div class="accordion-body">
-        <?= scan_live_panel_html($profiles, $scanMessage) ?>
+        <?= scan_live_panel_html($profiles, $scanMessage, $osTypes) ?>
       </div>
     </section>
 
