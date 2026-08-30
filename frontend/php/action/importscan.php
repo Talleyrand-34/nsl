@@ -138,6 +138,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
 <?php if ($scanMessage): ?>
   <p class="flash flash-error"><?= htmlspecialchars($scanMessage) ?></p>
 <?php endif; ?>
+
+<div class="grid import-grid">
   <!-- Left column: scan options + saved profiles + create profile. The accordion
        JS handles one-open-at-a-time within this column. -->
   <div class="actions import-actions">
