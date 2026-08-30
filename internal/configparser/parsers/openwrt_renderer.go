@@ -26,7 +26,15 @@ func (r *OpenWrtRenderer) SupportsDevice(d any) bool {
 }
 
 func (r *OpenWrtRenderer) Fetch(sess configparser.Session) (string, error) {
-	return "", nil
+	// `uci show` emits the flat package.section.option=value syntax the
+	// OpenWrt parser expects. `uci export` (the documented "config"
+	// form) is human-readable but uses block syntax that the parser
+	// does not understand.
+	out, err := sess.Execute("uci show")
+	if err != nil {
+		return "", fmt.Errorf("uci show: %w", err)
+	}
+	return out, nil
 }
 
 func (r *OpenWrtRenderer) Diff(intended, observed *configparser.ConfigData) []configparser.ConfigChange {
@@ -45,7 +53,23 @@ func (r *OpenWrtRenderer) Render(safety configparser.SafetyLevel, intended *conf
 	if safety == configparser.SafetyDryRun {
 		return nil
 	}
-	diffs := r.Diff(intended, nil)
+	// SAFETY: never modify what is not meant to be modified. Re-fetch the
+	// device's live config and diff against the actual observed state, not
+	// nil. Without this, every apply would re-apply every change the
+	// intent contains, regardless of whether the device already matches.
+	raw, err := r.Fetch(sess)
+	if err != nil {
+		return fmt.Errorf("openwrt-renderer: fetch observed: %w", err)
+	}
+	parser := NewOpenWrtParser()
+	observed, err := parser.ParseConfig(raw, s.SNMPDevice{
+		SysDescr: "Linux OpenWrt",
+		SysName:  "OpenWrt",
+	})
+	if err != nil {
+		return fmt.Errorf("openwrt-renderer: parse observed: %w", err)
+	}
+	diffs := r.Diff(intended, observed)
 	var ntpDiffs, bannerDiffs, lldpDiffs, syslogDiffs, snmpDiffs []configparser.ConfigChange
 	for _, d := range diffs {
 		switch d.Kind {
@@ -60,7 +84,7 @@ func (r *OpenWrtRenderer) Render(safety configparser.SafetyLevel, intended *conf
 		case "snmp-set":
 			snmpDiffs = append(snmpDiffs, d)
 		default:
-			cmds, err := r.renderChange(d)
+			cmds, err := r.renderChange(d, sess)
 			if err != nil {
 				return err
 			}
@@ -109,15 +133,79 @@ func (r *OpenWrtRenderer) Render(safety configparser.SafetyLevel, intended *conf
 	return nil
 }
 
-func (r *OpenWrtRenderer) renderChange(d configparser.ConfigChange) ([]string, error) {
+func (r *OpenWrtRenderer) renderChange(d configparser.ConfigChange, sess configparser.Session) ([]string, error) {
 	switch d.Kind {
+	case "vlan-add":
+		iface, _, _ := strings.Cut(d.Path, " ")
+		vlanID := d.New
+		if sess != nil {
+			if sec, err := r.lookupBridgeSection(sess, iface); err == nil && sec != "" {
+				return []string{
+					fmt.Sprintf("uci add_list network.%s.vlan=%s", sec, vlanID),
+					"uci commit network",
+				}, nil
+			}
+		}
+		return []string{
+			fmt.Sprintf("uci add_list network.%s.vlan=%s", iface, vlanID),
+			"uci commit network",
+		}, nil
+	case "vlan-del":
+		iface, _, _ := strings.Cut(d.Path, " ")
+		vlanID := d.New
+		cmds := []string{fmt.Sprintf("uci del_list network.%s.vlan=%s", iface, vlanID)}
+		if sess != nil {
+			if sec, err := r.lookupBridgeSection(sess, iface); err == nil && sec != "" {
+				cmds = []string{fmt.Sprintf("uci del_list network.%s.vlan=%s", sec, vlanID)}
+			}
+		}
+		cmds = append(cmds, "uci commit network")
+		return cmds, nil
+	case "ntp-add":
+		return []string{
+			fmt.Sprintf("uci add_list system.ntp.server=%s", d.New),
+			"uci commit system",
+			"sync",
+		}, nil
+	case "ntp-del":
+		return []string{
+			fmt.Sprintf("uci del_list system.ntp.server=%s", d.New),
+			"uci commit system",
+			"sync",
+		}, nil
 	case "route-add":
 		return r.routeAddCommands(d), nil
 	case "route-del":
 		return r.routeDelCommands(d), nil
 	default:
-		return nil, nil
+		return nil, fmt.Errorf("openwrt-renderer: unhandled change kind %q (path=%s)", d.Kind, d.Path)
 	}
+}
+
+// lookupBridgeSection finds the UCI section name (e.g. cfg030f15) for a
+// bridge device whose `option name` equals the given iface name. Returns
+// empty string when no match is found, signalling the caller to fall
+// back to the legacy form. Used to translate the diff's iface path
+// into a stable UCI section key for DSA bridges.
+func (r *OpenWrtRenderer) lookupBridgeSection(sess configparser.Session, iface string) (string, error) {
+	out, err := sess.Execute("uci show network")
+	if err != nil {
+		return "", err
+	}
+	want := "name='" + iface + "'"
+	sec := ""
+	for _, line := range strings.Split(out, "\n") {
+		if sec == "" {
+			if strings.HasPrefix(line, "network.") && strings.Contains(line, ".name=") && strings.HasSuffix(line, want) {
+				// network.cfg030f15.name='br-lan'
+				parts := strings.SplitN(strings.TrimPrefix(line, "network."), ".name=", 2)
+				if len(parts) == 2 {
+					sec = parts[0]
+				}
+			}
+		}
+	}
+	return sec, nil
 }
 
 func (r *OpenWrtRenderer) routeAddCommands(d configparser.ConfigChange) []string {
@@ -141,7 +229,15 @@ func (r *OpenWrtRenderer) routeDelCommands(d configparser.ConfigChange) []string
 	}
 }
 
-// ntpCommands returns UCI commands to set NTP servers and timezone.
+// ntpCommands returns UCI commands to set the scalar NTP options
+// (enabled, timezone, use_local_clock). The server list is managed
+// additively by ntp-add / ntp-del changes routed through renderChange
+// — this function never touches the server list, so a single
+// `ntp-set` for an enabled/timezone change can never nuke existing
+// servers. Skips the section-creation line entirely (the `system.ntp`
+// section already exists on any device that has NTP configured) to
+// avoid `uci set` errors on devices where the section is already
+// declared with the right type.
 func (r *OpenWrtRenderer) ntpCommands(cfg *configparser.ConfigNTPConfig) []string {
 	if cfg == nil {
 		return nil
@@ -151,12 +247,7 @@ func (r *OpenWrtRenderer) ntpCommands(cfg *configparser.ConfigNTPConfig) []strin
 	if cfg.Enabled {
 		enabled = "1"
 	}
-	cmds = append(cmds, "uci set system.ntp=timeserver")
 	cmds = append(cmds, fmt.Sprintf("uci set system.ntp.enabled=%s", enabled))
-	cmds = append(cmds, "uci del system.ntp.server")
-	for _, srv := range cfg.Servers {
-		cmds = append(cmds, fmt.Sprintf("uci add_list system.ntp.server=%s", srv.Address))
-	}
 	if cfg.Timezone != "" {
 		cmds = append(cmds, fmt.Sprintf("uci set system.system.timezone=%s", cfg.Timezone))
 	}
@@ -189,7 +280,6 @@ func (r *OpenWrtRenderer) lldpCommands(cfg *configparser.ConfigLLDPSettings) []s
 		return nil
 	}
 	var cmds []string
-	cmds = append(cmds, "uci set lldpd.config=lldpd")
 	enabled := "0"
 	if cfg.Enabled {
 		enabled = "1"
@@ -244,7 +334,6 @@ func (r *OpenWrtRenderer) snmpCommands(cfg *configparser.ConfigSNMPConfig) []str
 		return nil
 	}
 	var cmds []string
-	cmds = append(cmds, "uci set snmpd.config=snmpd")
 	enabled := "0"
 	if cfg.Enabled {
 		enabled = "1"
@@ -256,15 +345,16 @@ func (r *OpenWrtRenderer) snmpCommands(cfg *configparser.ConfigSNMPConfig) []str
 	if cfg.Contact != "" {
 		cmds = append(cmds, fmt.Sprintf("uci set snmpd.config.syscontact=%s", cfg.Contact))
 	}
-	cmds = append(cmds, "uci del snmpd.config.community")
-	for _, c := range cfg.Communities {
-		cmds = append(cmds, fmt.Sprintf("uci add_list snmpd.config.community=%s", c.Name))
+	if len(cfg.Communities) > 0 {
+		cmds = append(cmds, "uci commit snmpd")
+		for _, c := range cfg.Communities {
+			cmds = append(cmds, fmt.Sprintf("uci add_list snmpd.config.community=%s", c.Name))
+		}
 	}
 	cmds = append(cmds, "uci commit snmpd")
 	cmds = append(cmds, "/etc/init.d/snmpd reload")
 	return cmds
 }
-
 func boolToInt(b bool) int {
 	if b {
 		return 1

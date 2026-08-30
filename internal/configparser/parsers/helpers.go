@@ -45,3 +45,26 @@ func unquotedFields(s string) []string {
 	}
 	return out
 }
+
+// splitUCIListValue extracts the list items from a UCI option value.
+// UCI emits list entries either as separate lines (`option[]=value`) — which
+// the parser handles in the list-regex branch — or, for DSA bridges,
+// collapsed onto a single line with space-separated quoted values
+// (`option='a' 'b' 'c'`). This helper handles the single-line form: it
+// splits on whitespace, strips surrounding quotes, and returns the items.
+// A single item is returned as a one-element slice (still triggers the
+// list branch, which is correct for any multi-value key the parser
+// wants as a list). An empty string returns nil.
+func splitUCIListValue(s string) []string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil
+	}
+	// Split on whitespace, strip quotes from each token. unquotedFields
+	// already does this.
+	items := unquotedFields(s)
+	if len(items) == 0 {
+		return nil
+	}
+	return items
+}

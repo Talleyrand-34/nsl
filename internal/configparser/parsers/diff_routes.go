@@ -12,6 +12,15 @@ func diffRoutes(intended, observed *configparser.ConfigData) []configparser.Conf
 	if intended == nil {
 		return nil
 	}
+	// A nil Routes means the caller did not speak about routes at all, and that
+	// must not be read as "delete every route the device has". Only a non-nil
+	// list — the empty one included — states the full intended route set, and
+	// only then are deletions computed. Without this a preview that changes
+	// nothing but NTP also proposes wiping the routing table, because an
+	// unmentioned section and an intentionally empty one looked identical.
+	if intended.Routes == nil {
+		return nil
+	}
 	if observed == nil {
 		var out []configparser.ConfigChange
 		for _, r := range intended.Routes {

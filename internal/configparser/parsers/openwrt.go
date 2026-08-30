@@ -93,6 +93,12 @@ func (p *OpenWrtParser) ParseConfig(rawConfig string, deviceInfo s.SNMPDevice) (
 	}
 	configData.Routes = routes
 
+	// Parse NTP (system.ntp)
+	ntp, err := p.parseSystemNTP(uciConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse NTP: %w", err)
+	}
+	configData.NTP = ntp
 	// Dynamic routing, if any, comes from FRR rather than UCI.
 	if frr := extractCommandBlock(rawConfig, "cat /etc/frr/frr.conf"); frrConfigLooksReal(frr) {
 		configData.RoutingProtocols = ParseFRRConfig(frr)
@@ -377,6 +383,33 @@ func (p *OpenWrtParser) parseSwconfigVLANs(rawConfig string) map[int][]configpar
 	return result
 }
 
+// parseSystemNTP extracts the NTP config from the system.ntp UCI
+// section. Returns nil if the section is absent. The server list is
+// populated from the multi-token list form.
+func (p *OpenWrtParser) parseSystemNTP(uci *UCIConfig) (*configparser.ConfigNTPConfig, error) {
+	system, exists := uci.Sections["system"]
+	if !exists {
+		return nil, nil
+	}
+	sec, ok := system["ntp"]
+	if !ok {
+		return nil, nil
+	}
+	out := &configparser.ConfigNTPConfig{
+		Enabled: sec.Options["enabled"] == "1",
+	}
+	for _, addr := range sec.Lists["server"] {
+		if addr == "" {
+			continue
+		}
+		out.Servers = append(out.Servers, configparser.ConfigNTPServer{
+			Address: addr,
+			Enabled: true,
+		})
+	}
+	return out, nil
+}
+
 // ValidateConfig performs basic validation on parsed OpenWrt configuration
 func (p *OpenWrtParser) ValidateConfig(config *configparser.ConfigData) []error {
 	var errors []error
@@ -459,22 +492,36 @@ func (p *OpenWrtParser) parseUCIConfig(rawConfig string) (*UCIConfig, error) {
 			continue
 		}
 
-		// Parse options (package.section.option=value)
-		if matches := optionRegex.FindStringSubmatch(line); len(matches) == 5 {
-			pkg, section, option, value := matches[1], matches[2], matches[3], stripUCIQuotes(matches[4])
+	// Parse options (package.section.option=value). Single-token
+	// quoted values (e.g. `name='br-lan'`) are scalar Options. Multi-
+	// token quoted values (e.g. `vlan='1' '2' '3'`) are lists and land
+	// in Lists. A bare unquoted value is also scalar.
+	if matches := optionRegex.FindStringSubmatch(line); len(matches) == 5 {
+		raw := matches[4]
+		pkg, section, option := matches[1], matches[2], matches[3]
+		value := stripUCIQuotes(raw)
+		listItems := splitUCIListValue(raw)
+		isList := len(listItems) > 1
 
-			if config.Sections[pkg] == nil {
-				config.Sections[pkg] = make(map[string]UCISection)
+		if config.Sections[pkg] == nil {
+			config.Sections[pkg] = make(map[string]UCISection)
+		}
+
+		sec := config.Sections[pkg][section]
+		if isList {
+			if sec.Lists == nil {
+				sec.Lists = make(map[string][]string)
 			}
-
-			sec := config.Sections[pkg][section]
+			sec.Lists[option] = listItems
+		} else {
 			if sec.Options == nil {
 				sec.Options = make(map[string]string)
 			}
 			sec.Options[option] = value
-			config.Sections[pkg][section] = sec
-			continue
 		}
+		config.Sections[pkg][section] = sec
+		continue
+	}
 
 		// Parse section definitions (package.section=type)
 		if matches := sectionRegex.FindStringSubmatch(line); len(matches) == 4 {

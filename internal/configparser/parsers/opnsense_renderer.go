@@ -69,7 +69,15 @@ func (r *opnsenseLazyRenderer) SupportsDevice(d any) bool {
 	return false
 }
 func (r *opnsenseLazyRenderer) Diff(intended *configparser.ConfigData, observed *configparser.ConfigData) []configparser.ConfigChange {
-	return diffRoutes(intended, observed)
+	var out []configparser.ConfigChange
+	out = append(out, diffRoutes(intended, observed)...)
+	out = append(out, diffVLANs(intended, observed)...)
+	out = append(out, diffNTP(intended, observed)...)
+	out = append(out, diffBanner(intended, observed)...)
+	out = append(out, diffLLDP(intended, observed)...)
+	out = append(out, diffSyslog(intended, observed)...)
+	out = append(out, diffSNMP(intended, observed)...)
+	return out
 }
 func (r *opnsenseLazyRenderer) Render(_ configparser.SafetyLevel, _ *configparser.ConfigData, _ configparser.Session, _ configparser.SSHCredentials) error {
 	return configparser.ErrUnsupported{OS: "opnsense", Reason: "render requires typed session; engine must call opnsenseRenderer directly"}
@@ -192,7 +200,7 @@ func (r *opnsenseRenderer) applyChange(ctx context.Context, change configparser.
 			Descr: "nsl-graph push",
 		})
 		return err
-	case "ntp-set", "banner-set", "lldp-set", "syslog-set", "snmp-set":
+	case "ntp-add", "ntp-del", "ntp-set", "banner-set", "lldp-set", "syslog-set", "snmp-set":
 		return nil
 	default:
 		return fmt.Errorf("opnsense-renderer: unhandled change kind %q", change.Kind)

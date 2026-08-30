@@ -24,8 +24,12 @@ func TestDiffNTP_NilObserved(t *testing.T) {
 		},
 	}
 	diffs := diffNTP(intended, nil)
-	assert.Len(t, diffs, 1)
-	assert.Equal(t, "ntp-set", diffs[0].Kind)
+	// nil observed: emit ntp-add for every intended server plus a
+	// ntp-set for the scalar fields. Servers and scalar are
+	// independent now.
+	assert.Len(t, diffs, 2)
+	assert.Equal(t, "ntp-add", diffs[0].Kind)
+	assert.Equal(t, "ntp-set", diffs[1].Kind)
 }
 
 func TestDiffNTP_Identical(t *testing.T) {
@@ -60,6 +64,14 @@ func TestDiffNTP_ServerChange(t *testing.T) {
 		},
 	}
 	diffs := diffNTP(intended, observed)
-	assert.Len(t, diffs, 1)
-	assert.Equal(t, "ntp-set", diffs[0].Kind)
+	// ntp-add 1.pool.ntp.org, ntp-del 0.pool.ntp.org; no ntp-set
+	// because the scalar fields match.
+	// Server change (1.pool.ntp.org replaces 0.pool.ntp.org) AND
+	// scalar ntp-set (because server addresses differ between the
+	// two ConfigData, ntpEqual returns false).
+	assert.Len(t, diffs, 3)
+	assert.Equal(t, "ntp-add", diffs[0].Kind)
+	assert.Equal(t, "1.pool.ntp.org", diffs[0].New)
+	assert.Equal(t, "ntp-del", diffs[1].Kind)
+	assert.Equal(t, "0.pool.ntp.org", diffs[1].New)
 }

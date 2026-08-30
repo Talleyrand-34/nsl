@@ -1,25 +1,75 @@
 // SPDX-License-Identifier: MIT
-// diff_ntp.go: shared diff logic for NTP configuration.
+// diff_ntp.go: additive NTP diff. Emits one change per server delta so
+// the renderer can do `add_list` / `del_list` instead of `uci del`
+// followed by a full replace — preserving the device's original NTP
+// server list across an apply. Scalar fields (Enabled, Timezone,
+// LocalClock) still emit a single `ntp-set` change, but the renderer
+// for that case must not touch the server list.
 package parsers
 
 import (
 	"nsl-graph/internal/configparser"
 )
 
-// diffNTP returns a single ntp-set change if intended differs from observed.
-// nil intended → no diff (don't delete); nil observed → always set.
+// diffNTP returns additive NTP changes: one per server to add or
+// remove, plus a single `ntp-set` if any scalar field changed.
+// nil intended → no diff (don't delete). nil observed → emit adds
+// for all intended servers.
 func diffNTP(intended, observed *configparser.ConfigData) []configparser.ConfigChange {
 	if intended == nil || intended.NTP == nil {
 		return nil
 	}
-	if observed == nil || observed.NTP == nil || !ntpEqual(intended.NTP, observed.NTP) {
-		return []configparser.ConfigChange{{
-			Kind:  "ntp-set",
-			Path:  "system.ntp",
-			Patch: []string{"ntp"},
-		}}
+	obsServers := map[string]bool{}
+	var obsCfg *configparser.ConfigNTPConfig
+	if observed != nil {
+		obsCfg = observed.NTP
+		if obsCfg != nil {
+			for _, s := range obsCfg.Servers {
+				if s.Address != "" {
+					obsServers[s.Address] = true
+				}
+			}
+		}
 	}
-	return nil
+	var out []configparser.ConfigChange
+	intentServers := map[string]bool{}
+	for _, s := range intended.NTP.Servers {
+		if s.Address == "" {
+			continue
+		}
+		intentServers[s.Address] = true
+		if !obsServers[s.Address] {
+			out = append(out, configparser.ConfigChange{
+				Kind: "ntp-add",
+				Path: "system.ntp.server=" + s.Address,
+				New:  s.Address,
+			})
+		}
+	}
+	if obsCfg != nil {
+		for _, s := range obsCfg.Servers {
+			if s.Address == "" {
+				continue
+			}
+			if !intentServers[s.Address] {
+				out = append(out, configparser.ConfigChange{
+					Kind: "ntp-del",
+					Path: "system.ntp.server=" + s.Address,
+					New:  s.Address,
+				})
+			}
+		}
+	}
+	// Scalar field changes produce a single `ntp-set` so the renderer
+	// still owns the enable/timezone/local_clock settings. The renderer's
+	// ntp-set path must not touch the server list.
+	if !ntpEqual(intended.NTP, obsCfg) {
+		out = append(out, configparser.ConfigChange{
+			Kind: "ntp-set",
+			Path: "system.ntp",
+		})
+	}
+	return out
 }
 
 // ntpEqual compares two NTP configs for equality.
