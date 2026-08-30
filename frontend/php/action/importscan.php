@@ -133,11 +133,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
 ?>
 <h2>Import devices</h2>
 
-
-<?php if ($scanMessage): ?>
-  <p class="flash flash-error"><?= htmlspecialchars($scanMessage) ?></p>
-<?php endif; ?>
-
 <div class="grid import-grid">
   <!-- Left column: scan options + saved profiles + create profile. The accordion
        JS handles one-open-at-a-time within this column. -->
@@ -179,7 +174,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
     <?php if ($profileMessage): ?>
       <p class="flash flash-info"><?= htmlspecialchars($profileMessage) ?></p>
     <?php endif; ?>
-
     <?php if ($scanMessage): ?>
       <p class="flash flash-error"><?= htmlspecialchars($scanMessage) ?></p>
     <?php endif; ?>
@@ -195,6 +189,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
         <input type="file" name="scanfile" accept=".json,application/json" required>
         <button type="submit" name="do_upload" value="1">Upload &amp; import</button>
       </form>
+    </section>
 
     <?= scan_activity_panel_html() ?>
   </div>

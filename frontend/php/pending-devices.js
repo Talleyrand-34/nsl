@@ -128,6 +128,49 @@
     clear: function () { writeQueue([]); return []; },
     clearTombstones: clearTombstones,
 
+    // syncFromServer merges one server-rendered discovery payload into the
+    // queue and repaints the table + heading counts. The auto-init below and
+    // the "Reset queue + tombstones" button both go through this, so the
+    // merge/render/count logic exists exactly once.
+    syncFromServer: function (initial, importedIps) {
+      var body = document.querySelector('table.discovered-devices tbody');
+      if (!body) return 0;
+
+      var imported = Array.isArray(importedIps) ? importedIps : [];
+      imported.forEach(function (ip) { if (ip) nslPD.removeByIp(ip); });
+
+      // Filter the server's fresh discovery against tombstones BEFORE adding.
+      // Without this, every page load re-adds devices the operator already
+      // deleted.
+      var tombstones = readTombstones();
+      var list = Array.isArray(initial) ? initial : [];
+      var filtered = list.filter(function (d) {
+        var ip = ipOf(d);
+        return ip && !tombstones[ip];
+      });
+      if (filtered.length) nslPD.addAll(filtered);
+
+      nslPD.render(body, imported);
+      nslPD.updateCounts(body);
+      return readQueue().length;
+    },
+
+    // updateCounts refreshes the "(N total, M pending)" heading from whatever
+    // rows are currently in the table body.
+    updateCounts: function (tableBody) {
+      var total = 0, pending = 0;
+      Array.prototype.forEach.call(tableBody.querySelectorAll('tr'), function (tr) {
+        if (tr.children.length !== 7) return; // placeholder row has 1 col-span cell
+        total++;
+        var status = (tr.children[0].textContent || '').trim();
+        if (status === 'pending') pending++;
+      });
+      var tEl = document.querySelector('.discovered-total');
+      var pEl = document.querySelector('.discovered-pending');
+      if (tEl) tEl.textContent = total;
+      if (pEl) pEl.textContent = pending;
+    },
+
     render: function (tableBody, importedIps) {
       var list = readQueue();
       var imported = {};
@@ -183,6 +226,7 @@
             if (!confirm('Remove ' + ip + ' from the pending queue?')) return;
             nslPD.remove(d);
             nslPD.render(tableBody, importedIps);
+            nslPD.updateCounts(tableBody);
           });
           action.appendChild(delBtn);
         } else {
@@ -211,37 +255,6 @@
   //   4. Re-render the table from localStorage.
   //   5. Update the heading counts.
   document.addEventListener('DOMContentLoaded', function () {
-    var body = document.querySelector('table.discovered-devices tbody');
-    if (!body) return;
-
-    var imported = Array.isArray(window.NSL_PENDING_IMPORTED_IPS) ? window.NSL_PENDING_IMPORTED_IPS : [];
-    imported.forEach(function (ip) { if (ip) nslPD.removeByIp(ip); });
-
-    // Filter the server's fresh discovery against tombstones BEFORE adding.
-    // Without this, every page load re-adds devices the operator already
-    // deleted.
-    var tombstones = readTombstones();
-    var initial = Array.isArray(window.NSL_PENDING_INITIAL) ? window.NSL_PENDING_INITIAL : [];
-    var filtered = initial.filter(function (d) {
-      var ip = (d && d.device && d.device.ip) || (d && d.ip) || '';
-      return ip && !tombstones[ip];
-    });
-    if (filtered.length) {
-      nslPD.addAll(filtered);
-    }
-
-    nslPD.render(body, imported);
-
-    var total = 0, pending = 0;
-    Array.prototype.forEach.call(body.querySelectorAll('tr'), function (tr) {
-      if (tr.children.length !== 7) return; // placeholder row has 1 col-span cell
-      total++;
-      var status = (tr.children[0].textContent || '').trim();
-      if (status === 'pending') pending++;
-    });
-    var tEl = document.querySelector('.discovered-total');
-    var pEl = document.querySelector('.discovered-pending');
-    if (tEl) tEl.textContent = total;
-    if (pEl) pEl.textContent = pending;
+    nslPD.syncFromServer(window.NSL_PENDING_INITIAL, window.NSL_PENDING_IMPORTED_IPS);
   });
 })();

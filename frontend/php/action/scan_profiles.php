@@ -346,6 +346,7 @@ function scan_profiles_create_panel_html($profiles = [], $osTypes = []) {
                     <label>SSH password: <input type="password" name="cp_ssh_password"></label><br>
                     <label>SSH private key file: <input type="file" name="cp_ssh_key_file"></label><br>
                 </div>
+            </div><!-- /.cp-grp[data-show="device-ssh generic-ssh"] -->
             <button type="submit" name="do_create_profile" value="1" style="margin-top:8px;">Create profile</button>
         </form>
         <p style="color:#777; font-size:0.85em;">SSH password and uploaded private key are encrypted by the credential vault (AES-256-GCM); unlock the vault from the app bar before creating an SSH profile, and again whenever an SSH scan uses it.</p>

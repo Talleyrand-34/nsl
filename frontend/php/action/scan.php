@@ -163,7 +163,10 @@ function do_scan(&$scanMessage, &$scanRunId, &$autoReload) {
         'community'    => $f['community'],
         'snmp_version' => $f['snmp_version'],
         'snmp_port'    => intval($f['snmp_port']),
-        'timeout_sec'  => intval($f['timeout']) ?: 10,
+        // /scan/run's request struct spells this "timeout" (ScanRunRequest.Timeout);
+        // "timeout_sec" is the *internal* RunScanOptions name and was silently
+        // dropped on the wire, so every scan ran on the backend default.
+        'timeout'      => intval($f['timeout']) ?: 10,
         'profile'      => $profileName,
         'os_type'      => $osType,
         'ssh_user'     => $sshUser,
@@ -195,6 +198,33 @@ function do_scan(&$scanMessage, &$scanRunId, &$autoReload) {
     }
 }
 
+// scan_error_detail turns a /scan/status reply into one human-readable reason a
+// run ended badly. It never returns the bare string "unknown error": when the
+// run itself reported nothing, the HTTP code and body are the next best
+// evidence, and a 404 means the backend has no such run at all (server
+// restarted, or the registry recycled the id).
+function scan_error_detail($status, $code, $body) {
+    $err = trim((string) ($status['error'] ?? ''));
+    if ($err !== '') {
+        return $err;
+    }
+    if ($code === 404) {
+        return 'run not found in the backend registry (server restarted, or the run was recycled)';
+    }
+    if ($code !== 200) {
+        $msg = '';
+        $j = json_decode((string) $body, true);
+        if (is_array($j)) {
+            $msg = trim((string) ($j['message'] ?? $j['error'] ?? ''));
+        }
+        if ($msg === '') {
+            $msg = trim((string) $body);
+        }
+        return 'status poll returned HTTP ' . intval($code) . ($msg !== '' ? ': ' . $msg : '');
+    }
+    return 'the backend reported state "' . (string) ($status['state'] ?? '') . '" with no error text';
+}
+
 // do_scan_completed advances any in-flight async scans and folds their results
 // into the session. Returns the scan_id of a scan that is still running (so
 // the status panel keeps watching it), or '' when everything has settled.
@@ -209,9 +239,18 @@ function do_scan_completed(&$discovered, &$scanMessage, &$plan, &$importedIPs, &
             return $devId;
         }
         $_SESSION['device_scan_id'] = '';
-        scan_log_push('device-scan', $devId, $state,
-            count($status['result']['devices'] ?? []) . ' devices',
-            $status['title'] ?? '');
+        // Log the *reason* a phase ended, not just a device count: a failed run
+        // used to be recorded as "0 devices", which hid the backend's error and
+        // made every failure look identical.
+        if ($state === 'completed') {
+            $detail = count($status['result']['devices'] ?? []) . ' devices';
+        } elseif ($state === 'failed') {
+            $detail = scan_error_detail($status, $code, $body);
+        } else {
+            $state  = 'failed';
+            $detail = scan_error_detail($status, $code, $body);
+        }
+        scan_log_push('device-scan', $devId, $state, $detail, $status['title'] ?? '');
         if ($state === 'completed') {
             $res = $status['result'] ?? [];
             $discovered = $res['devices'] ?? [];
@@ -239,15 +278,18 @@ function do_scan_completed(&$discovered, &$scanMessage, &$plan, &$importedIPs, &
                 if (($cCode === 202 || $cCode === 200) && !empty($cJson['scan_id'])) {
                     $_SESSION['connection_scan_id'] = $cJson['scan_id'];
                 } else {
-                    $scanMessage = 'Connection scan failed to start (HTTP ' . intval($cCode) . '): ' . htmlspecialchars($cBody ?: 'unknown error');
+                    $cJ = is_array($cJson) ? $cJson : [];
+                    $cMsg = trim((string) ($cJ['message'] ?? $cJ['error'] ?? $cBody));
+                    if ($cMsg === '') {
+                        $cMsg = 'the API returned an empty body';
+                    }
+                    $scanMessage = 'Connection scan failed to start (HTTP ' . intval($cCode) . '): ' . htmlspecialchars($cMsg);
+                    scan_log_push('conn-scan', '', 'failed',
+                        'start refused: HTTP ' . intval($cCode) . ' ' . $cMsg, '');
                 }
             }
-        } elseif ($state === 'failed') {
-            $scanMessage = 'Scan failed: ' . htmlspecialchars($status['error'] ?? 'unknown error');
-        } elseif ($state === '') {
-            // Backend doesn't know this run id (server restarted or recycled).
-            scan_log_push('device-scan', $devId, 'failed',
-                'run not found in backend registry', '');
+        } else {
+            $scanMessage = 'Scan failed: ' . htmlspecialchars($detail);
         }
     }
     $connId = $_SESSION['connection_scan_id'] ?? '';
@@ -260,14 +302,18 @@ function do_scan_completed(&$discovered, &$scanMessage, &$plan, &$importedIPs, &
         }
         $_SESSION['connection_scan_id'] = '';
         $r = $status['result'] ?? [];
-        scan_log_push('conn-scan', $connId, $state,
-            count($r['hosts'] ?? []) . ' hosts, ' . count($r['edges'] ?? []) . ' edges',
-            $status['title'] ?? '');
+        if ($state === 'completed') {
+            $detail = count($r['hosts'] ?? []) . ' hosts, ' . count($r['edges'] ?? []) . ' edges';
+        } else {
+            $state  = 'failed';
+            $detail = scan_error_detail($status, $code, $body);
+        }
+        scan_log_push('conn-scan', $connId, $state, $detail, $status['title'] ?? '');
         if ($state === 'completed') {
             $_SESSION['connections_result'] = $r;
             $result = $r;
-        } elseif ($state === 'failed') {
-            $scanMessage = trim($scanMessage . ' Connection scan failed: ' . htmlspecialchars($status['error'] ?? 'unknown error'));
+        } else {
+            $scanMessage = trim($scanMessage . ' Connection scan failed: ' . htmlspecialchars($detail));
         }
     }
     return '';
@@ -594,8 +640,10 @@ function scan_devices_discovered_panel_html($discovered, $importedIPs) {
     <p style="margin:4px 0; color:#777; font-size:0.85em;">
         <button type="button" id="cp-clear-queue" style="font-size:0.85em;">Reset queue + tombstones</button>
         <span>Clears the browser-side pending queue and the per-IP delete tombstones so a fresh scan repopulates the table.</span>
+    </p>
     <table border="1" cellpadding="4" cellspacing="0" class="discovered-devices">
         <thead><tr><th>Status</th><th>Name</th><th>IP</th><th>Brand</th><th>Model</th><th>Class</th><th></th></tr></thead>
+        <tbody>
             <?php if (empty($discovered)): ?>
                 <tr><td colspan="7" style="color:#777; text-align:center;">No pending devices. Run a scan from the Live scan panel to populate the queue.</td></tr>
             <?php else: ?>
@@ -612,6 +660,7 @@ function scan_devices_discovered_panel_html($discovered, $importedIPs) {
                                 <form method="post" action="import.php" style="margin:0; display:inline;">
                                     <input type="hidden" name="device_json" value="<?= htmlspecialchars(json_encode($d)) ?>">
                                     <button type="submit" name="do_analyze" value="1">Configure &amp; import &rarr;</button>
+                                </form>
                             <?php else: ?>&mdash;<?php endif; ?>
                         </td>
                     </tr>
@@ -620,45 +669,34 @@ function scan_devices_discovered_panel_html($discovered, $importedIPs) {
         </tbody>
     </table>
     <script>
+    // Server-rendered rows above are the no-JS fallback. pending-devices.js
+    // merges this payload into the browser-side queue on DOMContentLoaded and
+    // re-renders the tbody from it; this block only publishes the payload and
+    // wires the reset button. Keep the merge/render logic in one place — a
+    // second copy here is what previously left this script block unterminated
+    // and swallowed the rest of the results column.
     window.NSL_PENDING_INITIAL = <?= $initialJson ?>;
     window.NSL_PENDING_IMPORTED_IPS = <?= $importedJson ?>;
     (function () {
-        var init = function () {
-            if (window.nslPD && Array.isArray(window.NSL_PENDING_INITIAL)) {
-                window.nslPD.addAll(window.NSL_PENDING_INITIAL);
-                var body = document.querySelector('table.discovered-devices tbody');
-                if (body) window.nslPD.render(body, window.NSL_PENDING_IMPORTED_IPS || []);
-                var total = 0, pending = 0;
-                document.querySelectorAll('table.discovered-devices tbody tr').forEach(function (tr) {
-                    var cells = tr.children;
-                    if (cells.length === 1) return;
-                    total++;
-                    var status = (cells[0].textContent || '').trim();
-                    if (status === 'pending') pending++;
-                });
-                var tEl = document.querySelector('.discovered-total');
-                var pEl = document.querySelector('.discovered-pending');
-                if (tEl) tEl.textContent = total;
-                if (pEl) pEl.textContent = pending;
-            }
-        };
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', init);
-        } else {
-            init();
+        function wire() {
+            var resetBtn = document.getElementById('cp-clear-queue');
+            if (!resetBtn || !window.nslPD) return;
+            resetBtn.addEventListener('click', function () {
+                window.nslPD.clearTombstones();
+                window.nslPD.clear();
+                window.nslPD.syncFromServer(
+                    window.NSL_PENDING_INITIAL,
+                    window.NSL_PENDING_IMPORTED_IPS
+                );
+            });
         }
-        // Reset button: clears the browser-side queue + tombstones and
-        // re-runs the init so a fresh scan repopulates the table.
-        var resetBtn = document.getElementById('cp-clear-queue');
-        if (resetBtn) resetBtn.addEventListener('click', function () {
-            if (window.nslPD) {
-                if (window.nslPD.clearTombstones) window.nslPD.clearTombstones();
-                try { localStorage.removeItem(window.nslPD.KEY_QUEUE); } catch (e) {}
-            }
-            init();
-        });
-
-
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', wire);
+        } else {
+            wire();
+        }
+    })();
+    </script>
     <?php
     return ob_get_clean();
 }
