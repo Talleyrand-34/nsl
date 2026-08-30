@@ -83,16 +83,13 @@ if (isset($_GET['clear'])) {
         $_SESSION['connections_result'],
         $_SESSION['device_scan_id'],
         $_SESSION['connection_scan_id'],
-        $_SESSION['scan_followup']
+        $_SESSION['scan_followup'],
+        $_SESSION['scan_log']
     );
     $discovered = [];
     $importedIPs = [];
     $result = null;
 }
-
-// ---------------------------------------------------------------------------
-// Dispatch.
-// ---------------------------------------------------------------------------
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['do_create_profile'])) {
@@ -122,7 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
-    $scanRunId = do_scan_completed($discovered, $scanMessage, $plan, $importedIPs, $importMessage);
+    $scanRunId = do_scan_completed($discovered, $scanMessage, $plan, $importedIPs, $importMessage, $result);
     // Connection follow-up (when also_connections was set) is handled inside
     // do_scan_completed; it returns whichever scan is still running so the
     // status panel keeps watching it.
@@ -198,10 +195,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['scan_id'])) {
         <input type="file" name="scanfile" accept=".json,application/json" required>
         <button type="submit" name="do_upload" value="1">Upload &amp; import</button>
       </form>
-    </section>
 
+    <?= scan_activity_panel_html() ?>
   </div>
 </div>
 
 <script src="import-accordion.js"></script>
-<script src="pending-devices.js"></script>

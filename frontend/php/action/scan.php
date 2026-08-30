@@ -186,15 +186,19 @@ function do_scan(&$scanMessage, &$scanRunId, &$autoReload) {
                 'timeout'   => $f['timeout'],
             ]
             : null;
+        scan_log_push('device-scan', $j['scan_id'], 'started',
+            $source . ' ' . $method . ' ' . $target, $method . ' ' . $target);
     } else {
         $scanMessage = 'Could not start scan (HTTP ' . intval($code) . '): ' . htmlspecialchars($body ?: $err);
+        scan_log_push('device-scan', '', 'failed',
+            'HTTP ' . intval($code) . ' ' . ($body ?: $err), $method . ' ' . $target);
     }
 }
 
 // do_scan_completed advances any in-flight async scans and folds their results
 // into the session. Returns the scan_id of a scan that is still running (so
 // the status panel keeps watching it), or '' when everything has settled.
-function do_scan_completed(&$discovered, &$scanMessage, &$plan, &$importedIPs, &$importMessage) {
+function do_scan_completed(&$discovered, &$scanMessage, &$plan, &$importedIPs, &$importMessage, &$result) {
     // 1. Device scan.
     $devId = $_SESSION['device_scan_id'] ?? '';
     if ($devId !== '') {
@@ -205,6 +209,9 @@ function do_scan_completed(&$discovered, &$scanMessage, &$plan, &$importedIPs, &
             return $devId;
         }
         $_SESSION['device_scan_id'] = '';
+        scan_log_push('device-scan', $devId, $state,
+            count($status['result']['devices'] ?? []) . ' devices',
+            $status['title'] ?? '');
         if ($state === 'completed') {
             $res = $status['result'] ?? [];
             $discovered = $res['devices'] ?? [];
@@ -237,10 +244,12 @@ function do_scan_completed(&$discovered, &$scanMessage, &$plan, &$importedIPs, &
             }
         } elseif ($state === 'failed') {
             $scanMessage = 'Scan failed: ' . htmlspecialchars($status['error'] ?? 'unknown error');
+        } elseif ($state === '') {
+            // Backend doesn't know this run id (server restarted or recycled).
+            scan_log_push('device-scan', $devId, 'failed',
+                'run not found in backend registry', '');
         }
     }
-
-    // 2. Chained connection scan.
     $connId = $_SESSION['connection_scan_id'] ?? '';
     if ($connId !== '') {
         list($code, $body) = api_method('GET', SCAN_STATUS_ENDPOINT . '?scan_id=' . urlencode($connId));
@@ -250,8 +259,13 @@ function do_scan_completed(&$discovered, &$scanMessage, &$plan, &$importedIPs, &
             return $connId;
         }
         $_SESSION['connection_scan_id'] = '';
+        $r = $status['result'] ?? [];
+        scan_log_push('conn-scan', $connId, $state,
+            count($r['hosts'] ?? []) . ' hosts, ' . count($r['edges'] ?? []) . ' edges',
+            $status['title'] ?? '');
         if ($state === 'completed') {
-            $_SESSION['connections_result'] = $status['result'] ?? [];
+            $_SESSION['connections_result'] = $r;
+            $result = $r;
         } elseif ($state === 'failed') {
             $scanMessage = trim($scanMessage . ' Connection scan failed: ' . htmlspecialchars($status['error'] ?? 'unknown error'));
         }
@@ -280,8 +294,12 @@ function do_analyze(&$plan, &$scanMessage) {
     $device = json_decode($_POST['device_json'] ?? 'null', true);
     if ($device) {
         $plan = analyze_device($device, $scanMessage);
+        $ip = $device['device']['ip'] ?? '';
+        scan_log_push('analyze', '', $plan ? 'completed' : 'failed',
+            ($plan ? 'plan generated' : 'no plan: ' . $scanMessage) . ' ' . $ip, $ip);
     } else {
         $scanMessage = 'Invalid device payload.';
+        scan_log_push('analyze', '', 'failed', 'invalid device payload');
     }
 }
 
@@ -312,9 +330,9 @@ function do_execute(&$plan, &$importMessage, &$importedIPs) {
     }
     $payload = json_encode(['plan' => $editedPlan, 'options' => ['default_zone' => 'Discovered']]);
     list($code, $body, $err) = api_post_json(SCAN_EXECUTE_ENDPOINT, $payload);
+    $ip = (string) ($editedPlan['device']['device']['ip'] ?? '');
     if ($code === 200) {
         $importMessage = json_decode($body, true)['message'] ?? 'Import completed.';
-        $ip = $editedPlan['device']['device']['ip'] ?? '';
         if ($ip !== '') {
             $importedIPs[] = $ip;
             if (!isset($_SESSION['scan_imported'])) {
@@ -324,9 +342,12 @@ function do_execute(&$plan, &$importMessage, &$importedIPs) {
                 array_merge($_SESSION['scan_imported'], $importedIPs)
             ));
         }
+        scan_log_push('execute', '', 'completed', 'imported ' . $ip, $ip);
     } else {
         $detail = json_decode($body, true)['message'] ?? ($body ?: $err);
         $importMessage = 'Import failed (HTTP ' . intval($code) . '): ' . htmlspecialchars($detail);
+        scan_log_push('execute', '', 'failed',
+            'HTTP ' . intval($code) . ' ' . $detail, $ip);
     }
 }
 

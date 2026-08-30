@@ -29,6 +29,11 @@ function do_upload(&$importMessage) {
     $importMessage = ($code === 200)
         ? (json_decode($body, true)['message'] ?? 'Import completed.')
         : 'Import failed (HTTP ' . intval($code) . '): ' . htmlspecialchars($body ?: $err);
+    if ($code === 200) {
+        scan_log_push('upload', '', 'completed', $importMessage);
+    } else {
+        scan_log_push('upload', '', 'failed', 'HTTP ' . intval($code) . ' ' . ($body ?: $err));
+    }
 }
 
 // --- panel -------------------------------------------------------------------
