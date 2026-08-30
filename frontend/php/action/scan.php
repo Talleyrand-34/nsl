@@ -618,6 +618,11 @@ function scan_devices_discovered_panel_html($discovered, $importedIPs) {
             init();
         });
      })();
+    </script>
+
+    <?php
+    return ob_get_clean();
+}
 
 function scan_devices_plan_panel_html($plan) {
     if ($plan === null) {
