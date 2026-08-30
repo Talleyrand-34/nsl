@@ -255,6 +255,10 @@ function do_scan_completed(&$discovered, &$scanMessage, &$plan, &$importedIPs, &
             $res = $status['result'] ?? [];
             $discovered = $res['devices'] ?? [];
             $_SESSION['scan_discovered'] = $discovered;
+            // Which run this payload came from. The browser-side pending queue
+            // is scoped to it, so a new run resets the queue + tombstones
+            // instead of filtering the fresh discovery through stale ones.
+            $_SESSION['scan_discovered_run'] = $devId;
             // Optional chained connection scan, kicked off exactly once.
             $follow = $_SESSION['scan_followup'] ?? null;
             if (is_array($follow)) {
@@ -634,6 +638,17 @@ function scan_devices_discovered_panel_html($discovered, $importedIPs) {
     }
     $initialJson = json_encode(array_values($discovered ?: []));
     $importedJson = json_encode($importedIPs);
+    // Run id this payload belongs to. When the session has lost it (or the
+    // devices came from an upload rather than a run), fall back to a
+    // fingerprint of the IP set: stable across reloads of the same result,
+    // different as soon as the result is.
+    $runId = (string) ($_SESSION['scan_discovered_run'] ?? '');
+    if ($runId === '') {
+        $ips = array_map('dev_ip', $discovered ?: []);
+        sort($ips);
+        $runId = $ips ? 'fp-' . substr(sha1(implode(',', $ips)), 0, 12) : '';
+    }
+    $runJson = json_encode($runId);
     ob_start();
     ?>
     <h4>Discovered devices (<span class="discovered-total"><?= count($discovered) ?></span> total, <span class="discovered-pending"><?= $pending ?></span> pending)</h4>
@@ -677,6 +692,7 @@ function scan_devices_discovered_panel_html($discovered, $importedIPs) {
     // and swallowed the rest of the results column.
     window.NSL_PENDING_INITIAL = <?= $initialJson ?>;
     window.NSL_PENDING_IMPORTED_IPS = <?= $importedJson ?>;
+    window.NSL_PENDING_RUN_ID = <?= $runJson ?>;
     (function () {
         function wire() {
             var resetBtn = document.getElementById('cp-clear-queue');
@@ -686,7 +702,8 @@ function scan_devices_discovered_panel_html($discovered, $importedIPs) {
                 window.nslPD.clear();
                 window.nslPD.syncFromServer(
                     window.NSL_PENDING_INITIAL,
-                    window.NSL_PENDING_IMPORTED_IPS
+                    window.NSL_PENDING_IMPORTED_IPS,
+                    window.NSL_PENDING_RUN_ID
                 );
             });
         }

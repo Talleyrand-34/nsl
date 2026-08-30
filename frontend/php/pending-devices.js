@@ -2,12 +2,20 @@
 // pending-devices.js — browser-side queue of discovered-but-not-yet-imported
 // devices.
 //
-// Storage: two localStorage keys:
+// Storage: three localStorage keys:
 //   "nsl.pendingDevices"  = JSON array of discovered-device objects.
 //   "nsl.pendingDeleted"  = JSON array of IPs the operator explicitly
 //                            deleted. NSL_PENDING_INITIAL on the next page
 //                            load must skip these IPs (otherwise Delete
 //                            gets undone by the very next reload).
+//   "nsl.pendingRun"      = the scan run id the two keys above belong to.
+//                            Both are SCOPED TO ONE RUN: a Delete means
+//                            "not in this batch", not "never again", so a
+//                            new run drops the queue and its tombstones and
+//                            starts from what the server just discovered.
+//                            Without this a deleted IP could never come back
+//                            from any later scan, and the table would come up
+//                            empty while the log said N devices were found.
 //
 // Lifecycle:
 //   - A scan completes → dispatcher emits NSL_PENDING_INITIAL → JS init
@@ -23,6 +31,7 @@
 (function () {
   var KEY_QUEUE = 'nsl.pendingDevices';
   var KEY_TOMBSTONES = 'nsl.pendingDeleted';
+  var KEY_RUN = 'nsl.pendingRun';
 
   function readJSON(key) {
     try {
@@ -34,6 +43,16 @@
       console.warn(key + ': failed to read, resetting', e);
       return [];
     }
+  }
+
+  function readRaw(key) {
+    try { return localStorage.getItem(key); }
+    catch (e) { return null; }
+  }
+
+  function writeRaw(key, value) {
+    try { localStorage.setItem(key, value); }
+    catch (e) { console.warn(key + ': failed to write', e); }
   }
 
   function writeJSON(key, value) {
@@ -71,6 +90,7 @@
   var nslPD = {
     KEY_QUEUE: KEY_QUEUE,
     KEY_TOMBSTONES: KEY_TOMBSTONES,
+    KEY_RUN: KEY_RUN,
     list: readQueue,
     tombstones: readTombstones,
 
@@ -132,16 +152,25 @@
     // queue and repaints the table + heading counts. The auto-init below and
     // the "Reset queue + tombstones" button both go through this, so the
     // merge/render/count logic exists exactly once.
-    syncFromServer: function (initial, importedIps) {
+    syncFromServer: function (initial, importedIps, runId) {
       var body = document.querySelector('table.discovered-devices tbody');
       if (!body) return 0;
+
+      // A new scan run supersedes whatever the browser was holding. Dropping
+      // the queue and the tombstones here is what keeps Delete scoped to one
+      // batch — otherwise a tombstone from an earlier run silently filters the
+      // device out of every scan that follows.
+      if (runId && readRaw(KEY_RUN) !== runId) {
+        writeQueue([]);
+        clearTombstones();
+        writeRaw(KEY_RUN, runId);
+      }
 
       var imported = Array.isArray(importedIps) ? importedIps : [];
       imported.forEach(function (ip) { if (ip) nslPD.removeByIp(ip); });
 
-      // Filter the server's fresh discovery against tombstones BEFORE adding.
-      // Without this, every page load re-adds devices the operator already
-      // deleted.
+      // Filter the server's discovery against tombstones BEFORE adding, so a
+      // Delete survives a plain page reload within the same run.
       var tombstones = readTombstones();
       var list = Array.isArray(initial) ? initial : [];
       var filtered = list.filter(function (d) {
@@ -150,7 +179,15 @@
       });
       if (filtered.length) nslPD.addAll(filtered);
 
-      nslPD.render(body, imported);
+      // Distinguish "the scan found nothing" from "you deleted everything it
+      // found" — the two look identical otherwise, and the second one reads as
+      // a broken page when the activity log says N devices were discovered.
+      var empty = list.length
+        ? 'All ' + list.length + ' discovered device(s) are hidden by a Delete. ' +
+          'Use "Reset queue + tombstones" above to bring them back.'
+        : 'No pending devices. Run a scan from the Live scan panel to populate the queue.';
+
+      nslPD.render(body, imported, empty);
       nslPD.updateCounts(body);
       return readQueue().length;
     },
@@ -171,7 +208,7 @@
       if (pEl) pEl.textContent = pending;
     },
 
-    render: function (tableBody, importedIps) {
+    render: function (tableBody, importedIps, emptyMessage) {
       var list = readQueue();
       var imported = {};
       (importedIps || []).forEach(function (ip) { if (ip) imported[ip] = true; });
@@ -182,7 +219,8 @@
         cell.colSpan = 7;
         cell.style.color = '#777';
         cell.style.textAlign = 'center';
-        cell.textContent = 'No pending devices. Run a scan from the left column to populate the queue.';
+        cell.textContent = emptyMessage ||
+          'No pending devices. Run a scan from the Live scan panel to populate the queue.';
         row.appendChild(cell);
         tableBody.appendChild(row);
         return list.length;
@@ -255,6 +293,10 @@
   //   4. Re-render the table from localStorage.
   //   5. Update the heading counts.
   document.addEventListener('DOMContentLoaded', function () {
-    nslPD.syncFromServer(window.NSL_PENDING_INITIAL, window.NSL_PENDING_IMPORTED_IPS);
+    nslPD.syncFromServer(
+      window.NSL_PENDING_INITIAL,
+      window.NSL_PENDING_IMPORTED_IPS,
+      window.NSL_PENDING_RUN_ID
+    );
   });
 })();

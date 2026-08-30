@@ -79,6 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['do_load_profile'])) {
 if (isset($_GET['clear'])) {
     unset(
         $_SESSION['scan_discovered'],
+        $_SESSION['scan_discovered_run'],
         $_SESSION['scan_imported'],
         $_SESSION['connections_result'],
         $_SESSION['device_scan_id'],
