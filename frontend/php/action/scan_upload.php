@@ -1,5 +1,5 @@
 <?php
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // scan_upload.php — action handler + panel for "upload a scan-result JSON
 // file". The handler POSTs the file contents to SCAN_IMPORT_FILE_ENDPOINT
 // (/scan/import-file). On success the operator gets a summary message.

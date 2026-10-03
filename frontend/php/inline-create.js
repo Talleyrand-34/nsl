@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2025 Talleyrand-34 (t34@t34.dev)
+//
+// This file is part of NSL-Graph, released under the AGPL-3.0.
+
 // Inline recursive "create object" for the Dashboard add/update forms.
 //
 // Every composed field (a <select> that references another entity) gets a

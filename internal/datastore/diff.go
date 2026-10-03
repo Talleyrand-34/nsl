@@ -1,4 +1,5 @@
 // diff.go: compare two canonical trees — what the network should be against what it is.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 package datastore
 
 /*

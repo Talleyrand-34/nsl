@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Package system wraps OPNsense /api/system/general endpoints.
 package system
 

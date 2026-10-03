@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Package routing wraps the OPNsense /api/routing/settings/* endpoints.
 //
 // The push pipeline needs gateway-name → IP resolution to build the route

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // import-accordion.js — one-card-open-at-a-time accordion for the left
 // column of import.php. Each `.accordion-card` group is named by the
 // parent `[data-accordion]` value; clicking a header toggles that card and

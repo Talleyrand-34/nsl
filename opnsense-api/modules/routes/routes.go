@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Package routes wraps the OPNsense /api/routes/routes/* endpoints.
 //
 // The real OPNsense endpoint is /api/routes/routes/addroute (singular verb),

@@ -3,6 +3,11 @@
 // A push that violates the nsl-topology model invariants is rejected *before*
 // any network I/O. The rule mirror: the same constraint that datastore.Validate
 // enforces at the link-layer is enforced here at the port/VLAN layer.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2025 Talleyrand-34 (t34@t34.dev)
+//
+// This file is part of NSL-Graph, released under the AGPL-3.0.
+
 package push
 
 import (

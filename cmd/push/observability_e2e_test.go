@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // observability_e2e_test.go: end-to-end tests for NTP, banner, LLDP, syslog, SNMP push.
 package cmd_push_test
 

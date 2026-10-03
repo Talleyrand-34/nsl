@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2025 Talleyrand-34 (t34@t34.dev)
+//
+// This file is part of NSL-Graph, released under the AGPL-3.0.
+
 // Package yang_test asserts that what the mapper actually emits conforms to the
 // standard YANG models -- not merely that the modules parse.
 //

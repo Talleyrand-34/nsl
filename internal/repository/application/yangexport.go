@@ -1,5 +1,6 @@
 // yangexport.go: exports the specification as RFC 7951 JSON, conforming to the
 // YANG modules in internal/yang/modules.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 package application
 
 /*

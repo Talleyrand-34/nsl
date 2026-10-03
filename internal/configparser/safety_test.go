@@ -3,6 +3,11 @@
 // Every write API (renderer.Render, cmd/push/*) takes a SafetyLevel. The rule is:
 //
 //	zero value == SafetyDryRun. A miscompiled binary that drops the flag must NOT apply.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2025 Talleyrand-34 (t34@t34.dev)
+//
+// This file is part of NSL-Graph, released under the AGPL-3.0.
+
 package configparser
 
 import "testing"

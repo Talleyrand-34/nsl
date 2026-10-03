@@ -1,4 +1,5 @@
 // fortinet.go: the FortiGate parser, written against a real FortiOS 6.0 box.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 package parsers
 
 /*

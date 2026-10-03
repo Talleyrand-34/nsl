@@ -1,4 +1,5 @@
 // infix.go: the one parser that reads a datastore instead of a CLI dialect.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 package parsers
 
 /*

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // opnsense_renderer.go: OPNsense renderer speaking the REST API.
 package parsers
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // routes_test.go: TDD for the OPNsense routes wrapper.
 package routes
 

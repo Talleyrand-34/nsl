@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // openwrt_renderer_test.go: TDD for the OpenWrt UCI renderer's route path.
 package parsers
 

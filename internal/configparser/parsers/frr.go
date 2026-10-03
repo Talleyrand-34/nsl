@@ -1,4 +1,5 @@
 // frr.go: one FRR config parser, shared by every OS that delegates routing to FRR.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 package parsers
 
 /*

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Package opnsenseapi adapts the github.com/t34/opnsense-api client to the
 // nsl-graph Transport / Session seam.
 package opnsenseapi

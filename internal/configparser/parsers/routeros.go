@@ -1,4 +1,5 @@
 // routeros.go: MikroTik RouterOS, read through `print terse`.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 package parsers
 
 /*

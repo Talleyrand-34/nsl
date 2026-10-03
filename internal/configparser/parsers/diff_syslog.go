@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // diff_syslog.go: shared diff logic for syslog configuration.
 package parsers
 

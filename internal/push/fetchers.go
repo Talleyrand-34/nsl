@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // fetchers.go: per-OS strategies for fetching the device's currently-running
 // config (LiveConfig) and its native raw bytes (RawFetcher).
 //

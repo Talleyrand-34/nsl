@@ -1,4 +1,5 @@
 // transport.go: the seam between HOW we reach a device and WHAT we say to it.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 package configparser
 
 /*

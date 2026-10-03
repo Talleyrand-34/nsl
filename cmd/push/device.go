@@ -3,6 +3,11 @@
 // One device at a time. The engine loads the intended ConfigData from the DB
 // (Phase 4 + YANG projection), fetches the observed one over SSH, runs the
 // renderer.Diff and either reports (dry-run) or applies the patch.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2025 Talleyrand-34 (t34@t34.dev)
+//
+// This file is part of NSL-Graph, released under the AGPL-3.0.
+
 package cmd_push
 
 import (

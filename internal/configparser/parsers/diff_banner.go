@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // diff_banner.go: shared diff logic for banner configuration.
 package parsers
 

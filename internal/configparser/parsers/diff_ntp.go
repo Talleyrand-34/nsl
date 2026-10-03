@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // diff_ntp.go: additive NTP diff. Emits one change per server delta so
 // the renderer can do `add_list` / `del_list` instead of `uci del`
 // followed by a full replace — preserving the device's original NTP

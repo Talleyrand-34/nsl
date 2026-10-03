@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // types_lldp.go: LLDP-transmit settings model.
 package configparser
 

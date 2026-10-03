@@ -1,5 +1,10 @@
 
 <?php
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2025 Talleyrand-34 (t34@t34.dev)
+//
+// This file is part of NSL-Graph, released under the AGPL-3.0.
+
 // config.php
 /* define('API_BASE_URL', 'http://localhost:8081'); */
 // Default API base URL

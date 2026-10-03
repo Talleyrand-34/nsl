@@ -1,5 +1,5 @@
 <?php
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // scan.php — unified live scan panel (Phase 1 of docs/plans/SCAN-REFACTOR.md).
 //
 // Replaces the old scan_devices.php + scan_connections.php pair. The unified

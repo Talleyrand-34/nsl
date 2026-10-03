@@ -1,4 +1,5 @@
 // neighbors.go: asking each vendor for its neighbour table in its own language.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 package topology
 
 /*

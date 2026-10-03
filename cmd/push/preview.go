@@ -3,6 +3,11 @@
 // Read-only. Produces the rendered patch (Diff + per-change Patch lines) so an
 // operator can eyeball what would happen before committing. There is no --apply
 // flag — preview IS the dry-run.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2025 Talleyrand-34 (t34@t34.dev)
+//
+// This file is part of NSL-Graph, released under the AGPL-3.0.
+
 package cmd_push
 
 import (

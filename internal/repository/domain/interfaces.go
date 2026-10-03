@@ -1,4 +1,5 @@
 // Package domain set ups the interface for implementations for operations with the repository
+// SPDX-License-Identifier: AGPL-3.0-or-later
 package domain
 
 /*

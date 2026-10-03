@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // opnsense_renderer_test.go: TDD for the OPNsense renderer end-to-end.
 // Covers the fetch-observed → diff → applyChange → commit sequence for both
 // VLANs (existing) and routes (new).

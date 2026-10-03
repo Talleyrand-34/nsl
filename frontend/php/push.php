@@ -1,5 +1,5 @@
 <?php
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // push.php — third tab in the app: Push config.
 //
 // Two-column layout, mirroring import.php:

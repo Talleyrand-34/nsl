@@ -1,5 +1,5 @@
 <?php
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // push_actions.php — dispatcher + two-column layout for push.php.
 //
 // Phase 2: skeleton. Phases 5–6 fill the panels.

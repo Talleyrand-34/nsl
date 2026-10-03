@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // repository_memory.go: in-memory PushRepository for tests.
 //
 // Concrete tests wire this up so the Service layer exercises the real

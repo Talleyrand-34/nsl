@@ -3,6 +3,11 @@
 // Every vendor already knows how to READ config (Fetch + ParseConfig). This package
 // gives them the ability to WRITE it back — a Diff and an Apply that speak the device's
 // native grammar via the same Session interface.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2025 Talleyrand-34 (t34@t34.dev)
+//
+// This file is part of NSL-Graph, released under the AGPL-3.0.
+
 package configparser
 
 import (

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // opnsense_e2e_test.go: end-to-end tests for the OPNsense push path.
 package cmd_push_test
 

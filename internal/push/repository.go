@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // repository.go: PushRepository is the storage seam for the push pipeline.
 //
 // The push pipeline needs three things to land a single Apply:

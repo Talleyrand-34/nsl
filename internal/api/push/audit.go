@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /*
 Copyright © 2026 Talleyrand-34 (t34@t34.dev)
 This program is free software: you can redistribute it and/or modify

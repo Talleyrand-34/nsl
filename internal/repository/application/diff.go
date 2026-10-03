@@ -1,4 +1,5 @@
 // diff.go: compare the specification against what a scan actually found.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 package application
 
 /*

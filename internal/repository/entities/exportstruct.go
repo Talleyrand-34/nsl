@@ -1,4 +1,5 @@
 // exportstruct.go: Contains helper structs for exporting data.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 package entities
 
 /*

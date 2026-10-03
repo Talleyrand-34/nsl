@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // service.go: the canonical entry point for the push pipeline.
 //
 // Service is the single surface the HTTP API and the cobra CLI both call

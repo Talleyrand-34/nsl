@@ -1,5 +1,5 @@
 <?php
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // connections.php — backward-compat redirect.
 //
 // After phase 3 the connection scan lives inside import.php's unified

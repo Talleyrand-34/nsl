@@ -1,5 +1,5 @@
 <?php
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // importscan.php — dispatcher + two-column layout for the unified import
 // page.
 //

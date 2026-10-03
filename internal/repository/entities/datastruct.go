@@ -1,6 +1,7 @@
 // Package entities contains the structs needed for the processing of sql queries
 //
 // datastruct.go: Contains core data structures for SQL query processing.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 package entities
 
 /*

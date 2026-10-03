@@ -2,6 +2,11 @@
 // renderer's Diff(). The engine is vendor-agnostic — its job is to pick the
 // right renderer for an OS type, call Diff on it, and assemble the rendered
 // patch (the human-readable text the operator sees in `nsl-graph push preview`).
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2025 Talleyrand-34 (t34@t34.dev)
+//
+// This file is part of NSL-Graph, released under the AGPL-3.0.
+
 package push
 
 import (

@@ -1,5 +1,5 @@
 <?php
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // scan_profiles.php — profile CRUD + saved-profiles table + create-profile
 // form. Three POSTs feed this: do_create_profile, do_delete_profile,
 // do_load_profile. The dispatcher in importscan.php passes $profiles and

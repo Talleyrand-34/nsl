@@ -6,6 +6,11 @@
 //   - push preview --device <id>   (read-only)
 //
 // Every command defaults to dry-run. --apply is required for any mutation.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2025 Talleyrand-34 (t34@t34.dev)
+//
+// This file is part of NSL-Graph, released under the AGPL-3.0.
+
 package cmd_push
 
 import (

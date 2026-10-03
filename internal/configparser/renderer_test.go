@@ -4,6 +4,11 @@
 // The renderer mirrors ConfigParser: it knows WHAT to say to a device and what to
 // compute as a diff. It does not know HOW to reach the device -- that is the
 // Transport's job, and it is reused as-is from transport.go.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2025 Talleyrand-34 (t34@t34.dev)
+//
+// This file is part of NSL-Graph, released under the AGPL-3.0.
+
 package configparser
 
 import (

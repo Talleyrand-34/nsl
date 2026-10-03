@@ -1,5 +1,5 @@
 <?php
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // push_topology_panel.php — right column of push.php.
 //
 // Phase 6 wires the inline D2 render of the selected device + 1-hop

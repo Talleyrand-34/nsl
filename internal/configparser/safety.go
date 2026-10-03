@@ -15,6 +15,11 @@
 // The zero value MUST be SafetyDryRun. A miscompiled caller that drops the flag falls
 // back to "report only", not "apply silently". See internal/configparser/safety_test.go
 // for the test that pins this contract.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2025 Talleyrand-34 (t34@t34.dev)
+//
+// This file is part of NSL-Graph, released under the AGPL-3.0.
+
 package configparser
 
 import (

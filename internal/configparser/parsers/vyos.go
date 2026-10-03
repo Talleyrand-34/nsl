@@ -1,4 +1,5 @@
 // vyos.go: the VyOS parser, driven by the declarative /config/config.boot.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 package parsers
 
 /*

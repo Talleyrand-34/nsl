@@ -1,5 +1,5 @@
 <?php
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // import_common.php — shared helpers for the unified import page (and
 // its backward-compat redirect from the old connections.php URL).
 //

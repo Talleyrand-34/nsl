@@ -1,5 +1,10 @@
 // safety.go: the safety floor — pre-push snapshot, audit log, abort on backup
 // failure. Lives in package push because every push goes through it.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2025 Talleyrand-34 (t34@t34.dev)
+//
+// This file is part of NSL-Graph, released under the AGPL-3.0.
+
 package push
 
 import (

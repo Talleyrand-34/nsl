@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2025 Talleyrand-34 (t34@t34.dev)
+//
+// This file is part of NSL-Graph, released under the AGPL-3.0.
+
 // Credential-vault control for the app bar. The vault is a single server-side
 // store: a master passphrase unlocks the data key (held in server memory) so
 // stored SSH secrets can be encrypted/decrypted without re-entering it. This

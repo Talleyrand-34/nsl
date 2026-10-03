@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // openwrt_renderer.go: OpenWrt UCI renderer for nsl-graph push.
 package parsers
 

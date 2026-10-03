@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Package ntp wraps the OPNsense /api/ntp/settings endpoints.
 package ntp
 

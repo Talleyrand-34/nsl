@@ -1,5 +1,6 @@
 // observed.go: project a scan result onto the canonical tree — what the network IS,
 // as opposed to what the specification says it should be.
+// SPDX-License-Identifier: AGPL-3.0-or-later
 package mapping
 
 /*

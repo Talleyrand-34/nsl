@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2025 Talleyrand-34 (t34@t34.dev)
+//
+// This file is part of NSL-Graph, released under the AGPL-3.0.
+
 // Package datastore applies NETCONF's discipline to NSL-Graph's own database, without
 // implementing any of NETCONF's protocol.
 //

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Package firewall wraps the OPNsense /api/firewall/* endpoints.
 // Phase 1: stub only — interfaces and routes are wired.
 package firewall

@@ -1,5 +1,5 @@
 <?php
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // push_preview_panel.php — left column of push.php.
 //
 // Device picker + intent editor + four buttons (Preview, Dry-run, Apply,

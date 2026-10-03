@@ -14,6 +14,11 @@
 //   4. Runs Render(SafetyDryRun) — must succeed with zero SSH commands.
 //   5. (Staged only, off by default) Render(SafetyStaged) writes a patch file.
 //   6. (Apply only, off by default) Render(SafetyApply) would mutate the device.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2025 Talleyrand-34 (t34@t34.dev)
+//
+// This file is part of NSL-Graph, released under the AGPL-3.0.
+
 
 package cmd_push_test
 

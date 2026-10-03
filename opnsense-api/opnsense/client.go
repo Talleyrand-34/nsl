@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // Package opnsense is a hand-rolled Go client for the OPNsense REST API.
 package opnsense
 

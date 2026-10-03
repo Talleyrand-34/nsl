@@ -3,6 +3,11 @@
 // The engine is the bridge between the read side (intented ConfigData) and the
 // renderer's Diff(). Tests use a fake renderer so the engine logic itself is
 // under test, not the per-vendor grammar.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2025 Talleyrand-34 (t34@t34.dev)
+//
+// This file is part of NSL-Graph, released under the AGPL-3.0.
+
 package push
 
 import (

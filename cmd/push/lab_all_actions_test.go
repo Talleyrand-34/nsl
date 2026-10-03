@@ -25,6 +25,11 @@
 // Syslog and banner are skipped: the renderer's syslog path wipes
 // the entire cfg001 syslog section in one go (not additive), and
 // the banner path rewrites /etc/issue.net in full.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2025 Talleyrand-34 (t34@t34.dev)
+//
+// This file is part of NSL-Graph, released under the AGPL-3.0.
+
 package cmd_push_test
 
 import (
